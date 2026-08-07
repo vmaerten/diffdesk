@@ -158,6 +158,11 @@ export async function diffFromMergeBase(
  *
  * Not from the parsed patch: `additionLines` / `deletionLines` hold each side of
  * the hunk *including context*, which reported +388 on a diff git counts as +172.
+ *
+ * `-z` is not only about quoting. Without it a rename is one line reading
+ * `0\t0\told => new`, and that arrow is a path no other source agrees with — not
+ * the patch, not `--name-status`. With it, the record ends after the counts and
+ * the two paths follow as their own fields.
  */
 export async function numstat(
   repoPath: string,
@@ -166,19 +171,31 @@ export async function numstat(
 ): Promise<FileCounts[]> {
   const out = await git(
     repoPath,
-    ['diff', '--merge-base', base, ...(target ? [target] : []), '--numstat', '--no-color'],
+    ['diff', '--merge-base', base, ...(target ? [target] : []), '--numstat', '-z', '--no-color'],
     { allowFailure: true },
   )
 
   const files: FileCounts[] = []
-  for (const line of out.split('\n')) {
-    if (!line.trim()) continue
-    const [additions, deletions, path] = line.split('\t')
-    if (additions === undefined || deletions === undefined || path === undefined) continue
+  const fields = out.split('\0')
+  for (let i = 0; i < fields.length;) {
+    const record = fields[i++]
+    if (!record) continue
+    const [additions, deletions, path] = record.split('\t')
+    if (additions === undefined || deletions === undefined) continue
+
+    // An empty path means a rename: the old and new ones follow. The new one is
+    // what the patch and the tree name it.
+    let resolved = path
+    if (!resolved) {
+      i++
+      resolved = fields[i++]
+    }
+    if (!resolved) continue
+
     // Binary files are reported as "-\t-\t<path>".
     const binary = additions === '-'
     files.push({
-      path,
+      path: resolved,
       additions: binary ? 0 : Number.parseInt(additions, 10),
       deletions: binary ? 0 : Number.parseInt(deletions, 10),
       binary,

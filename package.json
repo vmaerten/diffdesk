@@ -15,11 +15,12 @@
     "build": "vite build",
     "dev": "vite",
     "ghl": "node ./bin/ghl.ts",
+    "test": "pnpm build && node ./test/run.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint bin src web/src vite.config.js",
-    "lint:fix": "oxlint --fix bin src web/src vite.config.js",
-    "format": "oxfmt bin src web/src vite.config.js",
-    "format:check": "oxfmt --check bin src web/src vite.config.js"
+    "lint": "oxlint bin src test web/src vite.config.js",
+    "lint:fix": "oxlint --fix bin src test web/src vite.config.js",
+    "format": "oxfmt bin src test web/src vite.config.js",
+    "format:check": "oxfmt --check bin src test web/src vite.config.js"
   },
   "dependencies": {
     "@pierre/diffs": "^1.3.5",
@@ -37,6 +38,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "oxfmt": "^0.62.0",
     "oxlint": "^1.77.0",
+    "puppeteer-core": "^25.5.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.1"
   }
