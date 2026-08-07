@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "import", "promise", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }]
+  },
+  "ignorePatterns": ["web-dist", "node_modules"],
+  "overrides": [
+    {
+      "files": ["bin/**", "src/**", "vite.config.js"],
+      "env": { "node": true, "es2024": true }
+    },
+    {
+      "files": ["web/**"],
+      "env": { "browser": true, "es2024": true }
+    }
+  ]
+}

@@ -175,14 +175,15 @@ export default function App() {
   const goTo = useCallback(
     (index) => {
       const bounded = Math.max(0, Math.min(index, items.length - 1))
-      const target = items[bounded]
-      if (!target) return
+      // Not `target`: that name already means the revision under review.
+      const item = items[bounded]
+      if (!item) return
       setActiveIndex(bounded)
 
       // The tree folds directories, so ask it to bring the file back into view
       // rather than moving the selection somewhere invisible.
-      treeRef.current?.reveal(target.path)
-      viewRef.current?.scrollTo({ type: 'item', id: target.id, align: 'start' })
+      treeRef.current?.reveal(item.path)
+      viewRef.current?.scrollTo({ type: 'item', id: item.id, align: 'start' })
     },
     [items]
   )

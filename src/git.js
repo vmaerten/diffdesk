@@ -24,7 +24,7 @@ export async function git(repoPath, args, { allowFailure = false } = {}) {
     // `git diff` exits 1 when there are differences, which is not a failure.
     if (allowFailure) return error.stdout ?? ''
     const detail = error.stderr?.trim() || error.message
-    throw new Error(`git ${args.join(' ')} failed in ${repoPath}: ${detail}`)
+    throw new Error(`git ${args.join(' ')} failed in ${repoPath}: ${detail}`, { cause: error })
   }
 }
 
