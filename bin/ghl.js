@@ -8,7 +8,10 @@ import { createGhlServer, listen, repoIdFor } from '../src/server.js'
 const USAGE = `ghl — review the PR you are about to open, without opening it
 
 Usage:
-  ghl [options]
+  ghl [target] [options]
+
+  target         Branch or revision to review. Defaults to the working tree,
+                 i.e. the PR you would open from this checkout right now.
 
 Options:
   --base <rev>   Compare against <rev> instead of the guessed base
@@ -21,10 +24,11 @@ Options:
 `
 
 function parseArgs(argv) {
-  const options = { open: true, print: false, port: 0, base: null, untracked: false }
+  const options = { open: true, print: false, port: 0, base: null, untracked: false, target: null }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
-    if (arg === '-h' || arg === '--help') options.help = true
+    if (!arg.startsWith('-') && options.target === null) options.target = arg
+    else if (arg === '-h' || arg === '--help') options.help = true
     else if (arg === '--no-open') options.open = false
     else if (arg === '--untracked') options.untracked = true
     else if (arg === '--print') options.print = true
@@ -60,10 +64,11 @@ async function main() {
   // The only place where the current directory is read: everything downstream
   // takes repoPath as a parameter.
   const repoPath = await resolveRepoRoot(process.cwd())
-  const base = await resolveBase(repoPath, { override: options.base })
+  const base = await resolveBase(repoPath, { override: options.base, target: options.target })
 
   if (options.print) {
     const { patch, untracked, untrackedIncluded } = await buildPatch(repoPath, base.ref, {
+      target: options.target,
       includeUntracked: options.untracked,
     })
     const { files, additions, deletions } = summarise(patch)
@@ -77,7 +82,7 @@ async function main() {
 
     const lines = [
       `repo      ${repoPath}`,
-      `branch    ${base.branch ?? '(detached HEAD)'}`,
+      `reviewing ${options.target ?? `${base.branch ?? 'HEAD'} + working tree`}`,
       `base      ${base.ref}  — ${origin}`,
       `changes   ${files} file(s), +${additions} -${deletions}`,
       `untracked ${untracked.length} file(s)${untrackedIncluded ? ' (included)' : ' (excluded, use --untracked)'}`,
@@ -92,7 +97,14 @@ async function main() {
   }
 
   const server = createGhlServer({
-    repos: [{ repoPath, baseOverride: options.base, includeUntracked: options.untracked }],
+    repos: [
+      {
+        repoPath,
+        baseOverride: options.base,
+        target: options.target,
+        includeUntracked: options.untracked,
+      },
+    ],
   })
   const port = await listen(server, options.port)
   const url = `http://localhost:${port}/r/${repoIdFor(repoPath)}`

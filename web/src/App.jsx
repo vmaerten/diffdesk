@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { parsePatchFiles } from '@pierre/diffs'
 import { CodeView } from '@pierre/diffs/react'
 
-import BaseSelector from './BaseSelector.jsx'
+import RefSelector from './RefSelector.jsx'
 import FileTree, { allDirPaths, buildTree } from './FileTree.jsx'
 
 /** The repo id lives in the path: /r/<repoId>. */
@@ -23,7 +23,9 @@ export default function App() {
   /** path -> hash of the diff section that was marked as read. */
   const [viewed, setViewedState] = useState({})
   const [showViewed, setShowViewed] = useState(false)
-  const [pickingBase, setPickingBase] = useState(false)
+  const [picking, setPicking] = useState(null) // 'base' | 'target' | null
+  /** Revision under review. null means the working tree of this checkout. */
+  const [target, setTarget] = useState(() => new URLSearchParams(location.search).get('target'))
   const viewRef = useRef(null)
 
   /**
@@ -37,7 +39,8 @@ export default function App() {
     if (!repoId) return setError('no repository in the URL (expected /r/<repoId>)')
     setRefreshing(true)
     try {
-      const response = await fetch(`/r/${repoId}/api/diff`)
+      const query = target ? `?target=${encodeURIComponent(target)}` : ''
+      const response = await fetch(`/r/${repoId}/api/diff${query}`)
       const body = await response.json()
       if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
       setData(body)
@@ -49,11 +52,21 @@ export default function App() {
     } finally {
       setRefreshing(false)
     }
-  }, [repoId])
+  }, [repoId, target])
 
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  /** Review another revision. Kept in the URL so a reload stays on it. */
+  const pickTarget = useCallback((ref) => {
+    setPicking(null)
+    setTarget(ref)
+    const url = new URL(location.href)
+    if (ref) url.searchParams.set('target', ref)
+    else url.searchParams.delete('target')
+    history.replaceState(null, '', url)
+  }, [])
 
   /** Every file in the diff, in patch order. */
   const allItems = useMemo(() => {
@@ -140,16 +153,16 @@ export default function App() {
   /** Remember the chosen base for this branch, then reload against it. */
   const pickBase = useCallback(
     async (base) => {
-      setPickingBase(false)
+      setPicking(null)
       if (base === data?.base?.ref) return
       await fetch(`/r/${repoId}/api/base`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ base }),
+        body: JSON.stringify({ base, target }),
       })
       await refresh()
     },
-    [data, repoId, refresh]
+    [data, repoId, refresh, target]
   )
 
   /** Navigation walks the rendered items — what is left to read. */
@@ -205,9 +218,10 @@ export default function App() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target?.isContentEditable) return
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
-      if (pickingBase) return // the picker owns the keyboard while open
+      if (picking) return // the picker owns the keyboard while open
 
-      if (event.key === 'b') setPickingBase(true)
+      if (event.key === 'b') setPicking('base')
+      else if (event.key === 't') setPicking('target')
       else if (event.key === 'j') goTo(activeIndex + 1)
       else if (event.key === 'k') goTo(activeIndex - 1)
       else if (event.key === 'r' || event.key === 'R') refresh()
@@ -221,7 +235,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [activeIndex, goTo, refresh, items, viewed, toggleViewed, pickingBase])
+  }, [activeIndex, goTo, refresh, items, viewed, toggleViewed, picking])
 
   const options = useMemo(
     () => ({ diffStyle, theme: 'github-dark', stickyHeaders: true }),
@@ -266,27 +280,60 @@ export default function App() {
             <button
               type="button"
               className="ref base"
-              onClick={() => setPickingBase((open) => !open)}
+              onClick={() => setPicking((p) => (p === 'base' ? null : 'base'))}
               title="Change the base (b)"
-              aria-expanded={pickingBase}
+              aria-expanded={picking === 'base'}
               disabled={!data}
             >
               {data?.base?.ref ?? '…'} <span className="caret">▾</span>
             </button>
 
-            {pickingBase && data && (
-              <BaseSelector
+            {picking === 'base' && data && (
+              <RefSelector
                 repoId={repoId}
                 current={data.base.ref}
                 source={data.base.source}
                 onPick={pickBase}
-                onClose={() => setPickingBase(false)}
+                onClose={() => setPicking(null)}
               />
             )}
           </span>
+
           <span className="arrow">→</span>
-          <span className="ref target">{data?.head?.branch ?? 'HEAD'}</span>
+
+          <span className="base-anchor">
+            <button
+              type="button"
+              className="ref target"
+              onClick={() => setPicking((p) => (p === 'target' ? null : 'target'))}
+              title="Review another revision (t)"
+              aria-expanded={picking === 'target'}
+              disabled={!data}
+            >
+              {data?.target?.ref ?? 'HEAD'} <span className="caret">▾</span>
+            </button>
+
+            {picking === 'target' && data && (
+              <RefSelector
+                repoId={repoId}
+                current={data.target.ref}
+                source={data.target.workingTree ? 'working tree' : 'ref'}
+                extra={{
+                  value: '__working_tree__ this checkout working tree',
+                  label: 'This checkout (working tree)',
+                  hint: 'uncommitted work included',
+                  pick: null,
+                }}
+                onPick={pickTarget}
+                onClose={() => setPicking(null)}
+              />
+            )}
+          </span>
+
           {baseSource && <span className="source">base {baseSource}</span>}
+          {data && !data.target.workingTree && (
+            <span className="source">reviewing a ref, working tree excluded</span>
+          )}
         </div>
 
         {data && (

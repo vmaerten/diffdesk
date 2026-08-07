@@ -2,13 +2,13 @@ import {
   countCommits,
   currentBranch,
   diffFromMergeBase,
-  headSha,
   listRefs,
   mergeBase,
   numstat,
   originHead,
   readConfig,
   revExists,
+  revParse,
   untrackedPaths,
   untrackedPatch,
   writeConfig,
@@ -55,7 +55,11 @@ export async function detectTrunk(repoPath) {
  * an unrelated branch that happens to share its fork point.
  */
 export async function guessParent(repoPath, head, trunk) {
-  const headRev = await headSha(repoPath)
+  // Resolve the ref we are analysing, NOT HEAD: when reviewing someone else's
+  // branch the checkout is irrelevant, and using HEAD here silently guessed the
+  // base of the wrong branch.
+  const headRev = await revParse(repoPath, head)
+  if (!headRev) return null
   const refs = await listRefs(repoPath)
 
   let best = null
@@ -93,8 +97,10 @@ export async function guessParent(repoPath, head, trunk) {
  * The result carries how it was obtained: the UI must show it, because a wrong
  * base silently produces a misleading diff.
  */
-export async function resolveBase(repoPath, { override } = {}) {
-  const branch = await currentBranch(repoPath)
+export async function resolveBase(repoPath, { override, target } = {}) {
+  // The base is guessed for whatever we are reviewing: reviewing someone else's
+  // branch must not inherit the base of the branch we happen to sit on.
+  const branch = target ?? (await currentBranch(repoPath))
   const trunk = await detectTrunk(repoPath)
 
   if (override) {
@@ -140,10 +146,13 @@ export async function rememberBase(repoPath, branch, base) {
  * (bench/, infra/dns/, scratch/…) that are real but not ignored — folding them
  * in drowns the diff. Callers opt in with `includeUntracked`.
  */
-export async function buildPatch(repoPath, base, { includeUntracked = false } = {}) {
-  const tracked = await diffFromMergeBase(repoPath, base)
-  const paths = await untrackedPaths(repoPath)
-  const files = await numstat(repoPath, base)
+export async function buildPatch(repoPath, base, { target, includeUntracked = false } = {}) {
+  const tracked = await diffFromMergeBase(repoPath, base, { target })
+  const files = await numstat(repoPath, base, target)
+
+  // Uncommitted work belongs to the working tree, so it is meaningless when
+  // reviewing some other ref.
+  const paths = target ? [] : await untrackedPaths(repoPath)
 
   const totals = files.reduce(
     (acc, f) => ({

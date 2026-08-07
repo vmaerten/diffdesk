@@ -44,6 +44,12 @@ export async function headSha(repoPath) {
   return (await git(repoPath, ['rev-parse', 'HEAD'])).trim()
 }
 
+/** Resolve any revision to a sha. */
+export async function revParse(repoPath, rev) {
+  const out = await git(repoPath, ['rev-parse', '-q', '--verify', rev], { allowFailure: true })
+  return out.trim() || null
+}
+
 export async function revExists(repoPath, rev) {
   const out = await git(repoPath, ['rev-parse', '-q', '--verify', rev], { allowFailure: true })
   return out.trim().length > 0
@@ -102,15 +108,28 @@ export async function listRefs(repoPath) {
 }
 
 /**
- * Patch from merge-base(base, HEAD) down to the working tree.
+ * Patch from merge-base(base, target) down to target.
  *
  * `--merge-base` makes git resolve the fork point itself, which is what keeps
  * commits that landed on the base after we branched out of the diff.
+ *
+ * Omitting `target` compares against the working tree — the "virtual PR" of the
+ * checkout you are sitting in. Passing one reviews a branch without checking it
+ * out, at the cost of losing uncommitted work from the comparison (it belongs to
+ * the working tree, not to that ref).
  */
-export async function diffFromMergeBase(repoPath, base, { contextLines = 3 } = {}) {
+export async function diffFromMergeBase(repoPath, base, { target, contextLines = 3 } = {}) {
   return git(
     repoPath,
-    ['diff', '--merge-base', base, `--unified=${contextLines}`, '--no-color', '--no-ext-diff'],
+    [
+      'diff',
+      '--merge-base',
+      base,
+      ...(target ? [target] : []),
+      `--unified=${contextLines}`,
+      '--no-color',
+      '--no-ext-diff',
+    ],
     { allowFailure: true }
   )
 }
@@ -123,10 +142,12 @@ export async function diffFromMergeBase(repoPath, base, { contextLines = 3 } = {
  * hunk *including context lines*, so summing their lengths overcounts — 388
  * instead of 172 on a real 17-file diff.
  */
-export async function numstat(repoPath, base) {
-  const out = await git(repoPath, ['diff', '--merge-base', base, '--numstat', '--no-color'], {
-    allowFailure: true,
-  })
+export async function numstat(repoPath, base, target) {
+  const out = await git(
+    repoPath,
+    ['diff', '--merge-base', base, ...(target ? [target] : []), '--numstat', '--no-color'],
+    { allowFailure: true }
+  )
 
   const files = []
   for (const line of out.split('\n')) {

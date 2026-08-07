@@ -94,7 +94,8 @@ ghl (node bin, one-shot)
  │
  ├── revision resolution
  │     base   : branch.<name>.ghlBase → heuristic → origin/HEAD → main|master|develop
- │     target : working tree (commits + staged)
+ │     target : working tree by default, or any ref (?target=)
+ │              the base is guessed FOR the target, not for the checkout
  │
  ├── git diff --merge-base <base> → raw patch
  │
@@ -167,7 +168,10 @@ null, and `Boolean(null)` would silently drop the tick.
 5. **Base picker.** ✅ Combobox anchored under the base button (`b` or click), searchable,
    refs ordered by commit date — Prebid.js carries 501 of them, so a plain list was never
    an option. Picking writes the choice to `.git/config` and reloads the diff.
-6. **Persistent viewed.** ✅ Checkbox in each file header (via `renderHeaderMetadata`),
+6. **Reviewable target.** ✅ Any ref can be reviewed without checking it out, from the CLI
+   (`ghl <ref>`), the `t` picker or `?target=`. Uncommitted work is excluded then, since it
+   belongs to the working tree.
+7. **Persistent viewed.** ✅ Checkbox in each file header (via `renderHeaderMetadata`),
    `v` on the active file, tick in the tree, `Reset`. A viewed file leaves the items array.
    State lives in `.git/ghl/state.json`, keyed by revision range, and each entry stores the
    hash of that file's diff section: change the file and its tick clears, while other files

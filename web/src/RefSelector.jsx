@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react'
 import { Command } from 'cmdk'
 
 /**
- * Picker for the revision to diff against.
+ * Picker for a revision — the base to compare against, or the target to review.
  *
  * Searchable rather than a plain list: repositories here carry up to 501 refs.
  * Refs arrive ordered by commit date, so what you last worked on sits on top
  * before you type anything.
  */
-export default function BaseSelector({ repoId, current, source, onPick, onClose }) {
+export default function RefSelector({ repoId, current, source, extra, onPick, onClose }) {
   const [refs, setRefs] = useState(null)
   const [error, setError] = useState(null)
   const [meta, setMeta] = useState({})
@@ -59,6 +59,17 @@ export default function BaseSelector({ repoId, current, source, onPick, onClose 
             {!refs && !error && <div className="picker-empty">Loading refs…</div>}
             <Command.Empty className="picker-empty">No matching ref.</Command.Empty>
 
+            {extra && (
+              <Command.Item
+                value={extra.value}
+                onSelect={() => onPick(extra.pick)}
+                className="picker-item"
+              >
+                <span className="picker-name">{extra.label}</span>
+                <span className="picker-when">{extra.hint}</span>
+              </Command.Item>
+            )}
+
             {(refs ?? []).map((ref) => (
               <Command.Item
                 key={ref.name}
@@ -76,7 +87,8 @@ export default function BaseSelector({ repoId, current, source, onPick, onClose 
           </Command.List>
 
           <div className="picker-foot">
-            base: <code>{current}</code> ({source}) · <kbd>↵</kbd> pick · <kbd>esc</kbd> close
+            current: <code>{current}</code>
+            {source ? ` (${source})` : ''} · <kbd>↵</kbd> pick · <kbd>esc</kbd> close
           </div>
         </Command>
       </div>

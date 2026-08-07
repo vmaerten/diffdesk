@@ -100,14 +100,16 @@ export function createGhlServer({ repos }) {
 
       if (route === 'api/diff' && req.method === 'GET') {
         const override = url.searchParams.get('base') ?? entry.baseOverride
-        const base = await resolveBase(repoPath, { override })
+        const target = url.searchParams.get('target') ?? entry.target ?? null
+        const base = await resolveBase(repoPath, { override, target })
         const { patch, untracked, untrackedIncluded, files, totals } = await buildPatch(
           repoPath,
           base.ref,
-          { includeUntracked: entry.includeUntracked ?? false }
+          { target, includeUntracked: entry.includeUntracked ?? false }
         )
         const branch = await currentBranch(repoPath)
-        const range = `${base.ref}..${branch ?? 'HEAD'}`
+        const reviewing = target ?? branch ?? 'HEAD'
+        const range = `${base.ref}..${reviewing}`
         const hashes = sectionHashes(patch)
 
         // Ticks only survive while the file's diff is unchanged.
@@ -118,6 +120,8 @@ export function createGhlServer({ repos }) {
           repo: { id: repoId, path: repoPath },
           base,
           head: { branch, sha: await headSha(repoPath) },
+          // What is being reviewed, and whether uncommitted work is part of it.
+          target: { ref: reviewing, workingTree: !target },
           range,
           state: await repoState(repoPath),
           untracked,
@@ -147,9 +151,10 @@ export function createGhlServer({ repos }) {
       }
 
       if (route === 'api/base' && req.method === 'POST') {
-        const { base } = JSON.parse((await readBody(req)) || '{}')
+        const { base, target } = JSON.parse((await readBody(req)) || '{}')
         if (!base) return json(res, 400, { error: 'missing "base"' })
-        const branch = await currentBranch(repoPath)
+        // Remember against what is being reviewed, not against the checkout.
+        const branch = target ?? (await currentBranch(repoPath))
         await rememberBase(repoPath, branch, base)
         return json(res, 200, { ok: true, branch, base })
       }

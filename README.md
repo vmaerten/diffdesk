@@ -12,6 +12,7 @@ but pushing it just to look at it is not worth the trip.
 | `j` / `k` | next / previous file |
 | `v` | mark the current file as viewed |
 | `b` | change the base |
+| `t` | change the revision under review |
 | `r` | refresh the diff |
 
 Viewed files leave the diff and are ticked in the tree; click one to bring it back. The
@@ -24,10 +25,11 @@ diff section: if the file changes, its tick clears on its own.
 ```bash
 npm install && npm run build   # once: builds the UI into web-dist/
 
-ghl                 # open the current repo's virtual PR in the browser
-ghl --print         # summary on stdout, no server
-ghl --base main     # compare against an explicit revision
-ghl --untracked     # include untracked files in the diff
+ghl                    # open the current repo's virtual PR in the browser
+ghl origin/some-branch # review another revision, without checking it out
+ghl --print            # summary on stdout, no server
+ghl --base main        # compare against an explicit revision
+ghl --untracked        # include untracked files in the diff
 ```
 
 To iterate on the UI, run `ghl --no-open --port 7777` in a repository and `npm run dev`
@@ -52,6 +54,11 @@ a misleading diff.
 
 Press `b` (or click the base) to pick another one: the list is searchable, ordered by
 commit date, and the choice is written to `.git/config` for that branch.
+
+Press `t` to review a different revision altogether — a colleague's branch, say — without
+checking it out. The revision lives in the URL, so a reload stays on it. Reviewing a ref
+excludes uncommitted work, which belongs to the working tree and not to that ref; the UI
+says so.
 
 ## Layout
 
