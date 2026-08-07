@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { parsePatchFiles, type CodeViewDiffItem, type CodeViewItem } from '@pierre/diffs'
+import {
+  getFiletypeFromFileName,
+  parsePatchFiles,
+  type CodeViewDiffItem,
+  type CodeViewItem,
+} from '@pierre/diffs'
 import { CodeView, type CodeViewHandle } from '@pierre/diffs/react'
 
 import RefSelector from './RefSelector.tsx'
@@ -91,7 +96,15 @@ export default function App() {
         id: fileDiff.cacheKey ?? `file-${index}`,
         path: fileDiff.name,
         type: 'diff' as const,
-        fileDiff,
+        // A rename that changes the extension asks for the grammar of the *old*
+        // name, which is never preloaded — the file then throws and renders as
+        // nothing at all. Pinning the language to the new name is what the
+        // result should be anyway, and it is the only side that is loaded.
+        fileDiff:
+          fileDiff.prevName &&
+          getFiletypeFromFileName(fileDiff.prevName) !== getFiletypeFromFileName(fileDiff.name)
+            ? { ...fileDiff, lang: getFiletypeFromFileName(fileDiff.name) }
+            : fileDiff,
       }))
   }, [data, repoId])
 

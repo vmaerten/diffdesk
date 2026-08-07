@@ -68,7 +68,7 @@ says so.
 
 ```bash
 pnpm test          # all of them
-pnpm test tree     # one suite: tree, resize, viewed, pickers, scroll
+pnpm test tree     # one suite: tree, resize, viewed, pickers, scroll, rename
 ```
 
 They drive a headless Chrome over the real UI — `CHROME_PATH` overrides where it
