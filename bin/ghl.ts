@@ -1,10 +1,17 @@
 #!/usr/bin/env node
 import { execFile } from 'node:child_process'
+import { lookup } from 'node:dns/promises'
 
 import { repoState, resolveRepoRoot } from '../src/git.ts'
 import { buildPatch, resolveBase } from '../src/revision.ts'
-import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
+import { createGhlServer, listenNear, repoIdFor } from '../src/server.ts'
 import type { BaseSource } from '../src/types.ts'
+
+/** Also the target of the Vite dev proxy, so `pnpm dev` needs no flag. */
+const DEFAULT_PORT = 7777
+
+/** Resolves to the loopback with no /etc/hosts entry and no dnsmasq (RFC 6761). */
+const HOSTNAME = 'ghl.localhost'
 
 interface Options {
   open: boolean
@@ -28,18 +35,28 @@ Options:
   --base <rev>   Compare against <rev> instead of the guessed base
   --untracked    Include untracked files in the diff (off by default: they are
                  often numerous and unrelated to the change under review)
-  --port <n>     Listen on <n> (default: an available port)
+  --port <n>     Listen on <n>, or on the next free port after it
+                 (default: ${DEFAULT_PORT}, or $GHL_PORT; 0 picks any free port)
   --no-open      Do not open the browser
   --print        Print a summary to stdout and exit, without serving
   -h, --help     Show this help
 `
 
-function parseArgs(argv: string[]): Options {
+/** `Number.parseInt` would take `abc` as NaN and hand it straight to listen(). */
+function parsePort(value: string, source: string): number {
+  const port = Number(value)
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error(`${source} expects a port between 0 and 65535, got: ${value}`)
+  }
+  return port
+}
+
+function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Options {
   const options: Options = {
     open: true,
     print: false,
     help: false,
-    port: 0,
+    port: env.GHL_PORT ? parsePort(env.GHL_PORT, 'GHL_PORT') : DEFAULT_PORT,
     base: null,
     untracked: false,
     target: null,
@@ -57,7 +74,7 @@ function parseArgs(argv: string[]): Options {
     else if (arg === '--untracked') options.untracked = true
     else if (arg === '--print') options.print = true
     else if (arg === '--base') options.base = next(++i, '--base')
-    else if (arg === '--port') options.port = Number.parseInt(next(++i, '--port'), 10)
+    else if (arg === '--port') options.port = parsePort(next(++i, '--port'), '--port')
     else throw new Error(`unknown option: ${arg}`)
   }
   return options
@@ -78,8 +95,25 @@ function summarise(patch: string): { files: number; additions: number; deletions
 
 const openBrowser = (url: string) => execFile('open', [url])
 
+/**
+ * The hostname to print, checked rather than assumed.
+ *
+ * `*.localhost` is loopback by spec, but a corporate search domain can still
+ * answer for it, and the server only ever binds 127.0.0.1 — so a URL that would
+ * not connect must never be the one printed.
+ */
+async function displayHost(): Promise<string> {
+  try {
+    const addresses = await lookup(HOSTNAME, { all: true })
+    if (addresses.some(({ address }) => address === '127.0.0.1')) return HOSTNAME
+  } catch {
+    // Unresolvable is one more reason to fall back, not an error to report.
+  }
+  return '127.0.0.1'
+}
+
 async function main() {
-  const options = parseArgs(process.argv.slice(2))
+  const options = parseArgs(process.argv.slice(2), process.env)
   if (options.help) {
     process.stdout.write(USAGE)
     return
@@ -130,8 +164,8 @@ async function main() {
       },
     ],
   })
-  const port = await listen(server, options.port)
-  const url = `http://localhost:${port}/r/${repoIdFor(repoPath)}`
+  const [port, host] = await Promise.all([listenNear(server, options.port), displayHost()])
+  const url = `http://${host}:${port}/r/${repoIdFor(repoPath)}`
 
   process.stdout.write(`ghl serving ${repoPath}\n  base ${base.ref} (${base.source})\n  ${url}\n`)
   if (options.open) openBrowser(url)

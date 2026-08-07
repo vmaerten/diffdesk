@@ -19,6 +19,24 @@ export interface RepoEntry {
 
 const UI_DIR = fileURLToPath(new URL('../web-dist', import.meta.url))
 
+/**
+ * Hostnames a browser may legitimately use to reach a server bound to the
+ * loopback. A fixed port makes the address guessable, so a page that re-resolves
+ * its own domain to 127.0.0.1 would otherwise end up same-origin with the source
+ * code being served. The port is deliberately not part of the check: an attacker
+ * chooses what its domain resolves to, never the Host header the browser sends.
+ */
+const ALLOWED_HOSTS = new Set(['ghl.localhost', 'localhost', '127.0.0.1', '[::1]'])
+
+/** URL() lowercases the hostname and strips the port, brackets included. */
+function isAllowedName(url: string): boolean {
+  try {
+    return ALLOWED_HOSTS.has(new URL(url).hostname)
+  } catch {
+    return false // an unparseable Host or an opaque `Origin: null`
+  }
+}
+
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -80,6 +98,17 @@ export function createGhlServer({ repos }: { repos: RepoEntry[] }): Server {
   const registry = new Map(repos.map((r) => [repoIdFor(r.repoPath), r] as const))
 
   const server = createServer(async (req, res) => {
+    const host = req.headers.host
+    if (host === undefined || !isAllowedName(`http://${host}`)) {
+      return json(res, 403, { error: 'unexpected Host header' })
+    }
+    // CORS keeps a cross-site page from reading the response, not from firing
+    // the request — so the routes that write are checked at the door too.
+    const origin = req.headers.origin
+    if (req.method !== 'GET' && origin !== undefined && !isAllowedName(origin)) {
+      return json(res, 403, { error: 'unexpected Origin header' })
+    }
+
     const url = new URL(req.url ?? '/', 'http://localhost')
     const segments = url.pathname.split('/').filter(Boolean)
 
@@ -186,8 +215,10 @@ export function createGhlServer({ repos }: { repos: RepoEntry[] }): Server {
 
 export function listen(server: Server, port = 0): Promise<number> {
   return new Promise((resolve, reject) => {
-    server.once('error', reject)
+    const onError = (error: Error) => reject(error)
+    server.once('error', onError)
     server.listen(port, '127.0.0.1', () => {
+      server.off('error', onError)
       const address = server.address()
       if (address === null || typeof address === 'string') {
         reject(new Error('server is not listening on a TCP port'))
@@ -196,4 +227,25 @@ export function listen(server: Server, port = 0): Promise<number> {
       resolve(address.port)
     })
   })
+}
+
+/**
+ * Listen on `port`, or on the next free one after it.
+ *
+ * The point of a fixed port is a URL you can bookmark, so the first choice
+ * matters; but a second `ghl` in another repository must still come up rather
+ * than fail. Sliding keeps it near enough to recognise, and the ephemeral port
+ * at the end means it always comes up.
+ */
+export async function listenNear(server: Server, port: number, span = 10): Promise<number> {
+  if (port === 0) return listen(server, 0)
+
+  for (let candidate = port; candidate < port + span; candidate++) {
+    try {
+      return await listen(server, candidate)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EADDRINUSE') throw error
+    }
+  }
+  return listen(server, 0)
 }

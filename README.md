@@ -34,7 +34,19 @@ ghl origin/some-branch # review another revision, without checking it out
 ghl --print            # summary on stdout, no server
 ghl --base main        # compare against an explicit revision
 ghl --untracked        # include untracked files in the diff
+ghl --port 8080        # listen somewhere else (or set $GHL_PORT)
 ```
+
+The URL is the same every time: **`http://ghl.localhost:7777/r/<repoId>`**, so it can be
+bookmarked and the tab recognised among a dozen others. `*.localhost` is loopback by spec —
+no `/etc/hosts` entry, no dnsmasq — but the name is checked at startup and falls back to
+`127.0.0.1` rather than print a URL that would not connect. The `repoId` is derived from the
+repository path, so each checkout keeps its own address; a second `ghl` running at the same
+time takes the next free port.
+
+A fixed port makes the address guessable, so the server answers only to `ghl.localhost`,
+`localhost` and the loopback addresses: a page that re-resolved its own domain to
+`127.0.0.1` would otherwise be same-origin with the code being served.
 
 `pnpm install:local` copies `bin/`, `src/` and `web-dist/` into
 `~/.local/share/ghl` and links `~/.local/bin/ghl` at that copy. A symlink straight
@@ -46,9 +58,9 @@ the server imports nothing outside `node:`, so the command has no dependencies a
 all — the five in `dependencies` build the front end and end up inside
 `web-dist/`.
 
-To iterate on the UI, run `ghl --no-open --port 7777` in a repository and `pnpm dev`
-here: Vite serves the front end on :5180 and forwards data calls to it. That runs
-against the checkout, not the installed copy.
+To iterate on the UI, run `ghl --no-open` in a repository and `pnpm dev` here: Vite
+serves the front end on :5180 and forwards data calls to :7777, which is where `ghl`
+already is. That runs against the checkout, not the installed copy.
 
 `ghl` with no argument shows **everything that is not in the base**, committed or not:
 the diff from `merge-base(base, HEAD)` down to the working tree.
