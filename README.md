@@ -17,7 +17,10 @@ but pushing it just to look at it is not worth the trip.
 
 The file tree shows an icon per file type, colours each row by its git status (added,
 modified, deleted, renamed, untracked) and folds chains of single-child directories into
-one row. Both panes are virtualised, so a 107-file diff keeps ~48 rows in the DOM.
+one row. Both panes are virtualised, so a 107-file diff keeps ~48 rows in the DOM. The diff
+lists files in the tree's order, not the patch's — git sorts whole paths bytewise, so a file
+at the root would otherwise come first on one side and last on the other, and `j`/`k` would
+walk an order the eye is not following.
 
 A viewed file folds shut and is ticked in the tree, as on GitHub — it keeps its place in the
 list, so marking one never moves you, and clicking any row takes you to that file whether it
@@ -99,7 +102,7 @@ says so.
 
 ```bash
 pnpm test            # all of them
-pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename
+pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename, order
 pnpm test lifecycle  # the shared process, without starting a browser
 ```
 
@@ -130,6 +133,7 @@ src/state.ts     the viewed state, in .git/ghl/state.json
 src/version.ts   what this runtime is, so a stale instance is replaced
 src/types.ts     the shapes that cross the HTTP boundary
 web/src/*.tsx    the UI, importing those same shapes
+web/src/fileOrder.ts  the tree's file order, which the diff list follows
 scripts/install.ts  copies the runtime out of the checkout
 ```
 

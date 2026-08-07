@@ -10,6 +10,7 @@ import { CodeView, type CodeViewHandle } from '@pierre/diffs/react'
 import RefSelector from './RefSelector.tsx'
 import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
+import { compareTreePaths } from './fileOrder.ts'
 import type { BaseSource, DiffPayload, ViewedMap } from '../../src/types.ts'
 
 /**
@@ -113,7 +114,13 @@ export default function App() {
     history.replaceState(null, '', url)
   }, [])
 
-  /** Every file in the diff, in patch order. */
+  /**
+   * Every file in the diff, in the tree's order rather than the patch's.
+   *
+   * git sorts whole paths bytewise, the tree groups directories first, and the
+   * two disagree from the first row — so `j`/`k` used to walk an order the eye
+   * was not following. One rule now feeds both (see fileOrder.ts).
+   */
   const allItems = useMemo((): DiffItem[] => {
     if (!data?.patch) return []
     return parsePatchFiles(data.patch, `${repoId}-${data.head.sha}`)
@@ -132,6 +139,7 @@ export default function App() {
             ? { ...fileDiff, lang: getFiletypeFromFileName(fileDiff.name) }
             : fileDiff,
       }))
+      .toSorted((left, right) => compareTreePaths(left.path, right.path))
   }, [data, repoId])
 
   /**

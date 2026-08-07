@@ -8,8 +8,9 @@ import viewed from './suites/viewed.ts'
 import pickers from './suites/pickers.ts'
 import scroll from './suites/scroll.ts'
 import rename from './suites/rename.ts'
+import order from './suites/order.ts'
 
-const SUITES: Suite[] = [tree, resize, viewed, pickers, scroll, rename]
+const SUITES: Suite[] = [tree, resize, viewed, pickers, scroll, rename, order]
 
 /** Not a browser suite: it drives real CLI processes, so it runs on its own. */
 const LIFECYCLE = 'lifecycle'
