@@ -172,11 +172,60 @@ body {
   padding: 8px 0;
 }
 
-.tree-dir {
-  padding: 3px 8px;
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
   color: var(--text-dim);
+  font-size: 11px;
+}
+
+.sidebar-head button {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.sidebar-head button:hover {
+  color: var(--text);
+}
+
+.tree-dir {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 3px 8px;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
   font-family: ui-monospace, monospace;
   font-size: 11px;
+  text-align: left;
+}
+
+.tree-dir:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.chevron {
+  display: inline-block;
+  width: 10px;
+  flex-shrink: 0;
+  transition: transform 0.12s ease;
+}
+
+.chevron.collapsed {
+  transform: rotate(-90deg);
 }
 
 .tree-file {

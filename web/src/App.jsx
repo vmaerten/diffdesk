@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { parsePatchFiles } from '@pierre/diffs'
 import { CodeView } from '@pierre/diffs/react'
 
-import FileTree from './FileTree.jsx'
+import FileTree, { allDirPaths, buildTree } from './FileTree.jsx'
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -17,6 +17,8 @@ export default function App() {
   const [diffStyle, setDiffStyle] = useState('unified')
   const [activeIndex, setActiveIndex] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
+  /** Folded directory paths. Survives a refresh, since it does not derive from data. */
+  const [collapsed, setCollapsed] = useState(() => new Set())
   const viewRef = useRef(null)
 
   /**
@@ -82,16 +84,45 @@ export default function App() {
     })
   }, [items, data])
 
+  const tree = useMemo(() => buildTree(entries), [entries])
+
   const goTo = useCallback(
     (index) => {
       const bounded = Math.max(0, Math.min(index, items.length - 1))
       const target = items[bounded]
       if (!target) return
       setActiveIndex(bounded)
+
+      // Reveal the file if it sits inside folded directories, rather than
+      // moving the selection somewhere invisible.
+      const path = entries[bounded]?.path
+      if (path) {
+        const ancestors = path.split('/').slice(0, -1)
+        const prefixes = ancestors.map((_, i) => ancestors.slice(0, i + 1).join('/'))
+        setCollapsed((current) => {
+          if (!prefixes.some((p) => current.has(p))) return current
+          const next = new Set(current)
+          for (const prefix of prefixes) next.delete(prefix)
+          return next
+        })
+      }
+
       viewRef.current?.scrollTo({ type: 'item', id: target.id, align: 'start' })
     },
-    [items]
+    [items, entries]
   )
+
+  const toggleDir = useCallback((path) => {
+    setCollapsed((current) => {
+      const next = new Set(current)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
+  }, [])
+
+  const collapseAll = useCallback(() => setCollapsed(new Set(allDirPaths(tree))), [tree])
+  const expandAll = useCallback(() => setCollapsed(new Set()), [])
 
   const selectById = useCallback(
     (id) => goTo(items.findIndex((item) => item.id === id)),
@@ -202,7 +233,23 @@ export default function App() {
       {items.length > 0 && (
         <div className="body">
           <aside className="sidebar">
-            <FileTree entries={entries} activeId={activeId} onSelect={selectById} />
+            <div className="sidebar-head">
+              <span>{stats.files} files</span>
+              <span className="spacer" />
+              <button type="button" onClick={collapseAll}>
+                Collapse all
+              </button>
+              <button type="button" onClick={expandAll}>
+                Expand all
+              </button>
+            </div>
+            <FileTree
+              tree={tree}
+              activeId={activeId}
+              collapsed={collapsed}
+              onSelect={selectById}
+              onToggle={toggleDir}
+            />
           </aside>
 
           {/* CodeView owns its scrolling. The style lands on its own scroller, so it
