@@ -285,6 +285,31 @@ function FileTree(
     }
   }, [model, activePath])
 
+  /**
+   * Clicking the row that is already selected must still count.
+   *
+   * `onSelectionChange` fires on a *change*, so clicking the active row emits
+   * nothing and the click reads as dead — which is exactly what happened to a
+   * file the reader had just marked viewed and wanted to go back to. Listening
+   * for the click itself covers that; the path is read from `composedPath`,
+   * since anything crossing out of the shadow root is retargeted to the host.
+   */
+  useEffect(() => {
+    const host = document.querySelector('file-tree-container')
+    if (!host) return
+    const onClick = (event: Event) => {
+      for (const node of event.composedPath()) {
+        if (!(node instanceof Element)) continue
+        const path = node.getAttribute?.('data-item-path')
+        if (!path) continue
+        if (!model.getItem(path)?.isDirectory()) onSelectRef.current?.(path)
+        return
+      }
+    }
+    host.addEventListener('click', onClick)
+    return () => host.removeEventListener('click', onClick)
+  }, [model])
+
   const style = useMemo(
     () => ({
       flex: 1,

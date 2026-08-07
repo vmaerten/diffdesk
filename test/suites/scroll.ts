@@ -1,25 +1,9 @@
-import { DIFF_SCROLLER as SCROLLER, sleep, type Suite } from '../harness.ts'
-
-/**
- * Which files are painted right now.
- *
- * Each file is a `diffs-container` with its own shadow root, and its name sits
- * on `[data-title]` inside it. Counting characters instead was not enough: when
- * the virtual window froze, the sticky header dragged the same block along and
- * the count came back identical at every scroll position.
- */
-const ON_SCREEN = `(() => {
-  const el = ${SCROLLER}
-  const box = el.getBoundingClientRect()
-  const names = []
-  for (const host of el.querySelectorAll('diffs-container')) {
-    const r = host.getBoundingClientRect()
-    if (r.bottom <= box.top || r.top >= box.bottom || r.height === 0) continue
-    const title = host.shadowRoot?.querySelector('[data-title]')
-    names.push((title?.textContent ?? '').trim())
-  }
-  return names
-})()`
+import {
+  DIFF_ON_SCREEN as ON_SCREEN,
+  DIFF_SCROLLER as SCROLLER,
+  sleep,
+  type Suite,
+} from '../harness.ts'
 
 export default {
   name: 'scroll',
