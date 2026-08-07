@@ -27,7 +27,7 @@ diff section: if the file changes, its tick clears on its own.
 ## Usage
 
 ```bash
-npm install && npm run build   # once: builds the UI into web-dist/
+pnpm install && pnpm build   # once: builds the UI into web-dist/
 
 ghl                    # open the current repo's virtual PR in the browser
 ghl origin/some-branch # review another revision, without checking it out
@@ -36,7 +36,7 @@ ghl --base main        # compare against an explicit revision
 ghl --untracked        # include untracked files in the diff
 ```
 
-To iterate on the UI, run `ghl --no-open --port 7777` in a repository and `npm run dev`
+To iterate on the UI, run `ghl --no-open --port 7777` in a repository and `pnpm dev`
 here: Vite serves the front end on :5180 and forwards data calls to it.
 
 `ghl` with no argument shows **everything that is not in the base**, committed or not:

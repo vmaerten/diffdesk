@@ -1,0 +1,4 @@
+# pnpm 11 quarantines any package published in the last 24 hours, and `pnpm run`
+# re-checks before every script — so tracking the latest release of a dependency
+# that ships often blocks the build outright, not just a fresh install.
+minimumReleaseAge: 0

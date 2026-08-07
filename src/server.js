@@ -163,7 +163,7 @@ export function createGhlServer({ repos }) {
       if (req.method === 'GET' && !route.startsWith('api/')) {
         if (serveStatic(res, 'index.html')) return
         return json(res, 503, {
-          error: 'UI not built — run `npm run build` in the ghl checkout',
+          error: 'UI not built — run `pnpm build` in the ghl checkout',
         })
       }
 
