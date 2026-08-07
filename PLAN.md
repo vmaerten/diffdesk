@@ -248,6 +248,17 @@ null, and `Boolean(null)` would silently drop the tick.
   on this project, see issue #1.
 - **Measuring at first frame gives wrong numbers.** Content arrives asynchronously. Any
   perf measurement must wait for DOM stabilisation or it reports times 10× too good.
+- **A rename that changes language renders nothing at all.** `@pierre/diffs` preloads the
+  grammar of the new name but tokenises with the *old* one, so `App.jsx → App.tsx` throws
+  `Language "jsx" not found` and the file is silently absent from the diff — the exact
+  shape of a JS→TS migration PR. Fixed by pinning `fileDiff.lang` to the new name. A pure
+  rename is safe (no contents, so no grammar) and so is a rename inside one language: only
+  renamed **and edited** across languages reaches it.
+- **Absence from a virtualised pane proves nothing** — and neither does presence. Both have
+  to be established across the whole scroll, one step under a viewport, or the assertion
+  only says the file sits below the fold. `allDiffFiles()` does that, and reports coloured
+  tokens per file: the failure above rendered a box with nothing in it, which a
+  presence-only check would have called a pass.
 
 ## 6. V2
 

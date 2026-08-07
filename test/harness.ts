@@ -197,3 +197,72 @@ export interface TreeRow {
 /** The tree's own scroller, the element that proves it virtualises. */
 export const TREE_SCROLLER = `document.querySelector('file-tree-container').shadowRoot
   .querySelector('[data-file-tree-virtualized-scroll]')`
+
+/**
+ * The diff pane's own scroller, the element CodeView computes its window from.
+ *
+ * Scoped to `.diff` on purpose: the sidebar scrolls too, and searching the whole
+ * document silently returned the file tree instead.
+ */
+export const DIFF_SCROLLER = `(() => {
+  const pane = document.querySelector('.diff')
+  if (!pane) return null
+  return [pane, ...pane.querySelectorAll('*')].find((el) => {
+    const cs = getComputedStyle(el)
+    return (cs.overflowY === 'auto' || cs.overflowY === 'scroll') &&
+           el.scrollHeight > el.clientHeight + 20
+  }) ?? null
+})()`
+
+/** Each mounted file, read from its own shadow root, with its coloured spans. */
+const DIFF_FILES = `(() => {
+  const pane = document.querySelector('.diff')
+  if (!pane) return []
+  return [...pane.querySelectorAll('diffs-container')].map((host) => ({
+    name: (host.shadowRoot?.querySelector('[data-title]')?.textContent ?? '').trim(),
+    spans: host.shadowRoot?.querySelectorAll('span[style]').length ?? 0,
+  }))
+})()`
+
+export interface DiffFile {
+  name: string
+  /** Coloured tokens. Zero means the file rendered, but empty. */
+  spans: number
+}
+
+/**
+ * Every file the diff pane renders, not only the mounted window.
+ *
+ * Asserting a file is *there* needs the whole scroll just as much as asserting
+ * it is absent: the pane virtualises, so at rest it holds four files out of
+ * fifty. The step stays under one viewport so nothing slips between samples.
+ */
+export async function allDiffFiles(page: Page): Promise<DiffFile[]> {
+  const seen = new Map<string, DiffFile>()
+  const collect = async () => {
+    for (const file of (await page.evaluate(DIFF_FILES)) as DiffFile[]) {
+      if (!file.name) continue
+      // Keep the richest reading: a file caught mid-render reports no spans yet.
+      const previous = seen.get(file.name)
+      if (!previous || file.spans > previous.spans) seen.set(file.name, file)
+    }
+  }
+
+  const box = (await page.evaluate(`(() => {
+    const el = ${DIFF_SCROLLER}
+    return el ? { height: el.scrollHeight, viewport: el.clientHeight } : null
+  })()`)) as { height: number; viewport: number } | null
+
+  await collect()
+  if (!box) return [...seen.values()]
+
+  const step = Math.max(200, Math.round(box.viewport * 0.8))
+  for (let top = 0; top <= box.height; top += step) {
+    await page.evaluate(`(() => { const el = ${DIFF_SCROLLER}; if (el) el.scrollTop = ${top} })()`)
+    await sleep(200)
+    await collect()
+  }
+  await page.evaluate(`(() => { const el = ${DIFF_SCROLLER}; if (el) el.scrollTop = 0 })()`)
+  await sleep(200)
+  return [...seen.values()]
+}

@@ -50,6 +50,9 @@ function baseTree(root: string) {
   write(root, 'web/styles.css', '.a {\n  color: red;\n}\n')
   write(root, 'doomed.ts', lines(15, 'doomed'))
   write(root, 'to-be-renamed.ts', lines(40, 'renamed'))
+  // Renamed across languages on the branch: .jsx -> .tsx. A rename that keeps
+  // its extension is not enough — only a change of language reaches the bug.
+  write(root, 'legacy.jsx', lines(40, 'legacy'))
   // Enough of them that the tree has to virtualise at a 1000px viewport.
   for (let i = 0; i < 60; i++) {
     write(root, `web/components/Widget${i}.tsx`, lines(20, `widget${i}`))
@@ -103,6 +106,10 @@ export function createFixture(): Fixture {
   featureChanges(path)
   rmSync(join(path, 'doomed.ts'))
   git(path, ['mv', 'to-be-renamed.ts', 'src/core/moved.ts'])
+  // Edited as well as renamed: a pure rename carries no content, so it never
+  // asks for a grammar and cannot go wrong.
+  git(path, ['mv', 'legacy.jsx', 'src/legacy.tsx'])
+  write(path, 'src/legacy.tsx', lines(46, 'legacy'))
   git(path, ['add', '-A'])
   git(path, ['commit', '-m', 'feature work'])
 
