@@ -1,0 +1,253 @@
+import { execFileSync, spawn } from 'node:child_process'
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer, get as httpGet } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { resolveRepoRoot } from '../src/git.ts'
+import { listen, repoIdFor } from '../src/server.ts'
+import { createFixture, type Fixture } from './fixture.ts'
+import { sleep, type Check } from './harness.ts'
+
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
+
+/** Long enough for a cold Node start, short enough to fail rather than hang. */
+const DEADLINE_MS = 15_000
+
+/** `--idle` is in minutes; this is three seconds. */
+const SHORT_IDLE = '0.05'
+
+interface Health {
+  ghl: true
+  revision: string
+  pid: number
+  repos: { id: string; path: string }[]
+}
+
+interface Runtime {
+  /** Where the copied bin/ and src/ live. */
+  path: string
+  /** Rewrite INSTALLED, which is what a new install looks like from outside. */
+  stamp: (revision: string) => void
+}
+
+/**
+ * A copy of the runtime, with an INSTALLED file of our choosing.
+ *
+ * Never the checkout itself: the tests would then fight over port 7777 with the
+ * `ghl` the developer is running, and faking a version change would mean
+ * touching source files under their feet.
+ */
+function createRuntime(): Runtime & { cleanup: () => void } {
+  const path = mkdtempSync(join(tmpdir(), 'ghl-runtime-'))
+  for (const part of ['bin', 'src']) cpSync(join(ROOT, part), join(path, part), { recursive: true })
+
+  const stamp = (revision: string) =>
+    writeFileSync(join(path, 'INSTALLED'), `${revision} from ${ROOT}\n`)
+  stamp('rev-one')
+
+  return { path, stamp, cleanup: () => rmSync(path, { recursive: true, force: true }) }
+}
+
+function cli(runtime: Runtime, cwd: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [join(runtime.path, 'bin', 'ghl.ts'), ...args], {
+      cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    let out = ''
+    let err = ''
+    child.stdout.on('data', (chunk: Buffer) => (out += chunk))
+    child.stderr.on('data', (chunk: Buffer) => (err += chunk))
+    child.on('error', reject)
+    child.on('close', (code) =>
+      code === 0 ? resolve(out) : reject(new Error(`ghl exited ${code}: ${err.trim()}`)),
+    )
+  })
+}
+
+/** A port nobody holds, so a stray daemon of the developer's is never involved. */
+async function freePort(): Promise<number> {
+  const probe = createServer()
+  const port = await listen(probe, 0)
+  await new Promise((resolve) => probe.close(resolve))
+  return port
+}
+
+async function health(port: number): Promise<Health | null> {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/health`, {
+      signal: AbortSignal.timeout(300),
+    })
+    return response.ok ? ((await response.json()) as Health) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Status of a GET with a chosen Host header.
+ *
+ * Not `fetch`: undici treats Host as forbidden and silently sends its own, so
+ * the request would arrive looking perfectly legitimate and the check would pass
+ * without ever reaching the code it is about.
+ */
+function statusWithHost(port: number, host: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const request = httpGet(
+      { host: '127.0.0.1', port, path: '/api/repos', headers: { host } },
+      (response) => {
+        response.resume()
+        resolve(response.statusCode ?? 0)
+      },
+    )
+    request.on('error', reject)
+  })
+}
+
+async function servedIds(port: number): Promise<string[]> {
+  const response = await fetch(`http://127.0.0.1:${port}/api/repos`)
+  const body = (await response.json()) as { repos: { id: string }[] }
+  return body.repos.map((repo) => repo.id).toSorted()
+}
+
+/** Wait until the port stops answering, or give up. */
+async function waitGone(port: number): Promise<boolean> {
+  const deadline = Date.now() + DEADLINE_MS
+  while (Date.now() < deadline) {
+    if ((await health(port)) === null) return true
+    await sleep(200)
+  }
+  return false
+}
+
+/**
+ * Wait for the process itself to go, without ever asking it anything.
+ *
+ * Polling /api/health here would be self-defeating: every request counts as
+ * activity, so the watching would be exactly what keeps it alive.
+ */
+async function waitProcessGone(runtime: Runtime): Promise<boolean> {
+  const deadline = Date.now() + DEADLINE_MS
+  while (Date.now() < deadline) {
+    if (daemonCount(runtime) === 0) return true
+    await sleep(200)
+  }
+  return false
+}
+
+/** Background processes running this runtime — a loser of a race must leave none. */
+function daemonCount(runtime: Runtime): number {
+  try {
+    const out = execFileSync('pgrep', ['-f', join(runtime.path, 'bin', 'ghl.ts')], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+    return out.toString().trim().split('\n').filter(Boolean).length
+  } catch {
+    return 0 // pgrep exits 1 when nothing matches
+  }
+}
+
+async function stop(port: number): Promise<void> {
+  await fetch(`http://127.0.0.1:${port}/api/shutdown`, { method: 'POST' }).catch(() => {})
+  await waitGone(port)
+}
+
+export async function runLifecycle(check: Check): Promise<void> {
+  const runtime = createRuntime()
+  const repos: Fixture[] = []
+  const ports: number[] = []
+
+  try {
+    const one = createFixture()
+    const two = createFixture()
+    repos.push(one, two)
+
+    // 1 — cold start
+    const port = await freePort()
+    ports.push(port)
+    const first = await cli(runtime, one.path, ['--no-open', '--port', String(port)])
+    const up = await health(port)
+    check('a cold start leaves an instance behind', up !== null, `port ${port}`)
+    check('and the command returns instead of serving', first.includes(`:${port}/r/`))
+    check(
+      'which reports the revision it was installed as',
+      up?.revision === 'rev-one',
+      up?.revision,
+    )
+
+    // 2 — a second repository joins the same process
+    await cli(runtime, two.path, ['--no-open', '--port', String(port)])
+    const both = await servedIds(port)
+    check('a second repository joins it', both.length === 2, both.join(', '))
+    check('in the same process', (await health(port))?.pid === up?.pid)
+    check('and no second one was started', daemonCount(runtime) === 1)
+
+    // 3 — re-registering updates the entry rather than adding one
+    writeFileSync(join(two.path, 'stray.txt'), 'untracked\n')
+    // Through git, as the server does: on macOS mkdtemp hands back /var/folders
+    // while `rev-parse --show-toplevel` resolves it to /private/var/folders, and
+    // the two spell different repo ids.
+    const twoId = repoIdFor(await resolveRepoRoot(two.path))
+    const untrackedFlag = async () => {
+      const response = await fetch(`http://127.0.0.1:${port}/r/${twoId}/api/diff`)
+      return ((await response.json()) as { untrackedIncluded?: boolean }).untrackedIncluded
+    }
+    const was = await untrackedFlag()
+    await cli(runtime, two.path, ['--no-open', '--port', String(port), '--untracked'])
+    const now = await untrackedFlag()
+    check(
+      're-running with a flag updates the entry',
+      was === false && now === true,
+      `${was} -> ${now}`,
+    )
+    check('without duplicating it', (await servedIds(port)).length === 2)
+
+    // 4 — a different build takes the port over, and hands the tabs across
+    runtime.stamp('rev-two')
+    await cli(runtime, one.path, ['--no-open', '--port', String(port)])
+    const replaced = await health(port)
+    check(
+      'a newer build replaces the instance',
+      replaced?.pid !== up?.pid,
+      `${up?.pid} -> ${replaced?.pid}`,
+    )
+    check('and reports the new revision', replaced?.revision === 'rev-two', replaced?.revision)
+    check('the repositories it served come across', (await servedIds(port)).length === 2)
+    check('and still only one process runs', daemonCount(runtime) === 1)
+    await stop(port)
+
+    // 5 — two cold starts at once converge on one instance
+    const racePort = await freePort()
+    ports.push(racePort)
+    await Promise.all([
+      cli(runtime, one.path, ['--no-open', '--port', String(racePort)]),
+      cli(runtime, two.path, ['--no-open', '--port', String(racePort)]),
+    ])
+    check('two simultaneous starts leave one instance', daemonCount(runtime) === 1)
+    check('serving both repositories', (await servedIds(racePort)).length === 2)
+    await stop(racePort)
+
+    // 6 — nothing watching, so it goes
+    const idlePort = await freePort()
+    ports.push(idlePort)
+    await cli(runtime, one.path, ['--no-open', '--port', String(idlePort), '--idle', SHORT_IDLE])
+    check('an idle instance is still up right after starting', (await health(idlePort)) !== null)
+    check('and stops on its own once nothing asks for anything', await waitProcessGone(runtime))
+
+    // 7 — the Host allowlist, against a real server rather than a unit
+    const hostPort = await freePort()
+    ports.push(hostPort)
+    await cli(runtime, one.path, ['--no-open', '--port', String(hostPort)])
+    const hostile = await statusWithHost(hostPort, 'attacker.example')
+    check('an unexpected Host is refused', hostile === 403, `HTTP ${hostile}`)
+    const legitimate = await statusWithHost(hostPort, `ghl.localhost:${hostPort}`)
+    check('while ghl.localhost is served', legitimate === 200, `HTTP ${legitimate}`)
+    await stop(hostPort)
+  } finally {
+    for (const port of ports) await stop(port)
+    for (const repo of repos) repo.cleanup()
+    runtime.cleanup()
+  }
+}

@@ -24,6 +24,12 @@ function repoIdFromLocation() {
   return match?.[1] ?? null
 }
 
+/** Well under the server's idle threshold, and cheap enough to be invisible. */
+const HEARTBEAT_MS = 5 * 60_000
+
+/** A fetch that never reached anything rejects with a TypeError, not an HTTP status. */
+const NOT_LISTENING = 'ghl is no longer listening — run `ghl` again in that repository'
+
 export default function App() {
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<DiffPayload | null>(null)
@@ -67,7 +73,8 @@ export default function App() {
       setViewedState(body.viewed ?? {})
       setError(null)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      if (cause instanceof TypeError) setError(NOT_LISTENING)
+      else setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
       setRefreshing(false)
     }
@@ -76,6 +83,26 @@ export default function App() {
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  /**
+   * Say we are still here, while we are still here.
+   *
+   * One process now serves every repository and stops on its own once nothing
+   * watches it. Reading a long diff sends no request at all, so without this it
+   * would stop under an open tab — the heartbeat is what makes the threshold
+   * mean "no tab" rather than "no click".
+   */
+  useEffect(() => {
+    const beat = () => {
+      if (document.visibilityState === 'visible') fetch('/api/health').catch(() => {})
+    }
+    const timer = setInterval(beat, HEARTBEAT_MS)
+    document.addEventListener('visibilitychange', beat)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', beat)
+    }
+  }, [])
 
   /** Review another revision. Kept in the URL so a reload stays on it. */
   const pickTarget = useCallback((ref: string | null) => {

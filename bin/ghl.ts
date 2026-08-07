@@ -1,17 +1,28 @@
 #!/usr/bin/env node
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { lookup } from 'node:dns/promises'
+import { setTimeout as delay } from 'node:timers/promises'
+import { fileURLToPath } from 'node:url'
 
 import { repoState, resolveRepoRoot } from '../src/git.ts'
 import { buildPatch, resolveBase } from '../src/revision.ts'
-import { createGhlServer, listenNear, repoIdFor } from '../src/server.ts'
+import { createGhlServer, listen, listenNear, repoIdFor, type RepoEntry } from '../src/server.ts'
 import type { BaseSource } from '../src/types.ts'
+import { runtimeRevision } from '../src/version.ts'
 
 /** Also the target of the Vite dev proxy, so `pnpm dev` needs no flag. */
 const DEFAULT_PORT = 7777
 
 /** Resolves to the loopback with no /etc/hosts entry and no dnsmasq (RFC 6761). */
 const HOSTNAME = 'ghl.localhost'
+
+const DEFAULT_IDLE_MINUTES = 30
+
+/** A daemon that is up answers at once; one that is absent refuses at once. */
+const PROBE_TIMEOUT_MS = 300
+
+/** Long enough for a cold Node start on a loaded machine. */
+const STARTUP_TIMEOUT_MS = 5_000
 
 interface Options {
   open: boolean
@@ -21,6 +32,16 @@ interface Options {
   base: string | null
   untracked: boolean
   target: string | null
+  daemon: boolean
+  useDaemon: boolean
+  idleMinutes: number
+}
+
+interface Health {
+  ghl: true
+  revision: string
+  pid: number
+  repos: { id: string; path: string }[]
 }
 
 const USAGE = `ghl — review the PR you are about to open, without opening it
@@ -39,6 +60,10 @@ Options:
                  (default: ${DEFAULT_PORT}, or $GHL_PORT; 0 picks any free port)
   --no-open      Do not open the browser
   --print        Print a summary to stdout and exit, without serving
+  --no-daemon    Serve from this process and stay in the foreground, instead of
+                 handing the repository to the shared one
+  --idle <min>   Stop the shared instance after <min> minutes with no tab
+                 watching (default: ${DEFAULT_IDLE_MINUTES}; 0 never stops)
   -h, --help     Show this help
 `
 
@@ -51,6 +76,14 @@ function parsePort(value: string, source: string): number {
   return port
 }
 
+function parseMinutes(value: string): number {
+  const minutes = Number(value)
+  if (!Number.isFinite(minutes) || minutes < 0) {
+    throw new Error(`--idle expects a number of minutes, got: ${value}`)
+  }
+  return minutes
+}
+
 function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Options {
   const options: Options = {
     open: true,
@@ -60,6 +93,9 @@ function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Options {
     base: null,
     untracked: false,
     target: null,
+    daemon: false,
+    useDaemon: true,
+    idleMinutes: DEFAULT_IDLE_MINUTES,
   }
   const next = (i: number, flag: string): string => {
     const value = argv[i]
@@ -75,6 +111,10 @@ function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Options {
     else if (arg === '--print') options.print = true
     else if (arg === '--base') options.base = next(++i, '--base')
     else if (arg === '--port') options.port = parsePort(next(++i, '--port'), '--port')
+    else if (arg === '--no-daemon') options.useDaemon = false
+    // Not in the usage: it is how the CLI starts its own background copy.
+    else if (arg === '--daemon') options.daemon = true
+    else if (arg === '--idle') options.idleMinutes = parseMinutes(next(++i, '--idle'))
     else throw new Error(`unknown option: ${arg}`)
   }
   return options
@@ -112,8 +152,132 @@ async function displayHost(): Promise<string> {
   return '127.0.0.1'
 }
 
+const api = (port: number, route: string) => `http://127.0.0.1:${port}/api/${route}`
+
+/** The instance listening on `port`, or null when there is none of ours. */
+async function probe(port: number): Promise<Health | null> {
+  try {
+    const response = await fetch(api(port, 'health'), {
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    })
+    if (!response.ok) return null
+    const health = (await response.json()) as Health
+    return health.ghl === true ? health : null // something else owns the port
+  } catch {
+    return null
+  }
+}
+
+async function post(port: number, route: string, body?: unknown): Promise<Response> {
+  return fetch(api(port, route), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body ?? {}),
+    signal: AbortSignal.timeout(PROBE_TIMEOUT_MS * 10),
+  })
+}
+
+/** Poll until something of ours answers, whoever ends up winning the port. */
+async function waitForDaemon(port: number): Promise<Health> {
+  const deadline = Date.now() + STARTUP_TIMEOUT_MS
+  while (Date.now() < deadline) {
+    const health = await probe(port)
+    if (health) return health
+    await delay(50)
+  }
+  throw new Error(`nothing answered on port ${port}`)
+}
+
+/** Ask the instance on `port` to go, and wait for the port to come free. */
+async function stopDaemon(port: number): Promise<void> {
+  try {
+    await post(port, 'shutdown')
+  } catch {
+    // It may well die before answering. That is the outcome we asked for.
+  }
+  const deadline = Date.now() + STARTUP_TIMEOUT_MS
+  while (Date.now() < deadline) {
+    if ((await probe(port)) === null) return
+    await delay(50)
+  }
+  throw new Error(`the instance on port ${port} did not stop`)
+}
+
+function spawnDaemon(options: Options): void {
+  const self = fileURLToPath(import.meta.url)
+  const args = [
+    self,
+    '--daemon',
+    '--port',
+    String(options.port),
+    '--idle',
+    String(options.idleMinutes),
+  ]
+  spawn(process.execPath, args, { detached: true, stdio: 'ignore' }).unref()
+}
+
+/**
+ * The background process itself: serves nothing at first and takes repositories
+ * over HTTP, so registering the first one goes through the same path as the
+ * hundredth.
+ */
+async function runDaemon(options: Options): Promise<void> {
+  const server = createGhlServer({
+    repos: [],
+    idleMs: options.idleMinutes * 60_000,
+    onStop: () => {
+      server.close()
+      process.exit(0)
+    },
+  })
+
+  try {
+    // listen(), not listenNear(): a daemon on another port is a daemon nobody
+    // would ever find.
+    await listen(server, options.port)
+  } catch (error) {
+    // Two `ghl` started in the same second both spawn one of these. The loser
+    // has nothing to say: the winner is about to serve this repository too.
+    if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') return
+    throw error
+  }
+}
+
+/** Hand `entry` to the shared instance, starting or replacing it as needed. */
+async function serveViaDaemon(options: Options, entry: RepoEntry): Promise<string> {
+  const ours = runtimeRevision()
+  let health = await probe(options.port)
+  let inherited: string[] = []
+
+  // Another build owns the port: it runs an older `src/`, so it has to go — but
+  // the repositories it was serving have tabs open on them.
+  if (health && health.revision !== ours) {
+    inherited = health.repos.map((repo) => repo.path)
+    await stopDaemon(options.port)
+    health = null
+  }
+
+  if (!health) {
+    spawnDaemon(options)
+    await waitForDaemon(options.port)
+  }
+
+  // Handed over with default options: a per-repo flag belongs to the invocation
+  // that passed it, and that terminal is long gone.
+  for (const repoPath of inherited) {
+    if (repoPath !== entry.repoPath) await post(options.port, 'repos', { repoPath })
+  }
+
+  const response = await post(options.port, 'repos', entry)
+  if (!response.ok) {
+    throw new Error(`the instance on port ${options.port} refused the repository`)
+  }
+  return ((await response.json()) as { id: string }).id
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2), process.env)
+  if (options.daemon) return runDaemon(options)
   if (options.help) {
     process.stdout.write(USAGE)
     return
@@ -154,19 +318,24 @@ async function main() {
     return
   }
 
-  const server = createGhlServer({
-    repos: [
-      {
-        repoPath,
-        baseOverride: options.base,
-        target: options.target,
-        includeUntracked: options.untracked,
-      },
-    ],
-  })
-  const [port, host] = await Promise.all([listenNear(server, options.port), displayHost()])
-  const url = `http://${host}:${port}/r/${repoIdFor(repoPath)}`
+  const entry: RepoEntry = {
+    repoPath,
+    baseOverride: options.base,
+    target: options.target,
+    includeUntracked: options.untracked,
+  }
 
+  let port = options.port
+  let repoId = repoIdFor(repoPath)
+
+  if (options.useDaemon) {
+    repoId = await serveViaDaemon(options, entry)
+  } else {
+    // Foreground: this process is the server, and dies with the terminal.
+    port = await listenNear(createGhlServer({ repos: [entry] }), options.port)
+  }
+
+  const url = `http://${await displayHost()}:${port}/r/${repoId}`
   process.stdout.write(`ghl serving ${repoPath}\n  base ${base.ref} (${base.source})\n  ${url}\n`)
   if (options.open) openBrowser(url)
 }

@@ -35,7 +35,14 @@ ghl --print            # summary on stdout, no server
 ghl --base main        # compare against an explicit revision
 ghl --untracked        # include untracked files in the diff
 ghl --port 8080        # listen somewhere else (or set $GHL_PORT)
+ghl --no-daemon        # serve from this process and stay in the foreground
 ```
+
+One process serves every repository you point it at. The first `ghl` starts it in the
+background; every one after that hands it a repository and **returns**, so the tab outlives
+the terminal that opened it. It stops on its own after 30 minutes with no tab watching
+(`--idle`, `0` to never stop), and a `ghl` from a newer install replaces it, carrying the
+repositories it was serving across so their tabs keep working.
 
 The URL is the same every time: **`http://ghl.localhost:7777/r/<repoId>`**, so it can be
 bookmarked and the tab recognised among a dozen others. `*.localhost` is loopback by spec —
@@ -90,11 +97,17 @@ says so.
 ## Tests
 
 ```bash
-pnpm test          # all of them
-pnpm test tree     # one suite: tree, resize, viewed, pickers, scroll, rename
+pnpm test            # all of them
+pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename
+pnpm test lifecycle  # the shared process, without starting a browser
 ```
 
-They drive a headless Chrome over the real UI — `CHROME_PATH` overrides where it
+`lifecycle` drives real `ghl` processes — cold start, a second repository joining, a newer
+build taking over, two starts racing for the port, the idle stop, the Host allowlist. It
+runs against a copy of `bin/` and `src/` in a temp directory, on a port picked free at the
+last moment, so it never fights the `ghl` you have running on 7777.
+
+The rest drive a headless Chrome over the real UI — `CHROME_PATH` overrides where it
 is found. Each run builds a throwaway git repository in a temp directory with a
 known diff (one file of each git status, a chain of single-child directories,
 enough rows to force both panes to virtualise) and serves that. Nothing touches
@@ -107,10 +120,13 @@ serves, so testing without rebuilding silently tests the previous version.
 ## Layout
 
 ```
-bin/ghl.ts       CLI — the only place that reads the current directory
+bin/ghl.ts       CLI — the only place that reads the current directory,
+                 and the shared process it starts in the background
 src/git.ts       git layer, every call through `git -C <repoPath>`
 src/revision.ts  base resolution and patch construction
 src/server.ts    HTTP server, routes namespaced by repo
+src/state.ts     the viewed state, in .git/ghl/state.json
+src/version.ts   what this runtime is, so a stale instance is replaced
 src/types.ts     the shapes that cross the HTTP boundary
 web/src/*.tsx    the UI, importing those same shapes
 scripts/install.ts  copies the runtime out of the checkout
