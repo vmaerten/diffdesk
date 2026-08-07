@@ -154,7 +154,9 @@ short — which is also what we want visually.
    showing base → target and how the base was chosen. Verified against real PRs of 17 and
    107 files. Vite code-splits the Shiki grammars, so only the languages present in the
    diff are fetched.
-4. **File tree + keyboard.** `j`/`k` navigation, jump to file, `R` to refresh.
+4. **File tree + keyboard.** ✅ Sidebar tree with per-file counts (from `--numstat`) and
+   single-child directory chains collapsed into one row, `j`/`k` to move between files,
+   click to jump, `r` to refresh. Verified on a 107-file PR.
 5. **Persistent viewed**, with hash invalidation.
 
 ## 5. Known traps

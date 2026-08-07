@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { parsePatchFiles } from '@pierre/diffs'
 import { CodeView } from '@pierre/diffs/react'
+
+import FileTree from './FileTree.jsx'
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -13,16 +15,20 @@ export default function App() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [diffStyle, setDiffStyle] = useState('unified')
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
+  const viewRef = useRef(null)
 
   /**
    * The single refresh path.
    *
-   * Everything that reloads the diff goes through here — the button now, a
+   * Everything that reloads the diff goes through here — the R key now, a
    * WebSocket later. Keeping it to one function is what makes the watcher a
    * ten-line change (discipline 4 in PLAN.md).
    */
   const refresh = useCallback(async () => {
     if (!repoId) return setError('no repository in the URL (expected /r/<repoId>)')
+    setRefreshing(true)
     try {
       const response = await fetch(`/r/${repoId}/api/diff`)
       const body = await response.json()
@@ -31,6 +37,8 @@ export default function App() {
       setError(null)
     } catch (cause) {
       setError(cause.message)
+    } finally {
+      setRefreshing(false)
     }
   }, [repoId])
 
@@ -58,6 +66,57 @@ export default function App() {
   // additionLines/deletionLines include context lines and overcount badly.
   const stats = data?.totals ?? { files: 0, additions: 0, deletions: 0 }
 
+  /** Tree entries: patch order, enriched with git's per-file counts. */
+  const entries = useMemo(() => {
+    const byPath = new Map((data?.files ?? []).map((f) => [f.path, f]))
+    return items.map((item) => {
+      const path = item.fileDiff.name
+      const stat = byPath.get(path)
+      return {
+        id: item.id,
+        path,
+        additions: stat?.additions ?? 0,
+        deletions: stat?.deletions ?? 0,
+        binary: stat?.binary ?? false,
+      }
+    })
+  }, [items, data])
+
+  const goTo = useCallback(
+    (index) => {
+      const bounded = Math.max(0, Math.min(index, items.length - 1))
+      const target = items[bounded]
+      if (!target) return
+      setActiveIndex(bounded)
+      viewRef.current?.scrollTo({ type: 'item', id: target.id, align: 'start' })
+    },
+    [items]
+  )
+
+  const selectById = useCallback(
+    (id) => goTo(items.findIndex((item) => item.id === id)),
+    [goTo, items]
+  )
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      // Never steal keys from an input or from a browser shortcut.
+      const tag = event.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target?.isContentEditable) return
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+
+      if (event.key === 'j') goTo(activeIndex + 1)
+      else if (event.key === 'k') goTo(activeIndex - 1)
+      else if (event.key === 'r' || event.key === 'R') refresh()
+      else return
+
+      event.preventDefault()
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [activeIndex, goTo, refresh])
+
   const options = useMemo(
     () => ({ diffStyle, theme: 'github-dark', stickyHeaders: true }),
     [diffStyle]
@@ -69,6 +128,8 @@ export default function App() {
     guessed: 'guessed',
     trunk: 'trunk',
   }[data?.base?.source]
+
+  const activeId = entries[activeIndex]?.id
 
   return (
     <div className="app">
@@ -88,6 +149,15 @@ export default function App() {
         )}
 
         <span className="spacer" />
+
+        <span className="hint">
+          <kbd>j</kbd>
+          <kbd>k</kbd> files · <kbd>r</kbd> refresh
+        </span>
+
+        <button type="button" className="refresh" onClick={refresh} disabled={refreshing}>
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
 
         <div className="toggle">
           <button
@@ -125,22 +195,28 @@ export default function App() {
 
       {!error && data && items.length === 0 && (
         <p className="message">
-          Nothing to show — <code>{data.head.branch}</code> matches{' '}
-          <code>{data.base.ref}</code>.
+          Nothing to show — <code>{data.head.branch}</code> matches <code>{data.base.ref}</code>.
         </p>
       )}
 
-      {/* CodeView owns its scrolling. The style lands on its own scroller, so it
-          needs both a real height (or it measures 0 and mounts nothing) and
-          `overflowY: auto` — it only recomputes the virtual window from the
-          element it scrolls itself, never from an ancestor. */}
       {items.length > 0 && (
-        <div className="diff">
-          <CodeView
-            items={items}
-            options={options}
-            style={{ height: '100%', overflowY: 'auto' }}
-          />
+        <div className="body">
+          <aside className="sidebar">
+            <FileTree entries={entries} activeId={activeId} onSelect={selectById} />
+          </aside>
+
+          {/* CodeView owns its scrolling. The style lands on its own scroller, so it
+              needs both a real height (or it measures 0 and mounts nothing) and
+              `overflowY: auto` — it only recomputes the virtual window from the
+              element it scrolls itself, never from an ancestor. */}
+          <div className="diff">
+            <CodeView
+              ref={viewRef}
+              items={items}
+              options={options}
+              style={{ height: '100%', overflowY: 'auto' }}
+            />
+          </div>
         </div>
       )}
     </div>

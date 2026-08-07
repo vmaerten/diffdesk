@@ -123,8 +123,109 @@ body {
   font-size: 12px;
 }
 
+.hint {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.hint kbd {
+  display: inline-block;
+  min-width: 16px;
+  padding: 1px 4px;
+  margin-right: 2px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font: 10px ui-monospace, monospace;
+  text-align: center;
+}
+
+.refresh {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.refresh:disabled {
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--bg-raised);
+  padding: 8px 0;
+}
+
+.tree-dir {
+  padding: 3px 8px;
+  color: var(--text-dim);
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.tree-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 8px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  text-align: left;
+}
+
+.tree-file:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tree-file.active {
+  background: rgba(47, 129, 247, 0.18);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.tree-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-stat {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.tree-stat .add {
+  margin-right: 4px;
+}
+
+.tree-stat.dim {
+  color: var(--text-dim);
+}
+
 .diff {
   flex: 1;
+  min-width: 0;
   min-height: 0; /* lets the flex child actually shrink, so CodeView gets a real height */
   overflow: hidden; /* CodeView scrolls itself; scrolling here would freeze its virtual window */
 }

@@ -5,8 +5,13 @@ Review the PR you are about to open, without opening it.
 A local git diff viewer with a GitHub-like UI, for the moment when the change is written
 but pushing it just to look at it is not worth the trip.
 
-**Status:** steps 1–3 of [PLAN.md](./PLAN.md) — CLI, server and diff rendering.
-File tree, keyboard navigation and the viewed state are next.
+**Status:** steps 1–4 of [PLAN.md](./PLAN.md) — CLI, server, diff rendering, file tree and
+keyboard navigation. The persistent viewed state is next.
+
+| key | action |
+|-----|--------|
+| `j` / `k` | next / previous file |
+| `r` | refresh the diff |
 
 ## Usage
 
