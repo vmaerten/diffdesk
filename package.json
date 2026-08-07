@@ -5,16 +5,16 @@
   "type": "module",
   "description": "Review the PR you are about to open, without opening it",
   "bin": {
-    "ghl": "./bin/ghl.js"
+    "ghl": "./bin/ghl.ts"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "packageManager": "pnpm@11.6.0",
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "ghl": "node ./bin/ghl.js",
+    "ghl": "node ./bin/ghl.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint bin src web/src vite.config.js",
     "lint:fix": "oxlint --fix bin src web/src vite.config.js",

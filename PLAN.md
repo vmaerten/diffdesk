@@ -80,7 +80,7 @@ headless does no real compositing. Redo with CDP tracing if the need arises.
 They make a later move to a daemon nearly free (~150 lines) instead of a refactor:
 
 1. **Explicit `repoPath` everywhere.** Never `process.cwd()` in the git layer. Enforced by
-   routing every call through `git -C <repoPath>`; `bin/ghl.js` reads the cwd once.
+   routing every call through `git -C <repoPath>`; `bin/ghl.ts` reads the cwd once.
 2. **State on disk**, never in memory alone.
 3. **Namespaced routes** `/r/:repoId/...` from the start, even with a single repo served.
 
