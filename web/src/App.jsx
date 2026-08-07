@@ -4,6 +4,7 @@ import { CodeView } from '@pierre/diffs/react'
 
 import RefSelector from './RefSelector.jsx'
 import FileTree from './FileTree.jsx'
+import Resizer, { storedWidth } from './Resizer.jsx'
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -27,6 +28,8 @@ export default function App() {
   const viewRef = useRef(null)
   /** Folding and revealing live inside the tree, which owns that state. */
   const treeRef = useRef(null)
+  const bodyRef = useRef(null)
+  const [sidebarWidth, setSidebarWidth] = useState(storedWidth)
 
   /**
    * The single refresh path.
@@ -220,6 +223,11 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [activeIndex, goTo, refresh, items, viewed, toggleViewed, picking])
 
+  const resizeSidebar = useCallback((width) => {
+    setSidebarWidth(width)
+    localStorage.setItem('ghl.sidebarWidth', String(width))
+  }, [])
+
   const options = useMemo(
     () => ({ diffStyle, theme: 'github-dark', stickyHeaders: true }),
     [diffStyle]
@@ -378,7 +386,7 @@ export default function App() {
       )}
 
       {allItems.length > 0 && (
-        <div className="body">
+        <div className="body" ref={bodyRef} style={{ '--sidebar-width': `${sidebarWidth}px` }}>
           <aside className="sidebar">
             <div className="sidebar-head">
               <span>
@@ -404,6 +412,8 @@ export default function App() {
               onSelect={selectByPath}
             />
           </aside>
+
+          <Resizer containerRef={bodyRef} onCommit={resizeSidebar} />
 
           {allRead ? (
             <p className="message">

@@ -170,9 +170,33 @@ body {
 }
 
 .body {
+  --sidebar-width: 300px;
   display: flex;
   flex: 1;
   min-height: 0;
+}
+
+.resizer {
+  flex: 0 0 5px;
+  margin: 0 -2px;
+  z-index: 1;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.12s ease 0.1s;
+}
+
+.resizer:hover,
+.resizer:focus-visible {
+  background: var(--accent);
+  outline: none;
+}
+
+/* Set on <body> while dragging: without it the cursor flickers back to `text`
+   over whatever the pointer crosses, and the drag selects the diff. */
+body.resizing,
+body.resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 /* The tree virtualises its rows and scrolls itself, so the sidebar must not:
@@ -180,7 +204,7 @@ body {
 .sidebar {
   display: flex;
   flex-direction: column;
-  width: 300px;
+  width: var(--sidebar-width);
   flex-shrink: 0;
   min-height: 0;
   overflow: hidden;
