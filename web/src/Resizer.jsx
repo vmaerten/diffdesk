@@ -27,7 +27,7 @@ export default function Resizer({ containerRef, onCommit }) {
       widthRef.current = width
       containerRef.current?.style.setProperty('--sidebar-width', `${width}px`)
     },
-    [containerRef]
+    [containerRef],
   )
 
   const onPointerDown = useCallback(
@@ -55,7 +55,7 @@ export default function Resizer({ containerRef, onCommit }) {
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', onUp)
     },
-    [apply, containerRef, onCommit]
+    [apply, containerRef, onCommit],
   )
 
   const onKeyDown = useCallback(
@@ -75,7 +75,7 @@ export default function Resizer({ containerRef, onCommit }) {
       event.stopPropagation()
       onCommit(clamp(next))
     },
-    [containerRef, onCommit]
+    [containerRef, onCommit],
   )
 
   return (

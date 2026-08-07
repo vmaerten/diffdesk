@@ -130,7 +130,7 @@ export async function diffFromMergeBase(repoPath, base, { target, contextLines =
       '--no-color',
       '--no-ext-diff',
     ],
-    { allowFailure: true }
+    { allowFailure: true },
   )
 }
 
@@ -146,7 +146,7 @@ export async function numstat(repoPath, base, target) {
   const out = await git(
     repoPath,
     ['diff', '--merge-base', base, ...(target ? [target] : []), '--numstat', '--no-color'],
-    { allowFailure: true }
+    { allowFailure: true },
   )
 
   const files = []
@@ -177,13 +177,13 @@ export async function nameStatus(repoPath, base, target) {
   const out = await git(
     repoPath,
     ['diff', '--merge-base', base, ...(target ? [target] : []), '--name-status', '-M', '-z'],
-    { allowFailure: true }
+    { allowFailure: true },
   )
 
   // -z emits NUL-separated fields, and a rename spends three: status, from, to.
   const fields = out.split('\0').filter(Boolean)
   const statuses = new Map()
-  for (let i = 0; i < fields.length; ) {
+  for (let i = 0; i < fields.length;) {
     const code = fields[i++]
     const letter = code[0]
     if (letter === 'R' || letter === 'C') {
@@ -216,7 +216,7 @@ export async function untrackedPatch(repoPath, paths) {
     const patch = await git(
       repoPath,
       ['diff', '--no-index', '--no-color', '--', '/dev/null', path],
-      { allowFailure: true }
+      { allowFailure: true },
     )
     if (patch.trim()) chunks.push(patch)
   }
@@ -249,9 +249,11 @@ export async function repoState(repoPath) {
     operation = 'rebase'
   } else if (existsSync(`${absolute}/CHERRY_PICK_HEAD`)) operation = 'cherry-pick'
 
-  const conflicted = (await git(repoPath, ['diff', '--name-only', '--diff-filter=U'], {
-    allowFailure: true,
-  }))
+  const conflicted = (
+    await git(repoPath, ['diff', '--name-only', '--diff-filter=U'], {
+      allowFailure: true,
+    })
+  )
     .split('\n')
     .filter(Boolean)
 

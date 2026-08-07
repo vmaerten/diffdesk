@@ -150,7 +150,9 @@ body {
   border-radius: 4px;
   background: var(--bg);
   color: var(--text);
-  font: 10px ui-monospace, monospace;
+  font:
+    10px ui-monospace,
+    monospace;
   text-align: center;
 }
 
@@ -255,7 +257,10 @@ body.resizing * {
   border-radius: 6px;
   color: var(--text-dim);
   cursor: pointer;
-  font: 11px ui-sans-serif, system-ui, sans-serif;
+  font:
+    11px ui-sans-serif,
+    system-ui,
+    sans-serif;
   user-select: none;
 }
 
@@ -378,7 +383,9 @@ body.resizing * {
   border-bottom: 1px solid var(--border);
   background: transparent;
   color: var(--text);
-  font: 13px ui-monospace, monospace;
+  font:
+    13px ui-monospace,
+    monospace;
   outline: none;
 }
 
@@ -398,7 +405,9 @@ body.resizing * {
   border-radius: 6px;
   color: var(--text);
   cursor: pointer;
-  font: 12px ui-monospace, monospace;
+  font:
+    12px ui-monospace,
+    monospace;
 }
 
 .picker-item[data-selected='true'] {
@@ -457,6 +466,8 @@ body.resizing * {
   border-radius: 4px;
   background: var(--bg);
   color: var(--text);
-  font: 10px ui-monospace, monospace;
+  font:
+    10px ui-monospace,
+    monospace;
   text-align: center;
 }

@@ -1,4 +1,12 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { resolveTheme } from '@pierre/diffs'
 import { themeToTreeStyles } from '@pierre/trees'
 import { FileTree as TreeView, useFileTree } from '@pierre/trees/react'
@@ -142,7 +150,7 @@ function FileTree({ entries, activePath, onSelect }, ref) {
       }
       model.scrollToPath(path, { focus: false, offset: 'nearest' })
     },
-    [model]
+    [model],
   )
 
   /**
@@ -172,7 +180,7 @@ function FileTree({ entries, activePath, onSelect }, ref) {
         if (!expanded) break
       }
     },
-    [model]
+    [model],
   )
 
   useImperativeHandle(
@@ -182,7 +190,7 @@ function FileTree({ entries, activePath, onSelect }, ref) {
       expandAll: () => setAllExpanded(true),
       collapseAll: () => setAllExpanded(false),
     }),
-    [reveal, setAllExpanded]
+    [reveal, setAllExpanded],
   )
 
   // Track folds as they happen: a directory nested inside a folded one stops
@@ -196,7 +204,7 @@ function FileTree({ entries, activePath, onSelect }, ref) {
           else collapsedRef.current.add(row.path)
         }
       }),
-    [model]
+    [model],
   )
 
   // Keyed by content, not by identity: `entries` is rebuilt on every viewed
@@ -251,7 +259,7 @@ function FileTree({ entries, activePath, onSelect }, ref) {
       // seam under the header. Both surfaces are told to use the same one.
       '--trees-theme-sidebar-bg': 'var(--bg-raised)',
     }),
-    [themeStyles]
+    [themeStyles],
   )
 
   return <TreeView model={model} className="tree" style={style} aria-label="Changed files" />

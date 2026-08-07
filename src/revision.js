@@ -166,7 +166,7 @@ export async function buildPatch(repoPath, base, { target, includeUntracked = fa
       additions: acc.additions + f.additions,
       deletions: acc.deletions + f.deletions,
     }),
-    { files: 0, additions: 0, deletions: 0 }
+    { files: 0, additions: 0, deletions: 0 },
   )
 
   if (!includeUntracked || paths.length === 0) {

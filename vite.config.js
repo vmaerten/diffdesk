@@ -15,7 +15,10 @@ export default defineConfig({
     port: 5180,
     // In dev, Vite serves the UI and forwards data calls to a running `ghl`.
     proxy: {
-      '/r': { target: 'http://localhost:7777', bypass: (req) => (req.url.includes('/api/') ? undefined : req.url) },
+      '/r': {
+        target: 'http://localhost:7777',
+        bypass: (req) => (req.url.includes('/api/') ? undefined : req.url),
+      },
       '/api': 'http://localhost:7777',
     },
   },
