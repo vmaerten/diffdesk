@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 import { currentBranch, headSha, repoState } from './git.js'
 import { buildPatch, rememberBase, resolveBase } from './revision.js'
+import { clearViewed, pruneStale, readState, sectionHashes, setViewed } from './state.js'
 
 const UI_DIR = fileURLToPath(new URL('../web-dist', import.meta.url))
 
@@ -105,17 +106,35 @@ export function createGhlServer({ repos }) {
           base.ref,
           { includeUntracked: entry.includeUntracked ?? false }
         )
+        const branch = await currentBranch(repoPath)
+        const range = `${base.ref}..${branch ?? 'HEAD'}`
+        const hashes = sectionHashes(patch)
+
+        // Ticks only survive while the file's diff is unchanged.
+        const stored = (await readState(repoPath)).viewed?.[range] ?? {}
+        const viewed = pruneStale(stored, hashes)
+
         return json(res, 200, {
           repo: { id: repoId, path: repoPath },
           base,
-          head: { branch: await currentBranch(repoPath), sha: await headSha(repoPath) },
+          head: { branch, sha: await headSha(repoPath) },
+          range,
           state: await repoState(repoPath),
           untracked,
           untrackedIncluded,
-          files,
+          files: files.map((f) => ({ ...f, hash: hashes[f.path] ?? null })),
           totals,
+          viewed,
           patch,
         })
+      }
+
+      if (route === 'api/viewed' && req.method === 'POST') {
+        const body = JSON.parse((await readBody(req)) || '{}')
+        if (body.clear) return json(res, 200, { viewed: await clearViewed(repoPath, body.range) })
+        if (!body.range || !body.path) return json(res, 400, { error: 'missing "range" or "path"' })
+        const viewed = await setViewed(repoPath, body)
+        return json(res, 200, { viewed })
       }
 
       if (route === 'api/base' && req.method === 'POST') {

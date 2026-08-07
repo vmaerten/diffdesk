@@ -145,6 +145,12 @@ Measured: collapsing 177 files costs 2,652 ms against 624 ms expanded, and tripl
 Collapsing saturates the virtualisation window with headers. Removing them keeps the list
 short — which is also what we want visually.
 
+Stale entries are filtered on read, not deleted on disk: if the file goes back to what it
+was, the tick returns. The file only ever holds one hash per path per range.
+
+Membership decides, not truthiness (`path in viewed`): a stored hash may legitimately be
+null, and `Boolean(null)` would silently drop the tick.
+
 ## 4. Steps
 
 1. **CLI + server skeleton.** ✅ Resolves the repo, serves `/r/:repoId/api/diff`, opens the
@@ -157,7 +163,11 @@ short — which is also what we want visually.
 4. **File tree + keyboard.** ✅ Sidebar tree with per-file counts (from `--numstat`) and
    single-child directory chains collapsed into one row, `j`/`k` to move between files,
    click to jump, `r` to refresh. Verified on a 107-file PR.
-5. **Persistent viewed**, with hash invalidation.
+5. **Persistent viewed.** ✅ Checkbox in each file header (via `renderHeaderMetadata`),
+   `v` on the active file, tick in the tree, `Reset`. A viewed file leaves the items array.
+   State lives in `.git/ghl/state.json`, keyed by revision range, and each entry stores the
+   hash of that file's diff section: change the file and its tick clears, while other files
+   keep theirs.
 
 ## 5. Known traps
 

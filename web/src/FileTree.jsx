@@ -116,11 +116,12 @@ function Node({ node, depth, activeId, collapsed, onSelect, onToggle }) {
         <button
           key={file.id}
           type="button"
-          className={`tree-file${file.id === activeId ? ' active' : ''}`}
+          className={`tree-file${file.id === activeId ? ' active' : ''}${file.viewed ? ' viewed' : ''}`}
           style={{ paddingLeft: 8 + depth * 12 + 14 }}
           onClick={() => onSelect(file.id)}
-          title={file.path}
+          title={file.viewed ? `${file.path} — viewed, click to bring back` : file.path}
         >
+          {file.viewed && <span className="tick" aria-hidden="true">✓</span>}
           <span className="tree-name">{file.label}</span>
           <Counts {...file} />
         </button>
