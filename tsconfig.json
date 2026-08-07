@@ -4,6 +4,9 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "preserve",
     "moduleResolution": "bundler",
+    // Node runs the .ts files directly, and its loader does not rewrite
+    // extensions — relative imports have to name the real file.
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "types": ["node", "vite/client"],
 

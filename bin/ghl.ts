@@ -1,9 +1,20 @@
 #!/usr/bin/env node
 import { execFile } from 'node:child_process'
 
-import { repoState, resolveRepoRoot } from '../src/git.js'
-import { buildPatch, resolveBase } from '../src/revision.js'
-import { createGhlServer, listen, repoIdFor } from '../src/server.js'
+import { repoState, resolveRepoRoot } from '../src/git.ts'
+import { buildPatch, resolveBase } from '../src/revision.ts'
+import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
+import type { BaseSource } from '../src/types.ts'
+
+interface Options {
+  open: boolean
+  print: boolean
+  help: boolean
+  port: number
+  base: string | null
+  untracked: boolean
+  target: string | null
+}
 
 const USAGE = `ghl — review the PR you are about to open, without opening it
 
@@ -23,24 +34,37 @@ Options:
   -h, --help     Show this help
 `
 
-function parseArgs(argv) {
-  const options = { open: true, print: false, port: 0, base: null, untracked: false, target: null }
+function parseArgs(argv: string[]): Options {
+  const options: Options = {
+    open: true,
+    print: false,
+    help: false,
+    port: 0,
+    base: null,
+    untracked: false,
+    target: null,
+  }
+  const next = (i: number, flag: string): string => {
+    const value = argv[i]
+    if (value === undefined) throw new Error(`${flag} needs a value`)
+    return value
+  }
   for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i]
+    const arg = argv[i] ?? ''
     if (!arg.startsWith('-') && options.target === null) options.target = arg
     else if (arg === '-h' || arg === '--help') options.help = true
     else if (arg === '--no-open') options.open = false
     else if (arg === '--untracked') options.untracked = true
     else if (arg === '--print') options.print = true
-    else if (arg === '--base') options.base = argv[++i]
-    else if (arg === '--port') options.port = Number.parseInt(argv[++i], 10)
+    else if (arg === '--base') options.base = next(++i, '--base')
+    else if (arg === '--port') options.port = Number.parseInt(next(++i, '--port'), 10)
     else throw new Error(`unknown option: ${arg}`)
   }
   return options
 }
 
 /** Count files and lines straight from the patch, to sanity-check the git layer. */
-function summarise(patch) {
+function summarise(patch: string): { files: number; additions: number; deletions: number } {
   let files = 0
   let additions = 0
   let deletions = 0
@@ -52,7 +76,7 @@ function summarise(patch) {
   return { files, additions, deletions }
 }
 
-const openBrowser = (url) => execFile('open', [url])
+const openBrowser = (url: string) => execFile('open', [url])
 
 async function main() {
   const options = parseArgs(process.argv.slice(2))
@@ -73,17 +97,17 @@ async function main() {
     })
     const { files, additions, deletions } = summarise(patch)
     const state = await repoState(repoPath)
-    const origin = {
+    const origin: Record<BaseSource, string> = {
       override: 'given on the command line',
       remembered: 'remembered in .git/config',
       guessed: `guessed (stacked branch, ${base.distance} commit(s))`,
       trunk: 'repository trunk',
-    }[base.source]
+    }
 
     const lines = [
       `repo      ${repoPath}`,
       `reviewing ${options.target ?? `${base.branch ?? 'HEAD'} + working tree`}`,
-      `base      ${base.ref}  — ${origin}`,
+      `base      ${base.ref}  — ${origin[base.source]}`,
       `changes   ${files} file(s), +${additions} -${deletions}`,
       `untracked ${untracked.length} file(s)${untrackedIncluded ? ' (included)' : ' (excluded, use --untracked)'}`,
     ]
@@ -113,7 +137,7 @@ async function main() {
   if (options.open) openBrowser(url)
 }
 
-main().catch((error) => {
-  process.stderr.write(`ghl: ${error.message}\n`)
+main().catch((error: unknown) => {
+  process.stderr.write(`ghl: ${error instanceof Error ? error.message : String(error)}\n`)
   process.exitCode = 1
 })

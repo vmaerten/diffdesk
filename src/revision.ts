@@ -13,7 +13,8 @@ import {
   untrackedPaths,
   untrackedPatch,
   writeConfig,
-} from './git.js'
+} from './git.ts'
+import type { BaseResolution, FileStat, PatchResult, Totals } from './types.ts'
 
 // Remote first: it is the shared truth. Local names cover repositories with no
 // remote at all, of which there are two here.
@@ -26,7 +27,7 @@ const TRUNK_FALLBACKS = [
   'develop',
 ]
 
-const baseConfigKey = (branch) => `branch.${branch}.ghlBase`
+const baseConfigKey = (branch: string) => `branch.${branch}.ghlBase`
 
 /**
  * The repository's trunk.
@@ -34,7 +35,7 @@ const baseConfigKey = (branch) => `branch.${branch}.ghlBase`
  * `origin/HEAD` is authoritative but absent on 22 of the 86 repositories
  * measured here; hardcoding "main" would be wrong on 29 of them.
  */
-export async function detectTrunk(repoPath) {
+export async function detectTrunk(repoPath: string): Promise<string | null> {
   const fromOriginHead = await originHead(repoPath)
   if (fromOriginHead && (await revExists(repoPath, fromOriginHead))) return fromOriginHead
 
@@ -52,16 +53,20 @@ export async function detectTrunk(repoPath) {
  * commit score exactly like the trunk, and a sibling is not a parent — without
  * it, `adessi/pren-322-input` resolves to an unrelated branch.
  */
-export async function guessParent(repoPath, head, trunk) {
+export async function guessParent(
+  repoPath: string,
+  head: string,
+  trunk: string | null,
+): Promise<{ ref: string; distance: number; reason: 'trunk' | 'stacked-branch' } | null> {
   // The ref being analysed, not HEAD: reading HEAD here silently guessed the
   // base of whatever branch happened to be checked out.
   const headRev = await revParse(repoPath, head)
   if (!headRev) return null
   const refs = await listRefs(repoPath)
 
-  let best = null
+  let best: string | null = null
   let bestDistance = Number.POSITIVE_INFINITY
-  let trunkDistance = null
+  let trunkDistance: number | null = null
 
   for (const ref of refs) {
     if (ref === head) continue
@@ -80,7 +85,7 @@ export async function guessParent(repoPath, head, trunk) {
     }
   }
 
-  if (trunkDistance !== null && bestDistance >= trunkDistance) {
+  if (trunk && trunkDistance !== null && bestDistance >= trunkDistance) {
     return { ref: trunk, distance: trunkDistance, reason: 'trunk' }
   }
   if (!best) return null
@@ -93,7 +98,10 @@ export async function guessParent(repoPath, head, trunk) {
  * The result carries how it was obtained, and the UI has to show it: a wrong
  * base produces a misleading diff without ever looking wrong.
  */
-export async function resolveBase(repoPath, { override, target } = {}) {
+export async function resolveBase(
+  repoPath: string,
+  { override, target }: { override?: string | null; target?: string | null } = {},
+): Promise<BaseResolution> {
   // Guessed for what is under review, so another branch does not inherit the
   // base of the checkout.
   const branch = target ?? (await currentBranch(repoPath))
@@ -127,7 +135,11 @@ export async function resolveBase(repoPath, { override, target } = {}) {
 }
 
 /** Persist a base choice so it is never guessed again for this branch. */
-export async function rememberBase(repoPath, branch, base) {
+export async function rememberBase(
+  repoPath: string,
+  branch: string | null,
+  base: string,
+): Promise<void> {
   if (!branch) throw new Error('cannot remember a base while HEAD is detached')
   await writeConfig(repoPath, baseConfigKey(branch), base)
 }
@@ -139,11 +151,15 @@ export async function rememberBase(repoPath, branch, base) {
  * has 2 modified files against 446 untracked ones — real, unignored, and enough
  * to drown the diff. Callers opt in with `includeUntracked`.
  */
-export async function buildPatch(repoPath, base, { target, includeUntracked = false } = {}) {
+export async function buildPatch(
+  repoPath: string,
+  base: string,
+  { target, includeUntracked = false }: { target?: string | null; includeUntracked?: boolean } = {},
+): Promise<PatchResult> {
   const tracked = await diffFromMergeBase(repoPath, base, { target })
   const counts = await numstat(repoPath, base, target)
   const statuses = await nameStatus(repoPath, base, target)
-  const files = counts.map((file) => ({
+  const files: FileStat[] = counts.map((file) => ({
     ...file,
     status: statuses.get(file.path) ?? 'modified',
   }))
@@ -151,8 +167,8 @@ export async function buildPatch(repoPath, base, { target, includeUntracked = fa
   // Uncommitted work belongs to the checkout, not to some other ref.
   const paths = target ? [] : await untrackedPaths(repoPath)
 
-  const totals = files.reduce(
-    (acc, f) => ({
+  const totals: Totals = files.reduce(
+    (acc: Totals, f) => ({
       files: acc.files + 1,
       additions: acc.additions + f.additions,
       deletions: acc.deletions + f.deletions,

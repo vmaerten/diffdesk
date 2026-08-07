@@ -1,16 +1,25 @@
 import { createHash } from 'node:crypto'
 import { createReadStream, existsSync, statSync } from 'node:fs'
-import { createServer } from 'node:http'
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { basename, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { currentBranch, headSha, listRefDetails, repoState } from './git.js'
-import { buildPatch, detectTrunk, rememberBase, resolveBase } from './revision.js'
-import { clearViewed, pruneStale, readState, sectionHashes, setViewed } from './state.js'
+import { currentBranch, headSha, listRefDetails, repoState } from './git.ts'
+import { buildPatch, detectTrunk, rememberBase, resolveBase } from './revision.ts'
+import { clearViewed, pruneStale, readState, sectionHashes, setViewed } from './state.ts'
+import type { DiffPayload, RefsPayload } from './types.ts'
+
+/** One repository the server is willing to serve, as the CLI registers it. */
+export interface RepoEntry {
+  repoPath: string
+  baseOverride?: string | null
+  target?: string | null
+  includeUntracked?: boolean
+}
 
 const UI_DIR = fileURLToPath(new URL('../web-dist', import.meta.url))
 
-const MIME = {
+const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -24,12 +33,12 @@ const MIME = {
  * Stable, readable id for a repository. The path hash keeps two worktrees of the
  * same repo from colliding; 9 of the repositories here have several.
  */
-export function repoIdFor(repoPath) {
+export function repoIdFor(repoPath: string): string {
   const hash = createHash('sha1').update(repoPath).digest('hex').slice(0, 7)
   return `${basename(repoPath)}-${hash}`
 }
 
-const json = (res, status, body) => {
+const json = (res: ServerResponse, status: number, body: unknown): void => {
   const payload = JSON.stringify(body)
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
@@ -39,7 +48,7 @@ const json = (res, status, body) => {
 }
 
 /** Serve a built asset. Returns false when the UI has not been built. */
-function serveStatic(res, relativePath) {
+function serveStatic(res: ServerResponse, relativePath: string): boolean {
   // normalize() collapses any ../ before it can escape the UI directory.
   const target = join(UI_DIR, normalize(relativePath).replace(/^(\.\.[/\\])+/, ''))
   if (!target.startsWith(UI_DIR) || !existsSync(target) || !statSync(target).isFile()) {
@@ -53,10 +62,10 @@ function serveStatic(res, relativePath) {
   return true
 }
 
-const readBody = (req) =>
+const readBody = (req: IncomingMessage): Promise<string> =>
   new Promise((resolve, reject) => {
-    const chunks = []
-    req.on('data', (c) => chunks.push(c))
+    const chunks: Buffer[] = []
+    req.on('data', (c: Buffer) => chunks.push(c))
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
     req.on('error', reject)
   })
@@ -67,11 +76,11 @@ const readBody = (req) =>
  * Routes are namespaced by repo from day one (`/r/:repoId/...`) even though the
  * CLI currently registers a single one — decision 1 in PLAN.md.
  */
-export function createGhlServer({ repos }) {
-  const registry = new Map(repos.map((r) => [repoIdFor(r.repoPath), r]))
+export function createGhlServer({ repos }: { repos: RepoEntry[] }): Server {
+  const registry = new Map(repos.map((r) => [repoIdFor(r.repoPath), r] as const))
 
   const server = createServer(async (req, res) => {
-    const url = new URL(req.url, 'http://localhost')
+    const url = new URL(req.url ?? '/', 'http://localhost')
     const segments = url.pathname.split('/').filter(Boolean)
 
     try {
@@ -89,7 +98,7 @@ export function createGhlServer({ repos }) {
 
       if (segments.length < 2) return json(res, 404, { error: 'not found' })
 
-      const repoId = segments[1]
+      const repoId = segments[1] ?? ''
       const entry = registry.get(repoId)
       if (!entry) return json(res, 404, { error: `unknown repo: ${repoId}` })
 
@@ -114,7 +123,7 @@ export function createGhlServer({ repos }) {
         const stored = (await readState(repoPath)).viewed?.[range] ?? {}
         const viewed = pruneStale(stored, hashes)
 
-        return json(res, 200, {
+        const payload: DiffPayload = {
           repo: { id: repoId, path: repoPath },
           base,
           head: { branch, sha: await headSha(repoPath) },
@@ -127,7 +136,8 @@ export function createGhlServer({ repos }) {
           totals,
           viewed,
           patch,
-        })
+        }
+        return json(res, 200, payload)
       }
 
       if (route === 'api/refs' && req.method === 'GET') {
@@ -136,7 +146,8 @@ export function createGhlServer({ repos }) {
           detectTrunk(repoPath),
           currentBranch(repoPath),
         ])
-        return json(res, 200, { refs, trunk, branch })
+        const payload: RefsPayload = { refs, trunk, branch }
+        return json(res, 200, payload)
       }
 
       if (route === 'api/viewed' && req.method === 'POST') {
@@ -166,16 +177,23 @@ export function createGhlServer({ repos }) {
 
       return json(res, 404, { error: 'not found' })
     } catch (error) {
-      return json(res, 500, { error: error.message })
+      return json(res, 500, { error: error instanceof Error ? error.message : String(error) })
     }
   })
 
   return server
 }
 
-export function listen(server, port = 0) {
+export function listen(server: Server, port = 0): Promise<number> {
   return new Promise((resolve, reject) => {
     server.once('error', reject)
-    server.listen(port, '127.0.0.1', () => resolve(server.address().port))
+    server.listen(port, '127.0.0.1', () => {
+      const address = server.address()
+      if (address === null || typeof address === 'string') {
+        reject(new Error('server is not listening on a TCP port'))
+        return
+      }
+      resolve(address.port)
+    })
   })
 }

@@ -67,8 +67,14 @@ says so.
 ## Layout
 
 ```
-bin/ghl.js       CLI — the only place that reads the current directory
-src/git.js       git layer, every call through `git -C <repoPath>`
-src/revision.js  base resolution and patch construction
-src/server.js    HTTP server, routes namespaced by repo
+bin/ghl.ts       CLI — the only place that reads the current directory
+src/git.ts       git layer, every call through `git -C <repoPath>`
+src/revision.ts  base resolution and patch construction
+src/server.ts    HTTP server, routes namespaced by repo
+src/types.ts     the shapes that cross the HTTP boundary
 ```
+
+The server side is TypeScript and runs unbuilt: Node strips the types itself,
+which is why relative imports name the real `.ts` file and why `engines` asks
+for Node 24 — the first LTS with that on by default. The UI is still `.jsx`
+until #19.
