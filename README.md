@@ -64,6 +64,23 @@ checking it out. The revision lives in the URL, so a reload stays on it. Reviewi
 excludes uncommitted work, which belongs to the working tree and not to that ref; the UI
 says so.
 
+## Tests
+
+```bash
+pnpm test          # all of them
+pnpm test tree     # one suite: tree, resize, viewed, pickers, scroll
+```
+
+They drive a headless Chrome over the real UI — `CHROME_PATH` overrides where it
+is found. Each run builds a throwaway git repository in a temp directory with a
+known diff (one file of each git status, a chain of single-child directories,
+enough rows to force both panes to virtualise) and serves that. Nothing touches
+a real repository, and nothing depends on which branch happens to be checked
+out — an earlier version did both, and broke when the branch moved.
+
+`pnpm test` builds the UI first on purpose: `web-dist/` is what the server
+serves, so testing without rebuilding silently tests the previous version.
+
 ## Layout
 
 ```

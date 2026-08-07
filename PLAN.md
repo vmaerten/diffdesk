@@ -225,6 +225,16 @@ null, and `Boolean(null)` would silently drop the tick.
   **context lines included**. Summing their lengths reported `+388 −377` on a diff that git
   counts as `+172 −161`. Line counts come from `git diff --numstat`, which also gives the
   per-file numbers the file tree needs.
+- **A picker renders before its refs arrive.** The target picker shows "this checkout"
+  immediately and fetches the refs after, so waiting on `.picker-item` returns while only
+  that entry exists. A suite that typed into the gap selected the working tree whatever it
+  typed, then asserted against the wrong revision — and passed, because the assertion only
+  checked that *something* had changed.
+- **`git diff --numstat` renames its own way.** Without `-z` a rename is one line reading
+  `0\t0\told => new`, and that arrow is a path nothing else agrees with — not the patch,
+  not `--name-status`. The status lookup missed, so every renamed file showed as *modified*
+  with no line counts. Found by the fixture, not by the real repositories: the assertion
+  there only required more than one distinct status, and `renamed` never appeared.
 - **Library options**: `diffStyle: 'unified' | 'split'` (not `layout`), `disableLineNumbers`
   (not `lineNumbers`). Unknown options are ignored silently.
 - **The tree's `select()` adds to the selection**, it does not replace it. Without an
