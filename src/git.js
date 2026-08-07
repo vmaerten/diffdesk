@@ -165,6 +165,38 @@ export async function numstat(repoPath, base, target) {
   return files
 }
 
+/**
+ * Per-file change kind, from merge-base to the target.
+ *
+ * `--numstat` gives counts but never says whether a file was added, deleted or
+ * renamed, and the tree colours rows by that. `-M` turns an add/delete pair back
+ * into the rename it was, which is also how git reports 0 lines changed for a
+ * pure move.
+ */
+export async function nameStatus(repoPath, base, target) {
+  const out = await git(
+    repoPath,
+    ['diff', '--merge-base', base, ...(target ? [target] : []), '--name-status', '-M', '-z'],
+    { allowFailure: true }
+  )
+
+  // -z emits NUL-separated fields, and a rename spends three: status, from, to.
+  const fields = out.split('\0').filter(Boolean)
+  const statuses = new Map()
+  for (let i = 0; i < fields.length; ) {
+    const code = fields[i++]
+    const letter = code[0]
+    if (letter === 'R' || letter === 'C') {
+      i++ // the source path, which no longer exists under that name
+      statuses.set(fields[i++], letter === 'R' ? 'renamed' : 'added')
+    } else {
+      const kind = { A: 'added', D: 'deleted', M: 'modified', T: 'modified' }[letter] ?? 'modified'
+      statuses.set(fields[i++], kind)
+    }
+  }
+  return statuses
+}
+
 /** Paths that git does not track yet and that .gitignore does not cover. */
 export async function untrackedPaths(repoPath) {
   const out = await git(repoPath, ['ls-files', '--others', '--exclude-standard', '-z'])

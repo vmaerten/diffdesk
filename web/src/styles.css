@@ -175,16 +175,22 @@ body {
   min-height: 0;
 }
 
+/* The tree virtualises its rows and scrolls itself, so the sidebar must not:
+   it hands the tree a definite height and stays put. */
 .sidebar {
+  display: flex;
+  flex-direction: column;
   width: 300px;
   flex-shrink: 0;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   border-right: 1px solid var(--border);
   background: var(--bg-raised);
   padding: 8px 0;
 }
 
 .sidebar-head {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -209,81 +215,11 @@ body {
   color: var(--text);
 }
 
-.tree-dir {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  padding: 3px 8px;
-  border: 0;
-  background: none;
-  color: var(--text-dim);
-  cursor: pointer;
-  font-family: ui-monospace, monospace;
-  font-size: 11px;
-  text-align: left;
-}
-
-.tree-dir:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-}
-
-.chevron {
-  display: inline-block;
-  width: 10px;
-  flex-shrink: 0;
-  transition: transform 0.12s ease;
-}
-
-.chevron.collapsed {
-  transform: rotate(-90deg);
-}
-
-.tree-file {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 3px 8px;
-  border: 0;
-  background: none;
-  color: var(--text);
-  cursor: pointer;
-  font-family: ui-monospace, monospace;
-  font-size: 12px;
-  text-align: left;
-}
-
-.tree-file:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.tree-file.active {
-  background: rgba(47, 129, 247, 0.18);
-  box-shadow: inset 2px 0 0 var(--accent);
-}
-
-.tree-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tree-file.viewed .tree-name,
-.tree-file.viewed .tree-stat {
-  color: var(--text-dim);
-  text-decoration: line-through;
-  text-decoration-color: var(--border);
-}
-
-.tick {
-  flex-shrink: 0;
-  margin-left: -12px;
-  margin-right: 2px;
-  color: #3fb950;
-  font-size: 10px;
+/* The tree itself lives in a shadow DOM: nothing here reaches its rows, which
+   are styled through the --trees-* custom properties set in FileTree.jsx. */
+.tree {
+  --trees-selected-bg-override: rgba(47, 129, 247, 0.18);
+  --trees-accent-override: var(--accent);
 }
 
 .viewed-toggle {
@@ -327,19 +263,6 @@ body {
   cursor: pointer;
   font: inherit;
   text-decoration: underline;
-}
-
-.tree-stat {
-  flex-shrink: 0;
-  font-size: 11px;
-}
-
-.tree-stat .add {
-  margin-right: 4px;
-}
-
-.tree-stat.dim {
-  color: var(--text-dim);
 }
 
 .diff {

@@ -3,7 +3,7 @@ import { parsePatchFiles } from '@pierre/diffs'
 import { CodeView } from '@pierre/diffs/react'
 
 import RefSelector from './RefSelector.jsx'
-import FileTree, { allDirPaths, buildTree } from './FileTree.jsx'
+import FileTree from './FileTree.jsx'
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -18,8 +18,6 @@ export default function App() {
   const [diffStyle, setDiffStyle] = useState('unified')
   const [activeIndex, setActiveIndex] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
-  /** Folded directory paths. Survives a refresh, since it does not derive from data. */
-  const [collapsed, setCollapsed] = useState(() => new Set())
   /** path -> hash of the diff section that was marked as read. */
   const [viewed, setViewedState] = useState({})
   const [showViewed, setShowViewed] = useState(false)
@@ -27,6 +25,8 @@ export default function App() {
   /** Revision under review. null means the working tree of this checkout. */
   const [target, setTarget] = useState(() => new URLSearchParams(location.search).get('target'))
   const viewRef = useRef(null)
+  /** Folding and revealing live inside the tree, which owns that state. */
+  const treeRef = useRef(null)
 
   /**
    * The single refresh path.
@@ -98,6 +98,8 @@ export default function App() {
   const stats = data?.totals ?? { files: 0, additions: 0, deletions: 0 }
   const viewedCount = Object.keys(viewed).length
 
+  const untrackedSet = useMemo(() => new Set(data?.untracked ?? []), [data])
+
   /** Tree entries: every file, viewed or not, enriched with git's per-file counts. */
   const entries = useMemo(() => {
     const byPath = new Map((data?.files ?? []).map((f) => [f.path, f]))
@@ -109,14 +111,15 @@ export default function App() {
         additions: stat?.additions ?? 0,
         deletions: stat?.deletions ?? 0,
         binary: stat?.binary ?? false,
+        // Untracked files never reach `git diff`, so they carry no status of
+        // their own — the untracked list is the only place that knows.
+        status: untrackedSet.has(item.path) ? 'untracked' : (stat?.status ?? 'modified'),
         // Membership, not truthiness: the stored hash is null for files git
         // reports without one, and that must still count as viewed.
         viewed: item.path in viewed,
       }
     })
-  }, [allItems, data, viewed])
-
-  const tree = useMemo(() => buildTree(entries), [entries])
+  }, [allItems, data, viewed, untrackedSet])
 
   const toggleViewed = useCallback(
     async (path, next) => {
@@ -173,43 +176,23 @@ export default function App() {
       if (!target) return
       setActiveIndex(bounded)
 
-      // Reveal the file if it sits inside folded directories, rather than
-      // moving the selection somewhere invisible.
-      const ancestors = target.path.split('/').slice(0, -1)
-      const prefixes = ancestors.map((_, i) => ancestors.slice(0, i + 1).join('/'))
-      setCollapsed((current) => {
-        if (!prefixes.some((p) => current.has(p))) return current
-        const next = new Set(current)
-        for (const prefix of prefixes) next.delete(prefix)
-        return next
-      })
-
+      // The tree folds directories, so ask it to bring the file back into view
+      // rather than moving the selection somewhere invisible.
+      treeRef.current?.reveal(target.path)
       viewRef.current?.scrollTo({ type: 'item', id: target.id, align: 'start' })
     },
     [items]
   )
 
   /** Clicking a viewed file brings it back rather than jumping to nothing. */
-  const selectById = useCallback(
-    (id) => {
-      const entry = entries.find((e) => e.id === id)
-      if (entry?.viewed && !showViewed) return toggleViewed(entry.path, false)
-      goTo(items.findIndex((item) => item.id === id))
+  const selectByPath = useCallback(
+    (path) => {
+      const entry = entries.find((e) => e.path === path)
+      if (entry?.viewed && !showViewed) return toggleViewed(path, false)
+      goTo(items.findIndex((item) => item.path === path))
     },
     [entries, items, goTo, toggleViewed, showViewed]
   )
-
-  const toggleDir = useCallback((path) => {
-    setCollapsed((current) => {
-      const next = new Set(current)
-      if (next.has(path)) next.delete(path)
-      else next.add(path)
-      return next
-    })
-  }, [])
-
-  const collapseAll = useCallback(() => setCollapsed(new Set(allDirPaths(tree))), [tree])
-  const expandAll = useCallback(() => setCollapsed(new Set()), [])
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -269,7 +252,7 @@ export default function App() {
     trunk: 'trunk',
   }[data?.base?.source]
 
-  const activeId = items[activeIndex]?.id
+  const activePath = items[activeIndex]?.path
   const allRead = data && allItems.length > 0 && items.length === 0
 
   return (
@@ -407,19 +390,18 @@ export default function App() {
                   Reset
                 </button>
               )}
-              <button type="button" onClick={collapseAll}>
+              <button type="button" onClick={() => treeRef.current?.collapseAll()}>
                 Collapse all
               </button>
-              <button type="button" onClick={expandAll}>
+              <button type="button" onClick={() => treeRef.current?.expandAll()}>
                 Expand all
               </button>
             </div>
             <FileTree
-              tree={tree}
-              activeId={activeId}
-              collapsed={collapsed}
-              onSelect={selectById}
-              onToggle={toggleDir}
+              ref={treeRef}
+              entries={entries}
+              activePath={activePath}
+              onSelect={selectByPath}
             />
           </aside>
 

@@ -4,6 +4,7 @@ import {
   diffFromMergeBase,
   listRefs,
   mergeBase,
+  nameStatus,
   numstat,
   originHead,
   readConfig,
@@ -148,7 +149,12 @@ export async function rememberBase(repoPath, branch, base) {
  */
 export async function buildPatch(repoPath, base, { target, includeUntracked = false } = {}) {
   const tracked = await diffFromMergeBase(repoPath, base, { target })
-  const files = await numstat(repoPath, base, target)
+  const counts = await numstat(repoPath, base, target)
+  const statuses = await nameStatus(repoPath, base, target)
+  const files = counts.map((file) => ({
+    ...file,
+    status: statuses.get(file.path) ?? 'modified',
+  }))
 
   // Uncommitted work belongs to the working tree, so it is meaningless when
   // reviewing some other ref.

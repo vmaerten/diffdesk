@@ -109,8 +109,27 @@ ghl (node bin, one-shot)
  └── React front end
        parsePatchFiles(patch, cacheKey)  →  CodeViewItem[]
        <CodeView items options />         ← virtualised by the library
-       file tree · j/k · viewed
+       <FileTree model />                 ← @pierre/trees, also virtualised
+       j/k · viewed
 ```
+
+### The file tree
+
+`@pierre/trees` (same authors as `@pierre/diffs`, Apache-2.0). It brings row
+virtualisation, single-child directory folding, per-extension icons and git-status
+colouring — all of which we would otherwise have written. Three things it imposes:
+
+- **Options are read once.** `useFileTree` builds the model on first render and ignores
+  every later options object. Entries, decorations and handlers therefore reach the model
+  imperatively (`resetPaths`, `setGitStatus`) or through refs.
+- **One decoration per row, text or icon — not a node.** The viewed tick and the `+/−`
+  counts share a single coloured string.
+- **Shadow DOM.** `styles.css` does not reach the rows; they are themed through
+  `--trees-*` custom properties, fed by `themeToTreeStyles(resolveTheme('github-dark'))`
+  so both panes read the same resolved theme.
+
+Directory ids carry a trailing slash (`src/`), and a folded chain is one node named after
+its deepest segment (`web/src/`) — both matter when addressing rows by path.
 
 ### Base resolution
 
@@ -208,6 +227,15 @@ null, and `Boolean(null)` would silently drop the tick.
   per-file numbers the file tree needs.
 - **Library options**: `diffStyle: 'unified' | 'split'` (not `layout`), `disableLineNumbers`
   (not `lineNumbers`). Unknown options are ignored silently.
+- **The tree's `select()` adds to the selection**, it does not replace it. Without an
+  explicit `deselect()` of the previous row, every file visited with `j` stays lit.
+- **`resetPaths` notifies subscribers before it returns.** The listener that tracks folds
+  runs on that notification, sees every directory back open, and empties the set of folded
+  paths — so the set has to be copied *before* the reset, or folds never survive a rebuild.
+  The first test written for this passed anyway: an unchanged file list is reused as is, so
+  `resetPaths` never ran. It only goes red when the revision under review changes. **A test
+  that never reaches the code it covers is worse than no test** — this is the fourth time
+  on this project, see issue #1.
 - **Measuring at first frame gives wrong numbers.** Content arrives asynchronously. Any
   perf measurement must wait for DOM stabilisation or it reports times 10× too good.
 

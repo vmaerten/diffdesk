@@ -15,6 +15,10 @@ but pushing it just to look at it is not worth the trip.
 | `t` | change the revision under review |
 | `r` | refresh the diff |
 
+The file tree shows an icon per file type, colours each row by its git status (added,
+modified, deleted, renamed, untracked) and folds chains of single-child directories into
+one row. Both panes are virtualised, so a 107-file diff keeps ~48 rows in the DOM.
+
 Viewed files leave the diff and are ticked in the tree; click one to bring it back. The
 state lives in `.git/ghl/state.json` and is keyed by revision range, so a file marked
 against one base is not marked against another. Each tick stores the hash of that file's
