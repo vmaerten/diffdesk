@@ -27,7 +27,7 @@ diff section: if the file changes, its tick clears on its own.
 ## Usage
 
 ```bash
-pnpm install && pnpm build   # once: builds the UI into web-dist/
+pnpm install && pnpm install:local   # once: builds the UI and installs the command
 
 ghl                    # open the current repo's virtual PR in the browser
 ghl origin/some-branch # review another revision, without checking it out
@@ -36,8 +36,19 @@ ghl --base main        # compare against an explicit revision
 ghl --untracked        # include untracked files in the diff
 ```
 
+`pnpm install:local` copies `bin/`, `src/` and `web-dist/` into
+`~/.local/share/ghl` and links `~/.local/bin/ghl` at that copy. A symlink straight
+into the checkout would have been shorter, but it keeps the command tied to the
+working copy: move it, delete it, or check out a branch mid-rewrite, and the
+command follows. The copy is frozen instead — **re-run `pnpm install:local` after
+pulling**, and `pnpm uninstall:local` to remove both. Nothing else is installed:
+the server imports nothing outside `node:`, so the command has no dependencies at
+all — the five in `dependencies` build the front end and end up inside
+`web-dist/`.
+
 To iterate on the UI, run `ghl --no-open --port 7777` in a repository and `pnpm dev`
-here: Vite serves the front end on :5180 and forwards data calls to it.
+here: Vite serves the front end on :5180 and forwards data calls to it. That runs
+against the checkout, not the installed copy.
 
 `ghl` with no argument shows **everything that is not in the base**, committed or not:
 the diff from `merge-base(base, HEAD)` down to the working tree.
@@ -90,6 +101,7 @@ src/revision.ts  base resolution and patch construction
 src/server.ts    HTTP server, routes namespaced by repo
 src/types.ts     the shapes that cross the HTTP boundary
 web/src/*.tsx    the UI, importing those same shapes
+scripts/install.ts  copies the runtime out of the checkout
 ```
 
 TypeScript throughout, and the server side runs unbuilt: Node strips the types
