@@ -65,7 +65,7 @@ headless does no real compositing. Redo with CDP tracing if the need arises.
 
 | # | Decision | Why |
 |---|---|---|
-| 1 | **One-shot CLI**, no daemon | A daemon saves 40–80 ms out of ~600 ms, for all of the lifecycle complexity |
+| 1 | ~~**One-shot CLI**, no daemon~~ → **one shared process**, the CLI hands it a repository and returns | The latency argument still holds — a daemon saves 40–80 ms out of ~600 ms — but latency was never the motivation. Going back and forth across 39 repositories was: a process per tab, dying with the terminal that opened it. See §3b |
 | 2 | **Node end to end** | One parsing implementation (server and client), and the `./ssr` export stays reachable |
 | 3 | Default = **virtual PR**: `merge-base(base, HEAD)` → working tree | "The PR I would open if I pushed right now" |
 | 3b | Untracked files **listed but excluded** from the diff | Measured on prebid-server-proxy: 2 modified files against 446 untracked ones. `--untracked` opts in |
@@ -77,7 +77,8 @@ headless does no real compositing. Redo with CDP tracing if the need arises.
 
 ### Three disciplines to hold from the first line
 
-They make a later move to a daemon nearly free (~150 lines) instead of a refactor:
+They made the later move to a shared process nearly free instead of a refactor — see §3b,
+which is what it actually cost:
 
 1. **Explicit `repoPath` everywhere.** Never `process.cwd()` in the git layer. Enforced by
    routing every call through `git -C <repoPath>`; `bin/ghl.ts` reads the cwd once.
@@ -99,8 +100,11 @@ ghl (node bin, one-shot)
  │
  ├── git diff --merge-base <base> → raw patch
  │
- ├── ephemeral HTTP server
+ ├── shared HTTP server, on a fixed port
+ │     GET  /api/health           → discovery probe, revision, and the heartbeat
  │     GET  /api/repos            → served repositories
+ │     POST /api/repos            → register or update one
+ │     POST /api/shutdown         → make way for another build
  │     GET  /r/:repoId/api/diff   → patch + revision metadata
  │     POST /r/:repoId/api/base   → remember a base choice
  │     GET  /r/:repoId/api/state  → viewed state              (step 5)
@@ -171,6 +175,36 @@ was, the tick returns. The file only ever holds one hash per path per range.
 
 Membership decides, not truthiness (`path in viewed`): a stored hash may legitimately be
 null, and `Boolean(null)` would silently drop the tick.
+
+### 3b. The shared process
+
+`ghl` in a repository probes `GET /api/health` on the fixed port. Something of ours
+answering the same revision gets the repository by `POST /api/repos` and the command
+returns; anything else is asked to stop; nothing at all means spawning a detached copy of
+`bin/ghl.ts --daemon` and waiting for it to answer. `--no-daemon` keeps the old foreground
+behaviour.
+
+**No lock file.** The issue asked for one alongside a stable port; the two turn out to be
+the same thing. The bound port *is* the lock, and the OS releases it even after a `kill -9`
+— a lock file would outlive the process and need its own staleness check. What remains is
+the race: two `ghl` in the same second both find nothing and both spawn. The loser takes
+`EADDRINUSE` and exits `0` without a word, and the waiting side polls `/api/health` instead
+of assuming its own child won, so both converge on the winner.
+
+**The revision is read once, at import.** Recomputing it per request would make every
+instance report the sources currently on disk, so a stale one would always look up to date
+— it would never detect the very thing it exists for. Installed, it is the SHA in
+`INSTALLED`; from the checkout, the newest mtime across `bin/` and `src/`, so editing the
+server takes the port back while rebuilding `web-dist/` does not.
+
+**Replacing an instance hands the repositories over.** The tabs open on the *other*
+repositories would otherwise 404 after an upgrade. Per-repo flags do not survive the
+handover — they belonged to an invocation whose terminal is long gone.
+
+**The idle timeout needs the heartbeat.** Nothing polls: reading a 200-file diff for half an
+hour sends no request at all, and the instance would stop under an open tab. The front end
+pings `/api/health` every five minutes while its tab is visible, which is what makes the
+threshold mean "no tab" rather than "no click".
 
 ## 4. Steps
 
@@ -248,6 +282,21 @@ null, and `Boolean(null)` would silently drop the tick.
   on this project, see issue #1.
 - **Measuring at first frame gives wrong numbers.** Content arrives asynchronously. Any
   perf measurement must wait for DOM stabilisation or it reports times 10× too good.
+- **`fetch` silently refuses to send the `Host` you gave it.** undici treats it as a
+  forbidden header and substitutes the real one, so a test for the Host allowlist arrives
+  looking perfectly legitimate, gets its 200, and passes — while never reaching the code it
+  is about. `node:http` honours the override. **The fifth occurrence of a test that never
+  reaches its subject**, and the first one caught before it was committed, by checking what
+  the request actually carried instead of what it should have.
+- **Watching for an idle timeout resets it.** Polling `/api/health` to see when the instance
+  gives up counts as activity, so the watching is what keeps it alive. Watch the process,
+  not the port.
+- **A version stamp recomputed per request is always current.** Reading it at import is the
+  whole mechanism: it must say what the process *is running*, not what is on disk now.
+- **`mkdtemp` and `git rev-parse` disagree on macOS.** `/var/folders/…` against
+  `/private/var/…` for the same directory, and `repoIdFor` hashes the path — so an id
+  computed from the temp path addresses a repository the server never registered. Anything
+  deriving an id must go through `resolveRepoRoot` first, as the server does.
 - **A rename that changes language renders nothing at all.** `@pierre/diffs` preloads the
   grammar of the new name but tokenises with the *old* one, so `App.jsx → App.tsx` throws
   `Language "jsx" not found` and the file is silently absent from the diff — the exact
@@ -263,7 +312,8 @@ null, and `Boolean(null)` would silently drop the tick.
 ## 6. V2
 
 `.git` watcher + WebSocket · context expansion · exportable comments (JSON/markdown, to
-paste back to an agent) · daemon · multi-level stack view.
+paste back to an agent) · multi-level stack view · a repository switcher in the UI, now
+that `/api/repos` has more than one thing to say.
 
 ## References
 

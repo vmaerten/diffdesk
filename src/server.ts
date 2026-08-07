@@ -4,10 +4,11 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { basename, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { currentBranch, headSha, listRefDetails, repoState } from './git.ts'
+import { currentBranch, headSha, listRefDetails, repoState, resolveRepoRoot } from './git.ts'
 import { buildPatch, detectTrunk, rememberBase, resolveBase } from './revision.ts'
 import { clearViewed, pruneStale, readState, sectionHashes, setViewed } from './state.ts'
 import type { DiffPayload, RefsPayload } from './types.ts'
+import { runtimeRevision } from './version.ts'
 
 /** One repository the server is willing to serve, as the CLI registers it. */
 export interface RepoEntry {
@@ -16,6 +17,37 @@ export interface RepoEntry {
   target?: string | null
   includeUntracked?: boolean
 }
+
+/** Why the server is being asked to stop. */
+export type StopReason = 'idle' | 'requested'
+
+export interface GhlServerOptions {
+  repos: RepoEntry[]
+  /**
+   * Milliseconds without a request before `onStop('idle')` fires; 0 disables it.
+   * The front end sends a heartbeat while its tab is visible, so this measures
+   * "nobody is watching", not "nobody has clicked".
+   */
+  idleMs?: number
+  /**
+   * What to do when the server should go. Left out, `/api/shutdown` and the idle
+   * timer are inert — which is what the test harness wants, since it runs the
+   * server inside the process doing the testing.
+   */
+  onStop?: (reason: StopReason) => void
+}
+
+/** How often the idle timer looks at the clock. */
+const IDLE_TICK_MS = 60_000
+
+/**
+ * Read once, at import: what this process is *running*, not what is on disk now.
+ *
+ * Recomputing it per request would make every instance report the current
+ * sources and therefore always look up to date — which is exactly the staleness
+ * this is here to catch.
+ */
+const REVISION = runtimeRevision()
 
 const UI_DIR = fileURLToPath(new URL('../web-dist', import.meta.url))
 
@@ -91,11 +123,13 @@ const readBody = (req: IncomingMessage): Promise<string> =>
 /**
  * HTTP server over one or more repositories.
  *
- * Routes are namespaced by repo from day one (`/r/:repoId/...`) even though the
- * CLI currently registers a single one — decision 1 in PLAN.md.
+ * Routes are namespaced by repo (`/r/:repoId/...`), and the registry takes
+ * repositories after the fact: one process serves every checkout the CLI is
+ * pointed at, rather than one process per tab.
  */
-export function createGhlServer({ repos }: { repos: RepoEntry[] }): Server {
+export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions): Server {
   const registry = new Map(repos.map((r) => [repoIdFor(r.repoPath), r] as const))
+  let lastSeen = Date.now()
 
   const server = createServer(async (req, res) => {
     const host = req.headers.host
@@ -108,15 +142,56 @@ export function createGhlServer({ repos }: { repos: RepoEntry[] }): Server {
     if (req.method !== 'GET' && origin !== undefined && !isAllowedName(origin)) {
       return json(res, 403, { error: 'unexpected Origin header' })
     }
+    // Only past the door: a rejected request must not be able to keep the
+    // process alive.
+    lastSeen = Date.now()
 
     const url = new URL(req.url ?? '/', 'http://localhost')
     const segments = url.pathname.split('/').filter(Boolean)
 
     try {
-      if (url.pathname === '/api/repos') {
+      const served = () => [...registry.entries()].map(([id, r]) => ({ id, path: r.repoPath }))
+
+      // The discovery probe, and the heartbeat the front end sends while its tab
+      // is visible — which is what makes the idle timeout mean "nobody is here".
+      if (url.pathname === '/api/health' && req.method === 'GET') {
         return json(res, 200, {
-          repos: [...registry.entries()].map(([id, r]) => ({ id, path: r.repoPath })),
+          ghl: true,
+          revision: REVISION,
+          pid: process.pid,
+          repos: served(),
         })
+      }
+
+      if (url.pathname === '/api/repos' && req.method === 'POST') {
+        const body = JSON.parse((await readBody(req)) || '{}')
+        if (typeof body.repoPath !== 'string' || body.repoPath === '') {
+          return json(res, 400, { error: 'missing "repoPath"' })
+        }
+        // Resolved here too, not only in the CLI: it rejects a path that is not
+        // a repository, and registering a subdirectory registers its root.
+        const repoPath = await resolveRepoRoot(body.repoPath)
+        const id = repoIdFor(repoPath)
+        // set(), so a second `ghl --untracked` updates the entry in place.
+        registry.set(id, {
+          repoPath,
+          baseOverride: body.baseOverride ?? null,
+          target: body.target ?? null,
+          includeUntracked: body.includeUntracked ?? false,
+        })
+        return json(res, 200, { id, path: repoPath })
+      }
+
+      if (url.pathname === '/api/shutdown' && req.method === 'POST') {
+        json(res, 200, { ok: true })
+        // After the response: the caller waits for the port to free up, and a
+        // socket cut mid-reply would leave it guessing.
+        onStop?.('requested')
+        return
+      }
+
+      if (url.pathname === '/api/repos') {
+        return json(res, 200, { repos: served() })
       }
 
       // Built assets are requested from the root, whatever repo is being viewed.
@@ -209,6 +284,17 @@ export function createGhlServer({ repos }: { repos: RepoEntry[] }): Server {
       return json(res, 500, { error: error instanceof Error ? error.message : String(error) })
     }
   })
+
+  if (idleMs > 0 && onStop) {
+    // Never coarser than the threshold itself, or a short one would never fire.
+    const tick = Math.max(250, Math.min(IDLE_TICK_MS, idleMs))
+    const timer = setInterval(() => {
+      if (Date.now() - lastSeen >= idleMs) onStop('idle')
+    }, tick)
+    // Never the reason the process stays up: the listening socket is.
+    timer.unref()
+    server.on('close', () => clearInterval(timer))
+  }
 
   return server
 }
