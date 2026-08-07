@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { parsePatchFiles } from '@pierre/diffs'
 import { CodeView } from '@pierre/diffs/react'
 
+import BaseSelector from './BaseSelector.jsx'
 import FileTree, { allDirPaths, buildTree } from './FileTree.jsx'
 
 /** The repo id lives in the path: /r/<repoId>. */
@@ -22,6 +23,7 @@ export default function App() {
   /** path -> hash of the diff section that was marked as read. */
   const [viewed, setViewedState] = useState({})
   const [showViewed, setShowViewed] = useState(false)
+  const [pickingBase, setPickingBase] = useState(false)
   const viewRef = useRef(null)
 
   /**
@@ -135,6 +137,21 @@ export default function App() {
     })
   }, [data, repoId])
 
+  /** Remember the chosen base for this branch, then reload against it. */
+  const pickBase = useCallback(
+    async (base) => {
+      setPickingBase(false)
+      if (base === data?.base?.ref) return
+      await fetch(`/r/${repoId}/api/base`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ base }),
+      })
+      await refresh()
+    },
+    [data, repoId, refresh]
+  )
+
   /** Navigation walks the rendered items — what is left to read. */
   const goTo = useCallback(
     (index) => {
@@ -188,7 +205,10 @@ export default function App() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target?.isContentEditable) return
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
-      if (event.key === 'j') goTo(activeIndex + 1)
+      if (pickingBase) return // the picker owns the keyboard while open
+
+      if (event.key === 'b') setPickingBase(true)
+      else if (event.key === 'j') goTo(activeIndex + 1)
       else if (event.key === 'k') goTo(activeIndex - 1)
       else if (event.key === 'r' || event.key === 'R') refresh()
       else if (event.key === 'v') {
@@ -201,7 +221,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [activeIndex, goTo, refresh, items, viewed, toggleViewed])
+  }, [activeIndex, goTo, refresh, items, viewed, toggleViewed, pickingBase])
 
   const options = useMemo(
     () => ({ diffStyle, theme: 'github-dark', stickyHeaders: true }),
@@ -242,7 +262,28 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="revision">
-          <span className="ref">{data?.base?.ref ?? '…'}</span>
+          <span className="base-anchor">
+            <button
+              type="button"
+              className="ref base"
+              onClick={() => setPickingBase((open) => !open)}
+              title="Change the base (b)"
+              aria-expanded={pickingBase}
+              disabled={!data}
+            >
+              {data?.base?.ref ?? '…'} <span className="caret">▾</span>
+            </button>
+
+            {pickingBase && data && (
+              <BaseSelector
+                repoId={repoId}
+                current={data.base.ref}
+                source={data.base.source}
+                onPick={pickBase}
+                onClose={() => setPickingBase(false)}
+              />
+            )}
+          </span>
           <span className="arrow">→</span>
           <span className="ref target">{data?.head?.branch ?? 'HEAD'}</span>
           {baseSource && <span className="source">base {baseSource}</span>}
@@ -258,7 +299,7 @@ export default function App() {
         <span className="spacer" />
 
         <span className="hint">
-          <kbd>j</kbd>
+          <kbd>b</kbd> base · <kbd>j</kbd>
           <kbd>k</kbd> files · <kbd>v</kbd> viewed · <kbd>r</kbd> refresh
         </span>
 

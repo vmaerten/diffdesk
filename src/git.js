@@ -62,6 +62,31 @@ export async function countCommits(repoPath, from, to) {
   return Number.parseInt(out.trim(), 10) || 0
 }
 
+/**
+ * Candidate bases, most recently touched first.
+ *
+ * Prebid.js carries 501 refs, so the picker has to search rather than list —
+ * and ordering by commit date puts what you actually work on at the top.
+ */
+export async function listRefDetails(repoPath) {
+  const out = await git(repoPath, [
+    'for-each-ref',
+    '--sort=-committerdate',
+    '--format=%(refname:short)%09%(committerdate:relative)%09%(refname)',
+    'refs/heads',
+    'refs/remotes/origin',
+  ])
+
+  return out
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [name, when, fullRef] = line.split('\t')
+      return { name, when, remote: fullRef?.startsWith('refs/remotes/') ?? false }
+    })
+    .filter((ref) => ref.name && !ref.name.endsWith('/HEAD') && ref.name !== 'origin')
+}
+
 /** Local branches and origin refs, excluding symbolic HEADs. */
 export async function listRefs(repoPath) {
   const out = await git(repoPath, [

@@ -4,8 +4,8 @@ import { createServer } from 'node:http'
 import { basename, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { currentBranch, headSha, repoState } from './git.js'
-import { buildPatch, rememberBase, resolveBase } from './revision.js'
+import { currentBranch, headSha, listRefDetails, repoState } from './git.js'
+import { buildPatch, detectTrunk, rememberBase, resolveBase } from './revision.js'
 import { clearViewed, pruneStale, readState, sectionHashes, setViewed } from './state.js'
 
 const UI_DIR = fileURLToPath(new URL('../web-dist', import.meta.url))
@@ -127,6 +127,15 @@ export function createGhlServer({ repos }) {
           viewed,
           patch,
         })
+      }
+
+      if (route === 'api/refs' && req.method === 'GET') {
+        const [refs, trunk, branch] = await Promise.all([
+          listRefDetails(repoPath),
+          detectTrunk(repoPath),
+          currentBranch(repoPath),
+        ])
+        return json(res, 200, { refs, trunk, branch })
       }
 
       if (route === 'api/viewed' && req.method === 'POST') {

@@ -70,6 +70,7 @@ headless does no real compositing. Redo with CDP tracing if the need arises.
 | 3 | Default = **virtual PR**: `merge-base(base, HEAD)` → working tree | "The PR I would open if I pushed right now" |
 | 3b | Untracked files **listed but excluded** from the diff | Measured on prebid-server-proxy: 2 modified files against 446 untracked ones. `--untracked` opts in |
 | 4 | Base **guessed, displayed, remembered** | A heuristic stays a heuristic: it must be visible and correctable |
+| 8 | `cmdk` for the base picker, no design system | 79 KB headless, no provider, no theme competing with the one Shiki imposes. Mantine core is 8.6 MB and brings its own theming |
 | 5 | **Manual** refresh (button + `R`) | `.git` watcher deferred; `.git` changes constantly, debouncing is a topic of its own |
 | 6 | V1 = file tree + keyboard + persistent viewed | Context expansion and comments in V2 |
 | 7 | A viewed file is **removed from the items**, never `collapsed: true` | Collapsing multiplies cost by 4–5 beyond 87 files (measured) |
@@ -163,7 +164,10 @@ null, and `Boolean(null)` would silently drop the tick.
 4. **File tree + keyboard.** ✅ Sidebar tree with per-file counts (from `--numstat`) and
    single-child directory chains collapsed into one row, `j`/`k` to move between files,
    click to jump, `r` to refresh. Verified on a 107-file PR.
-5. **Persistent viewed.** ✅ Checkbox in each file header (via `renderHeaderMetadata`),
+5. **Base picker.** ✅ Combobox anchored under the base button (`b` or click), searchable,
+   refs ordered by commit date — Prebid.js carries 501 of them, so a plain list was never
+   an option. Picking writes the choice to `.git/config` and reloads the diff.
+6. **Persistent viewed.** ✅ Checkbox in each file header (via `renderHeaderMetadata`),
    `v` on the active file, tick in the tree, `Reset`. A viewed file leaves the items array.
    State lives in `.git/ghl/state.json`, keyed by revision range, and each entry stores the
    hash of that file's diff section: change the file and its tick clears, while other files

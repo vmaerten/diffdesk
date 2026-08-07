@@ -11,6 +11,7 @@ but pushing it just to look at it is not worth the trip.
 |-----|--------|
 | `j` / `k` | next / previous file |
 | `v` | mark the current file as viewed |
+| `b` | change the base |
 | `r` | refresh the diff |
 
 Viewed files leave the diff and are ticked in the tree; click one to bring it back. The
@@ -49,12 +50,8 @@ Git records no parent for a branch, so `ghl` resolves one, most trustworthy sour
 The chosen base and how it was obtained are always reported: a wrong base silently produces
 a misleading diff.
 
-To pin a base for the current branch:
-
-```bash
-curl -X POST -H 'content-type: application/json' \
-  -d '{"base":"origin/main"}' localhost:<port>/r/<repoId>/api/base
-```
+Press `b` (or click the base) to pick another one: the list is searchable, ordered by
+commit date, and the choice is written to `.git/config` for that branch.
 
 ## Layout
 
