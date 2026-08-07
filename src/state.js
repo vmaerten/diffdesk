@@ -4,10 +4,7 @@ import { dirname } from 'node:path'
 
 import { git } from './git.js'
 
-/**
- * Where the viewed state lives: inside `.git`, so it is never committed and
- * disappears with the repository.
- */
+/** Inside `.git`, so it is never committed and dies with the repository. */
 async function statePath(repoPath) {
   const gitDir = (await git(repoPath, ['rev-parse', '--git-dir'])).trim()
   const absolute = gitDir.startsWith('/') ? gitDir : `${repoPath}/${gitDir}`
@@ -18,8 +15,7 @@ export async function readState(repoPath) {
   try {
     return JSON.parse(await readFile(await statePath(repoPath), 'utf8'))
   } catch {
-    // Missing or unreadable state is not an error: it just means nothing is viewed.
-    return { viewed: {} }
+    return { viewed: {} } // missing or unreadable just means nothing is viewed
   }
 }
 
@@ -32,10 +28,8 @@ async function writeState(repoPath, state) {
 /**
  * Split a patch per file and hash each section.
  *
- * The hash covers the file's diff, not the whole file: if what changed changes,
- * the tick clears itself, which is the point. Hashing the file contents instead
- * would also clear the tick for edits outside the diff, and hashing nothing at
- * all would leave stale ticks on code the user never re-read.
+ * The diff, not the file: hashing the contents would clear the tick for edits
+ * outside the diff, and hashing nothing would leave it on code never re-read.
  */
 export function sectionHashes(patch) {
   const hashes = {}
@@ -70,12 +64,7 @@ export function pruneStale(viewed, hashes) {
   return live
 }
 
-/**
- * Mark or unmark a file, keyed by revision range.
- *
- * A file viewed against one base means nothing against another, so each range
- * keeps its own set.
- */
+/** Mark or unmark a file. Viewed against one base means nothing against another. */
 export async function setViewed(repoPath, { range, path, hash, viewed }) {
   const state = await readState(repoPath)
   state.viewed ??= {}

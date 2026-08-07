@@ -3,16 +3,14 @@ import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 
-// Diffs can be large: the biggest real-world PR measured here is ~1 MB of patch,
-// but generated files (lockfiles, snapshots) push well past that.
+// Real diffs measured here peak around 1 MB of patch; a lockfile alone goes past that.
 const MAX_BUFFER = 256 * 1024 * 1024
 
 /**
  * Run git inside `repoPath`.
  *
- * Every call goes through `git -C <repoPath>`: the git layer never reads
- * `process.cwd()`. That is what lets a single process serve several repos later
- * on, and it is deliberate — see decision 1 in PLAN.md.
+ * Nothing in this module reads `process.cwd()`, which is what will let one
+ * process serve several repositories — decision 1 in PLAN.md.
  */
 export async function git(repoPath, args, { allowFailure = false } = {}) {
   try {
@@ -71,8 +69,8 @@ export async function countCommits(repoPath, from, to) {
 /**
  * Candidate bases, most recently touched first.
  *
- * Prebid.js carries 501 refs, so the picker has to search rather than list —
- * and ordering by commit date puts what you actually work on at the top.
+ * Prebid.js carries 501 refs, so the picker searches rather than lists, and
+ * commit date is what puts the branch you actually work on at the top.
  */
 export async function listRefDetails(repoPath) {
   const out = await git(repoPath, [
@@ -110,13 +108,10 @@ export async function listRefs(repoPath) {
 /**
  * Patch from merge-base(base, target) down to target.
  *
- * `--merge-base` makes git resolve the fork point itself, which is what keeps
- * commits that landed on the base after we branched out of the diff.
- *
- * Omitting `target` compares against the working tree — the "virtual PR" of the
- * checkout you are sitting in. Passing one reviews a branch without checking it
- * out, at the cost of losing uncommitted work from the comparison (it belongs to
- * the working tree, not to that ref).
+ * `--merge-base` keeps commits that landed on the base after we branched out of
+ * the diff. Omitting `target` compares against the working tree; passing one
+ * reviews a ref without checking it out, and drops uncommitted work along the
+ * way since that belongs to the checkout rather than to the ref.
  */
 export async function diffFromMergeBase(repoPath, base, { target, contextLines = 3 } = {}) {
   return git(
@@ -137,10 +132,8 @@ export async function diffFromMergeBase(repoPath, base, { target, contextLines =
 /**
  * Per-file added/removed line counts, from merge-base to the working tree.
  *
- * Git is the authority here. The parsed patch cannot be used for this:
- * `additionLines` / `deletionLines` on FileDiffMetadata hold each side of the
- * hunk *including context lines*, so summing their lengths overcounts — 388
- * instead of 172 on a real 17-file diff.
+ * Not from the parsed patch: `additionLines` / `deletionLines` hold each side of
+ * the hunk *including context*, which reported +388 on a diff git counts as +172.
  */
 export async function numstat(repoPath, base, target) {
   const out = await git(
@@ -168,10 +161,8 @@ export async function numstat(repoPath, base, target) {
 /**
  * Per-file change kind, from merge-base to the target.
  *
- * `--numstat` gives counts but never says whether a file was added, deleted or
- * renamed, and the tree colours rows by that. `-M` turns an add/delete pair back
- * into the rename it was, which is also how git reports 0 lines changed for a
- * pure move.
+ * `--numstat` never says whether a file was added, deleted or renamed, and the
+ * tree colours rows by that. `-M` folds an add/delete pair back into a rename.
  */
 export async function nameStatus(repoPath, base, target) {
   const out = await git(
@@ -187,7 +178,7 @@ export async function nameStatus(repoPath, base, target) {
     const code = fields[i++]
     const letter = code[0]
     if (letter === 'R' || letter === 'C') {
-      i++ // the source path, which no longer exists under that name
+      i++ // the source path, gone under that name
       statuses.set(fields[i++], letter === 'R' ? 'renamed' : 'added')
     } else {
       const kind = { A: 'added', D: 'deleted', M: 'modified', T: 'modified' }[letter] ?? 'modified'
@@ -206,9 +197,8 @@ export async function untrackedPaths(repoPath) {
 /**
  * Synthesise a patch for untracked files.
  *
- * They are invisible to `git diff` until staged, and staging them (`git add -N`)
- * would mutate the user's index — unacceptable for a read-only viewer. So each
- * file is diffed against /dev/null out of tree instead.
+ * They stay invisible to `git diff` until staged, and `git add -N` would mutate
+ * the user's index. Diffed against /dev/null out of tree instead.
  */
 export async function untrackedPatch(repoPath, paths) {
   const chunks = []
@@ -235,8 +225,8 @@ export async function originHead(repoPath) {
 /**
  * In-progress operation and unresolved conflicts.
  *
- * Real repositories are found mid-merge or mid-rebase — the diff means something
- * different then, and the UI has to say so rather than show a confusing patch.
+ * A repository caught mid-merge or mid-rebase produces a diff that means
+ * something else, and the UI has to say so rather than show it silently.
  */
 export async function repoState(repoPath) {
   const gitDir = (await git(repoPath, ['rev-parse', '--git-dir'])).trim()

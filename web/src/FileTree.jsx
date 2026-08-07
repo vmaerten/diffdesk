@@ -17,23 +17,15 @@ const DELETED = '#f85149'
 const MUTED = '#8b949e'
 
 /**
- * Every directory a file sits under, as the tree addresses them.
- *
- * Directory ids carry a trailing slash — `src/`, not `src` — and a flattened
- * chain is one node named after its deepest segment (`web/src/`). Producing the
- * whole chain of prefixes therefore covers both the plain and the flattened case.
+ * Every directory a file sits under, as the tree addresses them: with a trailing
+ * slash, and a folded chain named after its deepest segment (`web/src/`).
  */
 const ancestorDirs = (path) => {
   const parts = path.split('/').slice(0, -1)
   return parts.map((_, i) => `${parts.slice(0, i + 1).join('/')}/`)
 }
 
-/**
- * Aggregate counts per directory.
- *
- * A folded directory has to say how much it hides, and the library only hands
- * the renderer one row at a time — so the totals are precomputed here.
- */
+/** Aggregate counts per directory: the renderer only ever sees one row at a time. */
 function directoryTotals(entries) {
   const totals = new Map()
   for (const entry of entries) {
@@ -55,22 +47,19 @@ const asText = (parts) => ({
 })
 
 /**
- * The changed-file tree.
+ * The changed-file tree, over `@pierre/trees`. Two of its constraints shape this
+ * whole file:
  *
- * Wraps `@pierre/trees`, which renders into a shadow DOM and virtualises its
- * rows. Two consequences drive the shape of this file:
- *
- *  - `useFileTree` reads its options once, at construction. Everything that
- *    changes afterwards — the entries, the decorations, the click handler —
- *    has to reach the model imperatively or through a ref, never as a prop.
- *  - only one decoration fits per row, and it is text or an icon, not a node.
- *    The viewed tick and the +/- counts therefore share a single string.
+ *  - `useFileTree` reads its options once, at construction. Anything that
+ *    changes later reaches the model imperatively or through a ref, never as a
+ *    prop.
+ *  - one decoration per row, text or icon, never a node — so the viewed tick and
+ *    the +/- counts share a single string.
  */
 function FileTree({ entries, activePath, onSelect }, ref) {
   const [themeStyles, setThemeStyles] = useState(null)
 
-  // Read by callbacks the model captured at construction, so they always see
-  // the current render's data rather than the first one's.
+  // Read by callbacks the model captured at construction.
   const entriesRef = useRef(new Map())
   const onSelectRef = useRef(onSelect)
   const totalsRef = useRef(new Map())
@@ -97,8 +86,7 @@ function FileTree({ entries, activePath, onSelect }, ref) {
     },
     renderRowDecoration: ({ row }) => {
       if (row.kind === 'directory') {
-        // Only worth saying when the directory hides its contents.
-        if (row.isExpanded) return null
+        if (row.isExpanded) return null // nothing hidden, nothing to say
         const totals = totalsRef.current.get(row.path)
         if (!totals) return null
         const label = `${totals.files} ${totals.files > 1 ? 'files' : 'file'}`
@@ -119,8 +107,7 @@ function FileTree({ entries, activePath, onSelect }, ref) {
     },
   })
 
-  // github-dark is what the diff pane uses; the tree reads the same resolved
-  // theme so both panes agree on every colour but the ones we override below.
+  // The same resolved theme the diff pane uses, so both agree on every colour.
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -128,8 +115,7 @@ function FileTree({ entries, activePath, onSelect }, ref) {
         const theme = await resolveTheme('github-dark')
         if (!cancelled) setThemeStyles(themeToTreeStyles(theme))
       } catch {
-        // The tree falls back to its own dark palette, which is close enough
-        // that losing the theme is not worth failing the whole pane over.
+        // Falls back to the tree's own dark palette, close enough to live with.
       }
     }
     load()
@@ -154,10 +140,8 @@ function FileTree({ entries, activePath, onSelect }, ref) {
   )
 
   /**
-   * Fold or unfold everything.
-   *
-   * Folding walks the rows backwards so children close before their parents,
-   * which keeps a later unfold of one directory from spilling its whole subtree.
+   * Fold or unfold everything. Folding runs backwards so children close first,
+   * or unfolding one directory later spills its whole subtree.
    */
   const setAllExpanded = useCallback(
     (expanded) => {
@@ -193,8 +177,8 @@ function FileTree({ entries, activePath, onSelect }, ref) {
     [reveal, setAllExpanded],
   )
 
-  // Track folds as they happen: a directory nested inside a folded one stops
-  // being visible, so the set has to be maintained live rather than read back.
+  // Tracked live: a directory inside a folded one is no longer visible, so the
+  // set cannot be read back after the fact.
   useEffect(
     () =>
       model.subscribe(() => {
@@ -207,15 +191,14 @@ function FileTree({ entries, activePath, onSelect }, ref) {
     [model],
   )
 
-  // Keyed by content, not by identity: `entries` is rebuilt on every viewed
-  // toggle, and resetting the tree there would throw away every fold.
+  // Keyed by content: `entries` is rebuilt on every viewed toggle, and resetting
+  // the tree there would throw away every fold.
   const pathKey = entries.map((e) => e.path).join('\n')
   const paths = useMemo(() => (pathKey ? pathKey.split('\n') : []), [pathKey])
 
-  // The model was built with the first render's paths; every later diff has to
-  // be pushed in. Folds are restored by hand, since reset only takes expanded
-  // ones — and from a copy, because reset notifies the subscriber above, which
-  // sees every directory back open and empties the set before we can read it.
+  // Reset only accepts expanded paths, so folds are restored by hand — and from
+  // a copy, because reset notifies the subscriber above, which sees every
+  // directory back open and empties the set before we can read it.
   useEffect(() => {
     const folded = [...collapsedRef.current]
     model.resetPaths(paths)
@@ -229,13 +212,11 @@ function FileTree({ entries, activePath, onSelect }, ref) {
     model.setGitStatus(entries.map((e) => ({ path: e.path, status: e.status ?? 'modified' })))
   }, [model, entries])
 
-  // Decorations are read during render and the model has no idea they changed,
-  // so a viewed tick or a new count needs an explicit repaint.
+  // The model cannot know a decoration changed, so a tick or a count needs this.
   useEffect(() => {
     model.setComposition(model.getComposition())
   }, [model, entries])
 
-  // Selection is the tree's own highlight; App owns which file is current.
   // `select()` adds to the selection rather than replacing it, so the previous
   // row has to be dropped by hand or every visited file stays lit.
   useEffect(() => {
@@ -255,8 +236,8 @@ function FileTree({ entries, activePath, onSelect }, ref) {
       flex: 1,
       minHeight: 0,
       ...themeStyles,
-      // github-dark's own sidebar colour is a shade off ours, which shows as a
-      // seam under the header. Both surfaces are told to use the same one.
+      // github-dark's sidebar colour is a shade off ours, and the gap shows as a
+      // seam under the header.
       '--trees-theme-sidebar-bg': 'var(--bg-raised)',
     }),
     [themeStyles],
