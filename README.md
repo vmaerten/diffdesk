@@ -72,9 +72,9 @@ src/git.ts       git layer, every call through `git -C <repoPath>`
 src/revision.ts  base resolution and patch construction
 src/server.ts    HTTP server, routes namespaced by repo
 src/types.ts     the shapes that cross the HTTP boundary
+web/src/*.tsx    the UI, importing those same shapes
 ```
 
-The server side is TypeScript and runs unbuilt: Node strips the types itself,
-which is why relative imports name the real `.ts` file and why `engines` asks
-for Node 24 — the first LTS with that on by default. The UI is still `.jsx`
-until #19.
+TypeScript throughout, and the server side runs unbuilt: Node strips the types
+itself, which is why relative imports name the real `.ts` file and why `engines`
+asks for Node 24 — the first LTS with that on by default.

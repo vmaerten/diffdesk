@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { parsePatchFiles } from '@pierre/diffs'
-import { CodeView } from '@pierre/diffs/react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { parsePatchFiles, type CodeViewDiffItem, type CodeViewItem } from '@pierre/diffs'
+import { CodeView, type CodeViewHandle } from '@pierre/diffs/react'
 
-import RefSelector from './RefSelector.jsx'
-import FileTree from './FileTree.jsx'
-import Resizer, { storedWidth } from './Resizer.jsx'
+import RefSelector from './RefSelector.tsx'
+import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
+import Resizer, { storedWidth } from './Resizer.tsx'
+import type { BaseSource, DiffPayload, ViewedMap } from '../../src/types.ts'
+
+/**
+ * `CodeViewDiffItem` carries no path; we add one and read it back from our own
+ * array, which the library ignores.
+ */
+type DiffItem = CodeViewDiffItem & { path: string }
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -14,21 +21,23 @@ function repoIdFromLocation() {
 
 export default function App() {
   const repoId = useMemo(repoIdFromLocation, [])
-  const [data, setData] = useState(null)
-  const [error, setError] = useState(null)
-  const [diffStyle, setDiffStyle] = useState('unified')
+  const [data, setData] = useState<DiffPayload | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>('unified')
   const [activeIndex, setActiveIndex] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   /** path -> hash of the diff section that was marked as read. */
-  const [viewed, setViewedState] = useState({})
+  const [viewed, setViewedState] = useState<ViewedMap>({})
   const [showViewed, setShowViewed] = useState(false)
-  const [picking, setPicking] = useState(null) // 'base' | 'target' | null
+  const [picking, setPicking] = useState<'base' | 'target' | null>(null)
   /** Revision under review. null means the working tree of this checkout. */
-  const [target, setTarget] = useState(() => new URLSearchParams(location.search).get('target'))
-  const viewRef = useRef(null)
+  const [target, setTarget] = useState<string | null>(() =>
+    new URLSearchParams(location.search).get('target'),
+  )
+  const viewRef = useRef<CodeViewHandle<undefined>>(null)
   /** Folding and revealing live inside the tree, which owns that state. */
-  const treeRef = useRef(null)
-  const bodyRef = useRef(null)
+  const treeRef = useRef<FileTreeHandle>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const [sidebarWidth, setSidebarWidth] = useState(storedWidth)
 
   /**
@@ -38,19 +47,22 @@ export default function App() {
    * watcher later, which is what keeps that a ten-line change.
    */
   const refresh = useCallback(async () => {
-    if (!repoId) return setError('no repository in the URL (expected /r/<repoId>)')
+    if (!repoId) {
+      setError('no repository in the URL (expected /r/<repoId>)')
+      return
+    }
     setRefreshing(true)
     try {
       const query = target ? `?target=${encodeURIComponent(target)}` : ''
       const response = await fetch(`/r/${repoId}/api/diff${query}`)
-      const body = await response.json()
+      const body: DiffPayload & { error?: string } = await response.json()
       if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
       setData(body)
       // The server already dropped ticks whose file changed since.
       setViewedState(body.viewed ?? {})
       setError(null)
     } catch (cause) {
-      setError(cause.message)
+      setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
       setRefreshing(false)
     }
@@ -61,7 +73,7 @@ export default function App() {
   }, [refresh])
 
   /** Review another revision. Kept in the URL so a reload stays on it. */
-  const pickTarget = useCallback((ref) => {
+  const pickTarget = useCallback((ref: string | null) => {
     setPicking(null)
     setTarget(ref)
     const url = new URL(location.href)
@@ -71,14 +83,14 @@ export default function App() {
   }, [])
 
   /** Every file in the diff, in patch order. */
-  const allItems = useMemo(() => {
+  const allItems = useMemo((): DiffItem[] => {
     if (!data?.patch) return []
     return parsePatchFiles(data.patch, `${repoId}-${data.head.sha}`)
       .flatMap((patch) => patch.files ?? [])
       .map((fileDiff, index) => ({
         id: fileDiff.cacheKey ?? `file-${index}`,
         path: fileDiff.name,
-        type: 'diff',
+        type: 'diff' as const,
         fileDiff,
       }))
   }, [data, repoId])
@@ -99,8 +111,8 @@ export default function App() {
   const untrackedSet = useMemo(() => new Set(data?.untracked ?? []), [data])
 
   /** Tree entries: every file, viewed or not, enriched with git's per-file counts. */
-  const entries = useMemo(() => {
-    const byPath = new Map((data?.files ?? []).map((f) => [f.path, f]))
+  const entries = useMemo((): TreeEntry[] => {
+    const byPath = new Map((data?.files ?? []).map((f) => [f.path, f] as const))
     return allItems.map((item) => {
       const stat = byPath.get(item.path)
       return {
@@ -120,8 +132,9 @@ export default function App() {
   }, [allItems, data, viewed, untrackedSet])
 
   const toggleViewed = useCallback(
-    async (path, next) => {
-      const hash = data?.files?.find((f) => f.path === path)?.hash ?? null
+    async (path: string, next: boolean) => {
+      if (!data) return
+      const hash = data.files.find((f) => f.path === path)?.hash ?? null
       // Optimistic: the diff pane reacts immediately, the write follows.
       setViewedState((current) => {
         const updated = { ...current }
@@ -136,13 +149,15 @@ export default function App() {
           body: JSON.stringify({ range: data.range, path, hash, viewed: next }),
         })
       } catch (cause) {
-        setError(`could not save viewed state: ${cause.message}`)
+        const detail = cause instanceof Error ? cause.message : String(cause)
+        setError(`could not save viewed state: ${detail}`)
       }
     },
     [data, repoId],
   )
 
   const resetViewed = useCallback(async () => {
+    if (!data) return
     setViewedState({})
     await fetch(`/r/${repoId}/api/viewed`, {
       method: 'POST',
@@ -153,9 +168,9 @@ export default function App() {
 
   /** Remember the chosen base for this branch, then reload against it. */
   const pickBase = useCallback(
-    async (base) => {
+    async (base: string | null) => {
       setPicking(null)
-      if (base === data?.base?.ref) return
+      if (!base || base === data?.base?.ref) return
       await fetch(`/r/${repoId}/api/base`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -168,7 +183,7 @@ export default function App() {
 
   /** Navigation walks the rendered items — what is left to read. */
   const goTo = useCallback(
-    (index) => {
+    (index: number) => {
       const bounded = Math.max(0, Math.min(index, items.length - 1))
       // Not `target`: that name already means the revision under review.
       const item = items[bounded]
@@ -185,7 +200,7 @@ export default function App() {
 
   /** Clicking a viewed file brings it back rather than jumping to nothing. */
   const selectByPath = useCallback(
-    (path) => {
+    (path: string) => {
       const entry = entries.find((e) => e.path === path)
       if (entry?.viewed && !showViewed) return toggleViewed(path, false)
       goTo(items.findIndex((item) => item.path === path))
@@ -194,10 +209,13 @@ export default function App() {
   )
 
   useEffect(() => {
-    const onKeyDown = (event) => {
+    const onKeyDown = (event: KeyboardEvent) => {
       // Never steal keys from an input or from a browser shortcut.
-      const tag = event.target?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || event.target?.isContentEditable) return
+      // Not `target`: that name already means the revision under review.
+      const focused = event.target
+      const tag = focused instanceof HTMLElement ? focused.tagName : null
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (focused instanceof HTMLElement && focused.isContentEditable) return
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
       if (picking) return // the picker owns the keyboard while open
@@ -219,20 +237,20 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [activeIndex, goTo, refresh, items, viewed, toggleViewed, picking])
 
-  const resizeSidebar = useCallback((width) => {
+  const resizeSidebar = useCallback((width: number) => {
     setSidebarWidth(width)
     localStorage.setItem('ghl.sidebarWidth', String(width))
   }, [])
 
   const options = useMemo(
-    () => ({ diffStyle, theme: 'github-dark', stickyHeaders: true }),
+    () => ({ diffStyle, theme: 'github-dark' as const, stickyHeaders: true }),
     [diffStyle],
   )
 
   /** The Viewed control lives in the library's own file header. */
   const renderHeaderMetadata = useCallback(
-    (item) => {
-      const path = item.fileDiff?.name
+    (item: CodeViewItem<undefined>) => {
+      const path = item.type === 'diff' ? item.fileDiff.name : null
       if (!path) return null
       const isViewed = path in viewed
       return (
@@ -249,12 +267,13 @@ export default function App() {
     [viewed, toggleViewed],
   )
 
-  const baseSource = {
+  const baseSources: Record<BaseSource, string> = {
     override: 'given on the command line',
     remembered: 'remembered',
     guessed: 'guessed',
     trunk: 'trunk',
-  }[data?.base?.source]
+  }
+  const baseSource = data ? baseSources[data.base.source] : null
 
   const activePath = items[activeIndex]?.path
   const allRead = data && allItems.length > 0 && items.length === 0
@@ -366,7 +385,7 @@ export default function App() {
         </div>
       )}
 
-      {data?.untracked?.length > 0 && !data.untrackedIncluded && (
+      {data && data.untracked.length > 0 && !data.untrackedIncluded && (
         <div className="warning">
           {data.untracked.length} untracked file(s) hidden. Run with <code>--untracked</code> to
           include them.
@@ -382,7 +401,11 @@ export default function App() {
       )}
 
       {allItems.length > 0 && (
-        <div className="body" ref={bodyRef} style={{ '--sidebar-width': `${sidebarWidth}px` }}>
+        <div
+          className="body"
+          ref={bodyRef}
+          style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
+        >
           <aside className="sidebar">
             <div className="sidebar-head">
               <span>

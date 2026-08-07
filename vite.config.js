@@ -17,7 +17,7 @@ export default defineConfig({
     proxy: {
       '/r': {
         target: 'http://localhost:7777',
-        bypass: (req) => (req.url.includes('/api/') ? undefined : req.url),
+        bypass: (req) => (req.url?.includes('/api/') ? undefined : req.url),
       },
       '/api': 'http://localhost:7777',
     },
