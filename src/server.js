@@ -105,7 +105,7 @@ export function createGhlServer({ repos }) {
         const { patch, untracked, untrackedIncluded, files, totals } = await buildPatch(
           repoPath,
           base.ref,
-          { target, includeUntracked: entry.includeUntracked ?? false }
+          { target, includeUntracked: entry.includeUntracked ?? false },
         )
         const branch = await currentBranch(repoPath)
         const reviewing = target ?? branch ?? 'HEAD'

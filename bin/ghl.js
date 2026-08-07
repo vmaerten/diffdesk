@@ -89,7 +89,7 @@ async function main() {
     ]
     if (state.operation) {
       lines.push(
-        `WARNING   ${state.operation} in progress, ${state.conflicted.length} conflicted file(s)`
+        `WARNING   ${state.operation} in progress, ${state.conflicted.length} conflicted file(s)`,
       )
     }
     process.stdout.write(lines.join('\n') + '\n')

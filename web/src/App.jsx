@@ -93,7 +93,7 @@ export default function App() {
    */
   const items = useMemo(
     () => (showViewed ? allItems : allItems.filter((item) => !(item.path in viewed))),
-    [allItems, viewed, showViewed]
+    [allItems, viewed, showViewed],
   )
 
   // Counts come from `git diff --numstat`, never from the parsed patch:
@@ -144,7 +144,7 @@ export default function App() {
         setError(`could not save viewed state: ${cause.message}`)
       }
     },
-    [data, repoId]
+    [data, repoId],
   )
 
   const resetViewed = useCallback(async () => {
@@ -168,23 +168,24 @@ export default function App() {
       })
       await refresh()
     },
-    [data, repoId, refresh, target]
+    [data, repoId, refresh, target],
   )
 
   /** Navigation walks the rendered items — what is left to read. */
   const goTo = useCallback(
     (index) => {
       const bounded = Math.max(0, Math.min(index, items.length - 1))
-      const target = items[bounded]
-      if (!target) return
+      // Not `target`: that name already means the revision under review.
+      const item = items[bounded]
+      if (!item) return
       setActiveIndex(bounded)
 
       // The tree folds directories, so ask it to bring the file back into view
       // rather than moving the selection somewhere invisible.
-      treeRef.current?.reveal(target.path)
-      viewRef.current?.scrollTo({ type: 'item', id: target.id, align: 'start' })
+      treeRef.current?.reveal(item.path)
+      viewRef.current?.scrollTo({ type: 'item', id: item.id, align: 'start' })
     },
-    [items]
+    [items],
   )
 
   /** Clicking a viewed file brings it back rather than jumping to nothing. */
@@ -194,7 +195,7 @@ export default function App() {
       if (entry?.viewed && !showViewed) return toggleViewed(path, false)
       goTo(items.findIndex((item) => item.path === path))
     },
-    [entries, items, goTo, toggleViewed, showViewed]
+    [entries, items, goTo, toggleViewed, showViewed],
   )
 
   useEffect(() => {
@@ -230,7 +231,7 @@ export default function App() {
 
   const options = useMemo(
     () => ({ diffStyle, theme: 'github-dark', stickyHeaders: true }),
-    [diffStyle]
+    [diffStyle],
   )
 
   /** The Viewed control lives in the library's own file header. */
@@ -250,7 +251,7 @@ export default function App() {
         </label>
       )
     },
-    [viewed, toggleViewed]
+    [viewed, toggleViewed],
   )
 
   const baseSource = {
@@ -390,7 +391,9 @@ export default function App() {
           <aside className="sidebar">
             <div className="sidebar-head">
               <span>
-                {viewedCount > 0 ? `${viewedCount}/${entries.length} viewed` : `${entries.length} files`}
+                {viewedCount > 0
+                  ? `${viewedCount}/${entries.length} viewed`
+                  : `${entries.length} files`}
               </span>
               <span className="spacer" />
               {viewedCount > 0 && (
