@@ -15,6 +15,7 @@
     "build": "vite build",
     "dev": "vite",
     "ghl": "node ./bin/ghl.js",
+    "typecheck": "tsc --noEmit",
     "lint": "oxlint bin src web/src vite.config.js",
     "lint:fix": "oxlint --fix bin src web/src vite.config.js",
     "format": "oxfmt bin src web/src vite.config.js",
@@ -28,9 +29,13 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
     "oxfmt": "^0.62.0",
     "oxlint": "^1.77.0",
+    "typescript": "^7.0.2",
     "vite": "^8.2.1"
   }
 }
