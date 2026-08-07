@@ -21,10 +21,8 @@ const MIME = {
 }
 
 /**
- * Stable, readable id for a repository.
- *
- * The path hash keeps two checkouts of the same repo (worktrees — 9 of the repos
- * here have several) from colliding.
+ * Stable, readable id for a repository. The path hash keeps two worktrees of the
+ * same repo from colliding; 9 of the repositories here have several.
  */
 export function repoIdFor(repoPath) {
   const hash = createHash('sha1').update(repoPath).digest('hex').slice(0, 7)
@@ -120,7 +118,6 @@ export function createGhlServer({ repos }) {
           repo: { id: repoId, path: repoPath },
           base,
           head: { branch, sha: await headSha(repoPath) },
-          // What is being reviewed, and whether uncommitted work is part of it.
           target: { ref: reviewing, workingTree: !target },
           range,
           state: await repoState(repoPath),

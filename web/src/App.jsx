@@ -35,8 +35,7 @@ export default function App() {
    * The single refresh path.
    *
    * Everything that reloads the diff goes through here — the R key now, a
-   * WebSocket later. Keeping it to one function is what makes the watcher a
-   * ten-line change (discipline 4 in PLAN.md).
+   * watcher later, which is what keeps that a ten-line change.
    */
   const refresh = useCallback(async () => {
     if (!repoId) return setError('no repository in the URL (expected /r/<repoId>)')
@@ -85,19 +84,15 @@ export default function App() {
   }, [data, repoId])
 
   /**
-   * What CodeView renders.
-   *
-   * A viewed file is REMOVED, never `collapsed: true`: collapsing shortens each
-   * item, so more of them fit in the virtualisation window and the library
-   * mounts more — measured at 4-5x the cost beyond ~87 files (decision 7).
+   * What CodeView renders. A viewed file is removed, never `collapsed: true`:
+   * collapsing shortens items, so more fit in the virtual window and the library
+   * mounts more — 4-5x the cost beyond ~87 files (decision 7 in PLAN.md).
    */
   const items = useMemo(
     () => (showViewed ? allItems : allItems.filter((item) => !(item.path in viewed))),
     [allItems, viewed, showViewed],
   )
 
-  // Counts come from `git diff --numstat`, never from the parsed patch:
-  // additionLines/deletionLines include context lines and overcount badly.
   const stats = data?.totals ?? { files: 0, additions: 0, deletions: 0 }
   const viewedCount = Object.keys(viewed).length
 

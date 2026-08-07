@@ -15,8 +15,8 @@ import {
   writeConfig,
 } from './git.js'
 
-// Remote refs first — they are the shared truth. Local names come last, for
-// repositories with no remote at all (mrev and fuel-tracker are two).
+// Remote first: it is the shared truth. Local names cover repositories with no
+// remote at all, of which there are two here.
 const TRUNK_FALLBACKS = [
   'origin/main',
   'origin/master',
@@ -31,8 +31,8 @@ const baseConfigKey = (branch) => `branch.${branch}.ghlBase`
 /**
  * The repository's trunk.
  *
- * `origin/HEAD` is authoritative but missing on 22 of the 86 repos measured
- * here, hence the fallback list. Hardcoding "main" would break on 29 of them.
+ * `origin/HEAD` is authoritative but absent on 22 of the 86 repositories
+ * measured here; hardcoding "main" would be wrong on 29 of them.
  */
 export async function detectTrunk(repoPath) {
   const fromOriginHead = await originHead(repoPath)
@@ -45,20 +45,16 @@ export async function detectTrunk(repoPath) {
 }
 
 /**
- * Guess which ref a branch was created from.
+ * Guess which ref a branch was created from: the one whose merge-base sits
+ * closest, since git records no parent.
  *
- * Git records no parent for a branch, so we look for the ref whose merge-base
- * sits closest to HEAD.
- *
- * The trunk wins ties, and that rule is load-bearing: two sibling branches cut
- * from the same commit produce the exact same distance as the trunk, and a
- * sibling is not a parent. Without the rule, `adessi/pren-322-input` resolves to
- * an unrelated branch that happens to share its fork point.
+ * The trunk wins ties, and that rule is load-bearing. Siblings cut from the same
+ * commit score exactly like the trunk, and a sibling is not a parent — without
+ * it, `adessi/pren-322-input` resolves to an unrelated branch.
  */
 export async function guessParent(repoPath, head, trunk) {
-  // Resolve the ref we are analysing, NOT HEAD: when reviewing someone else's
-  // branch the checkout is irrelevant, and using HEAD here silently guessed the
-  // base of the wrong branch.
+  // The ref being analysed, not HEAD: reading HEAD here silently guessed the
+  // base of whatever branch happened to be checked out.
   const headRev = await revParse(repoPath, head)
   if (!headRev) return null
   const refs = await listRefs(repoPath)
@@ -72,8 +68,7 @@ export async function guessParent(repoPath, head, trunk) {
 
     const base = await mergeBase(repoPath, headRev, ref)
     if (!base) continue
-    // The ref descends from HEAD, so it cannot be its parent.
-    if (base === headRev) continue
+    if (base === headRev) continue // descends from HEAD, so not its parent
 
     const distance = await countCommits(repoPath, base, headRev)
     if (distance === 0) continue
@@ -95,12 +90,12 @@ export async function guessParent(repoPath, head, trunk) {
 /**
  * Resolve the base to diff against, most trustworthy source first.
  *
- * The result carries how it was obtained: the UI must show it, because a wrong
- * base silently produces a misleading diff.
+ * The result carries how it was obtained, and the UI has to show it: a wrong
+ * base produces a misleading diff without ever looking wrong.
  */
 export async function resolveBase(repoPath, { override, target } = {}) {
-  // The base is guessed for whatever we are reviewing: reviewing someone else's
-  // branch must not inherit the base of the branch we happen to sit on.
+  // Guessed for what is under review, so another branch does not inherit the
+  // base of the checkout.
   const branch = target ?? (await currentBranch(repoPath))
   const trunk = await detectTrunk(repoPath)
 
@@ -140,12 +135,9 @@ export async function rememberBase(repoPath, branch, base) {
 /**
  * The "virtual PR": everything not in the base, committed or not.
  *
- * Tracked changes come from a single `git diff --merge-base`.
- *
- * Untracked files are listed but kept OUT of the patch by default. Measured on
- * prebid-server-proxy: 2 files actually modified against 446 untracked ones
- * (bench/, infra/dns/, scratch/…) that are real but not ignored — folding them
- * in drowns the diff. Callers opt in with `includeUntracked`.
+ * Untracked files are listed but kept out of the patch by default. One repo here
+ * has 2 modified files against 446 untracked ones — real, unignored, and enough
+ * to drown the diff. Callers opt in with `includeUntracked`.
  */
 export async function buildPatch(repoPath, base, { target, includeUntracked = false } = {}) {
   const tracked = await diffFromMergeBase(repoPath, base, { target })
@@ -156,8 +148,7 @@ export async function buildPatch(repoPath, base, { target, includeUntracked = fa
     status: statuses.get(file.path) ?? 'modified',
   }))
 
-  // Uncommitted work belongs to the working tree, so it is meaningless when
-  // reviewing some other ref.
+  // Uncommitted work belongs to the checkout, not to some other ref.
   const paths = target ? [] : await untrackedPaths(repoPath)
 
   const totals = files.reduce(
