@@ -1,12 +1,12 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, type KeyboardEvent, type PointerEvent, type RefObject } from 'react'
 
 const MIN = 180
 const DEFAULT = 300
 /** Always leave room for the diff, whatever the window is. */
 const max = () => Math.max(MIN, Math.min(700, window.innerWidth - 420))
-const clamp = (value) => Math.max(MIN, Math.min(value, max()))
+const clamp = (value: number) => Math.max(MIN, Math.min(value, max()))
 
-export const storedWidth = () => {
+export const storedWidth = (): number => {
   const stored = Number(localStorage.getItem('ghl.sidebarWidth'))
   return stored ? clamp(stored) : DEFAULT
 }
@@ -19,11 +19,16 @@ export const storedWidth = () => {
  * released. Re-rendering on every mousemove would re-render `CodeView`, whose
  * virtual window is the most expensive thing on the page.
  */
-export default function Resizer({ containerRef, onCommit }) {
-  const widthRef = useRef(null)
+interface ResizerProps {
+  containerRef: RefObject<HTMLElement | null>
+  onCommit: (width: number) => void
+}
+
+export default function Resizer({ containerRef, onCommit }: ResizerProps) {
+  const widthRef = useRef<number | null>(null)
 
   const apply = useCallback(
-    (width) => {
+    (width: number) => {
       widthRef.current = width
       containerRef.current?.style.setProperty('--sidebar-width', `${width}px`)
     },
@@ -31,7 +36,7 @@ export default function Resizer({ containerRef, onCommit }) {
   )
 
   const onPointerDown = useCallback(
-    (event) => {
+    (event: PointerEvent<HTMLDivElement>) => {
       const sidebar = containerRef.current?.querySelector('.sidebar')
       if (!sidebar) return
 
@@ -44,7 +49,8 @@ export default function Resizer({ containerRef, onCommit }) {
       // A press that never moves must not commit the previous drag's width.
       widthRef.current = null
 
-      const onMove = (move) => apply(clamp(startWidth + move.clientX - startX))
+      const onMove = (move: globalThis.PointerEvent) =>
+        apply(clamp(startWidth + move.clientX - startX))
       const onUp = () => {
         window.removeEventListener('pointermove', onMove)
         window.removeEventListener('pointerup', onUp)
@@ -59,13 +65,13 @@ export default function Resizer({ containerRef, onCommit }) {
   )
 
   const onKeyDown = useCallback(
-    (event) => {
+    (event: KeyboardEvent<HTMLDivElement>) => {
       const step = event.shiftKey ? 50 : 10
       const sidebar = containerRef.current?.querySelector('.sidebar')
       if (!sidebar) return
       const current = sidebar.getBoundingClientRect().width
 
-      let next = null
+      let next: number | null = null
       if (event.key === 'ArrowLeft') next = current - step
       else if (event.key === 'ArrowRight') next = current + step
       else if (event.key === 'Home') next = DEFAULT

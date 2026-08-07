@@ -1,6 +1,26 @@
 import { useEffect, useState } from 'react'
 import { Command } from 'cmdk'
 
+import type { RefDetail, RefsPayload } from '../../src/types.ts'
+
+/** An entry offered on top of the refs, such as "this checkout". */
+export interface RefSelectorExtra {
+  value: string
+  label: string
+  hint: string
+  /** What `onPick` receives; null means the working tree. */
+  pick: string | null
+}
+
+interface RefSelectorProps {
+  repoId: string | null
+  current: string
+  source?: string
+  extra?: RefSelectorExtra
+  onPick: (ref: string | null) => void
+  onClose: () => void
+}
+
 /**
  * Picker for a revision — the base to compare against, or the target to review.
  *
@@ -8,23 +28,30 @@ import { Command } from 'cmdk'
  * Refs arrive ordered by commit date, so what you last worked on sits on top
  * before you type anything.
  */
-export default function RefSelector({ repoId, current, source, extra, onPick, onClose }) {
-  const [refs, setRefs] = useState(null)
-  const [error, setError] = useState(null)
-  const [meta, setMeta] = useState({})
+export default function RefSelector({
+  repoId,
+  current,
+  source,
+  extra,
+  onPick,
+  onClose,
+}: RefSelectorProps) {
+  const [refs, setRefs] = useState<RefDetail[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [meta, setMeta] = useState<{ trunk?: string | null; branch?: string | null }>({})
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
         const response = await fetch(`/r/${repoId}/api/refs`)
-        const body = await response.json()
+        const body: RefsPayload & { error?: string } = await response.json()
         if (cancelled) return
         if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
         setRefs(body.refs)
         setMeta({ trunk: body.trunk, branch: body.branch })
       } catch (cause) {
-        if (!cancelled) setError(cause.message)
+        if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause))
       }
     })()
     return () => {
@@ -34,7 +61,7 @@ export default function RefSelector({ repoId, current, source, extra, onPick, on
 
   // Escape closes; the dialog owns the key while it is open.
   useEffect(() => {
-    const onKeyDown = (event) => {
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation()
         onClose()

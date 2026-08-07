@@ -8,8 +8,60 @@ import {
   useState,
 } from 'react'
 import { resolveTheme } from '@pierre/diffs'
-import { themeToTreeStyles } from '@pierre/trees'
+import {
+  themeToTreeStyles,
+  type FileTreeDirectoryHandle,
+  type FileTreeItemHandle,
+  type FileTreeRowDecoration,
+  type TreeThemeStyles,
+} from '@pierre/trees'
 import { FileTree as TreeView, useFileTree } from '@pierre/trees/react'
+
+import type { GitStatus } from '../../src/types.ts'
+
+/** The root of `@pierre/trees` does not re-export this one. */
+interface DecorationPart {
+  text: string
+  color?: string
+}
+
+/** One row's worth of what App knows about a file. */
+export interface TreeEntry {
+  id: string
+  path: string
+  additions: number
+  deletions: number
+  binary: boolean
+  status: GitStatus
+  viewed: boolean
+}
+
+/** What App drives the tree with, since folding and revealing live in here. */
+export interface FileTreeHandle {
+  reveal: (path: string) => void
+  expandAll: () => void
+  collapseAll: () => void
+}
+
+interface FileTreeProps {
+  entries: TreeEntry[]
+  activePath: string | undefined
+  onSelect: (path: string) => void
+}
+
+/**
+ * `isDirectory()` is declared `: true` / `: false` on the two members of the
+ * handle union, not as a type predicate, and TypeScript will not narrow a union
+ * on a method's return type. This is that narrowing, by hand.
+ */
+const asDirectory = (item: FileTreeItemHandle | null): FileTreeDirectoryHandle | null =>
+  item?.isDirectory() ? (item as FileTreeDirectoryHandle) : null
+
+interface DirectoryTotals {
+  files: number
+  additions: number
+  deletions: number
+}
 
 /** Same palette as the diff pane, so counts read identically on both sides. */
 const ADDED = '#3fb950'
@@ -20,14 +72,14 @@ const MUTED = '#8b949e'
  * Every directory a file sits under, as the tree addresses them: with a trailing
  * slash, and a folded chain named after its deepest segment (`web/src/`).
  */
-const ancestorDirs = (path) => {
+const ancestorDirs = (path: string): string[] => {
   const parts = path.split('/').slice(0, -1)
-  return parts.map((_, i) => `${parts.slice(0, i + 1).join('/')}/`)
+  return parts.map((_: string, i: number) => `${parts.slice(0, i + 1).join('/')}/`)
 }
 
 /** Aggregate counts per directory: the renderer only ever sees one row at a time. */
-function directoryTotals(entries) {
-  const totals = new Map()
+function directoryTotals(entries: TreeEntry[]): Map<string, DirectoryTotals> {
+  const totals = new Map<string, DirectoryTotals>()
   for (const entry of entries) {
     for (const dir of ancestorDirs(entry.path)) {
       const current = totals.get(dir) ?? { files: 0, additions: 0, deletions: 0 }
@@ -41,7 +93,7 @@ function directoryTotals(entries) {
 }
 
 /** Join coloured parts into the plain string the row also needs. */
-const asText = (parts) => ({
+const asText = (parts: DecorationPart[]): FileTreeRowDecoration => ({
   text: parts.map((part) => part.text).join(''),
   parts,
 })
@@ -56,19 +108,22 @@ const asText = (parts) => ({
  *  - one decoration per row, text or icon, never a node — so the viewed tick and
  *    the +/- counts share a single string.
  */
-function FileTree({ entries, activePath, onSelect }, ref) {
-  const [themeStyles, setThemeStyles] = useState(null)
+function FileTree(
+  { entries, activePath, onSelect }: FileTreeProps,
+  ref: React.ForwardedRef<FileTreeHandle>,
+) {
+  const [themeStyles, setThemeStyles] = useState<TreeThemeStyles | null>(null)
 
   // Read by callbacks the model captured at construction.
-  const entriesRef = useRef(new Map())
+  const entriesRef = useRef(new Map<string, TreeEntry>())
   const onSelectRef = useRef(onSelect)
-  const totalsRef = useRef(new Map())
+  const totalsRef = useRef(new Map<string, DirectoryTotals>())
   /** Directories the reader folded, so a refresh does not unfold them all. */
-  const collapsedRef = useRef(new Set())
+  const collapsedRef = useRef(new Set<string>())
   /** Set while we drive the selection ourselves, to not echo it back to App. */
   const syncingRef = useRef(false)
 
-  const byPath = useMemo(() => new Map(entries.map((e) => [e.path, e])), [entries])
+  const byPath = useMemo(() => new Map(entries.map((e) => [e.path, e] as const)), [entries])
   entriesRef.current = byPath
   onSelectRef.current = onSelect
   totalsRef.current = useMemo(() => directoryTotals(entries), [entries])
@@ -81,7 +136,7 @@ function FileTree({ entries, activePath, onSelect }, ref) {
     initialExpansion: 'open',
     onSelectionChange: (paths) => {
       if (syncingRef.current) return
-      const path = paths[paths.length - 1]
+      const path = paths.at(-1)
       if (path && !model.getItem(path)?.isDirectory()) onSelectRef.current?.(path)
     },
     renderRowDecoration: ({ row }) => {
@@ -126,10 +181,10 @@ function FileTree({ entries, activePath, onSelect }, ref) {
 
   /** Expand every directory on the way to `path`, or scrollToPath finds nothing. */
   const reveal = useCallback(
-    (path) => {
+    (path: string) => {
       for (const dir of ancestorDirs(path)) {
-        const item = model.getItem(dir)
-        if (item?.isDirectory() && !item.isExpanded()) {
+        const item = asDirectory(model.getItem(dir))
+        if (item && !item.isExpanded()) {
           item.expand()
           collapsedRef.current.delete(dir)
         }
@@ -144,14 +199,14 @@ function FileTree({ entries, activePath, onSelect }, ref) {
    * or unfolding one directory later spills its whole subtree.
    */
   const setAllExpanded = useCallback(
-    (expanded) => {
+    (expanded: boolean) => {
       for (let pass = 0; pass < 64; pass++) {
         const rows = model.getVisibleRows(0, model.getVisibleCount())
         const dirs = rows.filter((row) => row.kind === 'directory' && row.isExpanded !== expanded)
         if (dirs.length === 0) break
         for (const row of expanded ? dirs : dirs.toReversed()) {
-          const item = model.getItem(row.path)
-          if (!item?.isDirectory()) continue
+          const item = asDirectory(model.getItem(row.path))
+          if (!item) continue
           if (expanded) {
             item.expand()
             collapsedRef.current.delete(row.path)
@@ -203,8 +258,7 @@ function FileTree({ entries, activePath, onSelect }, ref) {
     const folded = [...collapsedRef.current]
     model.resetPaths(paths)
     for (const path of folded) {
-      const item = model.getItem(path)
-      if (item?.isDirectory()) item.collapse()
+      asDirectory(model.getItem(path))?.collapse()
     }
   }, [model, paths])
 
