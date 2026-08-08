@@ -213,27 +213,37 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         const override = url.searchParams.get('base') ?? entry.baseOverride
         const target = url.searchParams.get('target') ?? entry.target ?? null
         const base = await resolveBase(repoPath, { override, target })
-        const { patch, untracked, untrackedIncluded, files, totals } = await buildPatch(
-          repoPath,
-          base.ref,
-          { target, includeUntracked: entry.includeUntracked ?? false },
-        )
-        const branch = await currentBranch(repoPath)
+
+        // Everything the response needs beyond the base, and none of it depends
+        // on another: awaited one by one, the request waited for the sum of five
+        // git round-trips rather than the longest.
+        const [patchResult, branch, sha, state, stored] = await Promise.all([
+          buildPatch(repoPath, base.ref, {
+            target,
+            includeUntracked: entry.includeUntracked ?? false,
+          }),
+          // Without a target, resolveBase has already asked — that is `base.branch`.
+          target ? currentBranch(repoPath) : base.branch,
+          headSha(repoPath),
+          repoState(repoPath),
+          readState(repoPath),
+        ])
+
+        const { patch, untracked, untrackedIncluded, files, totals } = patchResult
         const reviewing = target ?? branch ?? 'HEAD'
         const range = `${base.ref}..${reviewing}`
         const hashes = sectionHashes(patch)
 
         // Ticks only survive while the file's diff is unchanged.
-        const stored = (await readState(repoPath)).viewed?.[range] ?? {}
-        const viewed = pruneStale(stored, hashes)
+        const viewed = pruneStale(stored.viewed?.[range] ?? {}, hashes)
 
         const payload: DiffPayload = {
           repo: { id: repoId, path: repoPath },
           base,
-          head: { branch, sha: await headSha(repoPath) },
+          head: { branch, sha },
           target: { ref: reviewing, workingTree: !target },
           range,
-          state: await repoState(repoPath),
+          state,
           untracked,
           untrackedIncluded,
           files: files.map((f) => ({ ...f, hash: hashes[f.path] ?? null })),
