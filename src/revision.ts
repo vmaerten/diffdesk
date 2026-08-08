@@ -14,6 +14,7 @@ import {
   untrackedPatch,
   writeConfig,
 } from './git.ts'
+import { readStack } from './stack.ts'
 import type { BaseResolution, FileStat, PatchResult, Totals } from './types.ts'
 
 // Remote first: it is the shared truth. Local names cover repositories with no
@@ -120,6 +121,13 @@ export async function resolveBase(
       return { ref: remembered, source: 'remembered', branch, trunk }
     }
   }
+
+  // Not a guess: `gh stack` writes down which branch this one sits on, which is
+  // the one thing git never records. Below the remembered choice all the same —
+  // that one was made by hand, against this very diff.
+  const chain = await readStack(repoPath, branch, trunk)
+  const layer = chain?.layers[chain.current]
+  if (layer) return { ref: layer.base, source: 'stack', branch, trunk }
 
   // On the trunk itself there is nothing to guess.
   const onTrunk = trunk && (branch === trunk.replace('origin/', '') || branch === trunk)

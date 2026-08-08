@@ -29,7 +29,7 @@ export interface ServedFileStat extends FileStat {
  * Where a base came from. The UI shows it, because a wrong base produces a
  * misleading diff without ever looking wrong.
  */
-export type BaseSource = 'override' | 'remembered' | 'guessed' | 'trunk'
+export type BaseSource = 'override' | 'remembered' | 'stack' | 'guessed' | 'trunk'
 
 export interface BaseResolution {
   ref: string
@@ -43,6 +43,25 @@ export interface Totals {
   files: number
   additions: number
   deletions: number
+}
+
+/** One branch of a `gh stack` chain, and what it should be diffed against. */
+export interface StackLayer {
+  branch: string
+  /** The branch this layer sits on: the nearest live layer below, or the trunk. */
+  base: string
+  pr: { number: number; url: string; merged: boolean } | null
+  merged: boolean
+  /** False once the branch is pruned: the layer can be shown, not opened. */
+  exists: boolean
+}
+
+export interface StackChain {
+  trunk: string
+  /** Bottom (closest to the trunk) first, the order `gh stack` records. */
+  layers: StackLayer[]
+  /** Index in `layers` of what is under review, -1 when it is not one of them. */
+  current: number
 }
 
 export type RepoOperation = 'merge' | 'rebase' | 'cherry-pick'
@@ -76,6 +95,8 @@ export interface DiffPayload {
   head: { branch: string | null; sha: string }
   /** What is under review, and whether uncommitted work is part of it. */
   target: { ref: string; workingTree: boolean }
+  /** The chain the reviewed branch belongs to, or null when it belongs to none. */
+  stack: StackChain | null
   range: string
   state: RepoState
   untracked: string[]

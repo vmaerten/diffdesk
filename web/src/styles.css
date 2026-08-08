@@ -83,6 +83,70 @@ body {
   color: var(--text-dim);
 }
 
+/* The whole chain, on its own row of the wrapping topbar. Reading it top to
+   bottom gives trunk → … → what is under review, which is the order the
+   branches were written in. */
+.stack {
+  display: flex;
+  align-items: center;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.stack-trunk {
+  color: var(--text-dim);
+}
+
+.stack-layer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stack-name {
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+.stack-name:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* A branch pruned after its merge: shown, because it is part of the story, but
+   there is nothing left to diff. */
+.stack-name:disabled {
+  cursor: default;
+  text-decoration: line-through;
+}
+
+.stack-layer.current .stack-name {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.stack-layer.merged .stack-name {
+  opacity: 0.6;
+}
+
+.stack-pr {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.stack-pr:hover {
+  color: var(--accent);
+}
+
 .source {
   color: var(--text-dim);
   font-size: 11px;

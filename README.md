@@ -81,10 +81,11 @@ the diff from `merge-base(base, HEAD)` down to the working tree.
 Git records no parent for a branch, so `ghl` resolves one, most trustworthy source first:
 
 1. `branch.<name>.ghlBase` in `.git/config` — your remembered choice
-2. the stacked-branch heuristic — the ref whose merge-base is closest to HEAD, the trunk
+2. the `gh stack` chain, when the branch is part of one — not a guess, it is written down
+3. the stacked-branch heuristic — the ref whose merge-base is closest to HEAD, the trunk
    winning ties (a sibling branch is not a parent)
-3. `origin/HEAD`
-4. the first existing of `origin/main`, `origin/master`, `origin/develop`, then their local
+4. `origin/HEAD`
+5. the first existing of `origin/main`, `origin/master`, `origin/develop`, then their local
    counterparts
 
 The chosen base and how it was obtained are always reported: a wrong base silently produces
@@ -98,11 +99,23 @@ checking it out. The revision lives in the URL, so a reload stays on it. Reviewi
 excludes uncommitted work, which belongs to the working tree and not to that ref; the UI
 says so.
 
+## Stacked branches
+
+Git records no parent, but [`gh stack`](https://github.com/github/gh-stack) does: it keeps
+the whole chain in `.git/gh-stack`. When the branch under review is part of one, the topbar
+shows it — `main → auth → api → ui` — and each layer is diffed against the one below, so
+what you read is what its pull request will show. Click any layer to move to it. The file is
+read straight off disk, so this needs neither the network nor `gh` itself.
+
+Merged layers stay in the chain: their pull request number is still there, but a layer whose
+branch is gone is struck through and the one above it falls through to the next live layer.
+Each layer keeps its own viewed ticks, since those are keyed by the revision range.
+
 ## Tests
 
 ```bash
 pnpm test            # all of them
-pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename, order
+pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename, order, stack
 pnpm test lifecycle  # the shared process, without starting a browser
 ```
 

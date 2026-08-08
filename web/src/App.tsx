@@ -11,7 +11,7 @@ import RefSelector from './RefSelector.tsx'
 import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import { compareTreePaths } from './fileOrder.ts'
-import type { BaseSource, DiffPayload, ViewedMap } from '../../src/types.ts'
+import type { BaseSource, DiffPayload, StackLayer, ViewedMap } from '../../src/types.ts'
 
 /**
  * `CodeViewDiffItem` carries no path; we add one and read it back from our own
@@ -335,15 +335,33 @@ export default function App() {
     [viewed, toggleViewed],
   )
 
+  /**
+   * Look at another layer of the stack.
+   *
+   * Nothing but a change of revision: the base follows on its own, because the
+   * server resolves it from the same chain. Reviewing the branch that is
+   * actually checked out goes through the working tree instead of its ref, or
+   * uncommitted work would silently drop out of the diff.
+   */
+  const pickLayer = useCallback(
+    (layer: StackLayer) => {
+      if (!layer.exists) return
+      pickTarget(layer.branch === data?.head.branch ? null : layer.branch)
+    },
+    [data, pickTarget],
+  )
+
   const baseSources: Record<BaseSource, string> = {
     override: 'given on the command line',
     remembered: 'remembered',
+    stack: 'from the stack',
     guessed: 'guessed',
     trunk: 'trunk',
   }
   const baseSource = data ? baseSources[data.base.source] : null
 
   const activePath = items[activeIndex]?.path
+  const stack = data?.stack ?? null
 
   return (
     <div className="app">
@@ -443,6 +461,50 @@ export default function App() {
             Split
           </button>
         </div>
+
+        {/* Last child, and full width: the topbar wraps, so the chain gets a row
+            of its own without any of the controls above it moving. */}
+        {stack && (
+          <nav className="stack" aria-label="Stack">
+            <span className="stack-trunk">{stack.trunk}</span>
+            {stack.layers.map((layer, index) => (
+              <span
+                key={layer.branch}
+                className={`stack-layer${index === stack.current ? ' current' : ''}${
+                  layer.merged ? ' merged' : ''
+                }`}
+              >
+                <span className="arrow">→</span>
+                <button
+                  type="button"
+                  className="stack-name"
+                  aria-current={index === stack.current ? 'true' : undefined}
+                  disabled={!layer.exists}
+                  title={
+                    layer.exists
+                      ? `Review ${layer.branch} against ${layer.base}`
+                      : `${layer.branch} is gone from this checkout`
+                  }
+                  onClick={() => pickLayer(layer)}
+                >
+                  {layer.branch}
+                </button>
+                {layer.pr && (
+                  <a
+                    className="stack-pr"
+                    href={layer.pr.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={`Pull request #${layer.pr.number} on GitHub`}
+                  >
+                    #{layer.pr.number}
+                  </a>
+                )}
+                {layer.merged && <span className="badge">merged</span>}
+              </span>
+            ))}
+          </nav>
+        )}
       </header>
 
       {data?.state?.operation && (

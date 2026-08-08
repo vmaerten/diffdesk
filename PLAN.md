@@ -94,7 +94,8 @@ refetches and replaces the items. Wiring a WebSocket to it later is ten lines.
 ghl (node bin, one-shot)
  │
  ├── revision resolution
- │     base   : branch.<name>.ghlBase → heuristic → origin/HEAD → main|master|develop
+ │     base   : branch.<name>.ghlBase → gh stack chain → heuristic → origin/HEAD
+ │              → main|master|develop
  │     target : working tree by default, or any ref (?target=)
  │              the base is guessed FOR the target, not for the checkout
  │
@@ -140,18 +141,42 @@ its deepest segment (`web/src/`) — both matter when addressing rows by path.
 Most trustworthy source first:
 
 1. `git config branch.<name>.ghlBase` — the user's remembered choice, authoritative.
-2. "Stacked branch" heuristic: among candidate refs, the one whose merge-base sits closest
+2. The `gh stack` chain, read from `.git/gh-stack`. Not a heuristic: the extension writes
+   down which branch each one sits on, which is the single fact git never stores. See
+   "Stacked branches" below.
+3. "Stacked branch" heuristic: among candidate refs, the one whose merge-base sits closest
    to HEAD. **The trunk wins ties** — two sibling branches cut from the same commit produce
    the same distance as the trunk, and a sibling is not a parent. Verified on a fixture
    where `sister-c` shares `feature-a`'s fork point and still resolves to the trunk.
-3. `origin/HEAD` — present on 64 of 86 repositories.
-4. First existing among `origin/main`, `origin/master`, `origin/develop`, then the local
+4. `origin/HEAD` — present on 64 of 86 repositories.
+5. First existing among `origin/main`, `origin/master`, `origin/develop`, then the local
    `main`, `master`, `develop` (57 / 5 / 2 repos; hardcoding `main` would fail on 29, and
    some repos such as mrev and fuel-tracker have no remote at all).
 
 Short-circuit: when HEAD *is* the trunk, guess nothing.
 
 Covered: 86 of 86 repositories resolve a base.
+
+### Stacked branches
+
+`gh stack` keeps `.git/gh-stack`: a JSON list of stacks, each with its trunk and its
+branches bottom-up, with pull request numbers. `src/stack.ts` is the only reader. It never
+runs `gh` and never calls GitHub — the file is on disk, so this works offline and without
+authentication, and an absent or unknown-schema file simply means "no stack".
+
+Two rules carry the feature:
+
+- **The recorded SHAs are ignored.** `head` and `base` date from the last sync and are stale
+  after one local commit. The branch *names* go to `git diff --merge-base`, which is what
+  makes the layer's diff match its pull request.
+- **A layer sits on the nearest live layer below** — one that still resolves and is not
+  merged — falling through to the trunk otherwise. The same rule `gh stack submit` uses to
+  pick a PR's base, and the one thing that keeps a stack usable after its bottom merges and
+  the branch is pruned.
+
+Switching layer is nothing but switching `?target=`: the base follows, because it is
+resolved from the same chain. Viewed ticks are keyed by `<base>..<target>`, so each layer
+keeps its own for free.
 
 ### Viewed state
 
@@ -392,8 +417,10 @@ fixed, on exactly the diffs where losing your place hurts most.
 ## 6. V2
 
 `.git` watcher + WebSocket · context expansion · exportable comments (JSON/markdown, to
-paste back to an agent) · multi-level stack view · a repository switcher in the UI, now
-that `/api/repos` has more than one thing to say.
+paste back to an agent) · a repository switcher in the UI, now that `/api/repos` has more
+than one thing to say.
+
+Done since: multi-level stack view (issue #10), see "Stacked branches" in §3.
 
 ## References
 
