@@ -47,14 +47,18 @@ function install(): void {
   mkdirSync(HOME, { recursive: true })
   for (const part of PARTS) cpSync(join(ROOT, part), join(HOME, part), { recursive: true })
 
-  // What was installed, since the copy is cut off from git from here on.
+  // What was installed, since the copy is cut off from git from here on. The
+  // running instance compares this to decide whether it is stale, so installing
+  // twice from a dirty tree must not produce the same answer twice — the second
+  // install would be reported as up to date and the old code kept serving.
   let revision = 'unknown'
   try {
-    revision = execFileSync('git', ['-C', ROOT, 'rev-parse', '--short', 'HEAD'], {
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-      .toString()
-      .trim()
+    const git = (args: string[]) =>
+      execFileSync('git', ['-C', ROOT, ...args], { stdio: ['ignore', 'pipe', 'ignore'] })
+        .toString()
+        .trim()
+    revision = git(['rev-parse', '--short', 'HEAD'])
+    if (git(['status', '--porcelain'])) revision += `-dirty.${Date.now()}`
   } catch {
     // Installing from a tarball rather than a clone. Not worth failing over.
   }

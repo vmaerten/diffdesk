@@ -199,6 +199,41 @@ export const TREE_SCROLLER = `document.querySelector('file-tree-container').shad
   .querySelector('[data-file-tree-virtualized-scroll]')`
 
 /**
+ * Click a file's row in the tree, wherever it is.
+ *
+ * The tree virtualises, so a row below the fold is not in the DOM at all and
+ * `querySelector(...)?.click()` silently does nothing — a test written that way
+ * asserts against a click that never happened. Returns false when the path is
+ * genuinely absent, which is a different failure and should read differently.
+ */
+export async function clickTreeRow(page: Page, path: string): Promise<boolean> {
+  const attempt = () =>
+    page.evaluate(`(() => {
+      const root = document.querySelector('file-tree-container')?.shadowRoot
+      const row = root?.querySelector('[data-item-path="' + ${JSON.stringify(path)} + '"]')
+      if (!row) return false
+      row.click()
+      return true
+    })()`) as Promise<boolean>
+
+  if (await attempt()) return true
+
+  const box = (await page.evaluate(`(() => {
+    const el = ${TREE_SCROLLER}
+    return el ? { height: el.scrollHeight, viewport: el.clientHeight } : null
+  })()`)) as { height: number; viewport: number } | null
+  if (!box) return false
+
+  const step = Math.max(100, Math.round(box.viewport * 0.8))
+  for (let top = 0; top <= box.height; top += step) {
+    await page.evaluate(`(() => { ${TREE_SCROLLER}.scrollTop = ${top} })()`)
+    await sleep(120)
+    if (await attempt()) return true
+  }
+  return false
+}
+
+/**
  * The diff pane's own scroller, the element CodeView computes its window from.
  *
  * Scoped to `.diff` on purpose: the sidebar scrolls too, and searching the whole
@@ -231,11 +266,38 @@ export interface DiffFile {
 }
 
 /**
+ * The files actually intersecting the viewport right now.
+ *
+ * Distinct from `allDiffFiles`, which walks the whole scroll: this one answers
+ * "did the pane move to it", not "does it exist somewhere". Counting characters
+ * instead was not enough — when the virtual window froze, the sticky header
+ * dragged the same block along and the count came back identical at every
+ * scroll position.
+ */
+export const DIFF_ON_SCREEN = `(() => {
+  const el = ${DIFF_SCROLLER}
+  if (!el) return []
+  const box = el.getBoundingClientRect()
+  const names = []
+  for (const host of el.querySelectorAll('diffs-container')) {
+    const r = host.getBoundingClientRect()
+    if (r.bottom <= box.top || r.top >= box.bottom || r.height === 0) continue
+    const title = host.shadowRoot?.querySelector('[data-title]')
+    names.push((title?.textContent ?? '').trim())
+  }
+  return names
+})()`
+
+/**
  * Every file the diff pane renders, not only the mounted window.
  *
  * Asserting a file is *there* needs the whole scroll just as much as asserting
  * it is absent: the pane virtualises, so at rest it holds four files out of
  * fifty. The step stays under one viewport so nothing slips between samples.
+ *
+ * It moves the pane and leaves it back at the top, so anything asserting *where
+ * the reader is* has to be read before this runs, never after — otherwise it
+ * measures this helper rather than the application.
  */
 export async function allDiffFiles(page: Page): Promise<DiffFile[]> {
   const seen = new Map<string, DiffFile>()

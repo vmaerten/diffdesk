@@ -19,10 +19,11 @@ The file tree shows an icon per file type, colours each row by its git status (a
 modified, deleted, renamed, untracked) and folds chains of single-child directories into
 one row. Both panes are virtualised, so a 107-file diff keeps ~48 rows in the DOM.
 
-Viewed files leave the diff and are ticked in the tree; click one to bring it back. The
-state lives in `.git/ghl/state.json` and is keyed by revision range, so a file marked
-against one base is not marked against another. Each tick stores the hash of that file's
-diff section: if the file changes, its tick clears on its own.
+A viewed file folds shut and is ticked in the tree, as on GitHub — it keeps its place in the
+list, so marking one never moves you, and clicking any row takes you to that file whether it
+is folded or not. The state lives in `.git/ghl/state.json` and is keyed by revision range, so
+a file marked against one base is not marked against another. Each tick stores the hash of
+that file's diff section: if the file changes, its tick clears on its own.
 
 ## Usage
 

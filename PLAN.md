@@ -73,7 +73,7 @@ headless does no real compositing. Redo with CDP tracing if the need arises.
 | 8 | `cmdk` for the base picker, no design system | 79 KB headless, no provider, no theme competing with the one Shiki imposes. Mantine core is 8.6 MB and brings its own theming |
 | 5 | **Manual** refresh (button + `R`) | `.git` watcher deferred; `.git` changes constantly, debouncing is a topic of its own |
 | 6 | V1 = file tree + keyboard + persistent viewed | Context expansion and comments in V2 |
-| 7 | A viewed file is **removed from the items**, never `collapsed: true` | Collapsing multiplies cost by 4–5 beyond 87 files (measured) |
+| 7 | ~~A viewed file is **removed from the items**~~ → **`collapsed: true`**, as GitHub does it | Removing it changed the item array on every tick, and the pane rebuilds its virtual window when that happens: the reader was thrown back to the top of the diff, and a file clicked in the tree came back somewhere they never saw (issue #36). The measured cost of collapsing is real but narrower than it looked — see §7 |
 
 ### Three disciplines to hold from the first line
 
@@ -159,16 +159,33 @@ Covered: 86 of 86 repositories resolve a base.
 Key: `(base..target, path, content hash)` — if a file changes after being viewed, the tick
 clears itself.
 
-**A viewed file leaves the items array**, it is not switched to `collapsed: true`:
+**A viewed file stays in the list and folds shut**, as GitHub does it:
 
 ```js
-const visible = items.filter((item) => !viewed.has(item.id))
-// plus a collapsible "12 viewed files" entry that puts them back on demand
+const items = allItems.map((item) => ({ ...item, collapsed: item.path in viewed }))
 ```
 
-Measured: collapsing 177 files costs 2,652 ms against 624 ms expanded, and triples the DOM.
-Collapsing saturates the virtualisation window with headers. Removing them keeps the list
-short — which is also what we want visually.
+It used to leave the array instead, on the measurement in §7 below. That was the wrong
+trade: **the item list is the pane's identity**. Change it and the virtual window is rebuilt
+from nothing, which put the reader back at the top of the diff every single time a file was
+ticked, and made a viewed file clicked in the tree reappear somewhere they never saw — read
+as a dead click, and reported as issue #36.
+
+**One condition, and only one:** the item list keeps the same **length and order**, and a
+tick only flips one entry's `collapsed` — alongside its `version`, without which the pane
+never re-reads the item and the file simply does not fold.
+
+Two further precautions looked obviously necessary and were measured to be worthless —
+reusing the object identity of unchanged items, and holding `renderHeaderMetadata` stable
+behind refs. The position survives without either. The second is worse than useless: a
+render prop that never changes is a header that is never rendered again, so the Viewed box
+never ticks and its handler stays closed over the value it was built with, which makes the
+file impossible to un-view from there. It shipped for one round of testing before that
+surfaced.
+
+The lesson is the general one, and it is why the measurement is written down here: **each
+suspected cause has to be removed on its own and measured on its own.** Three plausible
+fixes applied together read as one working fix, and two of them were carrying a regression.
 
 Stale entries are filtered on read, not deleted on disk: if the file goes back to what it
 was, the tick returns. The file only ever holds one hash per path per range.
@@ -282,6 +299,30 @@ threshold mean "no tab" rather than "no click".
   on this project, see issue #1.
 - **Measuring at first frame gives wrong numbers.** Content arrives asynchronously. Any
   perf measurement must wait for DOM stabilisation or it reports times 10× too good.
+- **The item array's length and order are the diff pane's identity.** Change either and the
+  virtual window is rebuilt and the reader lands at the top. Any feature that adds, removes
+  or reorders files has to reckon with that. Object identity and render-prop identity, on
+  the other hand, do not matter — measured, see §"Viewed state".
+- **`collapsed` does nothing without `version`.** The pane re-reads an item only when its
+  `version` moves, so flipping `collapsed` alone is accepted and then ignored — the box
+  ticks, the tree ticks, the file stays wide open, and nothing anywhere says the flag was
+  refused. It is written in the type's own doc comment, one line under the field. Same
+  family as `diffStyle` vs `layout` below: **this library ignores what it does not
+  recognise, and here it ignored what it did.**
+- **A render prop held stable is a subtree that never renders again.** Freezing
+  `renderHeaderMetadata` behind refs to avoid rebuilding the pane left the Viewed box
+  permanently unticked, with a handler closed over its initial value — the file could be
+  marked but never unmarked. The suite stayed green: it clicked the box and asserted the
+  *counter*, never the box. Assert the control you clicked, not only its consequence.
+- **A click on the already-selected row emits nothing.** `onSelectionChange` fires on a
+  *change*, so clicking the row you are already on is silent and the click reads as dead.
+  That is the whole of issue #36's "you have to click another file first". Listening for the
+  click itself is what covers it, reading the path from `composedPath()` since anything
+  leaving the shadow root is retargeted to the host.
+- **`allDiffFiles` moves the pane and parks it at the top.** Anything asserting *where the
+  reader is* must be read before it runs. Asking afterwards measures the helper, not the
+  application — which is how a correct fix still showed red, and would just as easily have
+  shown green over a broken one.
 - **`fetch` silently refuses to send the `Host` you gave it.** undici treats it as a
   forbidden header and substitutes the real one, so a test for the Host allowlist arrives
   looking perfectly legitimate, gets its 200, and passes — while never reaching the code it
@@ -308,6 +349,31 @@ threshold mean "no tab" rather than "no click".
   only says the file sits below the fold. `allDiffFiles()` does that, and reports coloured
   tokens per file: the failure above rendered a box with nothing in it, which a
   presence-only check would have called a pass.
+
+## 7. What collapsing actually costs
+
+Decision 7 originally ruled out `collapsed: true` on a measurement: 177 files collapsed cost
+2,652 ms against 624 ms expanded, 87 files 1,042 ms against 214 ms, and the DOM tripled to a
+plateau around 1,350 nodes. Collapsing shortens each item, so more fit in the virtualisation
+window, so the library mounts more.
+
+Re-measured on the 54-file fixture, worst case — every file viewed:
+
+| | settle | files mounted | DOM nodes |
+|---|---|---|---|
+| nothing viewed | 1,767 ms | 3 | 540 |
+| every file viewed | 1,787 ms | 23 | 1,347 |
+
+The DOM penalty is confirmed and lands exactly on the plateau the earlier campaign
+described. The wall-clock penalty does not appear at this size — and the 4–5× figures were
+taken at 87 and 177 files, which are the p99 and beyond: **p50 is 2 files, p90 is 12**.
+
+So the cost was real but priced at the wrong point on the curve. Two things remain honest to
+say: this measurement is coarser than the original campaign (it times a page load to DOM
+stabilisation, not the render alone), and nothing here says the p99 is free. **Re-measure on
+a 177-file PR before assuming it is.** If it bites there, the fallback is to collapse only up
+to a threshold and drop to removal beyond it — at the cost of bringing back the bug this
+fixed, on exactly the diffs where losing your place hurts most.
 
 ## 6. V2
 

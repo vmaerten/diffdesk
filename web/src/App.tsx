@@ -39,7 +39,6 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false)
   /** path -> hash of the diff section that was marked as read. */
   const [viewed, setViewedState] = useState<ViewedMap>({})
-  const [showViewed, setShowViewed] = useState(false)
   const [picking, setPicking] = useState<'base' | 'target' | null>(null)
   /** Revision under review. null means the working tree of this checkout. */
   const [target, setTarget] = useState<string | null>(() =>
@@ -136,13 +135,31 @@ export default function App() {
   }, [data, repoId])
 
   /**
-   * What CodeView renders. A viewed file is removed, never `collapsed: true`:
-   * collapsing shortens items, so more fit in the virtual window and the library
-   * mounts more — 4-5x the cost beyond ~87 files (decision 7 in PLAN.md).
+   * What CodeView renders: every file, the viewed ones folded shut.
+   *
+   * As GitHub does it. Removing them from the array instead — which is what this
+   * used to do — changed the item list on every tick, and the pane rebuilds its
+   * virtual window from scratch when that happens: the reader was thrown back to
+   * the top of the diff each time, and a file clicked in the tree came back
+   * somewhere they never saw. See decision 7 in PLAN.md for what it costs.
    */
+  const versions = useRef(new Map<string, { collapsed: boolean; version: number }>())
   const items = useMemo(
-    () => (showViewed ? allItems : allItems.filter((item) => !(item.path in viewed))),
-    [allItems, viewed, showViewed],
+    () =>
+      allItems.map((item) => {
+        const collapsed = item.path in viewed
+        // The pane re-reads an item only when its `version` moves; flipping
+        // `collapsed` on its own is accepted and then ignored, silently, which
+        // is how a file could be ticked and never fold.
+        const previous = versions.current.get(item.path)
+        const version =
+          previous === undefined || previous.collapsed === collapsed
+            ? (previous?.version ?? 0)
+            : previous.version + 1
+        versions.current.set(item.path, { collapsed, version })
+        return { ...item, collapsed, version }
+      }),
+    [allItems, viewed],
   )
 
   const stats = data?.totals ?? { files: 0, additions: 0, deletions: 0 }
@@ -238,14 +255,10 @@ export default function App() {
     [items],
   )
 
-  /** Clicking a viewed file brings it back rather than jumping to nothing. */
+  /** Every file is in the list now, viewed or not, so a click always lands. */
   const selectByPath = useCallback(
-    (path: string) => {
-      const entry = entries.find((e) => e.path === path)
-      if (entry?.viewed && !showViewed) return toggleViewed(path, false)
-      goTo(items.findIndex((item) => item.path === path))
-    },
-    [entries, items, goTo, toggleViewed, showViewed],
+    (path: string) => goTo(items.findIndex((item) => item.path === path)),
+    [items, goTo],
   )
 
   useEffect(() => {
@@ -287,7 +300,14 @@ export default function App() {
     [diffStyle],
   )
 
-  /** The Viewed control lives in the library's own file header. */
+  /**
+   * The Viewed control lives in the library's own file header.
+   *
+   * It has to be rebuilt when `viewed` changes. Holding it stable and reading
+   * through refs keeps the pane from rebuilding, but the header is then never
+   * rendered again: the box never ticks, and un-viewing from it is impossible
+   * because the handler still closes over the value it was built with.
+   */
   const renderHeaderMetadata = useCallback(
     (item: CodeViewItem<undefined>) => {
       const path = item.type === 'diff' ? item.fileDiff.name : null
@@ -316,7 +336,6 @@ export default function App() {
   const baseSource = data ? baseSources[data.base.source] : null
 
   const activePath = items[activeIndex]?.path
-  const allRead = data && allItems.length > 0 && items.length === 0
 
   return (
     <div className="app">
@@ -476,36 +495,23 @@ export default function App() {
 
           <Resizer containerRef={bodyRef} onCommit={resizeSidebar} />
 
-          {allRead ? (
-            <p className="message">
-              All {entries.length} files reviewed.{' '}
-              <button type="button" className="link" onClick={() => setShowViewed(true)}>
-                Show them again
-              </button>
-            </p>
-          ) : (
-            /* CodeView owns its scrolling. The style lands on its own scroller, so it
-               needs both a real height (or it measures 0 and mounts nothing) and
-               `overflowY: auto` — it only recomputes the virtual window from the
-               element it scrolls itself, never from an ancestor. */
-            <div className="diff">
-              {viewedCount > 0 && (
-                <div className="viewed-bar">
-                  {viewedCount} viewed file(s) hidden
-                  <button type="button" className="link" onClick={() => setShowViewed((v) => !v)}>
-                    {showViewed ? 'Hide them' : 'Show them'}
-                  </button>
-                </div>
-              )}
-              <CodeView
-                ref={viewRef}
-                items={items}
-                options={options}
-                renderHeaderMetadata={renderHeaderMetadata}
-                style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}
-              />
-            </div>
-          )}
+          {/* CodeView owns its scrolling. The style lands on its own scroller, so it
+              needs both a real height (or it measures 0 and mounts nothing) and
+              `overflowY: auto` — it only recomputes the virtual window from the
+              element it scrolls itself, never from an ancestor.
+
+              Nothing conditional above it inside `.diff`: a sibling appearing or
+              disappearing shifts CodeView's position among its parent's children,
+              and React remounts it — losing the scroll along with it. */}
+          <div className="diff">
+            <CodeView
+              ref={viewRef}
+              items={items}
+              options={options}
+              renderHeaderMetadata={renderHeaderMetadata}
+              style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}
+            />
+          </div>
         </div>
       )}
     </div>
