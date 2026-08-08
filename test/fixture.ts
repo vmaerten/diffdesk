@@ -74,6 +74,91 @@ function featureChanges(root: string) {
   write(root, 'infra/terraform/network.tf', 'resource "null_resource" "b" {}\n')
 }
 
+/**
+ * Two branches stacked one on the other, plus the file `gh stack` would write.
+ *
+ * The file is written by hand rather than by invoking `gh`: the suites have to
+ * run offline and unauthenticated, and the extension is not a dependency of this
+ * project. The layers are deliberately unequal — 2 files then 1 — so a suite can
+ * tell "the layer alone" from "everything since the trunk" by counting.
+ *
+ * `stack/a` carries no pull request and `stack/b` does, which is the state of
+ * any stack whose bottom has not been submitted yet, and covers both branches of
+ * the rendering.
+ *
+ * A second stack covers the state every stack ends up in: `stack/gone` is
+ * recorded, merged and pruned, so it exists only in the file. `stack/c` has to
+ * fall through it to the trunk — diffing against a branch that resolves to
+ * nothing is the failure this shape is here to catch.
+ */
+function stackedChain(root: string) {
+  git(root, ['checkout', '-q', 'main'])
+  git(root, ['checkout', '-q', '-b', 'stack/a'])
+  write(root, 'src/core/queue.ts', lines(18, 'queue'))
+  write(root, 'src/core/pool.ts', lines(22, 'pool'))
+  git(root, ['add', '-A'])
+  git(root, ['commit', '-m', 'bottom layer'])
+
+  git(root, ['checkout', '-q', '-b', 'stack/b'])
+  write(root, 'src/core/worker.ts', lines(24, 'worker'))
+  git(root, ['add', '-A'])
+  git(root, ['commit', '-m', 'top layer'])
+
+  git(root, ['checkout', '-q', 'main'])
+  git(root, ['checkout', '-q', '-b', 'stack/c'])
+  write(root, 'src/core/timer.ts', lines(12, 'timer'))
+  write(root, 'src/core/clock.ts', lines(14, 'clock'))
+  write(root, 'src/core/tick.ts', lines(16, 'tick'))
+  git(root, ['add', '-A'])
+  git(root, ['commit', '-m', 'layer above a merged one'])
+
+  writeFileSync(
+    join(root, '.git', 'gh-stack'),
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        repository: 'github.com:fixture/fixture',
+        stacks: [
+          {
+            id: '1',
+            number: 1,
+            trunk: { branch: 'main' },
+            branches: [
+              { branch: 'stack/a' },
+              {
+                branch: 'stack/b',
+                pullRequest: {
+                  number: 42,
+                  url: 'https://github.com/fixture/fixture/pull/42',
+                  merged: false,
+                },
+              },
+            ],
+          },
+          {
+            id: '2',
+            number: 2,
+            trunk: { branch: 'main' },
+            branches: [
+              {
+                branch: 'stack/gone',
+                pullRequest: {
+                  number: 7,
+                  url: 'https://github.com/fixture/fixture/pull/7',
+                  merged: true,
+                },
+              },
+              { branch: 'stack/c' },
+            ],
+          },
+        ],
+      },
+      null,
+      2,
+    ),
+  )
+}
+
 export function createFixture(): Fixture {
   const path = mkdtempSync(join(tmpdir(), 'ghl-fixture-'))
 
@@ -121,6 +206,8 @@ export function createFixture(): Fixture {
   write(path, 'other-only.ts', lines(12, 'other'))
   git(path, ['add', '-A'])
   git(path, ['commit', '-m', 'other work'])
+
+  stackedChain(path)
 
   // Left on main: reviewing `feature` must not need it checked out.
   git(path, ['checkout', '-q', 'main'])

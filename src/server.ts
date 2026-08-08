@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 import { currentBranch, headSha, listRefDetails, repoState, resolveRepoRoot } from './git.ts'
 import { buildPatch, detectTrunk, rememberBase, resolveBase } from './revision.ts'
+import { readStack } from './stack.ts'
 import { clearViewed, pruneStale, readState, sectionHashes, setViewed } from './state.ts'
 import type { DiffPayload, RefsPayload } from './types.ts'
 import { runtimeRevision } from './version.ts'
@@ -220,6 +221,9 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         )
         const branch = await currentBranch(repoPath)
         const reviewing = target ?? branch ?? 'HEAD'
+        // Read again rather than carried out of resolveBase: the CLI calls that
+        // one on its own, and the file is 2 KB.
+        const stack = await readStack(repoPath, target ?? branch, base.trunk)
         const range = `${base.ref}..${reviewing}`
         const hashes = sectionHashes(patch)
 
@@ -232,6 +236,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           base,
           head: { branch, sha: await headSha(repoPath) },
           target: { ref: reviewing, workingTree: !target },
+          stack,
           range,
           state: await repoState(repoPath),
           untracked,

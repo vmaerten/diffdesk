@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { repoState, resolveRepoRoot } from '../src/git.ts'
 import { buildPatch, resolveBase } from '../src/revision.ts'
 import { createGhlServer, listen, listenNear, repoIdFor, type RepoEntry } from '../src/server.ts'
+import { readStack } from '../src/stack.ts'
 import type { BaseSource } from '../src/types.ts'
 import { runtimeRevision } from '../src/version.ts'
 
@@ -298,9 +299,11 @@ async function main() {
     const origin: Record<BaseSource, string> = {
       override: 'given on the command line',
       remembered: 'remembered in .git/config',
+      stack: 'what the gh stack chain says this sits on',
       guessed: `guessed (stacked branch, ${base.distance} commit(s))`,
       trunk: 'repository trunk',
     }
+    const chain = await readStack(repoPath, base.branch, base.trunk)
 
     const lines = [
       `repo      ${repoPath}`,
@@ -309,6 +312,13 @@ async function main() {
       `changes   ${files} file(s), +${additions} -${deletions}`,
       `untracked ${untracked.length} file(s)${untrackedIncluded ? ' (included)' : ' (excluded, use --untracked)'}`,
     ]
+    if (chain) {
+      const layers = chain.layers.map((layer, index) => {
+        const pr = layer.pr ? ` #${layer.pr.number}${layer.merged ? ' (merged)' : ''}` : ''
+        return index === chain.current ? `[${layer.branch}${pr}]` : `${layer.branch}${pr}`
+      })
+      lines.push(`stack     ${[chain.trunk, ...layers].join(' → ')}`)
+    }
     if (state.operation) {
       lines.push(
         `WARNING   ${state.operation} in progress, ${state.conflicted.length} conflicted file(s)`,
