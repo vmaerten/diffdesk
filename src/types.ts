@@ -95,10 +95,41 @@ export type ViewedMap = Record<string, string | null>
  */
 export type DiffSide = 'deletions' | 'additions'
 
+/**
+ * A remark on a range of lines, written to be handed to an agent.
+ *
+ * Anchored on a path and a side rather than on a diff item's id: those embed the
+ * head sha and change on every commit. Anchored on the lines' own text too, so a
+ * remark can say it no longer describes what it was written against.
+ */
+export interface Comment {
+  id: string
+  /** The b-side path, as the keys of `sectionHashes` are. */
+  path: string
+  side: DiffSide
+  /** 1-based in that side's version of the file. `end === start` for one line. */
+  start: number
+  end: number
+  body: string
+  /** Lines `start`..`end` as they read when it was written. */
+  anchor: string[]
+  /**
+   * What was being compared when it was written.
+   *
+   * Provenance, never a key. Filing comments by range would hide them whenever
+   * `resolveBase` changed its mind on its own — a guessed base, or a `gh stack`
+   * chain that moved — which is the tool erasing written text, not the user.
+   */
+  range: string
+  createdAt: string
+}
+
 /** `.git/ghl/state.json` as written. */
 export interface StoredState {
   version: number
   viewed: Record<string, ViewedMap>
+  /** Flat: a comment belongs to the code it points at, not to a comparison. */
+  comments: Comment[]
 }
 
 /** The state, and anything reading it had to report. */
@@ -130,6 +161,8 @@ export interface DiffPayload {
   files: ServedFileStat[]
   totals: Totals
   viewed: ViewedMap
+  /** Only those on a file this diff contains; the rest are for another diff. */
+  comments: Comment[]
   /**
    * Something about the stored state the reader should know, or null.
    *

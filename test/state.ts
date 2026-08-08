@@ -3,7 +3,15 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { clearViewed, linesAt, readState, setViewed } from '../src/state.ts'
+import {
+  clearViewed,
+  commentsIn,
+  linesAt,
+  putComment,
+  readState,
+  removeComment,
+  setViewed,
+} from '../src/state.ts'
 import type { Check } from './harness.ts'
 
 /**
@@ -109,6 +117,93 @@ export async function runState(check: Check): Promise<void> {
     // be a banner that never clears, on a file that no longer exists.
     const after = await readState(repo.path)
     check('  and the next read is clean again', after.notice === null, after.notice ?? 'null')
+
+    // ---- comments ----------------------------------------------------------
+
+    // A fresh tick: the section above moved the file aside on purpose, so the ten
+    // from the race are legitimately gone and cannot witness anything.
+    await setViewed(repo.path, { range: 'main..HEAD', path: 'kept.ts', hash: 'k', viewed: true })
+
+    const comment = {
+      id: 'c1',
+      path: 'src/one.ts',
+      side: 'additions' as const,
+      start: 11,
+      end: 12,
+      body: 'extract this',
+      anchor: ['  const added = 2', '  const alsoAdded = 3'],
+      range: 'main..HEAD',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    }
+    await putComment(repo.path, comment)
+    const withComment = await readState(repo.path)
+    check(
+      'a comment survives a round trip through the file',
+      withComment.state.comments[0]?.body === 'extract this',
+      JSON.stringify(withComment.state.comments),
+    )
+
+    // Same id, new body: an edit, not a second remark. The id comes from the
+    // client precisely so a retried save cannot append a duplicate.
+    await putComment(repo.path, {
+      ...comment,
+      body: 'rename it',
+      createdAt: '2026-06-06T00:00:00.000Z',
+    })
+    const edited = await readState(repo.path)
+    check(
+      '  and the same id replaces rather than appends',
+      edited.state.comments.length === 1,
+      `${edited.state.comments.length}`,
+    )
+    check(
+      '  keeping the body it was given',
+      edited.state.comments[0]?.body === 'rename it',
+      edited.state.comments[0]?.body,
+    )
+    // The original timestamp, not the new one: createdAt orders a thread, and
+    // taking the edit's clock sends a comment to the bottom of its own thread
+    // for having had a typo fixed.
+    check(
+      '  and the original createdAt',
+      edited.state.comments[0]?.createdAt === '2026-01-01T00:00:00.000Z',
+      edited.state.comments[0]?.createdAt,
+    )
+
+    await putComment(repo.path, { ...comment, id: 'c2', path: 'src/two.ts' })
+    const shown = commentsIn((await readState(repo.path)).state.comments, [
+      'src/one.ts',
+      'src/three.ts',
+    ])
+    // Filtered on the path, deliberately not on the range: a comment is filed
+    // against code, so it follows its file across bases instead of vanishing
+    // when `resolveBase` changes its mind on its own.
+    check(
+      'only comments on a file in the diff are served',
+      shown.length === 1,
+      shown.map((c) => c.path).join(', '),
+    )
+    check(
+      '  whatever range they were written under',
+      commentsIn((await readState(repo.path)).state.comments, ['src/one.ts']).every(
+        (c) => c.range === 'main..HEAD',
+      ),
+    )
+
+    await removeComment(repo.path, 'c1')
+    const removed = await readState(repo.path)
+    check(
+      'deleting takes one comment and leaves the rest',
+      removed.state.comments.length === 1 && removed.state.comments[0]?.id === 'c2',
+      removed.state.comments.map((c) => c.id).join(', '),
+    )
+    // Viewed ticks and comments live in the same file: the one must not carry off
+    // the other, and the round trips above have rewritten it four times.
+    check(
+      '  without disturbing the viewed state',
+      removed.state.viewed['main..HEAD']?.['kept.ts'] === 'k',
+      JSON.stringify(removed.state.viewed['main..HEAD']),
+    )
 
     // ---- linesAt -----------------------------------------------------------
 

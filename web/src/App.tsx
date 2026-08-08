@@ -1,23 +1,48 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import {
   getFiletypeFromFileName,
+  isDiffAnnotation,
   parsePatchFiles,
   type CodeViewDiffItem,
   type CodeViewItem,
+  type DiffLineAnnotation,
+  type LineAnnotation,
+  type SelectedLineRange,
 } from '@pierre/diffs'
-import { CodeView, type CodeViewHandle } from '@pierre/diffs/react'
+import { CodeView, useStableCallback, type CodeViewHandle } from '@pierre/diffs/react'
 
 import RefSelector from './RefSelector.tsx'
 import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
+import CommentThread, { type Composer, type SaveState } from './CommentThread.tsx'
 import { compareTreePaths } from './fileOrder.ts'
-import type { BaseSource, DiffPayload, ViewedMap } from '../../src/types.ts'
+import type { BaseSource, Comment, DiffPayload, DiffSide, ViewedMap } from '../../src/types.ts'
 
 /**
  * `CodeViewDiffItem` carries no path; we add one and read it back from our own
  * array, which the library ignores.
  */
 type DiffItem = CodeViewDiffItem & { path: string }
+
+/**
+ * What the library hands a selection callback. `CodeViewDiffItemContext` is not
+ * exported by any entry point, so this names the part we read.
+ */
+type SelectionContext = { item: CodeViewItem<undefined> }
+
+/**
+ * One annotation per (file, side, line): several comments on the same line share
+ * a card.
+ *
+ * The library does stack annotations per line, but they all land in the first
+ * `<slot>` of that name and `renderAnnotation` is not told which one it is
+ * rendering — two annotations on a line would draw the same card twice.
+ */
+const threadKey = (path: string, side: DiffSide, line: number) =>
+  // The one byte a path cannot hold, written as an escape rather than typed: a
+  // literal NUL in the source makes git call the file binary, and this file's
+  // diff stops being reviewable — in this repository of all places.
+  `${path}\u0000${side}\u0000${line}`
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -50,6 +75,21 @@ export default function App() {
   /** path -> hash of the diff section that was marked as read. */
   const [viewed, setViewedState] = useState<ViewedMap>({})
   const [picking, setPicking] = useState<'base' | 'target' | null>(null)
+  const [comments, setComments] = useState<Comment[]>([])
+  const [composer, setComposer] = useState<Composer | null>(null)
+  /** id -> how its last write went. Read while painting, so it is state. */
+  const [saving, setSaving] = useState<Map<string, SaveState>>(new Map())
+  /**
+   * Comments the server has not confirmed, by id.
+   *
+   * A ref rather than state because `refresh()` has to merge them back in, and
+   * depending on them would rebuild `refresh` and re-fire the effect that calls
+   * it. Without this merge, an `r` between writing and saving loses the text.
+   */
+  const pendingRef = useRef(new Map<string, Comment>())
+  const draftsRef = useRef(new Map<string, string>())
+  /** Set by the gutter "+" so the selection that follows opens a composer. */
+  const gutterRequestRef = useRef<SelectedLineRange | null>(null)
   /** Revision under review. null means the working tree of this checkout. */
   const [target, setTarget] = useState<string | null>(() =>
     new URLSearchParams(location.search).get('target'),
@@ -80,6 +120,13 @@ export default function App() {
       setData(body)
       // The server already dropped ticks whose file changed since.
       setViewedState(body.viewed ?? {})
+      // Whatever the server has, plus what it has not been told yet: a comment
+      // still in flight, or one whose write failed, must survive a refresh.
+      const served = body.comments ?? []
+      const unconfirmed = [...pendingRef.current.values()].filter(
+        (pending) => !served.some((comment) => comment.id === pending.id),
+      )
+      setComments([...served, ...unconfirmed])
       setError(null)
     } catch (cause) {
       if (cause instanceof TypeError) setError(NOT_LISTENING)
@@ -160,29 +207,91 @@ export default function App() {
    * the top of the diff each time, and a file clicked in the tree came back
    * somewhere they never saw. See decision 7 in PLAN.md for what it costs.
    */
-  const versions = useRef(new Map<string, { collapsed: boolean; version: number }>())
+  /** Comments grouped by the card that will show them, oldest first. */
+  const threads = useMemo(() => {
+    const map = new Map<string, Comment[]>()
+    for (const comment of comments) {
+      // On `end`: the annotation row is emitted after its line, so anchoring on
+      // the last line of the range puts the card under the block, as GitHub does.
+      const key = threadKey(comment.path, comment.side, comment.end)
+      const thread = map.get(key)
+      if (thread) thread.push(comment)
+      else map.set(key, [comment])
+    }
+    for (const thread of map.values()) {
+      thread.sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+    }
+    return map
+  }, [comments])
+
+  /** Per file: the annotations to hand the pane, and a fingerprint of the set. */
+  const annotations = useMemo(() => {
+    const byPath = new Map<string, DiffLineAnnotation[]>()
+    const add = (path: string, side: DiffSide, lineNumber: number) => {
+      const list = byPath.get(path) ?? []
+      if (!list.some((a) => a.side === side && a.lineNumber === lineNumber)) {
+        list.push({ side, lineNumber })
+      }
+      byPath.set(path, list)
+    }
+    for (const thread of threads.values()) {
+      const first = thread[0]
+      if (first) add(first.path, first.side, first.end)
+    }
+    // An open composer is an annotation of its own: it is what makes the empty
+    // card appear on a line that has no comment yet.
+    if (composer) add(composer.path, composer.side, composer.end)
+
+    const fingerprints = new Map<string, string>()
+    for (const [path, list] of byPath) {
+      // A stable order: the library keys the wrapper of each card by index, so a
+      // set that reorders hands a mounted card — and the draft in it — to
+      // another line instead of unmounting it.
+      list.sort(
+        (left, right) => left.lineNumber - right.lineNumber || (left.side < right.side ? -1 : 1),
+      )
+      fingerprints.set(path, list.map((a) => `${a.side[0]}${a.lineNumber}`).join(','))
+    }
+    return { byPath, fingerprints }
+  }, [threads, composer])
+
+  const versions = useRef(new Map<string, { key: string; version: number }>())
   const items = useMemo(
     () =>
       allItems.map((item) => {
         const collapsed = item.path in viewed
-        // The pane re-reads an item only when its `version` moves; flipping
-        // `collapsed` on its own is accepted and then ignored, silently, which
-        // is how a file could be ticked and never fold.
+        // The pane re-reads an item only when its `version` moves; anything
+        // reaching it *through* the item — `collapsed`, `annotations` — is
+        // otherwise accepted and then ignored, silently, which is how a file
+        // could be ticked and never fold.
+        //
+        // The fingerprint holds the anchors, not the bodies. Editing a body
+        // therefore costs nothing here: only the identity of `renderAnnotation`
+        // changes, and that re-renders the card alone.
+        const key = `${collapsed ? 'c' : '-'} ${annotations.fingerprints.get(item.path) ?? ''}`
         const previous = versions.current.get(item.path)
         const version =
-          previous === undefined || previous.collapsed === collapsed
+          previous === undefined || previous.key === key
             ? (previous?.version ?? 0)
             : previous.version + 1
-        versions.current.set(item.path, { collapsed, version })
-        return { ...item, collapsed, version }
+        versions.current.set(item.path, { key, version })
+        return { ...item, collapsed, version, annotations: annotations.byPath.get(item.path) }
       }),
-    [allItems, viewed],
+    [allItems, viewed, annotations],
   )
 
   const stats = data?.totals ?? { files: 0, additions: 0, deletions: 0 }
   const viewedCount = Object.keys(viewed).length
 
   const untrackedSet = useMemo(() => new Set(data?.untracked ?? []), [data])
+
+  const commentCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const comment of comments) {
+      counts.set(comment.path, (counts.get(comment.path) ?? 0) + 1)
+    }
+    return counts
+  }, [comments])
 
   /** Tree entries: every file, viewed or not, enriched with git's per-file counts. */
   const entries = useMemo((): TreeEntry[] => {
@@ -201,9 +310,12 @@ export default function App() {
         // Membership, not truthiness: the stored hash is null for files git
         // reports without one, and that must still count as viewed.
         viewed: item.path in viewed,
+        // A viewed file folds shut and takes its cards off screen with it, so
+        // the tree is the only place left that says a comment is there.
+        comments: commentCounts.get(item.path) ?? 0,
       }
     })
-  }, [allItems, data, viewed, untrackedSet])
+  }, [allItems, data, viewed, untrackedSet, commentCounts])
 
   const toggleViewed = useCallback(
     async (path: string, next: boolean) => {
@@ -239,6 +351,122 @@ export default function App() {
       body: JSON.stringify({ range: data.range, clear: true }),
     })
   }, [data, repoId])
+
+  /**
+   * Send a comment, and let the card carry the outcome.
+   *
+   * Deliberately not `toggleViewed`'s pattern of a banner above the page: losing
+   * a tick costs a click, losing a sentence costs the sentence, and a global
+   * banner never says *which* comment is missing from the export.
+   */
+  const save = useStableCallback(async (comment: Comment) => {
+    pendingRef.current.set(comment.id, comment)
+    setSaving((current) => new Map(current).set(comment.id, 'saving'))
+    try {
+      // The target travels with the write, as it does with the read: the server
+      // rebuilds the patch to cut the anchor, and it has to be the same patch.
+      const query = target ? `?target=${encodeURIComponent(target)}` : ''
+      const response = await fetch(`/r/${repoId}/api/comments${query}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(comment),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const body: { comment: Comment } = await response.json()
+      pendingRef.current.delete(comment.id)
+      // The server fills the anchor and keeps the original createdAt, so take
+      // its version rather than leaving the optimistic one in place.
+      setComments((current) => current.map((c) => (c.id === body.comment.id ? body.comment : c)))
+      setSaving((current) => {
+        const next = new Map(current)
+        next.delete(comment.id)
+        return next
+      })
+    } catch {
+      setSaving((current) => new Map(current).set(comment.id, 'failed'))
+    }
+  })
+
+  const submitComment = useStableCallback((body: string) => {
+    if (!composer || !data) return
+    const existing = composer.editing
+      ? comments.find((comment) => comment.id === composer.editing)
+      : undefined
+    const comment: Comment = {
+      // From here, not from the server: a save retried after having in fact
+      // succeeded then rewrites its own entry instead of adding a second one.
+      id: composer.editing ?? crypto.randomUUID(),
+      path: composer.path,
+      side: composer.side,
+      start: composer.start,
+      end: composer.end,
+      body,
+      anchor: existing?.anchor ?? [],
+      range: data.range,
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+    }
+    setComments((current) =>
+      current.some((c) => c.id === comment.id)
+        ? current.map((c) => (c.id === comment.id ? comment : c))
+        : [...current, comment],
+    )
+    draftsRef.current.delete(`${composer.key}:${composer.editing ?? 'new'}`)
+    // Saving releases the lines too, or the second remark of a review reopens on
+    // the line the first one was written on.
+    setComposer(null)
+    viewRef.current?.clearSelectedLines()
+    save(comment)
+  })
+
+  const deleteComment = useStableCallback(async (id: string) => {
+    setComments((current) => current.filter((comment) => comment.id !== id))
+    pendingRef.current.delete(id)
+    try {
+      await fetch(`/r/${repoId}/api/comments?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+    } catch (cause) {
+      setError(`could not delete the comment: ${cause instanceof Error ? cause.message : cause}`)
+    }
+  })
+
+  /** Open a composer on a selected range, from the gutter or from `c`. */
+  const openComposer = useStableCallback((path: string, range: SelectedLineRange) => {
+    const side = (range.endSide ?? range.side ?? 'additions') as DiffSide
+    // Dragged across the two columns of a split view, the ends count in
+    // different files: keep the line the gesture finished on rather than store a
+    // range whose bounds do not share a coordinate system.
+    const crossed =
+      range.side !== undefined && range.endSide !== undefined && range.side !== range.endSide
+    const start = crossed ? range.end : Math.min(range.start, range.end)
+    const end = crossed ? range.end : Math.max(range.start, range.end)
+    setComposer({ key: threadKey(path, side, end), path, side, start, end, editing: null })
+  })
+
+  const editComment = useStableCallback((comment: Comment) => {
+    const key = threadKey(comment.path, comment.side, comment.end)
+    draftsRef.current.set(`${key}:${comment.id}`, comment.body)
+    setComposer({
+      key,
+      path: comment.path,
+      side: comment.side,
+      start: comment.start,
+      end: comment.end,
+      editing: comment.id,
+    })
+  })
+
+  /**
+   * Close the composer, and let go of the lines it was opened on.
+   *
+   * Both halves, always. While a selection stands, the library pins the gutter
+   * "+" to the bottom of it instead of letting it follow the pointer — so a
+   * composer merely closed leaves the button stuck on the line just abandoned,
+   * and every later click reopens that same line. There is no way out of it from
+   * the page, which is what made it look like the diff had stopped responding.
+   */
+  const closeComposer = useStableCallback(() => {
+    setComposer(null)
+    viewRef.current?.clearSelectedLines()
+  })
 
   /** Remember the chosen base for this branch, then reload against it. */
   const pickBase = useCallback(
@@ -289,13 +517,25 @@ export default function App() {
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
       if (picking) return // the picker owns the keyboard while open
+      // And so does the composer. The guard above only covers a focused field,
+      // and the pane hands focus back to its own root whenever it re-renders an
+      // item — so a composer can be open with the focus nowhere near it.
+      if (composer) return
 
       if (event.key === 'b') setPicking('base')
       else if (event.key === 't') setPicking('target')
       else if (event.key === 'j') goTo(activeIndex + 1)
       else if (event.key === 'k') goTo(activeIndex - 1)
       else if (event.key === 'r' || event.key === 'R') refresh()
-      else if (event.key === 'v') {
+      else if (event.key === 'c') {
+        // The selection, not the file under `j`/`k`: a comment is about the lines
+        // that were picked, which may be in a file the cursor is not on.
+        const selection = viewRef.current?.getSelectedLines()
+        if (!selection) return
+        const path = items.find((item) => item.id === selection.id)?.path
+        if (!path) return
+        openComposer(path, selection.range)
+      } else if (event.key === 'v') {
         const current = items[activeIndex]
         if (current) toggleViewed(current.path, !(current.path in viewed))
       } else return
@@ -305,16 +545,95 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [activeIndex, goTo, refresh, items, viewed, toggleViewed, picking])
+  }, [activeIndex, goTo, refresh, items, viewed, toggleViewed, picking, composer, openComposer])
 
   const resizeSidebar = useCallback((width: number) => {
     setSidebarWidth(width)
     localStorage.setItem('ghl.sidebarWidth', String(width))
   }, [])
 
+  /**
+   * The gutter "+" reports a range but not which file it is in.
+   *
+   * `onGutterUtilityClick` takes the range alone, and it fires *before* the
+   * selection is committed, so reading the handle at that moment gives the
+   * previous selection. The range is kept here and claimed by the selection
+   * callback below, which is handed the item — the two run back to back in the
+   * same pointerup.
+   */
+  const onGutterUtilityClick = useStableCallback((range: SelectedLineRange) => {
+    gutterRequestRef.current = { ...range }
+  })
+
+  const onLineSelectionEnd = useStableCallback(
+    (_range: SelectedLineRange | null, context: SelectionContext) => {
+      const requested = gutterRequestRef.current
+      gutterRequestRef.current = null
+      // Only the gutter opens a composer here: a plain drag selects, and `c` is
+      // what turns a selection into a comment.
+      if (!requested || context.item.type !== 'diff') return
+      openComposer(context.item.fileDiff.name, requested)
+    },
+  )
+
   const options = useMemo(
-    () => ({ diffStyle, theme: 'github-dark' as const, stickyHeaders: true }),
-    [diffStyle],
+    () => ({
+      diffStyle,
+      theme: 'github-dark' as const,
+      stickyHeaders: true,
+      // Both gutter APIs are declared mutually exclusive and the library throws
+      // on the pair, so this is the native "+" button, not a rendered one.
+      // Setting the handler is also what enables dragging on the gutter.
+      enableGutterUtility: true,
+      onGutterUtilityClick,
+      enableLineSelection: true,
+      onLineSelectionEnd,
+    }),
+    [diffStyle, onGutterUtilityClick, onLineSelectionEnd],
+  )
+
+  /**
+   * The card under a commented line: the whole thread, plus its composer.
+   *
+   * Not stabilised behind a ref, and not carried in the annotation's `metadata`
+   * either. `metadata` comes from the item snapshot the pane refreshes only when
+   * `version` moves, so a body edited without bumping it would render stale —
+   * the same trap as `renderHeaderMetadata` above, one level down.
+   */
+  const renderAnnotation = useCallback(
+    (annotation: LineAnnotation | DiffLineAnnotation, item: CodeViewItem<undefined>) => {
+      if (item.type !== 'diff' || !isDiffAnnotation(annotation)) return null
+      const key = threadKey(item.fileDiff.name, annotation.side, annotation.lineNumber)
+      const thread = threads.get(key)
+      const composing = composer?.key === key ? composer : null
+      if (!thread && !composing) return null
+      return (
+        <CommentThread
+          key={key}
+          comments={thread ?? []}
+          composing={composing}
+          currentRange={data?.range ?? ''}
+          saving={saving}
+          drafts={draftsRef}
+          onSubmit={submitComment}
+          onCancel={closeComposer}
+          onEdit={editComment}
+          onDelete={deleteComment}
+          onRetry={save}
+        />
+      )
+    },
+    [
+      threads,
+      composer,
+      data?.range,
+      saving,
+      submitComment,
+      closeComposer,
+      editComment,
+      deleteComment,
+      save,
+    ],
   )
 
   /**
@@ -424,7 +743,7 @@ export default function App() {
 
         <span className="hint">
           <kbd>b</kbd> base · <kbd>j</kbd>
-          <kbd>k</kbd> files · <kbd>v</kbd> viewed · <kbd>r</kbd> refresh
+          <kbd>k</kbd> files · <kbd>v</kbd> viewed · <kbd>c</kbd> comment · <kbd>r</kbd> refresh
         </span>
 
         <button type="button" className="refresh" onClick={refresh} disabled={refreshing}>
@@ -571,6 +890,7 @@ export default function App() {
               items={items}
               options={options}
               renderHeaderMetadata={renderHeaderMetadata}
+              renderAnnotation={renderAnnotation}
               style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}
             />
           </div>

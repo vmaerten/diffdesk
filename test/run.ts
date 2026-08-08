@@ -6,13 +6,14 @@ import { runState } from './state.ts'
 import tree from './suites/tree.ts'
 import resize from './suites/resize.ts'
 import viewed from './suites/viewed.ts'
+import comments from './suites/comments.ts'
 import pickers from './suites/pickers.ts'
 import scroll from './suites/scroll.ts'
 import rename from './suites/rename.ts'
 import order from './suites/order.ts'
 import stack from './suites/stack.ts'
 
-const SUITES: Suite[] = [tree, resize, viewed, pickers, scroll, rename, order, stack]
+const SUITES: Suite[] = [tree, resize, viewed, comments, pickers, scroll, rename, order, stack]
 
 /**
  * Suites that need no browser: one drives real CLI processes, the other calls
