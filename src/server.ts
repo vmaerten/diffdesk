@@ -10,6 +10,7 @@ import {
   clearViewed,
   commentsIn,
   linesAt,
+  markStale,
   pruneStale,
   putComment,
   readState,
@@ -259,9 +260,12 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           files: files.map((f) => ({ ...f, hash: hashes[f.path] ?? null })),
           totals,
           viewed,
-          comments: commentsIn(
-            stored.state.comments,
-            files.map((f) => f.path),
+          comments: markStale(
+            commentsIn(
+              stored.state.comments,
+              files.map((f) => f.path),
+            ),
+            patch,
           ),
           notice: stored.notice,
           patch,

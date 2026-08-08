@@ -382,6 +382,28 @@ body.resizing * {
   color: var(--warn);
 }
 
+/* Recessed, not alarmed: lines that moved usually mean the remark was acted on. */
+.comment.stale {
+  border-left-color: var(--text-dim);
+}
+
+.comment-state.stale {
+  color: var(--text-dim);
+}
+
+.comment-anchor {
+  margin: 0;
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font:
+    11px ui-monospace,
+    monospace;
+  text-decoration: line-through;
+  white-space: pre;
+  overflow-x: auto;
+}
+
 .comment header button,
 .comment-composer footer button {
   padding: 1px 8px;

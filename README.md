@@ -30,6 +30,12 @@ written on, and follows its file when the base changes. Since a viewed file fold
 takes its cards off screen, the tree carries a `✎N` badge — otherwise a remark on a file marked
 read would have nowhere left to show.
 
+When the lines a comment was written on stop reading the same, it says so and shows what they
+used to say. Its own lines, not its file: an agent handed four remarks fixes one and leaves
+three, so a per-file signal would fire every time and mean nothing. The flag is computed on
+read and never stored, so putting the lines back clears it — and it is never a reason to delete
+the comment on your behalf, since code can change without anyone having done what it asked.
+
 A viewed file folds shut and is ticked in the tree, as on GitHub — it keeps its place in the
 list, so marking one never moves you, and clicking any row takes you to that file whether it
 is folded or not. The state lives in `.git/ghl/state.json` and is keyed by revision range, so

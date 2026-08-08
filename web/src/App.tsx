@@ -16,7 +16,14 @@ import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import CommentThread, { type Composer, type SaveState } from './CommentThread.tsx'
 import { compareTreePaths } from './fileOrder.ts'
-import type { BaseSource, Comment, DiffPayload, DiffSide, ViewedMap } from '../../src/types.ts'
+import type {
+  BaseSource,
+  Comment,
+  DiffPayload,
+  DiffSide,
+  ServedComment,
+  ViewedMap,
+} from '../../src/types.ts'
 
 /**
  * `CodeViewDiffItem` carries no path; we add one and read it back from our own
@@ -75,7 +82,7 @@ export default function App() {
   /** path -> hash of the diff section that was marked as read. */
   const [viewed, setViewedState] = useState<ViewedMap>({})
   const [picking, setPicking] = useState<'base' | 'target' | null>(null)
-  const [comments, setComments] = useState<Comment[]>([])
+  const [comments, setComments] = useState<ServedComment[]>([])
   const [composer, setComposer] = useState<Composer | null>(null)
   /** id -> how its last write went. Read while painting, so it is state. */
   const [saving, setSaving] = useState<Map<string, SaveState>>(new Map())
@@ -86,7 +93,7 @@ export default function App() {
    * depending on them would rebuild `refresh` and re-fire the effect that calls
    * it. Without this merge, an `r` between writing and saving loses the text.
    */
-  const pendingRef = useRef(new Map<string, Comment>())
+  const pendingRef = useRef(new Map<string, ServedComment>())
   const draftsRef = useRef(new Map<string, string>())
   /** Set by the gutter "+" so the selection that follows opens a composer. */
   const gutterRequestRef = useRef<SelectedLineRange | null>(null)
@@ -209,7 +216,7 @@ export default function App() {
    */
   /** Comments grouped by the card that will show them, oldest first. */
   const threads = useMemo(() => {
-    const map = new Map<string, Comment[]>()
+    const map = new Map<string, ServedComment[]>()
     for (const comment of comments) {
       // On `end`: the annotation row is emitted after its line, so anchoring on
       // the last line of the range puts the card under the block, as GitHub does.
@@ -359,7 +366,7 @@ export default function App() {
    * a tick costs a click, losing a sentence costs the sentence, and a global
    * banner never says *which* comment is missing from the export.
    */
-  const save = useStableCallback(async (comment: Comment) => {
+  const save = useStableCallback(async (comment: ServedComment) => {
     pendingRef.current.set(comment.id, comment)
     setSaving((current) => new Map(current).set(comment.id, 'saving'))
     try {
@@ -372,7 +379,7 @@ export default function App() {
         body: JSON.stringify(comment),
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const body: { comment: Comment } = await response.json()
+      const body: { comment: ServedComment } = await response.json()
       pendingRef.current.delete(comment.id)
       // The server fills the anchor and keeps the original createdAt, so take
       // its version rather than leaving the optimistic one in place.
@@ -392,7 +399,10 @@ export default function App() {
     const existing = composer.editing
       ? comments.find((comment) => comment.id === composer.editing)
       : undefined
-    const comment: Comment = {
+    const comment: ServedComment = {
+      // Written against what is on screen, so it describes it by construction.
+      // The server decides otherwise on the next read, never here.
+      stale: false,
       // From here, not from the server: a save retried after having in fact
       // succeeded then rewrites its own entry instead of adding a second one.
       id: composer.editing ?? crypto.randomUUID(),
