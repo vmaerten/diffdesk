@@ -213,16 +213,21 @@ export async function buildPatch(
   base: string,
   { target, includeUntracked = false }: { target?: string | null; includeUntracked?: boolean } = {},
 ): Promise<PatchResult> {
-  const tracked = await diffFromMergeBase(repoPath, base, { target })
-  const counts = await numstat(repoPath, base, target)
-  const statuses = await nameStatus(repoPath, base, target)
+  // Four readings of the same range, none of which needs the others: the patch,
+  // the counts git reports rather than the ones the patch implies, the statuses,
+  // and what git does not track at all.
+  const [tracked, counts, statuses, paths] = await Promise.all([
+    diffFromMergeBase(repoPath, base, { target }),
+    numstat(repoPath, base, target),
+    nameStatus(repoPath, base, target),
+    // Uncommitted work belongs to the checkout, not to some other ref.
+    target ? [] : untrackedPaths(repoPath),
+  ])
+
   const files: FileStat[] = counts.map((file) => ({
     ...file,
     status: statuses.get(file.path) ?? 'modified',
   }))
-
-  // Uncommitted work belongs to the checkout, not to some other ref.
-  const paths = target ? [] : await untrackedPaths(repoPath)
 
   const totals: Totals = files.reduce(
     (acc: Totals, f) => ({
