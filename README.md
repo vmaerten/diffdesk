@@ -11,6 +11,7 @@ but pushing it just to look at it is not worth the trip.
 |-----|--------|
 | `j` / `k` | next / previous file |
 | `v` | mark the current file as viewed |
+| `c` | comment the selected lines |
 | `b` | change the base |
 | `t` | change the revision under review |
 | `r` | refresh the diff |
@@ -21,6 +22,13 @@ one row. Both panes are virtualised, so a 107-file diff keeps ~48 rows in the DO
 lists files in the tree's order, not the patch's — git sorts whole paths bytewise, so a file
 at the root would otherwise come first on one side and last on the other, and `j`/`k` would
 walk an order the eye is not following.
+
+Lines can be commented, from the `+` in the gutter or with `c` on a selection. A comment is a
+remark meant to be handed to an agent, so it is filed against the code rather than against the
+comparison: it lives under the repository, keyed by path and by the text of the lines it was
+written on, and follows its file when the base changes. Since a viewed file folds shut and
+takes its cards off screen, the tree carries a `✎N` badge — otherwise a remark on a file marked
+read would have nowhere left to show.
 
 A viewed file folds shut and is ticked in the tree, as on GitHub — it keeps its place in the
 list, so marking one never moves you, and clicking any row takes you to that file whether it

@@ -330,6 +330,113 @@ body.resizing * {
   cursor: pointer;
 }
 
+/* Comment cards.
+
+   They are rendered into the light DOM through the library's annotation slots,
+   so these rules reach them without piercing any shadow root. The library
+   already sizes the slot to the visible code column — giving the card a width
+   of its own would fight it. */
+.comment-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0 6px 48px;
+  font:
+    12px ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+.comment,
+.comment-composer {
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 6px;
+  background: var(--bg-raised);
+}
+
+.comment header,
+.comment-composer footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.comment-composer footer {
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+}
+
+.comment-lines {
+  font-family: ui-monospace, monospace;
+}
+
+.comment-elsewhere {
+  color: var(--warn);
+}
+
+.comment-state.failed {
+  color: var(--warn);
+}
+
+.comment header button,
+.comment-composer footer button {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font: inherit;
+}
+
+.comment header button:hover,
+.comment-composer footer button:hover {
+  color: var(--text);
+}
+
+.comment-composer footer button.primary {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.comment p {
+  margin: 0;
+  padding: 8px;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.comment-composer label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+}
+
+/* Fixed height, and no handle. In a unified diff the library does not observe an
+   annotation's height, so a field that grew as you typed would leave the item
+   measured at its old size until the next render pass. */
+.comment-composer textarea {
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    12px ui-monospace,
+    monospace;
+  resize: none;
+}
+
+.comment-composer textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
 .link {
   padding: 0;
   border: 0;

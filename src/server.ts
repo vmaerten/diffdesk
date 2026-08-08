@@ -6,8 +6,18 @@ import { fileURLToPath } from 'node:url'
 
 import { currentBranch, headSha, listRefDetails, repoState, resolveRepoRoot } from './git.ts'
 import { buildPatch, detectTrunk, rangeKey, rememberBase, resolveBase } from './revision.ts'
-import { clearViewed, pruneStale, readState, sectionHashes, setViewed } from './state.ts'
-import type { DiffPayload, RefsPayload } from './types.ts'
+import {
+  clearViewed,
+  commentsIn,
+  linesAt,
+  pruneStale,
+  putComment,
+  readState,
+  removeComment,
+  sectionHashes,
+  setViewed,
+} from './state.ts'
+import type { Comment, DiffPayload, RefsPayload } from './types.ts'
 import { runtimeRevision } from './version.ts'
 
 /** One repository the server is willing to serve, as the CLI registers it. */
@@ -249,6 +259,10 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           files: files.map((f) => ({ ...f, hash: hashes[f.path] ?? null })),
           totals,
           viewed,
+          comments: commentsIn(
+            stored.state.comments,
+            files.map((f) => f.path),
+          ),
           notice: stored.notice,
           patch,
         }
@@ -271,6 +285,56 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         if (!body.range || !body.path) return json(res, 400, { error: 'missing "range" or "path"' })
         const viewed = await setViewed(repoPath, body)
         return json(res, 200, { viewed })
+      }
+
+      if (route === 'api/comments' && req.method === 'POST') {
+        const body = JSON.parse((await readBody(req)) || '{}')
+        const { id, path, side, start, end, range } = body
+        if (!id || !path || !range)
+          return json(res, 400, { error: 'missing "id", "path" or "range"' })
+        if (side !== 'additions' && side !== 'deletions') {
+          return json(res, 400, { error: '"side" must be "additions" or "deletions"' })
+        }
+        if (!Number.isInteger(start) || !Number.isInteger(end) || end < start) {
+          return json(res, 400, { error: '"start" and "end" must be a line range' })
+        }
+
+        // The anchor is read here, not sent. The front has the hunks parsed and
+        // could cut the lines itself, but then two implementations of the same
+        // cut decide whether a comment is stale, and they drift.
+        //
+        // Resolved exactly as `api/diff` does, query string included: reading
+        // only the registry entry builds the patch of another revision, and the
+        // lines being commented on are simply not in it.
+        const target = url.searchParams.get('target') ?? entry.target ?? null
+        const base = await resolveBase(repoPath, { override: entry.baseOverride, target })
+        const { patch } = await buildPatch(repoPath, base.ref, {
+          target,
+          includeUntracked: entry.includeUntracked ?? false,
+        })
+
+        const comment: Comment = {
+          id: String(id),
+          path: String(path),
+          side,
+          start,
+          end,
+          body: String(body.body ?? ''),
+          anchor: linesAt(patch, { path, side, start, end }) ?? [],
+          range: String(range),
+          // Ours, not the client's: it orders a thread, and a clock we do not
+          // control orders it by whichever tab was wrong. An edit keeps the
+          // original — see putComment.
+          createdAt: new Date().toISOString(),
+        }
+        const comments = await putComment(repoPath, comment)
+        return json(res, 200, { comment, comments })
+      }
+
+      if (route === 'api/comments' && req.method === 'DELETE') {
+        const id = url.searchParams.get('id')
+        if (!id) return json(res, 400, { error: 'missing "id"' })
+        return json(res, 200, { comments: await removeComment(repoPath, id) })
       }
 
       if (route === 'api/base' && req.method === 'POST') {

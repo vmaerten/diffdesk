@@ -1,0 +1,310 @@
+import { allTreeRows, sleep, type Suite } from '../harness.ts'
+
+/**
+ * The gutter cell of the first mounted file, and the "+" the library puts in it
+ * on hover.
+ *
+ * Read from the shadow root and clicked by coordinates: the button only exists
+ * while the pointer is over its own gutter cell, so `querySelector(...).click()`
+ * finds nothing to click.
+ */
+const GUTTER_CELL = `(() => {
+  for (const host of document.querySelectorAll('.diff diffs-container')) {
+    const root = host.shadowRoot
+    const cell = root && root.querySelector('[data-gutter]')
+    if (!cell) continue
+    const r = cell.getBoundingClientRect()
+    if (r.width === 0) continue
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+  }
+  return null
+})()`
+
+const PLUS_BUTTON = `(() => {
+  for (const host of document.querySelectorAll('.diff diffs-container')) {
+    const root = host.shadowRoot
+    const btn = root && root.querySelector('[data-utility-button]')
+    if (!btn) continue
+    const r = btn.getBoundingClientRect()
+    if (r.width === 0) continue
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+  }
+  return null
+})()`
+
+/**
+ * Points on screen where a line number can be hovered.
+ *
+ * `[data-gutter]` is a whole column per hunk, not one cell per line, so a test
+ * that wants *another* line samples down the column rather than looking for a
+ * second element. Clipped to the viewport: hovering below the fold moves the
+ * pointer nowhere and the utility button never appears.
+ */
+const GUTTER_POINTS = `(() => {
+  const out = []
+  const bottom = window.innerHeight
+  for (const host of document.querySelectorAll('.diff diffs-container')) {
+    const root = host.shadowRoot
+    if (!root) continue
+    for (const column of root.querySelectorAll('[data-gutter]')) {
+      const r = column.getBoundingClientRect()
+      if (r.width === 0) continue
+      const from = Math.max(r.top + 6, 6)
+      const to = Math.min(r.bottom - 6, bottom - 6)
+      for (let y = from; y <= to; y += 24) out.push({ x: r.x + r.width / 2, y })
+    }
+  }
+  return out
+})()`
+
+/**
+ * The slots the cards are assigned to.
+ *
+ * The card is the assertion that matters, not the tree badge: a `renderAnnotation`
+ * frozen behind a ref would keep the badge honest and leave the card empty. And
+ * the slot *name* is the anchor — `annotation-additions-1` says which line and
+ * which side the library paired it with, which a class name never would.
+ */
+const SLOTS = `[...document.querySelectorAll('.diff diffs-container > *')]
+  .map((el) => el.getAttribute('slot'))
+  .filter((s) => s && s.indexOf('annotation-') === 0)`
+
+const clickButton = (label: string) =>
+  `[...document.querySelectorAll('.comment header button, .comment-composer footer button')]
+    .find((b) => b.textContent.trim() === '${label}')?.click()`
+
+export default {
+  name: 'comments',
+  async run({ page, load }, check) {
+    const ready = async () => {
+      await load()
+      await page.waitForSelector('.viewed-toggle input', { timeout: 30_000 })
+    }
+    await ready()
+
+    const count = (selector: string) =>
+      page.evaluate(`document.querySelectorAll('${selector}').length`) as Promise<number>
+    const slots = () => page.evaluate(SLOTS) as Promise<string[]>
+    const bodies = () =>
+      page.evaluate(
+        `[...document.querySelectorAll('.comment p')].map((p) => p.textContent)`,
+      ) as Promise<string[]>
+    const pencilled = async () =>
+      (await allTreeRows(page)).filter((row) => row.decoration.includes('✎'))
+
+    check('starts with no comment', (await count('.comment-thread')) === 0)
+
+    // ---- the gutter "+" ----------------------------------------------------
+
+    const cell = (await page.evaluate(GUTTER_CELL)) as { x: number; y: number } | null
+    check('the diff has a gutter to hover', cell !== null, JSON.stringify(cell))
+    if (!cell) return
+
+    await page.mouse.move(cell.x, cell.y)
+    await sleep(500)
+    const plus = (await page.evaluate(PLUS_BUTTON)) as { x: number; y: number } | null
+    check('hovering the gutter offers a "+"', plus !== null, JSON.stringify(plus))
+    if (!plus) return
+
+    await page.mouse.click(plus.x, plus.y)
+    await sleep(1000)
+    check('clicking it opens a composer', (await count('.comment-composer')) === 1)
+    // The library reports the range but not the file it is in, and it does so
+    // before the selection is committed — so an annotation appearing on the right
+    // line is what proves the path was recovered from the selection callback.
+    check(
+      '  anchored on the line it was opened from',
+      (await slots())[0] === 'annotation-additions-1',
+      (await slots()).join(', '),
+    )
+
+    // ---- the composer owns the keyboard ------------------------------------
+
+    // Two different guards, and only one of them is the pre-existing one.
+    //
+    // With the field focused, `v` is a character: that is the INPUT/TEXTAREA
+    // guard, and it was already there.
+    await page.type('.comment-composer textarea', 'v')
+    await sleep(400)
+    const typed = await page.evaluate(
+      `(document.querySelector('.comment-composer textarea') || {}).value`,
+    )
+    check('a focused composer takes v as text', typed === 'v', String(typed))
+
+    // With the focus elsewhere — which happens on its own, since the pane hands
+    // focus back to its own root whenever it re-renders an item — nothing stops
+    // `v` but the composer flag. Marking the file viewed would fold it shut and
+    // carry the composer, draft included, off screen.
+    await page.evaluate(`document.activeElement && document.activeElement.blur()`)
+    await page.keyboard.press('v')
+    await sleep(900)
+    check(
+      '  and an unfocused one still blocks it',
+      (await count('.comment-composer')) === 1 && (await pencilled()).length === 0,
+      `${await count('.comment-composer')} composer(s), ${(await pencilled()).length} pencilled`,
+    )
+
+    // ---- saving ------------------------------------------------------------
+
+    await page.evaluate(
+      `(() => { document.querySelector('.comment-composer textarea').value = '' })()`,
+    )
+    await page.type('.comment-composer textarea', 'extract this expression')
+    await page.evaluate(clickButton('Comment'))
+    await sleep(1500)
+    check('saving turns the composer into a comment', (await count('.comment')) === 1)
+    check(
+      '  carrying what was typed',
+      (await bodies())[0] === 'extract this expression',
+      (await bodies()).join(' | '),
+    )
+    check('  and no composer is left open', (await count('.comment-composer')) === 0)
+    check(
+      '  and the tree marks the file',
+      (await pencilled()).length === 1,
+      (await pencilled())[0]?.path,
+    )
+
+    // The decisive one: the comment lives in .git/ghl/state.json, not in memory.
+    await ready()
+    await sleep(1200)
+    check(
+      'a comment survives a reload',
+      (await count('.comment')) === 1,
+      (await bodies()).join(' | '),
+    )
+    check(
+      '  on the same line',
+      (await slots())[0] === 'annotation-additions-1',
+      (await slots()).join(', '),
+    )
+    check('  and the tree still marks the file', (await pencilled()).length === 1)
+
+    // The anchor never reaches the DOM, and nothing above would notice it being
+    // empty — which is the whole basis of the staleness check to come. Asked of
+    // the server directly, through the page so the repo id and origin are right.
+    const stored = (await page.evaluate(`(async () => {
+      const id = location.pathname.match(/^\\/r\\/([^/]+)/)[1]
+      // Carry the page's own target: without it the server answers for another
+      // revision, whose diff need not contain the file at all.
+      const body = await (await fetch('/r/' + id + '/api/diff' + location.search)).json()
+      const one = (body.comments || [])[0]
+      return one ? { anchor: one.anchor, side: one.side, start: one.start, end: one.end, range: one.range } : null
+    })()`)) as { anchor: string[]; side: string; start: number; end: number; range: string } | null
+    check(
+      'the server kept the lines the comment was written against',
+      (stored?.anchor.length ?? 0) === 1,
+      JSON.stringify(stored),
+    )
+    check(
+      '  and the range it was written under',
+      typeof stored?.range === 'string' && stored.range.includes('..'),
+      stored?.range,
+    )
+
+    // ---- editing -----------------------------------------------------------
+
+    await page.evaluate(clickButton('Edit'))
+    await sleep(900)
+    const prefilled = await page.evaluate(
+      `(document.querySelector('.comment-composer textarea') || {}).value`,
+    )
+    check('editing reopens the composer', (await count('.comment-composer')) === 1)
+    check(
+      '  prefilled with the comment',
+      prefilled === 'extract this expression',
+      String(prefilled),
+    )
+    // Hidden while its editor is open, or the text would show twice — once
+    // stored, once being rewritten.
+    check('  and the stored copy steps aside', (await count('.comment')) === 0)
+
+    await page.evaluate(
+      `(() => { const t = document.querySelector('.comment-composer textarea'); t.value = 'rename it too'; t.dispatchEvent(new Event('change', { bubbles: true })) })()`,
+    )
+    await page.evaluate(clickButton('Update'))
+    await sleep(1500)
+    check(
+      'updating rewrites the body',
+      (await bodies())[0] === 'rename it too',
+      (await bodies()).join(' | '),
+    )
+    // One comment, not two: the id comes from the client, so an edit rewrites its
+    // own entry instead of appending a second one.
+    check('  and does not add a second comment', (await count('.comment')) === 1)
+
+    // ---- cancelling lets go of the line ------------------------------------
+
+    // Reported from the browser: cancel once, and the diff looked frozen — every
+    // later click reopened the line just abandoned.
+    //
+    // A closed composer used to leave the library's selection standing, and while
+    // one stands the "+" is pinned to the bottom of it instead of following the
+    // pointer. Nothing on the page could clear it, so the only way out was a
+    // reload.
+    await page.mouse.move(cell.x, cell.y)
+    await sleep(400)
+    const plusAgain = (await page.evaluate(PLUS_BUTTON)) as { x: number; y: number } | null
+    if (plusAgain) {
+      await page.mouse.click(plusAgain.x, plusAgain.y)
+      await sleep(800)
+      await page.keyboard.press('Escape')
+      await sleep(600)
+      check('escape closes the composer', (await count('.comment-composer')) === 0)
+
+      const points = (await page.evaluate(GUTTER_POINTS)) as { x: number; y: number }[]
+      const elsewhere = points.findLast((p) => Math.abs(p.y - cell.y) > 40)
+      if (elsewhere) {
+        await page.mouse.move(elsewhere.x, elsewhere.y)
+        await sleep(600)
+        const moved = (await page.evaluate(PLUS_BUTTON)) as { x: number; y: number } | null
+        check(
+          '  and the "+" follows the pointer again',
+          moved !== null && Math.abs(moved.y - elsewhere.y) < 20,
+          `at y=${moved?.y ?? 'none'}, wanted ${elsewhere.y}, abandoned line was at ${cell.y}`,
+        )
+        if (moved) {
+          await page.mouse.click(moved.x, moved.y)
+          await sleep(900)
+          // The anchor, not merely that *a* composer opened: reopening the
+          // abandoned line would leave one on screen too, and that is the bug.
+          // A slot that is not line 1's. The comment saved earlier still holds
+          // that one, so counting composers would pass even on the abandoned line
+          // — the anchor is the only thing that tells the two apart.
+          const reopened = (await page.evaluate(SLOTS)) as string[]
+          check(
+            '  so another line can be commented',
+            reopened.some((slot) => slot !== 'annotation-additions-1'),
+            reopened.join(', ') || 'nothing',
+          )
+          await page.keyboard.press('Escape')
+          await sleep(600)
+        }
+      }
+    }
+
+    // ---- `c` on a selection ------------------------------------------------
+
+    // The gutter cell itself, not the "+" inside it: that selects without opening
+    // anything, which is the state `c` exists for.
+    await page.mouse.click(cell.x, cell.y)
+    await sleep(700)
+    check('clicking the gutter selects without composing', (await count('.comment-composer')) === 0)
+    await page.keyboard.press('c')
+    await sleep(800)
+    check('  and c comments that selection', (await count('.comment-composer')) === 1)
+    await page.keyboard.press('Escape')
+    await sleep(600)
+
+    // ---- deleting ----------------------------------------------------------
+
+    await page.evaluate(clickButton('Delete'))
+    await sleep(1500)
+    check('deleting removes the comment', (await count('.comment')) === 0)
+    check('  and clears the tree badge', (await pencilled()).length === 0)
+
+    await ready()
+    await sleep(1200)
+    check('  for good', (await count('.comment')) === 0)
+  },
+} satisfies Suite

@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 import { gitDirPath } from './git.ts'
-import type { DiffSide, StateRead, StoredState, ViewedMap } from './types.ts'
+import type { Comment, DiffSide, StateRead, StoredState, ViewedMap } from './types.ts'
 
 /** Inside `.git`, so it is never committed and dies with the repository. */
 const statePath = (repoPath: string) => gitDirPath(repoPath, 'ghl/state.json')
@@ -11,7 +11,7 @@ const statePath = (repoPath: string) => gitDirPath(repoPath, 'ghl/state.json')
 /** What this build writes. Read back, so a future migration can branch on it. */
 const VERSION = 1
 
-const empty = (): StoredState => ({ version: VERSION, viewed: {} })
+const empty = (): StoredState => ({ version: VERSION, viewed: {}, comments: [] })
 
 /**
  * One mutation at a time per repository.
@@ -54,8 +54,11 @@ export async function readState(repoPath: string): Promise<StateRead> {
   try {
     const parsed: unknown = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object') throw new Error('not an object')
-    const { version, viewed } = parsed as Partial<StoredState>
-    return { state: { version: version ?? VERSION, viewed: viewed ?? {} }, notice: null }
+    const { version, viewed, comments } = parsed as Partial<StoredState>
+    return {
+      state: { version: version ?? VERSION, viewed: viewed ?? {}, comments: comments ?? [] },
+      notice: null,
+    }
   } catch {
     const aside = `${file}.corrupt`
     await rename(file, aside).catch(() => {})
@@ -217,4 +220,49 @@ export async function clearViewed(repoPath: string, range: string): Promise<View
     await writeState(repoPath, state)
     return {}
   })
+}
+
+/**
+ * Store a comment, replacing the one with the same id.
+ *
+ * Upsert rather than separate create and edit paths: the id comes from the
+ * client, so a save that is retried after having in fact succeeded rewrites the
+ * same entry instead of adding a second one.
+ *
+ * An edit keeps the original `createdAt`. It is what orders a thread, and taking
+ * the new one would send a comment to the bottom of its own thread for having
+ * had a typo fixed.
+ */
+export async function putComment(repoPath: string, comment: Comment): Promise<Comment[]> {
+  return serialise(repoPath, async () => {
+    const { state } = await readState(repoPath)
+    const at = state.comments.findIndex((stored) => stored.id === comment.id)
+    const previous = at === -1 ? null : state.comments[at]
+    const next = previous ? { ...comment, createdAt: previous.createdAt } : comment
+    if (at === -1) state.comments.push(next)
+    else state.comments[at] = next
+    await writeState(repoPath, state)
+    return state.comments
+  })
+}
+
+export async function removeComment(repoPath: string, id: string): Promise<Comment[]> {
+  return serialise(repoPath, async () => {
+    const { state } = await readState(repoPath)
+    state.comments = state.comments.filter((stored) => stored.id !== id)
+    await writeState(repoPath, state)
+    return state.comments
+  })
+}
+
+/**
+ * The comments a diff can show: those on a file it contains.
+ *
+ * Not those written against this range. A comment is filed against code, so it
+ * follows the file across bases rather than vanishing when the base changes —
+ * what keeps it from landing on unrelated lines is its anchor, not this filter.
+ */
+export function commentsIn(comments: Comment[], paths: Iterable<string>): Comment[] {
+  const inDiff = new Set(paths)
+  return comments.filter((comment) => inDiff.has(comment.path))
 }

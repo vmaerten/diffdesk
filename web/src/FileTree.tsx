@@ -34,6 +34,8 @@ export interface TreeEntry {
   binary: boolean
   status: GitStatus
   viewed: boolean
+  /** How many comments sit on this file. Zero shows nothing. */
+  comments: number
 }
 
 /** What App drives the tree with, since folding and revealing live in here. */
@@ -67,6 +69,8 @@ interface DirectoryTotals {
 const ADDED = '#3fb950'
 const DELETED = '#f85149'
 const MUTED = '#8b949e'
+/** The accent from styles.css, so a comment count reads as a control, not a count. */
+const ACCENT = '#2f81f7'
 
 /**
  * Every directory a file sits under, as the tree addresses them: with a trailing
@@ -153,6 +157,9 @@ function FileTree(
 
       const parts = []
       if (entry.viewed) parts.push({ text: '✓ ', color: ADDED })
+      // Into the same string, between the tick and the counts: a row's decoration
+      // is one string, so this cannot be a node of its own.
+      if (entry.comments > 0) parts.push({ text: `✎${entry.comments} `, color: ACCENT })
       if (entry.binary) parts.push({ text: 'bin', color: MUTED })
       else {
         if (entry.additions > 0) parts.push({ text: `+${entry.additions}`, color: ADDED })
