@@ -81,7 +81,6 @@ export interface RepoState {
 export interface RefDetail {
   name: string
   when: string
-  remote: boolean
 }
 
 /** path -> hash of the diff section that was marked as read, or null. */

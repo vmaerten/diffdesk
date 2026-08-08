@@ -63,8 +63,9 @@ export async function readStack(
   )
   if (!recorded?.trunk?.branch) return null
 
-  // `gh stack` records a local name (`main`); ghl prefers the remote one, since
-  // it is the shared truth. The same branch, when the short names match.
+  // `gh stack` records a local name (`main`), which is what we want too — but a
+  // clone that never checked the trunk out only has `origin/main`, and that is
+  // then what `detectedTrunk` found. The same branch, when the short names match.
   const shortTrunk = recorded.trunk.branch
   const trunk = detectedTrunk?.endsWith(`/${shortTrunk}`) ? detectedTrunk : shortTrunk
 

@@ -110,20 +110,22 @@ Git records no parent for a branch, so `ghl` resolves one, most trustworthy sour
 2. the `gh stack` chain, when the branch is part of one — not a guess, it is written down
 3. the stacked-branch heuristic — the ref whose merge-base is closest to HEAD, the trunk
    winning ties (a sibling branch is not a parent)
-4. `origin/HEAD`
-5. the first existing of `origin/main`, `origin/master`, `origin/develop`, then their local
-   counterparts
+4. `origin/HEAD`, under its local name
+5. the first existing of `main`, `master`, `develop`, then their `origin/` counterparts
 
 The chosen base and how it was obtained are always reported: a wrong base silently produces
 a misleading diff.
 
 Press `b` (or click the base) to pick another one: the list is searchable, ordered by
-commit date, and the choice is written to `.git/config` for that branch.
+commit date, and the choice is written to `.git/config` for that branch. Both pickers list
+local branches only — `origin/<name>` is the same branch under another name, and offering
+both doubled every entry.
 
 Press `t` to review a different revision altogether — a colleague's branch, say — without
-checking it out. The revision lives in the URL, so a reload stays on it. Reviewing a ref
-excludes uncommitted work, which belongs to the working tree and not to that ref; the UI
-says so.
+checking it out. The revision lives in the URL, so a reload stays on it, and anything git
+resolves works there: `ghl origin/some-branch`, or `?target=origin/some-branch` by hand.
+Reviewing a ref excludes uncommitted work, which belongs to the working tree and not to
+that ref; the UI says so.
 
 ## Stacked branches
 

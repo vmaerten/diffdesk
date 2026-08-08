@@ -103,53 +103,29 @@ export async function countCommits(repoPath: string, from: string, to: string): 
 /**
  * Candidate bases, most recently touched first.
  *
- * Prebid.js carries 501 refs, so the picker searches rather than lists, and
- * commit date is what puts the branch you actually work on at the top.
+ * Local branches only: `origin/<name>` is the same branch under another name,
+ * and listing both doubled every entry. Sorted by commit date so the branch you
+ * actually work on sits on top before you type anything.
  */
 export async function listRefDetails(repoPath: string): Promise<RefDetail[]> {
   const out = await git(repoPath, [
     'for-each-ref',
     '--sort=-committerdate',
-    '--format=%(refname:short)%09%(committerdate:relative)%09%(refname)',
+    '--format=%(refname:short)%09%(committerdate:relative)',
     'refs/heads',
-    'refs/remotes/origin',
   ])
 
   return out
     .split('\n')
     .filter(Boolean)
     .map((line) => {
-      const [name, when, fullRef] = line.split('\t')
-      return {
-        name: name ?? '',
-        when: when ?? '',
-        remote: fullRef?.startsWith('refs/remotes/') ?? false,
-      }
+      const [name, when] = line.split('\t')
+      return { name: name ?? '', when: when ?? '' }
     })
-    .filter((ref) => ref.name && !ref.name.endsWith('/HEAD') && ref.name !== 'origin')
+    .filter((ref) => ref.name)
 }
 
-/** Local branches and origin refs, excluding symbolic HEADs. */
-export async function listRefs(repoPath: string): Promise<string[]> {
-  const out = await git(repoPath, [
-    'for-each-ref',
-    '--format=%(refname:short)',
-    'refs/heads',
-    'refs/remotes/origin',
-  ])
-  return out
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line && !line.endsWith('/HEAD') && line !== 'origin')
-}
-
-/**
- * Names of the local branches, in one call.
- *
- * Deliberately not `listRefs`: a branch deleted here whose `origin/<name>` still
- * exists is gone from this checkout, and callers asking "is this branch still
- * here" have to see that.
- */
+/** Names of the local branches, in one call. */
 export async function localBranches(repoPath: string): Promise<Set<string>> {
   const out = await git(repoPath, ['for-each-ref', '--format=%(refname:short)', 'refs/heads'])
   return new Set(
