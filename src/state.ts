@@ -2,15 +2,11 @@ import { createHash } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
-import { git } from './git.ts'
+import { gitDirPath } from './git.ts'
 import type { ViewedMap } from './types.ts'
 
 /** Inside `.git`, so it is never committed and dies with the repository. */
-async function statePath(repoPath: string): Promise<string> {
-  const gitDir = (await git(repoPath, ['rev-parse', '--git-dir'])).trim()
-  const absolute = gitDir.startsWith('/') ? gitDir : `${repoPath}/${gitDir}`
-  return `${absolute}/ghl/state.json`
-}
+const statePath = (repoPath: string) => gitDirPath(repoPath, 'ghl/state.json')
 
 export async function readState(repoPath: string): Promise<{ viewed: Record<string, ViewedMap> }> {
   try {

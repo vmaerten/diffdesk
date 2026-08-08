@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { resolve } from 'node:path'
 import { promisify } from 'node:util'
 
 import type { FileCounts, GitStatus, RefDetail, RepoOperation, RepoState } from './types.ts'
@@ -46,6 +47,23 @@ export async function git(
 export async function resolveRepoRoot(startDir: string): Promise<string> {
   const root = await git(startDir, ['rev-parse', '--show-toplevel'])
   return root.trim()
+}
+
+/**
+ * A path inside the repository's `.git`.
+ *
+ * `rev-parse` answers relatively whenever it can, so its result has to be
+ * resolved against the repository rather than used as is. `common` asks for the
+ * directory shared by every worktree — where anything belonging to the
+ * repository, rather than to one checkout of it, lives.
+ */
+export async function gitDirPath(
+  repoPath: string,
+  relative: string,
+  { common = false }: { common?: boolean } = {},
+): Promise<string> {
+  const dir = await git(repoPath, ['rev-parse', common ? '--git-common-dir' : '--git-dir'])
+  return resolve(repoPath, dir.trim(), relative)
 }
 
 /** Current branch name, or null when HEAD is detached. */
@@ -123,6 +141,23 @@ export async function listRefs(repoPath: string): Promise<string[]> {
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line && !line.endsWith('/HEAD') && line !== 'origin')
+}
+
+/**
+ * Names of the local branches, in one call.
+ *
+ * Deliberately not `listRefs`: a branch deleted here whose `origin/<name>` still
+ * exists is gone from this checkout, and callers asking "is this branch still
+ * here" have to see that.
+ */
+export async function localBranches(repoPath: string): Promise<Set<string>> {
+  const out = await git(repoPath, ['for-each-ref', '--format=%(refname:short)', 'refs/heads'])
+  return new Set(
+    out
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean),
+  )
 }
 
 /**
@@ -283,8 +318,7 @@ export async function originHead(repoPath: string): Promise<string | null> {
  * something else, and the UI has to say so rather than show it silently.
  */
 export async function repoState(repoPath: string): Promise<RepoState> {
-  const gitDir = (await git(repoPath, ['rev-parse', '--git-dir'])).trim()
-  const absolute = gitDir.startsWith('/') ? gitDir : `${repoPath}/${gitDir}`
+  const absolute = await gitDirPath(repoPath, '.')
 
   const { existsSync } = await import('node:fs')
   let operation: RepoOperation | null = null

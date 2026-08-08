@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url'
 import { repoState, resolveRepoRoot } from '../src/git.ts'
 import { buildPatch, resolveBase } from '../src/revision.ts'
 import { createGhlServer, listen, listenNear, repoIdFor, type RepoEntry } from '../src/server.ts'
-import { readStack } from '../src/stack.ts'
 import type { BaseSource } from '../src/types.ts'
 import { runtimeRevision } from '../src/version.ts'
 
@@ -303,7 +302,6 @@ async function main() {
       guessed: `guessed (stacked branch, ${base.distance} commit(s))`,
       trunk: 'repository trunk',
     }
-    const chain = await readStack(repoPath, base.branch, base.trunk)
 
     const lines = [
       `repo      ${repoPath}`,
@@ -312,10 +310,12 @@ async function main() {
       `changes   ${files} file(s), +${additions} -${deletions}`,
       `untracked ${untracked.length} file(s)${untrackedIncluded ? ' (included)' : ' (excluded, use --untracked)'}`,
     ]
+    const chain = base.stack
     if (chain) {
       const layers = chain.layers.map((layer, index) => {
-        const pr = layer.pr ? ` #${layer.pr.number}${layer.merged ? ' (merged)' : ''}` : ''
-        return index === chain.current ? `[${layer.branch}${pr}]` : `${layer.branch}${pr}`
+        const pr = layer.pr ? ` #${layer.pr.number}` : ''
+        const label = `${layer.branch}${pr}${layer.merged ? ' (merged)' : ''}`
+        return index === chain.current ? `[${label}]` : label
       })
       lines.push(`stack     ${[chain.trunk, ...layers].join(' → ')}`)
     }

@@ -37,6 +37,13 @@ export interface BaseResolution {
   branch: string | null
   trunk: string | null
   distance?: number
+  /**
+   * The chain the branch belongs to, or null when it belongs to none.
+   *
+   * Carried here because resolving the base is what reads it: the UI shows both,
+   * and computing them apart is how the two come to disagree.
+   */
+  stack: StackChain | null
 }
 
 export interface Totals {
@@ -50,7 +57,7 @@ export interface StackLayer {
   branch: string
   /** The branch this layer sits on: the nearest live layer below, or the trunk. */
   base: string
-  pr: { number: number; url: string; merged: boolean } | null
+  pr: { number: number; url: string } | null
   merged: boolean
   /** False once the branch is pruned: the layer can be shown, not opened. */
   exists: boolean
@@ -60,7 +67,7 @@ export interface StackChain {
   trunk: string
   /** Bottom (closest to the trunk) first, the order `gh stack` records. */
   layers: StackLayer[]
-  /** Index in `layers` of what is under review, -1 when it is not one of them. */
+  /** Index in `layers` of what is under review; the chain was found by it. */
   current: number
 }
 
@@ -95,8 +102,6 @@ export interface DiffPayload {
   head: { branch: string | null; sha: string }
   /** What is under review, and whether uncommitted work is part of it. */
   target: { ref: string; workingTree: boolean }
-  /** The chain the reviewed branch belongs to, or null when it belongs to none. */
-  stack: StackChain | null
   range: string
   state: RepoState
   untracked: string[]

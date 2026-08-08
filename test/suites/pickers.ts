@@ -1,24 +1,11 @@
-import { openPicker, sleep, type Suite } from '../harness.ts'
+import { openPicker, sleep, topbar, type Suite } from '../harness.ts'
 
 export default {
   name: 'pickers',
   async run({ page, load }, check) {
     await load()
 
-    const shown = () =>
-      page.evaluate(`(() => ({
-        base: document.querySelector('.ref.base')?.textContent?.replace('▾', '').trim() ?? null,
-        target: document.querySelector('.ref.target')?.textContent?.replace('▾', '').trim() ?? null,
-        files: document.querySelector('.sidebar-head span')?.textContent?.trim() ?? null,
-        notes: [...document.querySelectorAll('.source')].map((e) => e.textContent.trim()),
-        search: location.search,
-      }))()`) as Promise<{
-        base: string | null
-        target: string | null
-        files: string | null
-        notes: string[]
-        search: string
-      }>
+    const shown = () => topbar(page)
 
     const items = () =>
       page.evaluate(
