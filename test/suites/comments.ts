@@ -163,6 +163,18 @@ export default {
       (await bodies()).join(' | '),
     )
     check('  and no composer is left open', (await count('.comment-composer')) === 0)
+    // Only its presence and its count. What it puts on the clipboard is the CLI's
+    // markdown, from the same function, and that text is asserted where it can be
+    // read without asking a headless browser for clipboard permissions.
+    const copyLabel = () =>
+      page.evaluate(
+        `([...document.querySelectorAll('.sidebar-head button')].find((b) => b.textContent.startsWith('Copy')) || {}).textContent || null`,
+      )
+    check(
+      '  and a copy button appears',
+      (await copyLabel()) === 'Copy ✎1',
+      String(await copyLabel()),
+    )
     check(
       '  and the tree marks the file',
       (await pencilled()).length === 1,
@@ -306,6 +318,13 @@ export default {
     await sleep(1500)
     check('deleting removes the comment', (await count('.comment')) === 0)
     check('  and clears the tree badge', (await pencilled()).length === 0)
+    check(
+      '  and takes the copy button with it',
+      (await count('.sidebar-head button')) > 0 &&
+        !(await page.evaluate(
+          `[...document.querySelectorAll('.sidebar-head button')].some((b) => b.textContent.startsWith('Copy'))`,
+        )),
+    )
 
     await ready()
     await sleep(1200)

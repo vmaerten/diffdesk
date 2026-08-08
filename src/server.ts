@@ -10,12 +10,12 @@ import {
   clearViewed,
   commentsIn,
   linesAt,
-  markStale,
   pruneStale,
   putComment,
   readState,
   removeComment,
   sectionHashes,
+  serveComments,
   setViewed,
 } from './state.ts'
 import type { Comment, DiffPayload, RefsPayload } from './types.ts'
@@ -260,7 +260,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           files: files.map((f) => ({ ...f, hash: hashes[f.path] ?? null })),
           totals,
           viewed,
-          comments: markStale(
+          comments: serveComments(
             commentsIn(
               stored.state.comments,
               files.map((f) => f.path),

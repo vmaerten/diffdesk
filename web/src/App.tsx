@@ -15,6 +15,7 @@ import RefSelector from './RefSelector.tsx'
 import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import CommentThread, { type Composer, type SaveState } from './CommentThread.tsx'
+import { asMarkdown } from '../../src/export.ts'
 import { compareTreePaths } from './fileOrder.ts'
 import type {
   BaseSource,
@@ -84,6 +85,8 @@ export default function App() {
   const [picking, setPicking] = useState<'base' | 'target' | null>(null)
   const [comments, setComments] = useState<ServedComment[]>([])
   const [composer, setComposer] = useState<Composer | null>(null)
+  /** Momentary, so the button can say the clipboard actually took it. */
+  const [copied, setCopied] = useState(false)
   /** id -> how its last write went. Read while painting, so it is state. */
   const [saving, setSaving] = useState<Map<string, SaveState>>(new Map())
   /**
@@ -403,6 +406,9 @@ export default function App() {
       // Written against what is on screen, so it describes it by construction.
       // The server decides otherwise on the next read, never here.
       stale: false,
+      // Optimistic and therefore unknown until the server answers: it cuts the
+      // lines from the patch, and this side has no business guessing them.
+      code: existing?.code ?? [],
       // From here, not from the server: a save retried after having in fact
       // succeeded then rewrites its own entry instead of adding a second one.
       id: composer.editing ?? crypto.randomUUID(),
@@ -476,6 +482,24 @@ export default function App() {
   const closeComposer = useStableCallback(() => {
     setComposer(null)
     viewRef.current?.clearSelectedLines()
+  })
+
+  /**
+   * Put the whole review on the clipboard, as markdown.
+   *
+   * `asMarkdown` is the CLI's too, so the button and `ghl comments` cannot
+   * produce different text for the same review. Failing to reach the clipboard is
+   * said out loud: the point of the gesture is that the text left the page.
+   */
+  const copyComments = useStableCallback(async () => {
+    if (!data) return
+    try {
+      await navigator.clipboard.writeText(asMarkdown(comments, { range: data.range }))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (cause) {
+      setError(`could not copy: ${cause instanceof Error ? cause.message : cause}`)
+    }
   })
 
   /** Remember the chosen base for this branch, then reload against it. */
@@ -864,6 +888,17 @@ export default function App() {
                   : `${entries.length} files`}
               </span>
               <span className="spacer" />
+              {/* The end of a review: the remarks go somewhere they can be acted
+                  on. Same markdown `ghl comments` writes, from the same function. */}
+              {comments.length > 0 && (
+                <button
+                  type="button"
+                  onClick={copyComments}
+                  title={`Copy ${comments.length} comment(s) as markdown`}
+                >
+                  {copied ? 'Copied' : `Copy ✎${comments.length}`}
+                </button>
+              )}
               {viewedCount > 0 && (
                 <button type="button" onClick={resetViewed} title="Unmark every file">
                   Reset

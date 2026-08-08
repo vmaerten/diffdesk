@@ -36,6 +36,14 @@ three, so a per-file signal would fire every time and mean nothing. The flag is 
 read and never stored, so putting the lines back clears it — and it is never a reason to delete
 the comment on your behalf, since code can change without anyone having done what it asked.
 
+The point of writing them down is getting them out again: `ghl comments` prints the review as
+markdown, `--json` as something to parse, and the sidebar has a copy button for the same text.
+Both go through one formatter, so the button and the command cannot disagree about a review.
+Each remark comes with the lines it points at **as they read now**, because a path and a line
+number alone go stale between taking the export and acting on it — but not the surrounding hunk,
+which is what `git diff` is for. There is no "apply these" preamble: that is the prompt of
+whoever pastes it.
+
 A viewed file folds shut and is ticked in the tree, as on GitHub — it keeps its place in the
 list, so marking one never moves you, and clicking any row takes you to that file whether it
 is folded or not. The state lives in `.git/ghl/state.json` and is keyed by revision range, so
@@ -54,6 +62,10 @@ ghl --base main        # compare against an explicit revision
 ghl --untracked        # include untracked files in the diff
 ghl --port 8080        # listen somewhere else (or set $GHL_PORT)
 ghl --no-daemon        # serve from this process and stay in the foreground
+
+ghl comments           # the review's comments as markdown, on stdout
+ghl comments --json    # the same, to parse
+ghl comments feature   # the comments on another revision's review
 ```
 
 One process serves every repository you point it at. The first `ghl` starts it in the

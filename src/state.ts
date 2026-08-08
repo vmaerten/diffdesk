@@ -275,25 +275,25 @@ export function commentsIn(comments: Comment[], paths: Iterable<string>): Commen
 }
 
 /**
- * Say, per comment, whether its lines still read as they did.
+ * Each comment against the patch on hand: the lines it points at now, and
+ * whether they still read as they did when it was written.
  *
  * Its own lines, not its file: reusing `sectionHashes` would flag every comment
  * in a file the moment any hunk in it moved, which is the nominal case — an agent
  * handed four remarks fixes one and leaves three. A signal that always fires is
  * one nobody reads.
  *
- * Filtered on read like `pruneStale`, never written: put the lines back and the
- * flag clears on its own. And a comment with no anchor is not called stale — it
- * was never given a reference, so there is nothing to say it drifted from.
+ * Read-time only, like `pruneStale`, and never written: put the lines back and
+ * the flag clears on its own. And a comment with no anchor is not called stale —
+ * it was never given a reference, so there is nothing to say it drifted from.
  */
-export function markStale(comments: Comment[], patch: string): ServedComment[] {
+export function serveComments(comments: Comment[], patch: string): ServedComment[] {
   return comments.map((comment) => {
-    if (comment.anchor.length === 0) return { ...comment, stale: false }
-    const now = linesAt(patch, comment)
+    const code = linesAt(patch, comment) ?? []
     const stale =
-      now === null ||
-      now.length !== comment.anchor.length ||
-      now.some((line, at) => line !== comment.anchor[at])
-    return { ...comment, stale }
+      comment.anchor.length > 0 &&
+      (code.length !== comment.anchor.length ||
+        code.some((line, at) => line !== comment.anchor[at]))
+    return { ...comment, stale, code }
   })
 }

@@ -4,10 +4,12 @@ import { lookup } from 'node:dns/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 
-import { repoState, resolveRepoRoot } from '../src/git.ts'
-import { buildPatch, resolveBase } from '../src/revision.ts'
+import { asExport, asMarkdown } from '../src/export.ts'
+import { currentBranch, repoState, resolveRepoRoot } from '../src/git.ts'
+import { buildPatch, rangeKey, resolveBase } from '../src/revision.ts'
 import { createGhlServer, listen, listenNear, repoIdFor, type RepoEntry } from '../src/server.ts'
-import type { BaseSource } from '../src/types.ts'
+import { commentsIn, readState, serveComments } from '../src/state.ts'
+import type { BaseResolution, BaseSource } from '../src/types.ts'
 import { runtimeRevision } from '../src/version.ts'
 
 /** Also the target of the Vite dev proxy, so `pnpm dev` needs no flag. */
@@ -27,6 +29,7 @@ const STARTUP_TIMEOUT_MS = 5_000
 interface Options {
   open: boolean
   print: boolean
+  json: boolean
   help: boolean
   port: number
   base: string | null
@@ -48,11 +51,18 @@ const USAGE = `ghl — review the PR you are about to open, without opening it
 
 Usage:
   ghl [target] [options]
+  ghl comments [target] [options]
 
   target         Branch or revision to review. Defaults to the working tree,
                  i.e. the PR you would open from this checkout right now.
 
+Commands:
+  comments       Print the comments on that review and exit, as markdown or, with
+                 --json, as something to parse. A branch actually named
+                 "comments" is still reachable as refs/heads/comments.
+
 Options:
+  --json         With \`comments\`: machine-readable output instead of markdown
   --base <rev>   Compare against <rev> instead of the guessed base
   --untracked    Include untracked files in the diff (off by default: they are
                  often numerous and unrelated to the change under review)
@@ -88,6 +98,7 @@ function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Options {
   const options: Options = {
     open: true,
     print: false,
+    json: false,
     help: false,
     port: env.GHL_PORT ? parsePort(env.GHL_PORT, 'GHL_PORT') : DEFAULT_PORT,
     base: null,
@@ -109,6 +120,7 @@ function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Options {
     else if (arg === '--no-open') options.open = false
     else if (arg === '--untracked') options.untracked = true
     else if (arg === '--print') options.print = true
+    else if (arg === '--json') options.json = true
     else if (arg === '--base') options.base = next(++i, '--base')
     else if (arg === '--port') options.port = parsePort(next(++i, '--port'), '--port')
     else if (arg === '--no-daemon') options.useDaemon = false
@@ -275,8 +287,53 @@ async function serveViaDaemon(options: Options, entry: RepoEntry): Promise<strin
   return ((await response.json()) as { id: string }).id
 }
 
+/**
+ * Print the comments on a review and exit.
+ *
+ * No daemon and no server: the state file and the patch are both read straight
+ * from the repository, as `--print` does. Which is why `src/state.ts` imports
+ * nothing outside `node:`.
+ */
+async function runComments(
+  repoPath: string,
+  base: BaseResolution,
+  options: Options,
+): Promise<void> {
+  const [{ patch, files }, branch, { state }] = await Promise.all([
+    buildPatch(repoPath, base.ref, {
+      target: options.target,
+      includeUntracked: options.untracked,
+    }),
+    // Without a target, resolveBase has already asked — that is `base.branch`.
+    options.target ? currentBranch(repoPath) : base.branch,
+    readState(repoPath),
+  ])
+  // The same key the server files them under, from the same function: computing
+  // it here by hand is how the two would come to disagree about the same review.
+  const range = rangeKey(base.ref, options.target ?? branch ?? 'HEAD')
+  const comments = serveComments(
+    commentsIn(
+      state.comments,
+      files.map((f) => f.path),
+    ),
+    patch,
+  )
+
+  process.stdout.write(
+    options.json
+      ? `${JSON.stringify(asExport(comments, { repo: repoPath, range }), null, 2)}\n`
+      : asMarkdown(comments, { range }),
+  )
+}
+
 async function main() {
-  const options = parseArgs(process.argv.slice(2), process.env)
+  const argv = process.argv.slice(2)
+  // Taken off before parseArgs, which claims the first non-flag argument as the
+  // revision to review — `ghl comments` would go looking for a ref by that name
+  // and fail with git's words rather than ours. It does reserve the word: a branch
+  // actually called `comments` is still reachable as `refs/heads/comments`.
+  const command = argv[0] === 'comments' ? argv.shift() : null
+  const options = parseArgs(argv, process.env)
   if (options.daemon) return runDaemon(options)
   if (options.help) {
     process.stdout.write(USAGE)
@@ -287,6 +344,8 @@ async function main() {
   // takes repoPath as a parameter.
   const repoPath = await resolveRepoRoot(process.cwd())
   const base = await resolveBase(repoPath, { override: options.base, target: options.target })
+
+  if (command === 'comments') return runComments(repoPath, base, options)
 
   if (options.print) {
     const { patch, untracked, untrackedIncluded } = await buildPatch(repoPath, base.ref, {
