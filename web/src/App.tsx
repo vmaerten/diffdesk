@@ -497,6 +497,8 @@ export default function App() {
         )}
       </header>
 
+      {data?.notice && <div className="warning">{data.notice}</div>}
+
       {data?.state?.operation && (
         <div className="warning">
           {data.state.operation} in progress — {data.state.conflicted.length} conflicted file(s).

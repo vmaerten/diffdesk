@@ -5,7 +5,7 @@ import { basename, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { currentBranch, headSha, listRefDetails, repoState, resolveRepoRoot } from './git.ts'
-import { buildPatch, detectTrunk, rememberBase, resolveBase } from './revision.ts'
+import { buildPatch, detectTrunk, rangeKey, rememberBase, resolveBase } from './revision.ts'
 import { clearViewed, pruneStale, readState, sectionHashes, setViewed } from './state.ts'
 import type { DiffPayload, RefsPayload } from './types.ts'
 import { runtimeRevision } from './version.ts'
@@ -231,11 +231,11 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
 
         const { patch, untracked, untrackedIncluded, files, totals } = patchResult
         const reviewing = target ?? branch ?? 'HEAD'
-        const range = `${base.ref}..${reviewing}`
+        const range = rangeKey(base.ref, reviewing)
         const hashes = sectionHashes(patch)
 
         // Ticks only survive while the file's diff is unchanged.
-        const viewed = pruneStale(stored.viewed?.[range] ?? {}, hashes)
+        const viewed = pruneStale(stored.state.viewed[range] ?? {}, hashes)
 
         const payload: DiffPayload = {
           repo: { id: repoId, path: repoPath },
@@ -249,6 +249,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           files: files.map((f) => ({ ...f, hash: hashes[f.path] ?? null })),
           totals,
           viewed,
+          notice: stored.notice,
           patch,
         }
         return json(res, 200, payload)

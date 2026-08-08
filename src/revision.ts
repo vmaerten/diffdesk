@@ -191,6 +191,18 @@ export async function resolveBase(
   throw new Error('no base found: set one with --base, or define origin/HEAD')
 }
 
+/**
+ * The key persisted state is filed under: what is being compared, symbolically.
+ *
+ * Symbolic and not resolved: it has to survive new commits on either side, or a
+ * tick would clear itself on the next commit. Here rather than at its two call
+ * sites — the server serves it, the CLI reads back what the server wrote, and a
+ * key computed twice is a key the two eventually disagree on.
+ */
+export function rangeKey(base: string, reviewing: string): string {
+  return `${base}..${reviewing}`
+}
+
 /** Persist a base choice so it is never guessed again for this branch. */
 export async function rememberBase(
   repoPath: string,
