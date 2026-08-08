@@ -1,6 +1,7 @@
 import { createFixture } from './fixture.ts'
 import { withHarness, type Check, type Suite } from './harness.ts'
 import { runLifecycle } from './lifecycle.ts'
+import { runState } from './state.ts'
 
 import tree from './suites/tree.ts'
 import resize from './suites/resize.ts'
@@ -13,15 +14,22 @@ import stack from './suites/stack.ts'
 
 const SUITES: Suite[] = [tree, resize, viewed, pickers, scroll, rename, order, stack]
 
-/** Not a browser suite: it drives real CLI processes, so it runs on its own. */
-const LIFECYCLE = 'lifecycle'
+/**
+ * Suites that need no browser: one drives real CLI processes, the other calls
+ * plain functions. They run first — a shadow DOM is a poor place to find out
+ * that a string comparison was wrong.
+ */
+const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
+  { name: 'state', run: runState },
+  { name: 'lifecycle', run: runLifecycle },
+]
 
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-'))
 const selected = only.length > 0 ? SUITES.filter((s) => only.includes(s.name)) : SUITES
-const lifecycle = only.length === 0 || only.includes(LIFECYCLE)
+const plain = only.length > 0 ? PLAIN.filter((s) => only.includes(s.name)) : PLAIN
 
-if (selected.length === 0 && !lifecycle) {
-  const names = [LIFECYCLE, ...SUITES.map((s) => s.name)].join(', ')
+if (selected.length === 0 && plain.length === 0) {
+  const names = [...PLAIN.map((s) => s.name), ...SUITES.map((s) => s.name)].join(', ')
   process.stderr.write(`no such suite. available: ${names}\n`)
   process.exit(1)
 }
@@ -36,19 +44,19 @@ const check: Check = (name, ok, detail) => {
   process.stdout.write(`${mark} ${name}${detail ? `  — ${detail}` : ''}\n`)
 }
 
-if (lifecycle) {
-  process.stdout.write(`\n${LIFECYCLE}\n`)
+for (const suite of plain) {
+  process.stdout.write(`\n${suite.name}\n`)
   try {
-    await runLifecycle(check)
+    await suite.run(check)
   } catch (error) {
     failures += 1
     total += 1
     const detail = error instanceof Error ? error.message : String(error)
-    process.stdout.write(`  FAIL ${LIFECYCLE} threw  — ${detail}\n`)
+    process.stdout.write(`  FAIL ${suite.name} threw  — ${detail}\n`)
   }
 }
 
-// Skipped entirely when only the lifecycle suite was asked for: no fixture to
+// Skipped entirely when only a browser-free suite was asked for: no fixture to
 // build, and no browser to start.
 if (selected.length > 0) {
   const fixture = createFixture()

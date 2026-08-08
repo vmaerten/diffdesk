@@ -87,6 +87,27 @@ export interface RefDetail {
 /** path -> hash of the diff section that was marked as read, or null. */
 export type ViewedMap = Record<string, string | null>
 
+/**
+ * Which version of a file a line number counts in.
+ *
+ * The names are the diff pane's, so the two never need translating: deletions
+ * are the old file, additions the new one.
+ */
+export type DiffSide = 'deletions' | 'additions'
+
+/** `.git/ghl/state.json` as written. */
+export interface StoredState {
+  version: number
+  viewed: Record<string, ViewedMap>
+}
+
+/** The state, and anything reading it had to report. */
+export interface StateRead {
+  state: StoredState
+  /** Set when the file had to be moved aside. Shown, not swallowed. */
+  notice: string | null
+}
+
 export interface PatchResult {
   patch: string
   untracked: string[]
@@ -109,6 +130,13 @@ export interface DiffPayload {
   files: ServedFileStat[]
   totals: Totals
   viewed: ViewedMap
+  /**
+   * Something about the stored state the reader should know, or null.
+   *
+   * The server runs detached, so its stderr reaches nobody: a state file moved
+   * aside has to travel with the payload or it is not reported at all.
+   */
+  notice: string | null
   patch: string
 }
 
