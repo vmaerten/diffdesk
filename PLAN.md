@@ -303,6 +303,20 @@ threshold mean "no tab" rather than "no click".
   virtual window is rebuilt and the reader lands at the top. Any feature that adds, removes
   or reorders files has to reckon with that. Object identity and render-prop identity, on
   the other hand, do not matter — measured, see §"Viewed state".
+- **The tree and the diff sort differently, and both are right.** git hands the patch back
+  in a flat bytewise sort of whole paths, where `/` beats every letter; the tree groups
+  directories first at each level. They disagree from the first row — a file at the root is
+  first in one and last in the other — so `j`/`k` walked an order the eye was not following.
+  `web/src/fileOrder.ts` reproduces the tree's rule for the diff list.
+- **The tree's `sort` option is not a sibling comparator.** Its entries carry `depth` and
+  `segments`, and handing it a directories-first-then-name rule reorders the tree into
+  something neither pane wanted. The tree keeps its default; the copy lives on our side, with
+  `test/suites/order.ts` comparing the two orders row by row — a copy of someone else's rule
+  is a copy that can drift.
+- **That order is a *natural* sort.** Plain `localeCompare` gives `Widget1, Widget10,
+  Widget11` where the tree gives `Widget1, Widget2, Widget3`: `Intl.Collator(_, { numeric:
+  true })` is not a nicety here. The two lists agree for nine rows before parting, which is
+  exactly the kind of near-miss a spot check at the top of the list confirms as correct.
 - **`collapsed` does nothing without `version`.** The pane re-reads an item only when its
   `version` moves, so flipping `collapsed` alone is accepted and then ignored — the box
   ticks, the tree ticks, the file stays wide open, and nothing anywhere says the flag was
