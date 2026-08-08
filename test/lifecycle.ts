@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { resolveRepoRoot } from '../src/git.ts'
+import { putComment } from '../src/state.ts'
 import { listen, repoIdFor } from '../src/server.ts'
 import { createFixture, type Fixture } from './fixture.ts'
 import { sleep, type Check } from './harness.ts'
@@ -245,6 +246,51 @@ export async function runLifecycle(check: Check): Promise<void> {
     const legitimate = await statusWithHost(hostPort, `ghl.localhost:${hostPort}`)
     check('while ghl.localhost is served', legitimate === 200, `HTTP ${legitimate}`)
     await stop(hostPort)
+
+    // 8 — `ghl comments`, which needs no server at all
+    //
+    // Here rather than in a browser suite because the subcommand is the thing
+    // being tested: `parseArgs` claims the first non-flag argument as the revision
+    // to review, so `comments` has to be taken off before it ever gets there.
+    const empty = await cli(runtime, one.path, ['comments', 'feature'])
+    check(
+      'ghl comments runs without an instance',
+      empty.includes('No comments on'),
+      empty.trim().split('\n')[0],
+    )
+    check('  and names what it looked at', empty.includes('..feature'), empty.trim())
+
+    const asJson = await cli(runtime, one.path, ['comments', 'feature', '--json'])
+    const parsed = JSON.parse(asJson) as { repo: string; range: string; comments: unknown[] }
+    check('--json is parseable', Array.isArray(parsed.comments), asJson.trim().slice(0, 60))
+    // The resolved root, not the fixture's own path: see the note above about
+    // /var/folders and /private/var/folders.
+    check(
+      '  carrying the repository and the range',
+      parsed.repo === (await resolveRepoRoot(one.path)) && parsed.range === 'main..feature',
+      `${parsed.repo} ${parsed.range}`,
+    )
+
+    // A written comment comes back out. Posted through the state layer rather
+    // than a server, since the point is that the CLI reads the file itself.
+    const target = 'infra/terraform/network.tf'
+    await putComment(one.path, {
+      id: 'from-a-test',
+      path: target,
+      side: 'additions',
+      start: 1,
+      end: 1,
+      body: 'give this resource a real name',
+      anchor: ['resource "null_resource" "b" {}'],
+      range: 'main..feature',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    })
+    const withOne = await cli(runtime, one.path, ['comments', 'feature'])
+    check('a stored comment reaches stdout', withOne.includes('give this resource a real name'))
+    check('  under its file', withOne.includes(`## ${target}`), withOne.trim().split('\n')[2])
+    // Quoted from the patch the CLI built itself, which is what makes the export
+    // usable without the reader having to go and look the line up.
+    check('  with the line it points at', withOne.includes('null_resource'))
   } finally {
     for (const port of ports) await stop(port)
     for (const repo of repos) repo.cleanup()

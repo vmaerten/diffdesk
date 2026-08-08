@@ -133,6 +133,15 @@ export interface Comment {
  */
 export interface ServedComment extends Comment {
   stale: boolean
+  /**
+   * Lines `start`..`end` as the current patch has them, or empty when the patch
+   * no longer carries them.
+   *
+   * Served rather than re-derived by each reader: cutting them needs the patch,
+   * and the export has to quote the code as it is *now* — the anchor is what it
+   * was. Both the CLI and the copy button read this, so they cannot disagree.
+   */
+  code: string[]
 }
 
 /** `.git/ghl/state.json` as written. */
