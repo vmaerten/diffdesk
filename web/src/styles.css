@@ -97,21 +97,14 @@ body {
   color: var(--text-dim);
 }
 
-.stack-trunk {
-  color: var(--text-dim);
-}
-
 .stack-layer {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
+/* The chip itself comes from `.ref`; only what makes it a stack layer is here. */
 .stack-name {
-  padding: 1px 7px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
   color: var(--text-dim);
   font: inherit;
   cursor: pointer;

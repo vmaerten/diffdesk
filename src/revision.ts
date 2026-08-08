@@ -107,38 +107,42 @@ export async function resolveBase(
   // base of the checkout.
   const branch = target ?? (await currentBranch(repoPath))
   const trunk = await detectTrunk(repoPath)
+  // Read once, up here, and carried on every answer below: the UI shows the
+  // chain whatever the base turned out to be, and reading it a second time is
+  // how the two come to disagree.
+  const stack = await readStack(repoPath, branch, trunk)
+  const found = { branch, trunk, stack }
 
   if (override) {
     if (!(await revExists(repoPath, override))) {
       throw new Error(`base "${override}" does not resolve to a revision`)
     }
-    return { ref: override, source: 'override', branch, trunk }
+    return { ref: override, source: 'override', ...found }
   }
 
   if (branch) {
     const remembered = await readConfig(repoPath, baseConfigKey(branch))
     if (remembered && (await revExists(repoPath, remembered))) {
-      return { ref: remembered, source: 'remembered', branch, trunk }
+      return { ref: remembered, source: 'remembered', ...found }
     }
   }
 
   // Not a guess: `gh stack` writes down which branch this one sits on, which is
   // the one thing git never records. Below the remembered choice all the same —
   // that one was made by hand, against this very diff.
-  const chain = await readStack(repoPath, branch, trunk)
-  const layer = chain?.layers[chain.current]
-  if (layer) return { ref: layer.base, source: 'stack', branch, trunk }
+  const layer = stack?.layers[stack.current]
+  if (layer) return { ref: layer.base, source: 'stack', ...found }
 
   // On the trunk itself there is nothing to guess.
   const onTrunk = trunk && (branch === trunk.replace('origin/', '') || branch === trunk)
   if (!onTrunk && branch) {
     const guessed = await guessParent(repoPath, branch, trunk)
     if (guessed && guessed.reason === 'stacked-branch') {
-      return { ref: guessed.ref, source: 'guessed', branch, trunk, distance: guessed.distance }
+      return { ref: guessed.ref, source: 'guessed', ...found, distance: guessed.distance }
     }
   }
 
-  if (trunk) return { ref: trunk, source: 'trunk', branch, trunk }
+  if (trunk) return { ref: trunk, source: 'trunk', ...found }
   throw new Error('no base found: set one with --base, or define origin/HEAD')
 }
 

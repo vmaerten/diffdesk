@@ -11,7 +11,7 @@ import RefSelector from './RefSelector.tsx'
 import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import { compareTreePaths } from './fileOrder.ts'
-import type { BaseSource, DiffPayload, StackLayer, ViewedMap } from '../../src/types.ts'
+import type { BaseSource, DiffPayload, ViewedMap } from '../../src/types.ts'
 
 /**
  * `CodeViewDiffItem` carries no path; we add one and read it back from our own
@@ -30,6 +30,15 @@ const HEARTBEAT_MS = 5 * 60_000
 
 /** A fetch that never reached anything rejects with a TypeError, not an HTTP status. */
 const NOT_LISTENING = 'ghl is no longer listening — run `ghl` again in that repository'
+
+/** Shorter than the CLI's wording: this is a badge in a topbar, not a report. */
+const BASE_SOURCES: Record<BaseSource, string> = {
+  override: 'given on the command line',
+  remembered: 'remembered',
+  stack: 'from the stack',
+  guessed: 'guessed',
+  trunk: 'trunk',
+}
 
 export default function App() {
   const repoId = useMemo(repoIdFromLocation, [])
@@ -335,33 +344,10 @@ export default function App() {
     [viewed, toggleViewed],
   )
 
-  /**
-   * Look at another layer of the stack.
-   *
-   * Nothing but a change of revision: the base follows on its own, because the
-   * server resolves it from the same chain. Reviewing the branch that is
-   * actually checked out goes through the working tree instead of its ref, or
-   * uncommitted work would silently drop out of the diff.
-   */
-  const pickLayer = useCallback(
-    (layer: StackLayer) => {
-      if (!layer.exists) return
-      pickTarget(layer.branch === data?.head.branch ? null : layer.branch)
-    },
-    [data, pickTarget],
-  )
-
-  const baseSources: Record<BaseSource, string> = {
-    override: 'given on the command line',
-    remembered: 'remembered',
-    stack: 'from the stack',
-    guessed: 'guessed',
-    trunk: 'trunk',
-  }
-  const baseSource = data ? baseSources[data.base.source] : null
+  const baseSource = data ? BASE_SOURCES[data.base.source] : null
 
   const activePath = items[activeIndex]?.path
-  const stack = data?.stack ?? null
+  const stack = data?.base.stack ?? null
 
   return (
     <div className="app">
@@ -466,7 +452,7 @@ export default function App() {
             of its own without any of the controls above it moving. */}
         {stack && (
           <nav className="stack" aria-label="Stack">
-            <span className="stack-trunk">{stack.trunk}</span>
+            <span>{stack.trunk}</span>
             {stack.layers.map((layer, index) => (
               <span
                 key={layer.branch}
@@ -477,7 +463,7 @@ export default function App() {
                 <span className="arrow">→</span>
                 <button
                   type="button"
-                  className="stack-name"
+                  className="ref stack-name"
                   aria-current={index === stack.current ? 'true' : undefined}
                   disabled={!layer.exists}
                   title={
@@ -485,7 +471,11 @@ export default function App() {
                       ? `Review ${layer.branch} against ${layer.base}`
                       : `${layer.branch} is gone from this checkout`
                   }
-                  onClick={() => pickLayer(layer)}
+                  // The checked-out branch goes through the working tree rather
+                  // than its own ref, or uncommitted work drops out of the diff.
+                  onClick={() =>
+                    pickTarget(layer.branch === data?.head.branch ? null : layer.branch)
+                  }
                 >
                   {layer.branch}
                 </button>

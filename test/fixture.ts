@@ -112,8 +112,9 @@ function stackedChain(root: string) {
   git(root, ['add', '-A'])
   git(root, ['commit', '-m', 'layer above a merged one'])
 
-  writeFileSync(
-    join(root, '.git', 'gh-stack'),
+  write(
+    root,
+    '.git/gh-stack',
     JSON.stringify(
       {
         schemaVersion: 1,

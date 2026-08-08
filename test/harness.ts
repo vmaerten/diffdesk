@@ -128,6 +128,43 @@ export const TREE_ROWS = `(() => {
   }
 })()`
 
+/** What the topbar says about the review, as several suites need to read it. */
+export interface TopbarState {
+  base: string | null
+  target: string | null
+  files: string | null
+  notes: string[]
+  /** The stack chain: its trunk, then one entry per layer. Empty without one. */
+  trunk: string | null
+  layers: { name: string; pr: string | null; current: boolean; merged: boolean; gone: boolean }[]
+  search: string
+}
+
+/**
+ * Read the topbar.
+ *
+ * Shared rather than repeated per suite: the selectors and the caret stripping
+ * are markup details, and a change to the header would otherwise have to be
+ * chased through every suite that reads a revision back.
+ */
+export function topbar(page: Page): Promise<TopbarState> {
+  return page.evaluate(`(() => ({
+    base: document.querySelector('.ref.base')?.textContent?.replace('▾', '').trim() ?? null,
+    target: document.querySelector('.ref.target')?.textContent?.replace('▾', '').trim() ?? null,
+    files: document.querySelector('.sidebar-head span')?.textContent?.trim() ?? null,
+    notes: [...document.querySelectorAll('.source')].map((e) => e.textContent.trim()),
+    trunk: document.querySelector('.stack > span')?.textContent?.trim() ?? null,
+    layers: [...document.querySelectorAll('.stack-layer')].map((e) => ({
+      name: e.querySelector('.stack-name')?.textContent?.trim() ?? '',
+      pr: e.querySelector('.stack-pr')?.textContent?.trim() ?? null,
+      current: e.classList.contains('current'),
+      merged: e.classList.contains('merged'),
+      gone: e.querySelector('.stack-name')?.disabled === true,
+    })),
+    search: location.search,
+  }))()`) as Promise<TopbarState>
+}
+
 /**
  * Open a ref picker and wait for the refs themselves.
  *
