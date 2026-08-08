@@ -1,3 +1,7 @@
+import { execFileSync } from 'node:child_process'
+import { rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { allTreeRows, sleep, type Suite } from '../harness.ts'
 
 /**
@@ -75,7 +79,7 @@ const clickButton = (label: string) =>
 
 export default {
   name: 'comments',
-  async run({ page, load }, check) {
+  async run({ page, load, repoPath }, check) {
     const ready = async () => {
       await load()
       await page.waitForSelector('.viewed-toggle input', { timeout: 30_000 })
@@ -306,5 +310,100 @@ export default {
     await ready()
     await sleep(1200)
     check('  for good', (await count('.comment')) === 0)
+
+    // ---- lines that moved --------------------------------------------------
+
+    // Reviewing a ref reads git objects, so editing the checkout would change
+    // nothing: this part works on the working tree, where an edit is the diff.
+    // The tree is left as it was found — the fixture is built once per run.
+    const scratch = join(repoPath, 'stale-probe.ts')
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: repoPath })
+    const original = ['const first = 1', 'const second = 2', 'const third = 3']
+    const stage = (lines: string[]) => {
+      writeFileSync(scratch, lines.join('\n') + '\n')
+      git('add', 'stale-probe.ts')
+    }
+    /** The comment as the server holds it, so the test edits the line it is on. */
+    const servedComment = () =>
+      page.evaluate(`(async () => {
+        const id = location.pathname.match(/^\\/r\\/([^/]+)/)[1]
+        const body = await (await fetch('/r/' + id + '/api/diff' + location.search)).json()
+        return (body.comments || [])[0] || null
+      })()`) as Promise<{ start: number; anchor: string[]; stale: boolean } | null>
+
+    try {
+      stage(original)
+
+      // No target: the working tree of the checkout, which is where the edit lands.
+      await load('')
+      await page.waitForSelector('.viewed-toggle input', { timeout: 30_000 })
+      await sleep(1500)
+
+      const freshCell = (await page.evaluate(GUTTER_CELL)) as { x: number; y: number } | null
+      if (!freshCell) {
+        check('the working tree shows the scratch file', false, 'no gutter found')
+        return
+      }
+      await page.mouse.move(freshCell.x, freshCell.y)
+      await sleep(500)
+      const freshPlus = (await page.evaluate(PLUS_BUTTON)) as { x: number; y: number } | null
+      if (!freshPlus) {
+        check('the working tree offers a "+"', false, 'no button found')
+        return
+      }
+      await page.mouse.click(freshPlus.x, freshPlus.y)
+      await sleep(900)
+      await page.type('.comment-composer textarea', 'this constant needs a name')
+      await page.evaluate(clickButton('Comment'))
+      await sleep(1500)
+      check('a comment on the working tree saves', (await count('.comment')) === 1)
+      check('  and starts out fresh', (await count('.comment.stale')) === 0)
+
+      // Which line the "+" landed on is the library's business, not the test's:
+      // asked rather than assumed, or this edits a line nothing points at and the
+      // check passes for the wrong reason.
+      const before = await servedComment()
+      const at = before?.start ?? 0
+      check(
+        '  anchored on the line the server also reports',
+        at > 0 && before?.anchor[0] === original[at - 1],
+        JSON.stringify(before),
+      )
+      if (at === 0) return
+
+      // That line and only that line: the others are the control.
+      stage(original.map((line, index) => (index === at - 1 ? 'const renamed = 99' : line)))
+      await page.keyboard.press('r')
+      await sleep(2500)
+
+      check('rewriting the commented line flags it', (await count('.comment.stale')) === 1)
+      // With the flag stripped of context, a stale comment is an instruction about
+      // code nobody can point to any more.
+      const wasLine = await page.evaluate(
+        `(document.querySelector('.comment-anchor') || {}).textContent || null`,
+      )
+      check('  showing what the line used to say', wasLine === original[at - 1], String(wasLine))
+      // "Done", not "Delete": lines that moved usually mean the remark was acted
+      // on, so the word matches what the situation means.
+      const label = await page.evaluate(
+        `[...document.querySelectorAll('.comment header button')].map((b) => b.textContent.trim()).join(',')`,
+      )
+      check('  and offers to finish with it', String(label).includes('Done'), String(label))
+
+      // Put the line back: the flag is computed on read, never written, so it
+      // clears on its own rather than needing to be undone.
+      stage(original)
+      await page.keyboard.press('r')
+      await sleep(2500)
+      check('restoring the line clears the flag', (await count('.comment.stale')) === 0)
+      check('  and the comment is still there', (await count('.comment')) === 1)
+
+      await page.evaluate(clickButton('Delete'))
+      await sleep(1200)
+    } finally {
+      // Whatever happened above, the next suite gets the tree it expects.
+      git('reset', '-q')
+      rmSync(scratch, { force: true })
+    }
   },
 } satisfies Suite

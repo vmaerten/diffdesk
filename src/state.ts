@@ -3,7 +3,14 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 import { gitDirPath } from './git.ts'
-import type { Comment, DiffSide, StateRead, StoredState, ViewedMap } from './types.ts'
+import type {
+  Comment,
+  DiffSide,
+  ServedComment,
+  StateRead,
+  StoredState,
+  ViewedMap,
+} from './types.ts'
 
 /** Inside `.git`, so it is never committed and dies with the repository. */
 const statePath = (repoPath: string) => gitDirPath(repoPath, 'ghl/state.json')
@@ -265,4 +272,28 @@ export async function removeComment(repoPath: string, id: string): Promise<Comme
 export function commentsIn(comments: Comment[], paths: Iterable<string>): Comment[] {
   const inDiff = new Set(paths)
   return comments.filter((comment) => inDiff.has(comment.path))
+}
+
+/**
+ * Say, per comment, whether its lines still read as they did.
+ *
+ * Its own lines, not its file: reusing `sectionHashes` would flag every comment
+ * in a file the moment any hunk in it moved, which is the nominal case — an agent
+ * handed four remarks fixes one and leaves three. A signal that always fires is
+ * one nobody reads.
+ *
+ * Filtered on read like `pruneStale`, never written: put the lines back and the
+ * flag clears on its own. And a comment with no anchor is not called stale — it
+ * was never given a reference, so there is nothing to say it drifted from.
+ */
+export function markStale(comments: Comment[], patch: string): ServedComment[] {
+  return comments.map((comment) => {
+    if (comment.anchor.length === 0) return { ...comment, stale: false }
+    const now = linesAt(patch, comment)
+    const stale =
+      now === null ||
+      now.length !== comment.anchor.length ||
+      now.some((line, at) => line !== comment.anchor[at])
+    return { ...comment, stale }
+  })
 }

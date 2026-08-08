@@ -7,6 +7,7 @@ import {
   clearViewed,
   commentsIn,
   linesAt,
+  markStale,
   putComment,
   readState,
   removeComment,
@@ -203,6 +204,87 @@ export async function runState(check: Check): Promise<void> {
       '  without disturbing the viewed state',
       removed.state.viewed['main..HEAD']?.['kept.ts'] === 'k',
       JSON.stringify(removed.state.viewed['main..HEAD']),
+    )
+
+    // ---- staleness ---------------------------------------------------------
+
+    // Two comments in the same file, on lines 11 and 12. This is the case the
+    // feature exists for: an agent is handed both, fixes one, and the other must
+    // not be swept along with it.
+    const onEleven = {
+      ...comment,
+      id: 's1',
+      start: 11,
+      end: 11,
+      anchor: ['  const added = 2'],
+    }
+    const onTwelve = {
+      ...comment,
+      id: 's2',
+      start: 12,
+      end: 12,
+      anchor: ['  const alsoAdded = 3'],
+    }
+
+    const unchanged = markStale([onEleven, onTwelve], PATCH)
+    check(
+      'a comment whose lines still read the same is not stale',
+      unchanged.every((c) => !c.stale),
+      unchanged.map((c) => `${c.id}=${c.stale}`).join(' '),
+    )
+
+    // Line 11 rewritten, line 12 untouched.
+    const oneFixed = PATCH.replace('+  const added = 2', '+  const extracted = two()')
+    const partly = markStale([onEleven, onTwelve], oneFixed)
+    check(
+      'fixing one line stales that comment',
+      partly.find((c) => c.id === 's1')?.stale === true,
+      `s1=${partly.find((c) => c.id === 's1')?.stale}`,
+    )
+    // The whole point. A file-level hash would have flagged this one too, in the
+    // one situation the feature is meant for — so the signal would never mean
+    // anything.
+    check(
+      '  and leaves the one beside it alone',
+      partly.find((c) => c.id === 's2')?.stale === false,
+      `s2=${partly.find((c) => c.id === 's2')?.stale}`,
+    )
+
+    // A hunk elsewhere in the same file: nothing either comment points at moved.
+    const elsewhere = PATCH.replace('   return kept', '   return kept // touched')
+    check(
+      'a change elsewhere in the file stales neither',
+      markStale([onEleven, onTwelve], elsewhere).every((c) => !c.stale),
+      markStale([onEleven, onTwelve], elsewhere)
+        .map((c) => `${c.id}=${c.stale}`)
+        .join(' '),
+    )
+
+    // The lines left the diff altogether — unknown, which is a change.
+    check(
+      'a comment whose lines left the patch is stale',
+      markStale([onEleven], 'diff --git a/other.ts b/other.ts\n')[0]?.stale === true,
+    )
+    // Never captured, so there is no reference to have drifted from: claiming it
+    // changed would be asserting something nobody measured.
+    check(
+      '  but one that never had an anchor is not',
+      markStale([{ ...onEleven, anchor: [] }], oneFixed)[0]?.stale === false,
+    )
+    // A range that shrank counts: same first line, one line short.
+    check(
+      '  and a range that no longer spans as far is',
+      markStale(
+        [{ ...comment, id: 's3', start: 11, end: 12, anchor: ['  const added = 2'] }],
+        PATCH,
+      )[0]?.stale === true,
+    )
+
+    // Read-time only, like pruneStale: put the lines back and the flag clears.
+    check(
+      'staleness is not written to disk',
+      (await readState(repo.path)).state.comments.every((c) => !('stale' in c)),
+      JSON.stringify((await readState(repo.path)).state.comments.map((c) => Object.keys(c).length)),
     )
 
     // ---- linesAt -----------------------------------------------------------

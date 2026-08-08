@@ -28,6 +28,14 @@ export function findChrome(): string {
 
 export interface Harness {
   page: Page
+  /**
+   * The fixture being served.
+   *
+   * Exposed so a suite can change the repository under the UI — the only way to
+   * exercise anything that reacts to the code moving. A suite that dirties it
+   * owes the next one a clean tree, since the fixture is built once per run.
+   */
+  repoPath: string
   /** URL of the served repository, with an optional query string. */
   url: (query?: string) => string
   /** Everything the page logged as an error or threw. */
@@ -90,7 +98,7 @@ export async function withHarness<T>(
         await sleep(2500)
       }
 
-      return { page, url, errors, load }
+      return { page, repoPath, url, errors, load }
     }
 
     return await body(make, browser)

@@ -124,6 +124,17 @@ export interface Comment {
   createdAt: string
 }
 
+/**
+ * As served: whether the lines it was written against still read the same.
+ *
+ * In the nominal case this is a completion signal rather than a warning — an
+ * agent was handed the remark and changed the lines. So it is shown next to what
+ * they used to say, and cleared by hand.
+ */
+export interface ServedComment extends Comment {
+  stale: boolean
+}
+
 /** `.git/ghl/state.json` as written. */
 export interface StoredState {
   version: number
@@ -162,7 +173,7 @@ export interface DiffPayload {
   totals: Totals
   viewed: ViewedMap
   /** Only those on a file this diff contains; the rest are for another diff. */
-  comments: Comment[]
+  comments: ServedComment[]
   /**
    * Something about the stored state the reader should know, or null.
    *
