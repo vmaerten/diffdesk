@@ -1,3 +1,5 @@
+import { availableParallelism } from 'node:os'
+
 import {
   countCommits,
   currentBranch,
@@ -47,12 +49,54 @@ export async function detectTrunk(repoPath: string): Promise<string | null> {
 }
 
 /**
+ * How many refs are scored at once.
+ *
+ * Each one costs two git processes, and the largest repository here carries 501
+ * refs — an unbounded fan-out spawns a thousand of them and the machine spends
+ * longer scheduling than running. Two per core keeps the pipe full while a
+ * process waits on disk.
+ */
+const SCORING_CONCURRENCY = Math.max(4, availableParallelism() * 2)
+
+/**
+ * `task` over every item, `limit` at a time, results in the input's order.
+ *
+ * Order is not incidental: the caller breaks ties by taking the first of equal
+ * scores, so a result array that followed completion order would make the answer
+ * depend on which git process finished first.
+ */
+async function mapWithLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  task: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = Array.from({ length: items.length })
+  const queue = [...items.entries()]
+
+  const worker = async () => {
+    for (;;) {
+      const entry = queue.shift()
+      if (!entry) return
+      const [index, item] = entry
+      results[index] = await task(item)
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
+/**
  * Guess which ref a branch was created from: the one whose merge-base sits
  * closest, since git records no parent.
  *
  * The trunk wins ties, and that rule is load-bearing. Siblings cut from the same
  * commit score exactly like the trunk, and a sibling is not a parent — without
  * it, `adessi/pren-322-input` resolves to an unrelated branch.
+ *
+ * Scoring a ref is two git processes and this is the most expensive thing the
+ * server does, so the refs are scored concurrently — sequentially it measured
+ * 1.8 s on a 125-ref repository, which is the whole wait before a diff appears.
  */
 export async function guessParent(
   repoPath: string,
@@ -63,26 +107,27 @@ export async function guessParent(
   // base of whatever branch happened to be checked out.
   const headRev = await revParse(repoPath, head)
   if (!headRev) return null
-  const refs = await listRefs(repoPath)
+  const refs = (await listRefs(repoPath)).filter((ref) => ref !== head)
+
+  const scores = await mapWithLimit(refs, SCORING_CONCURRENCY, async (ref) => {
+    const base = await mergeBase(repoPath, headRev, ref)
+    // No common ancestor, or it descends from HEAD — either way, not a parent.
+    if (!base || base === headRev) return null
+
+    const distance = await countCommits(repoPath, base, headRev)
+    return distance === 0 ? null : { ref, distance }
+  })
 
   let best: string | null = null
   let bestDistance = Number.POSITIVE_INFINITY
   let trunkDistance: number | null = null
 
-  for (const ref of refs) {
-    if (ref === head) continue
-
-    const base = await mergeBase(repoPath, headRev, ref)
-    if (!base) continue
-    if (base === headRev) continue // descends from HEAD, so not its parent
-
-    const distance = await countCommits(repoPath, base, headRev)
-    if (distance === 0) continue
-
-    if (ref === trunk) trunkDistance = distance
-    if (distance < bestDistance) {
-      bestDistance = distance
-      best = ref
+  for (const scored of scores) {
+    if (!scored) continue
+    if (scored.ref === trunk) trunkDistance = scored.distance
+    if (scored.distance < bestDistance) {
+      bestDistance = scored.distance
+      best = scored.ref
     }
   }
 
