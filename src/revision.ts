@@ -244,6 +244,12 @@ const sum = (files: FileStat[]): Totals =>
 /**
  * The "virtual PR": everything not in the base, committed or not.
  *
+ * `committed` stops the diff at HEAD, for reading the branch as its pull request
+ * will show it. It is an option here rather than a target the caller passes,
+ * because `resolveBase` reads `target` as a *branch name* — handing it `HEAD`
+ * would look up `branch.HEAD.ghlBase` and lose both the remembered base and the
+ * stack chain, without an error.
+ *
  * Untracked files are listed but kept out of the patch by default. One repo here
  * has 2 modified files against 446 untracked ones — real, unignored, and enough
  * to drown the diff. Callers opt in with `includeUntracked`.
@@ -251,9 +257,15 @@ const sum = (files: FileStat[]): Totals =>
 export async function buildPatch(
   repoPath: string,
   base: string,
-  { target, includeUntracked = false }: { target?: string | null; includeUntracked?: boolean } = {},
+  {
+    target,
+    committed = false,
+    includeUntracked = false,
+  }: { target?: string | null; committed?: boolean; includeUntracked?: boolean } = {},
 ): Promise<PatchResult> {
-  const range: DiffRange = { kind: 'merge-base', base, target }
+  // `target` names the revision under review; this names the tip of the diff.
+  const tip = target ?? (committed ? 'HEAD' : null)
+  const range: DiffRange = { kind: 'merge-base', base, target: tip }
   // Four readings of the same range, none of which needs the others: the patch,
   // the counts git reports rather than the ones the patch implies, the statuses,
   // and what git does not track at all.
@@ -261,8 +273,9 @@ export async function buildPatch(
     diffPatch(repoPath, range),
     numstat(repoPath, range),
     nameStatus(repoPath, range),
-    // Uncommitted work belongs to the checkout, not to some other ref.
-    target ? [] : untrackedPaths(repoPath),
+    // Uncommitted work belongs to the checkout, not to some other ref — and not
+    // to a reading that stops at HEAD either.
+    tip ? [] : untrackedPaths(repoPath),
   ])
 
   const files = describe(counts, statuses)
