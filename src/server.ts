@@ -159,10 +159,13 @@ const readBody = (req: IncomingMessage): Promise<string> =>
 async function resolveRequest(repoPath: string, entry: RepoEntry, url: URL) {
   const override = url.searchParams.get('base') ?? entry.baseOverride
   const target = url.searchParams.get('target') ?? entry.target ?? null
-  // No registry fallback, deliberately: a commit is picked and dropped a dozen
-  // times a session, and an opening value would answer again the moment the UI
-  // went back to the whole range.
+  // No registry fallback for either of these, deliberately: they are picked and
+  // dropped a dozen times a session, and an opening value would answer again the
+  // moment the UI went back to the default — which is #55.
   const commitRef = url.searchParams.get('commit')
+  // `has`, not `get`: written bare as `?committed`, `get` returns the empty
+  // string, which is falsy, and the flag would be inert without saying so.
+  const committed = url.searchParams.has('committed')
 
   const [base, commit] = await Promise.all([
     resolveBase(repoPath, { override, target }),
@@ -174,10 +177,11 @@ async function resolveRequest(repoPath: string, entry: RepoEntry, url: URL) {
       ? buildCommitPatch(repoPath, commit.sha)
       : buildPatch(repoPath, base.ref, {
           target,
+          committed,
           includeUntracked: entry.includeUntracked ?? false,
         })
 
-  return { base, target, commitRef, commit, build }
+  return { base, target, commitRef, commit, committed, build }
 }
 
 /**
@@ -270,7 +274,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
       const { repoPath } = entry
 
       if (route === 'api/diff' && req.method === 'GET') {
-        const { base, target, commitRef, commit, build } = await resolveRequest(
+        const { base, target, commitRef, commit, committed, build } = await resolveRequest(
           repoPath,
           entry,
           url,
@@ -308,7 +312,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           head: { branch, sha },
           // A commit holds no working tree either, and the field means "the
           // uncommitted work is in this diff".
-          target: { ref: reviewing, workingTree: !target && !commit },
+          target: { ref: reviewing, workingTree: !target && !commit && !committed },
           commit,
           range,
           state,

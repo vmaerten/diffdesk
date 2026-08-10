@@ -322,6 +322,12 @@ threshold mean "no tab" rather than "no click".
   the same sha twice, which double-counts on the way through a parser. What holds is an
   ordinary two-point diff against `sha^1`, or against the empty tree
   `4b825dc642cb6eb9a060e54bf8d69288fbee4904` when there is no parent.
+- **`target` means two things.** The revision under review — which `resolveBase` reads as a
+  *branch name*, to find `branch.<name>.ghlBase` and the `gh stack` chain — and the tip of
+  the diff. They coincide until something wants the diff to stop at HEAD while the review is
+  still about a branch. Reaching for `target: 'HEAD'` there looks up `branch.HEAD.ghlBase`,
+  finds nothing, and loses both the remembered base and the chain without an error. Hence
+  `buildPatch`'s `committed` option: the substitution lives where no base resolution sees it.
 - **`git log --shortstat` says nothing about a merge.** No stat line is emitted, so the
   record is short, not absent — and an empty commit produces the same silence. Parsers that
   split records on the blank line drift from the first merge onwards; scanning for the
