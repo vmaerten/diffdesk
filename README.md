@@ -114,6 +114,16 @@ already is. That runs against the checkout, not the installed copy.
 `ghl` with no argument shows **everything that is not in the base**, committed or not:
 the diff from `merge-base(base, HEAD)` down to the working tree.
 
+The **Working tree** button in the topbar takes that last part back out. Released, the diff
+stops at HEAD — the branch as its pull request will show it, without checking anything else
+out. Staged and unstaged go together, since both are uncommitted, and the untracked files
+leave with them whatever `--untracked` says. The button is disabled while a ref or a single
+commit is under review: there is no working tree in either, and both already say so.
+
+The state lives in the URL and nowhere else. A remembered preference would answer over what
+you last chose in the page, which is the one thing this tool must never do about what a diff
+contains.
+
 ## How the base is chosen
 
 Git records no parent for a branch, so `ghl` resolves one, most trustworthy source first:
@@ -156,7 +166,7 @@ Each layer keeps its own viewed ticks, since those are keyed by the revision ran
 ```bash
 pnpm test            # all of them
 pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename, order,
-                     # stack, commits
+                     # stack, commits, worktree
 pnpm test lifecycle  # the shared process, without starting a browser
 ```
 
@@ -165,9 +175,9 @@ build taking over, two starts racing for the port, the idle stop, the Host allow
 runs against a copy of `bin/` and `src/` in a temp directory, on a port picked free at the
 last moment, so it never fights the `ghl` you have running on 7777.
 
-`state`, `refs` and `commits` need no browser either, and build their own repositories:
-what they ask has no answer in the shared fixture — a remote, a merge, a root commit, which
-no base can bring into range.
+`state`, `refs`, `commits` and `worktree` need no browser either, and build their own
+repositories: what they ask has no answer in the shared fixture — a remote, a merge, a root
+commit which no base can bring into range, a checkout dirty in three different ways.
 
 The rest drive a headless Chrome over the real UI — `CHROME_PATH` overrides where it
 is found. Each run builds a throwaway git repository in a temp directory with a
