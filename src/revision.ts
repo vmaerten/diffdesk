@@ -4,7 +4,7 @@ import {
   countCommits,
   currentBranch,
   diffFromMergeBase,
-  listRefs,
+  localBranches,
   mergeBase,
   nameStatus,
   numstat,
@@ -19,15 +19,17 @@ import {
 import { readStack } from './stack.ts'
 import type { BaseResolution, FileStat, PatchResult, Totals } from './types.ts'
 
-// Remote first: it is the shared truth. Local names cover repositories with no
-// remote at all, of which there are two here.
+// Local first: it is the name the pickers offer, and a base that cannot be
+// picked back is one the UI shows without being able to explain. The remote
+// names are the last resort — a clone where the default branch was never
+// checked out has nothing local to point at.
 const TRUNK_FALLBACKS = [
-  'origin/main',
-  'origin/master',
-  'origin/develop',
   'main',
   'master',
   'develop',
+  'origin/main',
+  'origin/master',
+  'origin/develop',
 ]
 
 const baseConfigKey = (branch: string) => `branch.${branch}.ghlBase`
@@ -35,26 +37,30 @@ const baseConfigKey = (branch: string) => `branch.${branch}.ghlBase`
 /**
  * The repository's trunk.
  *
- * `origin/HEAD` is authoritative but absent on 22 of the 86 repositories
- * measured here; hardcoding "main" would be wrong on 29 of them.
+ * `origin/HEAD` says which branch is the default one and is authoritative on
+ * that, but it is absent on 22 of the 86 repositories measured here; hardcoding
+ * "main" would be wrong on 29 of them. What it names, we take locally: it is the
+ * same branch, under the name the pickers offer.
  */
 export async function detectTrunk(repoPath: string): Promise<string | null> {
   const fromOriginHead = await originHead(repoPath)
-  if (fromOriginHead && (await revExists(repoPath, fromOriginHead))) return fromOriginHead
+  const candidates = fromOriginHead
+    ? [fromOriginHead.replace(/^origin\//, ''), fromOriginHead, ...TRUNK_FALLBACKS]
+    : TRUNK_FALLBACKS
 
-  for (const candidate of TRUNK_FALLBACKS) {
+  for (const candidate of candidates) {
     if (await revExists(repoPath, candidate)) return candidate
   }
   return null
 }
 
 /**
- * How many refs are scored at once.
+ * How many branches are scored at once.
  *
- * Each one costs two git processes, and the largest repository here carries 501
- * refs — an unbounded fan-out spawns a thousand of them and the machine spends
- * longer scheduling than running. Two per core keeps the pipe full while a
- * process waits on disk.
+ * Each one costs two git processes, and a long-lived checkout accumulates
+ * enough branches that an unbounded fan-out spawns hundreds of them, leaving the
+ * machine longer scheduling than running. Two per core keeps the pipe full while
+ * a process waits on disk.
  */
 const SCORING_CONCURRENCY = Math.max(4, availableParallelism() * 2)
 
@@ -107,7 +113,7 @@ export async function guessParent(
   // base of whatever branch happened to be checked out.
   const headRev = await revParse(repoPath, head)
   if (!headRev) return null
-  const refs = (await listRefs(repoPath)).filter((ref) => ref !== head)
+  const refs = [...(await localBranches(repoPath))].filter((ref) => ref !== head)
 
   const scores = await mapWithLimit(refs, SCORING_CONCURRENCY, async (ref) => {
     const base = await mergeBase(repoPath, headRev, ref)

@@ -1,6 +1,7 @@
 import { createFixture } from './fixture.ts'
 import { withHarness, type Check, type Suite } from './harness.ts'
 import { runLifecycle } from './lifecycle.ts'
+import { runRefs } from './refs.ts'
 import { runState } from './state.ts'
 
 import tree from './suites/tree.ts'
@@ -22,6 +23,7 @@ const SUITES: Suite[] = [tree, resize, viewed, comments, pickers, scroll, rename
  */
 const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'state', run: runState },
+  { name: 'refs', run: runRefs },
   { name: 'lifecycle', run: runLifecycle },
 ]
 

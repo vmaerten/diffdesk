@@ -97,7 +97,7 @@ ghl (node bin, one-shot)
  │
  ├── revision resolution
  │     base   : branch.<name>.ghlBase → gh stack chain → heuristic → origin/HEAD
- │              → main|master|develop
+ │              (taken locally) → main|master|develop
  │     target : working tree by default, or any ref (?target=)
  │              the base is guessed FOR the target, not for the checkout
  │
@@ -150,10 +150,11 @@ Most trustworthy source first:
    to HEAD. **The trunk wins ties** — two sibling branches cut from the same commit produce
    the same distance as the trunk, and a sibling is not a parent. Verified on a fixture
    where `sister-c` shares `feature-a`'s fork point and still resolves to the trunk.
-4. `origin/HEAD` — present on 64 of 86 repositories.
-5. First existing among `origin/main`, `origin/master`, `origin/develop`, then the local
-   `main`, `master`, `develop` (57 / 5 / 2 repos; hardcoding `main` would fail on 29, and
-   some repos such as mrev and fuel-tracker have no remote at all).
+4. `origin/HEAD` — present on 64 of 86 repositories — taken under its local name, so the
+   base is one the picker can offer back.
+5. First existing among the local `main`, `master`, `develop`, then `origin/main`,
+   `origin/master`, `origin/develop` (57 / 5 / 2 repos; hardcoding `main` would fail on 29,
+   and the remote names still cover a clone whose default branch was never checked out).
 
 Short-circuit: when HEAD *is* the trunk, guess nothing.
 
@@ -263,8 +264,9 @@ threshold mean "no tab" rather than "no click".
    single-child directory chains collapsed into one row, `j`/`k` to move between files,
    click to jump, `r` to refresh. Verified on a 107-file PR.
 5. **Base picker.** ✅ Combobox anchored under the base button (`b` or click), searchable,
-   refs ordered by commit date — Prebid.js carries 501 of them, so a plain list was never
-   an option. Picking writes the choice to `.git/config` and reloads the diff.
+   local branches ordered by commit date — a plain list was never an option, and
+   `origin/<name>` is the same branch under another name, so it is left out. Picking writes
+   the choice to `.git/config` and reloads the diff.
 6. **Reviewable target.** ✅ Any ref can be reviewed without checking it out, from the CLI
    (`ghl <ref>`), the `t` picker or `?target=`. Uncommitted work is excluded then, since it
    belongs to the working tree.
