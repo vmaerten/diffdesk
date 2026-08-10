@@ -131,7 +131,8 @@ Git records no parent for a branch, so `ghl` resolves one, most trustworthy sour
 1. `branch.<name>.ghlBase` in `.git/config` — your remembered choice
 2. the `gh stack` chain, when the branch is part of one — not a guess, it is written down
 3. the stacked-branch heuristic — the ref whose merge-base is closest to HEAD, the trunk
-   winning ties (a sibling branch is not a parent)
+   winning ties (a sibling branch is not a parent), including the tie a branch with no
+   commits of its own makes with it
 4. `origin/HEAD`, under its local name
 5. the first existing of `main`, `master`, `develop`, then their `origin/` counterparts
 
