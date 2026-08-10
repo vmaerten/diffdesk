@@ -109,6 +109,10 @@ export default function App() {
   const [commit, setCommit] = useState<string | null>(() =>
     new URLSearchParams(location.search).get('commit'),
   )
+  /** True while the diff stops at HEAD, leaving uncommitted work out. */
+  const [committed, setCommitted] = useState(() =>
+    new URLSearchParams(location.search).has('committed'),
+  )
   const viewRef = useRef<CodeViewHandle<undefined>>(null)
   /** Folding and revealing live inside the tree, which owns that state. */
   const treeRef = useRef<FileTreeHandle>(null)
@@ -125,8 +129,9 @@ export default function App() {
     const params = new URLSearchParams()
     if (target) params.set('target', target)
     if (commit) params.set('commit', commit)
+    if (committed) params.set('committed', '1')
     return params.size > 0 ? `?${params}` : ''
-  }, [target, commit])
+  }, [target, commit, committed])
 
   /**
    * The single refresh path.
@@ -198,6 +203,17 @@ export default function App() {
     url.searchParams.delete('commit')
     setCommit(null)
     history.replaceState(null, '', url)
+  }, [])
+
+  /** Take the uncommitted work out of the diff, or put it back. */
+  const toggleCommitted = useCallback(() => {
+    setCommitted((on) => {
+      const url = new URL(location.href)
+      if (on) url.searchParams.delete('committed')
+      else url.searchParams.set('committed', '1')
+      history.replaceState(null, '', url)
+      return !on
+    })
   }, [])
 
   /** Narrow to one commit, or back to the whole range. Also kept in the URL. */
@@ -823,13 +839,33 @@ export default function App() {
             )}
           </span>
 
+          {/* A state, not a command, so it lives with the revision controls
+              rather than beside Refresh: it changes what the diff contains. */}
+          <span className="toggle">
+            <button
+              type="button"
+              // The server's answer, not this button's own state: in a commit or
+              // a ref view the working tree is out whatever the flag says, and a
+              // pressed button there would claim the opposite.
+              aria-pressed={data?.target.workingTree ?? !committed}
+              onClick={toggleCommitted}
+              // Already out of the diff there, and both cases say so themselves.
+              disabled={!data || target !== null || commit !== null}
+              title="Include the uncommitted work, staged or not"
+            >
+              Working tree
+            </button>
+          </span>
+
           {baseSource && <span className="source">base {baseSource}</span>}
           {data?.commit ? (
             <span className="source">one commit — the base is not compared</span>
           ) : (
             data &&
             !data.target.workingTree && (
-              <span className="source">reviewing a ref, working tree excluded</span>
+              <span className="source">
+                {target ? 'reviewing a ref, working tree excluded' : 'working tree excluded'}
+              </span>
             )
           )}
         </div>
@@ -941,6 +977,13 @@ export default function App() {
           {data.commit ? (
             <>
               Nothing to show — <code>{data.commit.short}</code> changes no file.
+            </>
+          ) : committed ? (
+            // Not "matches the base": the work may well be there, uncommitted,
+            // and it is this button that is hiding it.
+            <>
+              Nothing to show — nothing is committed above <code>{data.base.ref}</code>, and the
+              working tree is excluded.
             </>
           ) : (
             <>
