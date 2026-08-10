@@ -51,7 +51,7 @@ export async function runWorktree(check: Check): Promise<void> {
     const paths = async (committed: boolean) =>
       (await buildPatch(repo.path, 'main', { committed, includeUntracked: true })).files
         .map((f) => f.path)
-        .sort()
+        .toSorted()
 
     const included = await paths(false)
     check(
