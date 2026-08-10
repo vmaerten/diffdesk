@@ -155,7 +155,8 @@ Each layer keeps its own viewed ticks, since those are keyed by the revision ran
 
 ```bash
 pnpm test            # all of them
-pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename, order, stack
+pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename, order,
+                     # stack, commits
 pnpm test lifecycle  # the shared process, without starting a browser
 ```
 
@@ -163,6 +164,10 @@ pnpm test lifecycle  # the shared process, without starting a browser
 build taking over, two starts racing for the port, the idle stop, the Host allowlist. It
 runs against a copy of `bin/` and `src/` in a temp directory, on a port picked free at the
 last moment, so it never fights the `ghl` you have running on 7777.
+
+`state`, `refs` and `commits` need no browser either, and build their own repositories:
+what they ask has no answer in the shared fixture — a remote, a merge, a root commit, which
+no base can bring into range.
 
 The rest drive a headless Chrome over the real UI — `CHROME_PATH` overrides where it
 is found. Each run builds a throwaway git repository in a temp directory with a

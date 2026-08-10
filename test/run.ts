@@ -1,5 +1,6 @@
 import { createFixture } from './fixture.ts'
 import { withHarness, type Check, type Suite } from './harness.ts'
+import { runCommits } from './commits.ts'
 import { runLifecycle } from './lifecycle.ts'
 import { runRefs } from './refs.ts'
 import { runState } from './state.ts'
@@ -13,8 +14,20 @@ import scroll from './suites/scroll.ts'
 import rename from './suites/rename.ts'
 import order from './suites/order.ts'
 import stack from './suites/stack.ts'
+import commits from './suites/commits.ts'
 
-const SUITES: Suite[] = [tree, resize, viewed, comments, pickers, scroll, rename, order, stack]
+const SUITES: Suite[] = [
+  tree,
+  resize,
+  viewed,
+  comments,
+  pickers,
+  scroll,
+  rename,
+  order,
+  stack,
+  commits,
+]
 
 /**
  * Suites that need no browser: one drives real CLI processes, the other calls
@@ -24,6 +37,7 @@ const SUITES: Suite[] = [tree, resize, viewed, comments, pickers, scroll, rename
 const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'state', run: runState },
   { name: 'refs', run: runRefs },
+  { name: 'commits', run: runCommits },
   { name: 'lifecycle', run: runLifecycle },
 ]
 

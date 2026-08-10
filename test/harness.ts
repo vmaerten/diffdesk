@@ -174,18 +174,18 @@ export function topbar(page: Page): Promise<TopbarState> {
 }
 
 /**
- * Open a ref picker and wait for the refs themselves.
+ * Open a picker and wait for what it is listing, not merely for a row.
  *
- * Waiting on `.picker-item` is not enough: the target picker renders its
- * "this checkout" entry immediately, while the refs are still being fetched. A
- * suite that typed into that gap selected the working tree whatever it typed,
- * and then asserted against the wrong revision.
+ * Waiting on `.picker-item` is not enough: both pickers render one entry
+ * immediately — "this checkout", "All commits" — while the list itself is still
+ * being fetched. A suite that typed into that gap selected the standing entry
+ * whatever it typed, and then asserted against the wrong revision.
  */
-export async function openPicker(page: Page, key: 'b' | 't'): Promise<void> {
+export async function openPicker(page: Page, key: 'b' | 't' | 'l'): Promise<void> {
   await page.keyboard.press(key)
   await page.waitForSelector('.picker-input', { timeout: 15_000 })
   await page.waitForFunction(
-    `!document.querySelector('.picker-list')?.textContent?.includes('Loading refs')`,
+    `!/Loading (refs|commits)/.test(document.querySelector('.picker-list')?.textContent ?? '')`,
     { timeout: 15_000 },
   )
   await page.waitForSelector('.picker-item', { timeout: 15_000 })
