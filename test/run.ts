@@ -3,6 +3,7 @@ import { withHarness, type Check, type Suite } from './harness.ts'
 import { runCommits } from './commits.ts'
 import { runLifecycle } from './lifecycle.ts'
 import { runRefs } from './refs.ts'
+import { runWorktree } from './worktree.ts'
 import { runState } from './state.ts'
 
 import tree from './suites/tree.ts'
@@ -15,6 +16,7 @@ import rename from './suites/rename.ts'
 import order from './suites/order.ts'
 import stack from './suites/stack.ts'
 import commits from './suites/commits.ts'
+import worktree from './suites/worktree.ts'
 
 const SUITES: Suite[] = [
   tree,
@@ -27,6 +29,7 @@ const SUITES: Suite[] = [
   order,
   stack,
   commits,
+  worktree,
 ]
 
 /**
@@ -38,6 +41,7 @@ const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'state', run: runState },
   { name: 'refs', run: runRefs },
   { name: 'commits', run: runCommits },
+  { name: 'worktree', run: runWorktree },
   { name: 'lifecycle', run: runLifecycle },
 ]
 
