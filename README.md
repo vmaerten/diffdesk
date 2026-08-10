@@ -14,6 +14,7 @@ but pushing it just to look at it is not worth the trip.
 | `c` | comment the selected lines |
 | `b` | change the base |
 | `t` | change the revision under review |
+| `l` | show one commit, or all of them |
 | `r` | refresh the diff |
 
 The file tree shows an icon per file type, colours each row by its git status (added,
@@ -43,6 +44,17 @@ Each remark comes with the lines it points at **as they read now**, because a pa
 number alone go stale between taking the export and acting on it — but not the surrounding hunk,
 which is what `git diff` is for. There is no "apply these" preamble: that is the prompt of
 whoever pastes it.
+
+Press `l` to read the branch one commit at a time. The picker lists what the range holds,
+newest first, and picking one shows that commit's **own** diff — what `git show` shows, not
+everything since the base. The base stays on screen because it decides which commits are
+offered, but it does not enter the patch. Merges are listed too, badged, and read against
+their first parent. A sha that no longer resolves — rebased away, amended — falls back to
+the whole range and says so, rather than showing the branch under a commit's name.
+
+Ticks are keyed on the commit, so a file read there is not counted as read of the branch.
+And since a commit's diff cannot change, a tick set on one never clears itself — unlike the
+branch view, where the next commit unticks the file it touched.
 
 A viewed file folds shut and is ticked in the tree, as on GitHub — it keeps its place in the
 list, so marking one never moves you, and clicking any row takes you to that file whether it
@@ -143,7 +155,8 @@ Each layer keeps its own viewed ticks, since those are keyed by the revision ran
 
 ```bash
 pnpm test            # all of them
-pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename, order, stack
+pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename, order,
+                     # stack, commits
 pnpm test lifecycle  # the shared process, without starting a browser
 ```
 
@@ -151,6 +164,10 @@ pnpm test lifecycle  # the shared process, without starting a browser
 build taking over, two starts racing for the port, the idle stop, the Host allowlist. It
 runs against a copy of `bin/` and `src/` in a temp directory, on a port picked free at the
 last moment, so it never fights the `ghl` you have running on 7777.
+
+`state`, `refs` and `commits` need no browser either, and build their own repositories:
+what they ask has no answer in the shared fixture — a remote, a merge, a root commit, which
+no base can bring into range.
 
 The rest drive a headless Chrome over the real UI — `CHROME_PATH` overrides where it
 is found. Each run builds a throwaway git repository in a temp directory with a

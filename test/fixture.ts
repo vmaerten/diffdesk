@@ -59,15 +59,29 @@ function baseTree(root: string) {
   }
 }
 
-/** What the branch under review changes, one of each status git can report. */
+/**
+ * What the branch under review changes, one of each status git can report,
+ * written as three commits.
+ *
+ * Three rather than one so the commit picker has something to list. The split
+ * is free to the other suites by construction: the tree at the tip is the same,
+ * so `base..feature` is the same diff, down to the section hashes `viewed`
+ * asserts on. Adding a branch instead would enter the world the pickers see.
+ */
 function featureChanges(root: string) {
   // modified
   write(root, 'src/core/engine.ts', lines(70, 'engine'))
   write(root, 'src/core/parser.ts', lines(40, 'parser'))
   write(root, 'src/util/deep/nested/tool.ts', lines(26, 'tool'))
+  git(root, ['add', '-A'])
+  git(root, ['commit', '-m', 'widen the core'])
+
   for (let i = 0; i < 45; i++) {
     write(root, `web/components/Widget${i}.tsx`, lines(28, `widget${i}`))
   }
+  git(root, ['add', '-A'])
+  git(root, ['commit', '-m', 'grow the widgets'])
+
   // added
   write(root, 'src/core/cache.ts', lines(35, 'cache'))
   write(root, 'web/components/NewPanel.tsx', lines(50, 'panel'))
@@ -197,7 +211,7 @@ export function createFixture(): Fixture {
   git(path, ['mv', 'legacy.jsx', 'src/legacy.tsx'])
   write(path, 'src/legacy.tsx', lines(46, 'legacy'))
   git(path, ['add', '-A'])
-  git(path, ['commit', '-m', 'feature work'])
+  git(path, ['commit', '-m', 'move things around'])
 
   // A second branch, so the pickers have something else to offer and switching
   // the reviewed revision actually changes the file list.

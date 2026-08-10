@@ -12,6 +12,7 @@ import {
 import { CodeView, useStableCallback, type CodeViewHandle } from '@pierre/diffs/react'
 
 import RefSelector from './RefSelector.tsx'
+import CommitSelector from './CommitSelector.tsx'
 import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import CommentThread, { type Composer, type SaveState } from './CommentThread.tsx'
@@ -82,7 +83,7 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false)
   /** path -> hash of the diff section that was marked as read. */
   const [viewed, setViewedState] = useState<ViewedMap>({})
-  const [picking, setPicking] = useState<'base' | 'target' | null>(null)
+  const [picking, setPicking] = useState<'base' | 'target' | 'commit' | null>(null)
   const [comments, setComments] = useState<ServedComment[]>([])
   const [composer, setComposer] = useState<Composer | null>(null)
   /** Momentary, so the button can say the clipboard actually took it. */
@@ -104,11 +105,28 @@ export default function App() {
   const [target, setTarget] = useState<string | null>(() =>
     new URLSearchParams(location.search).get('target'),
   )
+  /** One commit of that range, or null for all of them. */
+  const [commit, setCommit] = useState<string | null>(() =>
+    new URLSearchParams(location.search).get('commit'),
+  )
   const viewRef = useRef<CodeViewHandle<undefined>>(null)
   /** Folding and revealing live inside the tree, which owns that state. */
   const treeRef = useRef<FileTreeHandle>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [sidebarWidth, setSidebarWidth] = useState(storedWidth)
+
+  /**
+   * What the server needs to build the diff this page is showing.
+   *
+   * One string for every call that has to agree with the view — the read, and
+   * the comment write whose anchor is cut from the same patch.
+   */
+  const query = useMemo(() => {
+    const params = new URLSearchParams()
+    if (target) params.set('target', target)
+    if (commit) params.set('commit', commit)
+    return params.size > 0 ? `?${params}` : ''
+  }, [target, commit])
 
   /**
    * The single refresh path.
@@ -123,7 +141,6 @@ export default function App() {
     }
     setRefreshing(true)
     try {
-      const query = target ? `?target=${encodeURIComponent(target)}` : ''
       const response = await fetch(`/r/${repoId}/api/diff${query}`)
       const body: DiffPayload & { error?: string } = await response.json()
       if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
@@ -144,7 +161,7 @@ export default function App() {
     } finally {
       setRefreshing(false)
     }
-  }, [repoId, target])
+  }, [repoId, query])
 
   useEffect(() => {
     refresh()
@@ -177,6 +194,19 @@ export default function App() {
     const url = new URL(location.href)
     if (ref) url.searchParams.set('target', ref)
     else url.searchParams.delete('target')
+    // Another revision is another history: the commit belonged to the old one.
+    url.searchParams.delete('commit')
+    setCommit(null)
+    history.replaceState(null, '', url)
+  }, [])
+
+  /** Narrow to one commit, or back to the whole range. Also kept in the URL. */
+  const pickCommit = useCallback((sha: string | null) => {
+    setPicking(null)
+    setCommit(sha)
+    const url = new URL(location.href)
+    if (sha) url.searchParams.set('commit', sha)
+    else url.searchParams.delete('commit')
     history.replaceState(null, '', url)
   }, [])
 
@@ -189,7 +219,12 @@ export default function App() {
    */
   const allItems = useMemo((): DiffItem[] => {
     if (!data?.patch) return []
-    return parsePatchFiles(data.patch, `${repoId}-${data.head.sha}`)
+    // The range is in the key, not only the head sha: the library caches
+    // highlighting under it and warns that content changing under one key is
+    // the caller's problem. Two views of the same checkout share a head sha —
+    // the branch and one of its commits — and the second was served rows
+    // highlighted for the first.
+    return parsePatchFiles(data.patch, `${repoId}-${data.head.sha}-${data.range}`)
       .flatMap((patch) => patch.files ?? [])
       .map((fileDiff, index) => ({
         id: fileDiff.cacheKey ?? `file-${index}`,
@@ -373,9 +408,8 @@ export default function App() {
     pendingRef.current.set(comment.id, comment)
     setSaving((current) => new Map(current).set(comment.id, 'saving'))
     try {
-      // The target travels with the write, as it does with the read: the server
-      // rebuilds the patch to cut the anchor, and it has to be the same patch.
-      const query = target ? `?target=${encodeURIComponent(target)}` : ''
+      // The same query as the read: the server rebuilds the patch to cut the
+      // anchor, and it has to be the patch this remark was written on.
       const response = await fetch(`/r/${repoId}/api/comments${query}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -558,6 +592,8 @@ export default function App() {
 
       if (event.key === 'b') setPicking('base')
       else if (event.key === 't') setPicking('target')
+      // `l` for log, which is what the list is. `c` is the comment key.
+      else if (event.key === 'l') setPicking('commit')
       else if (event.key === 'j') goTo(activeIndex + 1)
       else if (event.key === 'k') goTo(activeIndex - 1)
       else if (event.key === 'r' || event.key === 'R') refresh()
@@ -760,9 +796,41 @@ export default function App() {
             )}
           </span>
 
+          {/* Beside the chain, not a third link in it: `main → feature → abc1234`
+              reads as "from main up to that commit", which is the cumulative
+              diff. This one is the commit's own. */}
+          <span className="base-anchor">
+            <button
+              type="button"
+              className="ref commit"
+              onClick={() => setPicking((p) => (p === 'commit' ? null : 'commit'))}
+              title="Show one commit (l)"
+              aria-expanded={picking === 'commit'}
+              disabled={!data}
+            >
+              {data?.commit ? `${data.commit.short} ${data.commit.subject}` : 'All commits'}{' '}
+              <span className="caret">▾</span>
+            </button>
+
+            {picking === 'commit' && data && (
+              <CommitSelector
+                repoId={repoId}
+                target={target}
+                current={data.commit}
+                onPick={pickCommit}
+                onClose={() => setPicking(null)}
+              />
+            )}
+          </span>
+
           {baseSource && <span className="source">base {baseSource}</span>}
-          {data && !data.target.workingTree && (
-            <span className="source">reviewing a ref, working tree excluded</span>
+          {data?.commit ? (
+            <span className="source">one commit — the base is not compared</span>
+          ) : (
+            data &&
+            !data.target.workingTree && (
+              <span className="source">reviewing a ref, working tree excluded</span>
+            )
           )}
         </div>
 
@@ -776,7 +844,7 @@ export default function App() {
         <span className="spacer" />
 
         <span className="hint">
-          <kbd>b</kbd> base · <kbd>j</kbd>
+          <kbd>b</kbd> base · <kbd>l</kbd> commit · <kbd>j</kbd>
           <kbd>k</kbd> files · <kbd>v</kbd> viewed · <kbd>c</kbd> comment · <kbd>r</kbd> refresh
         </span>
 
@@ -870,7 +938,16 @@ export default function App() {
 
       {!error && data && allItems.length === 0 && (
         <p className="message">
-          Nothing to show — <code>{data.head.branch}</code> matches <code>{data.base.ref}</code>.
+          {data.commit ? (
+            <>
+              Nothing to show — <code>{data.commit.short}</code> changes no file.
+            </>
+          ) : (
+            <>
+              Nothing to show — <code>{data.head.branch}</code> matches <code>{data.base.ref}</code>
+              .
+            </>
+          )}
         </p>
       )}
 

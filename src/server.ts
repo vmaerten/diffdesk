@@ -4,8 +4,23 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { basename, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { currentBranch, headSha, listRefDetails, repoState, resolveRepoRoot } from './git.ts'
-import { buildPatch, detectTrunk, rangeKey, rememberBase, resolveBase } from './revision.ts'
+import {
+  commitDetail,
+  currentBranch,
+  headSha,
+  listCommits,
+  listRefDetails,
+  repoState,
+  resolveRepoRoot,
+} from './git.ts'
+import {
+  buildCommitPatch,
+  buildPatch,
+  detectTrunk,
+  rangeKey,
+  rememberBase,
+  resolveBase,
+} from './revision.ts'
 import {
   clearViewed,
   commentsIn,
@@ -18,7 +33,7 @@ import {
   serveComments,
   setViewed,
 } from './state.ts'
-import type { Comment, DiffPayload, RefsPayload } from './types.ts'
+import type { Comment, CommitsPayload, DiffPayload, PatchResult, RefsPayload } from './types.ts'
 import { runtimeRevision } from './version.ts'
 
 /** One repository the server is willing to serve, as the CLI registers it. */
@@ -132,6 +147,40 @@ const readBody = (req: IncomingMessage): Promise<string> =>
   })
 
 /**
+ * What a request is comparing, from its query string.
+ *
+ * Shared by the routes that need a patch rather than repeated in each: the
+ * comment route cuts its anchor out of the patch, and one built from another
+ * revision simply does not carry the lines being commented on.
+ *
+ * The patch is returned as a thunk, not awaited here, so a caller with other
+ * git work to do can keep it in its own `Promise.all`.
+ */
+async function resolveRequest(repoPath: string, entry: RepoEntry, url: URL) {
+  const override = url.searchParams.get('base') ?? entry.baseOverride
+  const target = url.searchParams.get('target') ?? entry.target ?? null
+  // No registry fallback, deliberately: a commit is picked and dropped a dozen
+  // times a session, and an opening value would answer again the moment the UI
+  // went back to the whole range.
+  const commitRef = url.searchParams.get('commit')
+
+  const [base, commit] = await Promise.all([
+    resolveBase(repoPath, { override, target }),
+    commitRef ? commitDetail(repoPath, commitRef) : null,
+  ])
+
+  const build = (): Promise<PatchResult & { parent?: string }> =>
+    commit
+      ? buildCommitPatch(repoPath, commit.sha)
+      : buildPatch(repoPath, base.ref, {
+          target,
+          includeUntracked: entry.includeUntracked ?? false,
+        })
+
+  return { base, target, commitRef, commit, build }
+}
+
+/**
  * HTTP server over one or more repositories.
  *
  * Routes are namespaced by repo (`/r/:repoId/...`), and the registry takes
@@ -221,18 +270,17 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
       const { repoPath } = entry
 
       if (route === 'api/diff' && req.method === 'GET') {
-        const override = url.searchParams.get('base') ?? entry.baseOverride
-        const target = url.searchParams.get('target') ?? entry.target ?? null
-        const base = await resolveBase(repoPath, { override, target })
+        const { base, target, commitRef, commit, build } = await resolveRequest(
+          repoPath,
+          entry,
+          url,
+        )
 
         // Everything the response needs beyond the base, and none of it depends
         // on another: awaited one by one, the request waited for the sum of five
         // git round-trips rather than the longest.
         const [patchResult, branch, sha, state, stored] = await Promise.all([
-          buildPatch(repoPath, base.ref, {
-            target,
-            includeUntracked: entry.includeUntracked ?? false,
-          }),
+          build(),
           // Without a target, resolveBase has already asked — that is `base.branch`.
           target ? currentBranch(repoPath) : base.branch,
           headSha(repoPath),
@@ -242,7 +290,13 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
 
         const { patch, untracked, untrackedIncluded, files, totals } = patchResult
         const reviewing = target ?? branch ?? 'HEAD'
-        const range = rangeKey(base.ref, reviewing)
+        // A commit is keyed on itself: its patch cannot change, so a tick set on
+        // it never goes stale, and one set on the branch view has no business
+        // showing here — it was set on another diff.
+        const range =
+          commit && patchResult.parent
+            ? rangeKey(patchResult.parent, commit.sha)
+            : rangeKey(base.ref, reviewing)
         const hashes = sectionHashes(patch)
 
         // Ticks only survive while the file's diff is unchanged.
@@ -252,7 +306,10 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           repo: { id: repoId, path: repoPath },
           base,
           head: { branch, sha },
-          target: { ref: reviewing, workingTree: !target },
+          // A commit holds no working tree either, and the field means "the
+          // uncommitted work is in this diff".
+          target: { ref: reviewing, workingTree: !target && !commit },
+          commit,
           range,
           state,
           untracked,
@@ -267,7 +324,18 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
             ),
             patch,
           ),
-          notice: stored.notice,
+          // A sha that stopped resolving — rebased away, amended — falls back to
+          // the whole range, and silently would leave the reader thinking they
+          // are still on that commit.
+          notice:
+            [
+              stored.notice,
+              commitRef && !commit
+                ? `commit ${commitRef} no longer resolves — showing every commit`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' — ') || null,
           patch,
         }
         return json(res, 200, payload)
@@ -280,6 +348,18 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           currentBranch(repoPath),
         ])
         const payload: RefsPayload = { refs, trunk, branch }
+        return json(res, 200, payload)
+      }
+
+      if (route === 'api/commits' && req.method === 'GET') {
+        // Through `resolveRequest` for its base: a list built against another
+        // one describes another range, and the picker would offer commits the
+        // view cannot show.
+        const { base, target } = await resolveRequest(repoPath, entry, url)
+        const reviewing = target ?? base.branch ?? 'HEAD'
+        const payload: CommitsPayload = {
+          commits: await listCommits(repoPath, base.ref, reviewing),
+        }
         return json(res, 200, payload)
       }
 
@@ -307,15 +387,11 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         // could cut the lines itself, but then two implementations of the same
         // cut decide whether a comment is stale, and they drift.
         //
-        // Resolved exactly as `api/diff` does, query string included: reading
-        // only the registry entry builds the patch of another revision, and the
-        // lines being commented on are simply not in it.
-        const target = url.searchParams.get('target') ?? entry.target ?? null
-        const base = await resolveBase(repoPath, { override: entry.baseOverride, target })
-        const { patch } = await buildPatch(repoPath, base.ref, {
-          target,
-          includeUntracked: entry.includeUntracked ?? false,
-        })
+        // Through the same resolution as `api/diff`, so the patch is the one on
+        // screen: a remark written while reading a single commit anchors on the
+        // lines that commit had, not on what the branch made of them since.
+        const { build } = await resolveRequest(repoPath, entry, url)
+        const { patch } = await build()
 
         const comment: Comment = {
           id: String(id),

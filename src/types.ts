@@ -83,6 +83,25 @@ export interface RefDetail {
   when: string
 }
 
+/** One commit of the range under review, as the picker lists it. */
+export interface CommitDetail {
+  sha: string
+  short: string
+  subject: string
+  author: string
+  /** Relative, as `RefDetail.when` is: the pickers show the two the same way. */
+  when: string
+  /** More than one means a merge, which is read against the first. */
+  parents: string[]
+  /**
+   * null when git reported no counts — a merge, or a commit that changes
+   * nothing. `--shortstat` says nothing about either, and 0 would be a claim.
+   */
+  additions: number | null
+  deletions: number | null
+  files: number | null
+}
+
 /** path -> hash of the diff section that was marked as read, or null. */
 export type ViewedMap = Record<string, string | null>
 
@@ -173,6 +192,14 @@ export interface DiffPayload {
   head: { branch: string | null; sha: string }
   /** What is under review, and whether uncommitted work is part of it. */
   target: { ref: string; workingTree: boolean }
+  /**
+   * The one commit being shown, or null for the whole range.
+   *
+   * Carried so the topbar can name it without opening the picker first, and
+   * served rather than echoed back: a sha that no longer resolves falls back to
+   * the range, and this field is how the UI learns which of the two it got.
+   */
+  commit: CommitDetail | null
   range: string
   state: RepoState
   untracked: string[]
@@ -197,4 +224,9 @@ export interface RefsPayload {
   refs: RefDetail[]
   trunk: string | null
   branch: string | null
+}
+
+/** The body of `GET /r/:repoId/api/commits`. */
+export interface CommitsPayload {
+  commits: CommitDetail[]
 }

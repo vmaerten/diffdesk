@@ -315,6 +315,17 @@ threshold mean "no tab" rather than "no click".
   not `--name-status`. The status lookup missed, so every renamed file showed as *modified*
   with no line counts. Found by the fixture, not by the real repositories: the assertion
   there only required more than one distinct status, and `renamed` never appeared.
+- **There is no short form for "one commit's diff".** `git diff <sha>^!` does not fail on a
+  root commit: it degrades to `git diff <sha>`, which compares that commit to the *working
+  tree* — a plausible-looking answer to a question nobody asked. `git diff-tree -r --root`
+  prints nothing at all on a merge, and `-m --first-parent` prints one record per parent,
+  the same sha twice, which double-counts on the way through a parser. What holds is an
+  ordinary two-point diff against `sha^1`, or against the empty tree
+  `4b825dc642cb6eb9a060e54bf8d69288fbee4904` when there is no parent.
+- **`git log --shortstat` says nothing about a merge.** No stat line is emitted, so the
+  record is short, not absent — and an empty commit produces the same silence. Parsers that
+  split records on the blank line drift from the first merge onwards; scanning for the
+  format's own separator does not. `0` would be a claim git never made, hence `null`.
 - **Library options**: `diffStyle: 'unified' | 'split'` (not `layout`), `disableLineNumbers`
   (not `lineNumbers`). Unknown options are ignored silently.
 - **The tree's `select()` adds to the selection**, it does not replace it. Without an
