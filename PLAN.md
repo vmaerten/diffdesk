@@ -325,6 +325,13 @@ threshold mean "no tab" rather than "no click".
   the same sha twice, which double-counts on the way through a parser. What holds is an
   ordinary two-point diff against `sha^1`, or against the empty tree
   `4b825dc642cb6eb9a060e54bf8d69288fbee4904` when there is no parent.
+- **An absent parameter means two things.** "The page has not chosen" and "the page chose the
+  default" reach the server as the same request — no `target`, no `base`. Anything answering
+  in their place, such as what the CLI was invoked with, therefore wins forever: picking the
+  working tree back could not be expressed, and a base picked by hand was written to
+  `.git/config` while the screen kept showing the old one. So the query string is the only
+  source for what is being compared, and the CLI puts its arguments in the URL it opens. The
+  registry holds only what the UI cannot choose. Issue #55.
 - **A merge-base equal to HEAD is a distance of zero, not an absence.** It means "at or
   ahead of us", which disqualifies a sibling and *qualifies* the trunk: a branch that has
   been cut and not committed to yet sits exactly on it. Treating the two alike discarded the

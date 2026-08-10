@@ -36,11 +36,19 @@ import {
 import type { Comment, CommitsPayload, DiffPayload, PatchResult, RefsPayload } from './types.ts'
 import { runtimeRevision } from './version.ts'
 
-/** One repository the server is willing to serve, as the CLI registers it. */
+/**
+ * One repository the server is willing to serve, as the CLI registers it.
+ *
+ * It holds only what the UI cannot choose. A base and a revision under review
+ * are choices the page makes, and it says so by leaving the parameter out at its
+ * default value — which an entry answering in its place turns into "the CLI
+ * wins forever" (#55). Those travel in the URL the CLI opens instead.
+ *
+ * `includeUntracked` stays because nothing on screen sets it, so there is no
+ * default to mistake for silence. The day a control does, it moves too.
+ */
 export interface RepoEntry {
   repoPath: string
-  baseOverride?: string | null
-  target?: string | null
   includeUntracked?: boolean
 }
 
@@ -157,11 +165,11 @@ const readBody = (req: IncomingMessage): Promise<string> =>
  * git work to do can keep it in its own `Promise.all`.
  */
 async function resolveRequest(repoPath: string, entry: RepoEntry, url: URL) {
-  const override = url.searchParams.get('base') ?? entry.baseOverride
-  const target = url.searchParams.get('target') ?? entry.target ?? null
-  // No registry fallback for either of these, deliberately: they are picked and
-  // dropped a dozen times a session, and an opening value would answer again the
-  // moment the UI went back to the default — which is #55.
+  // The query string is the only source for all four. A registry fallback would
+  // answer whenever the page left a parameter out at its default value, which is
+  // indistinguishable from never having chosen — #55.
+  const override = url.searchParams.get('base')
+  const target = url.searchParams.get('target')
   const commitRef = url.searchParams.get('commit')
   // `has`, not `get`: written bare as `?committed`, `get` returns the empty
   // string, which is falsy, and the flag would be inert without saying so.
@@ -237,12 +245,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         const repoPath = await resolveRepoRoot(body.repoPath)
         const id = repoIdFor(repoPath)
         // set(), so a second `ghl --untracked` updates the entry in place.
-        registry.set(id, {
-          repoPath,
-          baseOverride: body.baseOverride ?? null,
-          target: body.target ?? null,
-          includeUntracked: body.includeUntracked ?? false,
-        })
+        registry.set(id, { repoPath, includeUntracked: body.includeUntracked ?? false })
         return json(res, 200, { id, path: repoPath })
       }
 

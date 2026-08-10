@@ -274,8 +274,9 @@ async function serveViaDaemon(options: Options, entry: RepoEntry): Promise<strin
     await waitForDaemon(options.port)
   }
 
-  // Handed over with default options: a per-repo flag belongs to the invocation
-  // that passed it, and that terminal is long gone.
+  // Handed over as bare paths, which is all an entry holds beyond the untracked
+  // flag: that one belongs to the invocation that passed it, and that terminal
+  // is long gone.
   for (const repoPath of inherited) {
     if (repoPath !== entry.repoPath) await post(options.port, 'repos', { repoPath })
   }
@@ -387,12 +388,7 @@ async function main() {
     return
   }
 
-  const entry: RepoEntry = {
-    repoPath,
-    baseOverride: options.base,
-    target: options.target,
-    includeUntracked: options.untracked,
-  }
+  const entry: RepoEntry = { repoPath, includeUntracked: options.untracked }
 
   let port = options.port
   let repoId = repoIdFor(repoPath)
@@ -404,7 +400,16 @@ async function main() {
     port = await listenNear(createGhlServer({ repos: [entry] }), options.port)
   }
 
-  const url = `http://${await displayHost()}:${port}/r/${repoId}`
+  // What was asked for on the command line travels in the address, not in the
+  // registry: the page can then drop a parameter to mean "I chose the default",
+  // and nothing answers in its place afterwards (#55). With no arguments the
+  // address stays bare, which is the one you bookmark.
+  const opening = new URLSearchParams()
+  if (options.base) opening.set('base', options.base)
+  if (options.target) opening.set('target', options.target)
+  const query = opening.size > 0 ? `?${opening}` : ''
+
+  const url = `http://${await displayHost()}:${port}/r/${repoId}${query}`
   process.stdout.write(`ghl serving ${repoPath}\n  base ${base.ref} (${base.source})\n  ${url}\n`)
   if (options.open) openBrowser(url)
 }
