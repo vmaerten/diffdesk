@@ -107,7 +107,9 @@ async function mapWithLimit<T, R>(
  *
  * The trunk wins ties, and that rule is load-bearing. Siblings cut from the same
  * commit score exactly like the trunk, and a sibling is not a parent — without
- * it, `adessi/pren-322-input` resolves to an unrelated branch.
+ * it, `adessi/pren-322-input` resolves to an unrelated branch. It wins them at
+ * distance zero too, which is a branch that has been cut and not committed to
+ * yet: the trunk sits exactly under it, and every sibling is further away.
  *
  * Scoring a ref is two git processes and this is the most expensive thing the
  * server does, so the refs are scored concurrently — sequentially it measured
@@ -122,13 +124,23 @@ export async function guessParent(
   // base of whatever branch happened to be checked out.
   const headRev = await revParse(repoPath, head)
   if (!headRev) return null
-  const refs = [...(await localBranches(repoPath))].filter((ref) => ref !== head)
+  // The trunk is scored even when it is not a local branch: `detectTrunk` falls
+  // back to `origin/main` in a clone whose default branch was never checked out,
+  // and a trunk absent from the candidates is a tie-break that never fires.
+  const candidates = new Set(await localBranches(repoPath))
+  if (trunk) candidates.add(trunk)
+  const refs = [...candidates].filter((ref) => ref !== head)
 
   const scores = await mapWithLimit(refs, SCORING_CONCURRENCY, async (ref) => {
     const base = await mergeBase(repoPath, headRev, ref)
-    // No common ancestor, or it descends from HEAD — either way, not a parent.
-    if (!base || base === headRev) return null
+    if (!base) return null
+    // At or ahead of HEAD. For any other branch that rules it out as a parent;
+    // for the trunk it means this branch has nothing of its own yet, which makes
+    // the trunk its base at distance zero rather than no candidate at all.
+    if (base === headRev) return ref === trunk ? { ref, distance: 0 } : null
 
+    // Not dead despite the check above: `countCommits` answers 0 when git fails,
+    // and a ref whose distance could not be read is one to leave out.
     const distance = await countCommits(repoPath, base, headRev)
     return distance === 0 ? null : { ref, distance }
   })

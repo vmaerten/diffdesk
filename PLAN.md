@@ -149,7 +149,10 @@ Most trustworthy source first:
 3. "Stacked branch" heuristic: among candidate refs, the one whose merge-base sits closest
    to HEAD. **The trunk wins ties** — two sibling branches cut from the same commit produce
    the same distance as the trunk, and a sibling is not a parent. Verified on a fixture
-   where `sister-c` shares `feature-a`'s fork point and still resolves to the trunk.
+   where `sister-c` shares `feature-a`'s fork point and still resolves to the trunk. It wins
+   them **at distance zero** too, which is a branch cut and not committed to yet: the trunk
+   sits exactly under it. The trunk is scored even when it is not a local branch, or that
+   tie-break never fires in a clone whose default branch was never checked out.
 4. `origin/HEAD` — present on 64 of 86 repositories — taken under its local name, so the
    base is one the picker can offer back.
 5. First existing among the local `main`, `master`, `develop`, then `origin/main`,
@@ -322,6 +325,11 @@ threshold mean "no tab" rather than "no click".
   the same sha twice, which double-counts on the way through a parser. What holds is an
   ordinary two-point diff against `sha^1`, or against the empty tree
   `4b825dc642cb6eb9a060e54bf8d69288fbee4904` when there is no parent.
+- **A merge-base equal to HEAD is a distance of zero, not an absence.** It means "at or
+  ahead of us", which disqualifies a sibling and *qualifies* the trunk: a branch that has
+  been cut and not committed to yet sits exactly on it. Treating the two alike discarded the
+  trunk from its own tie-break and handed every fresh branch a sibling's diff — the state a
+  branch is in during the minutes the tool is most useful. See issue #59.
 - **`target` means two things.** The revision under review — which `resolveBase` reads as a
   *branch name*, to find `branch.<name>.ghlBase` and the `gh stack` chain — and the tip of
   the diff. They coincide until something wants the diff to stop at HEAD while the review is
