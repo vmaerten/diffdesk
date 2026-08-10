@@ -1,9 +1,10 @@
 import { availableParallelism } from 'node:os'
 
 import {
+  commitParent,
   countCommits,
   currentBranch,
-  diffFromMergeBase,
+  diffPatch,
   localBranches,
   mergeBase,
   nameStatus,
@@ -15,9 +16,17 @@ import {
   untrackedPaths,
   untrackedPatch,
   writeConfig,
+  type DiffRange,
 } from './git.ts'
 import { readStack } from './stack.ts'
-import type { BaseResolution, FileStat, PatchResult, Totals } from './types.ts'
+import type {
+  BaseResolution,
+  FileCounts,
+  FileStat,
+  GitStatus,
+  PatchResult,
+  Totals,
+} from './types.ts'
 
 // Local first: it is the name the pickers offer, and a base that cannot be
 // picked back is one the UI shows without being able to explain. The remote
@@ -219,6 +228,19 @@ export async function rememberBase(
   await writeConfig(repoPath, baseConfigKey(branch), base)
 }
 
+const describe = (counts: FileCounts[], statuses: Map<string, GitStatus>): FileStat[] =>
+  counts.map((file) => ({ ...file, status: statuses.get(file.path) ?? 'modified' }))
+
+const sum = (files: FileStat[]): Totals =>
+  files.reduce(
+    (acc: Totals, f) => ({
+      files: acc.files + 1,
+      additions: acc.additions + f.additions,
+      deletions: acc.deletions + f.deletions,
+    }),
+    { files: 0, additions: 0, deletions: 0 },
+  )
+
 /**
  * The "virtual PR": everything not in the base, committed or not.
  *
@@ -231,30 +253,20 @@ export async function buildPatch(
   base: string,
   { target, includeUntracked = false }: { target?: string | null; includeUntracked?: boolean } = {},
 ): Promise<PatchResult> {
+  const range: DiffRange = { kind: 'merge-base', base, target }
   // Four readings of the same range, none of which needs the others: the patch,
   // the counts git reports rather than the ones the patch implies, the statuses,
   // and what git does not track at all.
   const [tracked, counts, statuses, paths] = await Promise.all([
-    diffFromMergeBase(repoPath, base, { target }),
-    numstat(repoPath, base, target),
-    nameStatus(repoPath, base, target),
+    diffPatch(repoPath, range),
+    numstat(repoPath, range),
+    nameStatus(repoPath, range),
     // Uncommitted work belongs to the checkout, not to some other ref.
     target ? [] : untrackedPaths(repoPath),
   ])
 
-  const files: FileStat[] = counts.map((file) => ({
-    ...file,
-    status: statuses.get(file.path) ?? 'modified',
-  }))
-
-  const totals: Totals = files.reduce(
-    (acc: Totals, f) => ({
-      files: acc.files + 1,
-      additions: acc.additions + f.additions,
-      deletions: acc.deletions + f.deletions,
-    }),
-    { files: 0, additions: 0, deletions: 0 },
-  )
+  const files = describe(counts, statuses)
+  const totals = sum(files)
 
   if (!includeUntracked || paths.length === 0) {
     return { patch: tracked, untracked: paths, untrackedIncluded: false, files, totals }
@@ -262,4 +274,32 @@ export async function buildPatch(
 
   const extra = await untrackedPatch(repoPath, paths)
   return { patch: tracked + extra, untracked: paths, untrackedIncluded: true, files, totals }
+}
+
+/**
+ * One commit's own diff: what `git show` shows, and no base in it.
+ *
+ * The base still governs which commits are offered, but it does not enter this
+ * patch — "everything since the base up to that commit" is a different reading,
+ * and the two cannot share a range.
+ *
+ * The parent travels back out because the caller keys the viewed state on it,
+ * and resolving it twice is how the patch and the key come to disagree.
+ */
+export async function buildCommitPatch(
+  repoPath: string,
+  sha: string,
+): Promise<PatchResult & { parent: string }> {
+  const parent = await commitParent(repoPath, sha)
+  const range: DiffRange = { kind: 'two-point', from: parent, to: sha }
+
+  const [patch, counts, statuses] = await Promise.all([
+    diffPatch(repoPath, range),
+    numstat(repoPath, range),
+    nameStatus(repoPath, range),
+  ])
+
+  const files = describe(counts, statuses)
+  // A commit holds no working tree, so there is nothing untracked to weigh.
+  return { patch, untracked: [], untrackedIncluded: false, files, totals: sum(files), parent }
 }
