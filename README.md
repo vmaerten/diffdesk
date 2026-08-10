@@ -14,6 +14,7 @@ but pushing it just to look at it is not worth the trip.
 | `c` | comment the selected lines |
 | `b` | change the base |
 | `t` | change the revision under review |
+| `l` | show one commit, or all of them |
 | `r` | refresh the diff |
 
 The file tree shows an icon per file type, colours each row by its git status (added,
@@ -43,6 +44,17 @@ Each remark comes with the lines it points at **as they read now**, because a pa
 number alone go stale between taking the export and acting on it — but not the surrounding hunk,
 which is what `git diff` is for. There is no "apply these" preamble: that is the prompt of
 whoever pastes it.
+
+Press `l` to read the branch one commit at a time. The picker lists what the range holds,
+newest first, and picking one shows that commit's **own** diff — what `git show` shows, not
+everything since the base. The base stays on screen because it decides which commits are
+offered, but it does not enter the patch. Merges are listed too, badged, and read against
+their first parent. A sha that no longer resolves — rebased away, amended — falls back to
+the whole range and says so, rather than showing the branch under a commit's name.
+
+Ticks are keyed on the commit, so a file read there is not counted as read of the branch.
+And since a commit's diff cannot change, a tick set on one never clears itself — unlike the
+branch view, where the next commit unticks the file it touched.
 
 A viewed file folds shut and is ticked in the tree, as on GitHub — it keeps its place in the
 list, so marking one never moves you, and clicking any row takes you to that file whether it

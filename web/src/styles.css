@@ -603,6 +603,16 @@ body.resizing * {
   font-size: 11px;
 }
 
+.picker-sha {
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+
+.picker-counts {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
 .badge {
   flex-shrink: 0;
   padding: 0 6px;
