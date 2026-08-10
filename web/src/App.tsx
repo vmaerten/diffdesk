@@ -113,6 +113,16 @@ export default function App() {
   const [committed, setCommitted] = useState(() =>
     new URLSearchParams(location.search).has('committed'),
   )
+  /**
+   * A base forced from the command line, until something is picked here.
+   *
+   * Held rather than ignored: the server has no memory of it, so a parameter we
+   * stop sending is a base we stop forcing — which is how picking one takes
+   * effect in the session that picked it (#55).
+   */
+  const [baseOverride, setBaseOverride] = useState<string | null>(() =>
+    new URLSearchParams(location.search).get('base'),
+  )
   const viewRef = useRef<CodeViewHandle<undefined>>(null)
   /** Folding and revealing live inside the tree, which owns that state. */
   const treeRef = useRef<FileTreeHandle>(null)
@@ -127,11 +137,12 @@ export default function App() {
    */
   const query = useMemo(() => {
     const params = new URLSearchParams()
+    if (baseOverride) params.set('base', baseOverride)
     if (target) params.set('target', target)
     if (commit) params.set('commit', commit)
     if (committed) params.set('committed', '1')
     return params.size > 0 ? `?${params}` : ''
-  }, [target, commit, committed])
+  }, [baseOverride, target, commit, committed])
 
   /**
    * The single refresh path.
@@ -562,9 +573,21 @@ export default function App() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ base, target }),
       })
+      if (baseOverride) {
+        // Drop the base forced from the command line: it is written down now, in
+        // `.git/config`, and leaving the parameter on would keep overriding the
+        // very choice just made — which was the whole of #55. No refresh here:
+        // clearing it rebuilds `query`, and the effect watching it refetches on
+        // its own, where calling refresh now would fire the stale query first.
+        setBaseOverride(null)
+        const url = new URL(location.href)
+        url.searchParams.delete('base')
+        history.replaceState(null, '', url)
+        return
+      }
       await refresh()
     },
-    [data, repoId, refresh, target],
+    [data, repoId, refresh, target, baseOverride],
   )
 
   /** Navigation walks the rendered items — what is left to read. */

@@ -87,7 +87,11 @@ the terminal that opened it. It stops on its own after 30 minutes with no tab wa
 repositories it was serving across so their tabs keep working.
 
 The URL is the same every time: **`http://ghl.localhost:7777/r/<repoId>`**, so it can be
-bookmarked and the tab recognised among a dozen others. `*.localhost` is loopback by spec —
+bookmarked and the tab recognised among a dozen others. What you asked for on the command
+line rides in that address rather than in the server — `ghl origin/some-branch --base main`
+opens `…/r/<repoId>?target=origin/some-branch&base=main` — so the page can drop a parameter
+to mean "I have chosen the default" and nothing answers in its place. Bare, the address is
+the one to bookmark: it reviews the checkout against the base `ghl` resolves on its own. `*.localhost` is loopback by spec —
 no `/etc/hosts` entry, no dnsmasq — but the name is checked at startup and falls back to
 `127.0.0.1` rather than print a URL that would not connect. The `repoId` is derived from the
 repository path, so each checkout keeps its own address; a second `ghl` running at the same

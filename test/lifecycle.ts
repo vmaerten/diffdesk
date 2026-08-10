@@ -205,6 +205,33 @@ export async function runLifecycle(check: Check): Promise<void> {
     )
     check('without duplicating it', (await servedIds(port)).length === 2)
 
+    // 3b — what the command line asks for rides in the address, not in the entry
+    const opened = await cli(runtime, two.path, [
+      '--no-open',
+      '--port',
+      String(port),
+      'feature',
+      '--base',
+      'release',
+    ])
+    check(
+      'the revision asked for is carried by the URL',
+      opened.includes('target=feature') && opened.includes('base=release'),
+      opened.trim().split('\n').at(-1) ?? '',
+    )
+    // The address a bookmark holds, which must still review the checkout: an
+    // entry answering for it is what made the UI's own choices unreachable (#55).
+    const bare = (await (await fetch(`http://127.0.0.1:${port}/r/${twoId}/api/diff`)).json()) as {
+      base: { ref: string }
+      target: { workingTree: boolean }
+    }
+    check(
+      '  while the bare address reviews the checkout',
+      bare.target.workingTree === true,
+      `workingTree=${bare.target.workingTree}`,
+    )
+    check('  against a base of its own', bare.base.ref !== 'release', bare.base.ref)
+
     // 4 — a different build takes the port over, and hands the tabs across
     runtime.stamp('rev-two')
     await cli(runtime, one.path, ['--no-open', '--port', String(port)])

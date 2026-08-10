@@ -88,5 +88,26 @@ export default {
       back.notes.join(' | '),
     )
     check('  and carries it in the URL', back.search.includes('target='), back.search)
+
+    // A base forced from outside — which is how the CLI passes `--base` now —
+    // must give way to a choice made here, in the session that makes it. It used
+    // to be answered by the registry on every request, so the picker wrote to
+    // `.git/config`, reported success, and changed nothing on screen.
+    await load('?target=feature&base=other')
+    const forced = await shown()
+    check('a base given in the URL is honoured', forced.base === 'other', forced.base ?? '')
+
+    await openPicker(page, 'b')
+    await page.keyboard.type('release')
+    await sleep(600)
+    await page.keyboard.press('Enter')
+    await sleep(4000)
+    const overridden = await shown()
+    check(
+      '  and picking another one takes effect at once',
+      overridden.base === 'release',
+      overridden.base ?? '',
+    )
+    check('  dropping it from the URL', !overridden.search.includes('base='), overridden.search)
   },
 } satisfies Suite
