@@ -368,16 +368,19 @@ threshold mean "no tab" rather than "no click".
   in a flat bytewise sort of whole paths, where `/` beats every letter; the tree groups
   directories first at each level. They disagree from the first row — a file at the root is
   first in one and last in the other — so `j`/`k` walked an order the eye was not following.
-  `web/src/fileOrder.ts` reproduces the tree's rule for the diff list.
-- **The tree's `sort` option is not a sibling comparator.** Its entries carry `depth` and
-  `segments`, and handing it a directories-first-then-name rule reorders the tree into
-  something neither pane wanted. The tree keeps its default; the copy lives on our side, with
-  `test/suites/order.ts` comparing the two orders row by row — a copy of someone else's rule
-  is a copy that can drift.
-- **That order is a *natural* sort.** Plain `localeCompare` gives `Widget1, Widget10,
-  Widget11` where the tree gives `Widget1, Widget2, Widget3`: `Intl.Collator(_, { numeric:
-  true })` is not a nicety here. The two lists agree for nine rows before parting, which is
-  exactly the kind of near-miss a spot check at the top of the list confirms as correct.
+  `web/src/fileOrder.ts` asks the tree's library for that order — `prepareFileTreeInput` is
+  the sort the tree itself runs, and it hands the paths back untouched.
+- **Restating someone else's ordering rule drifts, twice over.** The rule was written out by
+  hand first, and both times it looked right: `localeCompare` gave `Widget1, Widget10,
+  Widget11` against the tree's `Widget1, Widget2, Widget3`, nine rows agreeing before
+  parting; `Intl.Collator` then ranked `.` `-` `_` and accents by ICU collation where the
+  tree lowercases and compares by code unit, so `engine.ts` and `engine_pool.ts` swapped.
+  Neither showed up on this repository's own files — `test/fixture.ts` now carries the pairs
+  that make the two orders differ, or `test/suites/order.ts` is green whatever it runs.
+- **The tree's `sort` option is not the way in.** Its entries carry `depth` and `segments`,
+  so it is not called on siblings alone: handing it a directories-first-then-name rule
+  reorders the tree into something neither pane wanted. `prepareFileTreeInput` is, and it is
+  exported from the package root.
 - **`collapsed` does nothing without `version`.** The pane re-reads an item only when its
   `version` moves, so flipping `collapsed` alone is accepted and then ignored — the box
   ticks, the tree ticks, the file stays wide open, and nothing anywhere says the flag was

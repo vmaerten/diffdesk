@@ -1,22 +1,4 @@
-/**
- * Natural order, digits compared as numbers.
- *
- * `numeric` is not a nicety here, it is what the tree does: plain
- * `localeCompare` gives Widget1, Widget10, Widget11 where the tree gives
- * Widget1, Widget2, Widget3, and the two lists part company at the tenth row.
- */
-const collator = new Intl.Collator(undefined, { numeric: true })
-
-/** Directories first, then basename — the convention the tree already follows. */
-const compareSiblings = (
-  leftName: string,
-  leftIsDirectory: boolean,
-  rightName: string,
-  rightIsDirectory: boolean,
-): number => {
-  if (leftIsDirectory !== rightIsDirectory) return leftIsDirectory ? -1 : 1
-  return collator.compare(leftName, rightName)
-}
+import { prepareFileTreeInput } from '@pierre/trees'
 
 /**
  * The tree's order, over the whole paths the diff pane lists flat.
@@ -27,24 +9,14 @@ const compareSiblings = (
  * one and last in the other, so `j`/`k` walked an order the eye was not
  * following.
  *
- * This reproduces the tree's default rather than replacing it. `@pierre/trees`
- * does take a `sort` comparator, but its entries carry `depth` and `segments`,
- * so it is not called on siblings alone: feeding it a sibling rule reorders the
- * tree into something neither pane wanted. The tree keeps its own default and
- * this follows it — with a test comparing the two orders row by row, since a
- * copy of someone else's rule is a copy that can drift.
- *
- * Walks down the shared prefix and decides at the first level where the two
- * differ, which is exactly where the tree shows them apart. A path that ends at
- * that level is a file; one that continues is a directory.
+ * This asks the tree's own library for that order instead of restating its rule.
+ * `prepareFileTreeInput` is the sort the tree runs on the paths it is handed —
+ * the same call, on the same list — and it returns them untouched, neither
+ * normalised nor deduplicated, so every path comes back to be found here. The
+ * rule it applies is not one anybody would write twice by accident: names are
+ * lowercased, split into natural tokens so `Widget2` precedes `Widget10`, and
+ * then compared by code unit, which ranks `.` `-` `_` and accents nothing like
+ * ICU collation does.
  */
-export function compareTreePaths(left: string, right: string): number {
-  const a = left.split('/')
-  const b = right.split('/')
-
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
-    const order = compareSiblings(a[i] ?? '', i < a.length - 1, b[i] ?? '', i < b.length - 1)
-    if (order !== 0) return order
-  }
-  return a.length - b.length
-}
+export const treeOrder = (paths: readonly string[]): Map<string, number> =>
+  new Map(prepareFileTreeInput(paths).paths.map((path, index) => [path, index]))

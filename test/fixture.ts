@@ -86,6 +86,14 @@ function featureChanges(root: string) {
   write(root, 'src/core/cache.ts', lines(35, 'cache'))
   write(root, 'web/components/NewPanel.tsx', lines(50, 'panel'))
   write(root, 'infra/terraform/network.tf', 'resource "null_resource" "b" {}\n')
+  // Names where a hand-written comparator parts company with the tree's: the
+  // tree ranks `.` `-` `_` and digits by code unit, where ICU collation does
+  // not. Without a pair like these the order suite is green whatever it runs.
+  write(root, 'src/core/engine_pool.ts', lines(20, 'pool'))
+  write(root, 'src/core/v.ts', lines(10, 'v'))
+  write(root, 'src/core/v1.ts', lines(12, 'v1'))
+  write(root, 'web/components/Widget-panel.tsx', lines(18, 'dashpanel'))
+  write(root, 'web/components/Widget_panel.tsx', lines(18, 'underpanel'))
 }
 
 /**

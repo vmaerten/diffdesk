@@ -3,12 +3,11 @@ import { allDiffFiles, allTreeRows, type Suite } from '../harness.ts'
 /**
  * The tree and the diff must list the same files in the same order.
  *
- * `fileOrder.ts` reproduces the tree's rule rather than replacing it — the
- * library's own `sort` option is not called on siblings alone, and feeding it a
- * sibling rule reorders the tree into something neither pane wanted. A copy of
- * someone else's ordering is a copy that can drift, so it is compared row by
- * row here: the last drift was `Widget1, Widget10, Widget11` against `Widget1,
- * Widget2, Widget3`, which only parts company at the tenth file.
+ * `fileOrder.ts` asks the library for that order rather than restating its rule,
+ * which is what this compares row by row: a restated rule drifted twice, on
+ * `Widget1, Widget10, Widget11` against `Widget1, Widget2, Widget3`, then on
+ * `engine.ts` against `engine_pool.ts`. Both are in the fixture — neither shows
+ * on ordinary names, so this suite is only as good as the pairs it runs on.
  */
 export default {
   name: 'order',

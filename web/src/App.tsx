@@ -17,7 +17,7 @@ import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import CommentThread, { type Composer, type SaveState } from './CommentThread.tsx'
 import { asMarkdown } from '../../src/export.ts'
-import { compareTreePaths } from './fileOrder.ts'
+import { treeOrder } from './fileOrder.ts'
 import type {
   BaseSource,
   Comment,
@@ -242,7 +242,7 @@ export default function App() {
    *
    * git sorts whole paths bytewise, the tree groups directories first, and the
    * two disagree from the first row — so `j`/`k` used to walk an order the eye
-   * was not following. One rule now feeds both (see fileOrder.ts).
+   * was not following. The order is the tree's own, asked for (see fileOrder.ts).
    */
   const allItems = useMemo((): DiffItem[] => {
     if (!data?.patch) return []
@@ -251,7 +251,7 @@ export default function App() {
     // the caller's problem. Two views of the same checkout share a head sha —
     // the branch and one of its commits — and the second was served rows
     // highlighted for the first.
-    return parsePatchFiles(data.patch, `${repoId}-${data.head.sha}-${data.range}`)
+    const files = parsePatchFiles(data.patch, `${repoId}-${data.head.sha}-${data.range}`)
       .flatMap((patch) => patch.files ?? [])
       .map((fileDiff, index) => ({
         id: fileDiff.cacheKey ?? `file-${index}`,
@@ -267,7 +267,10 @@ export default function App() {
             ? { ...fileDiff, lang: getFiletypeFromFileName(fileDiff.name) }
             : fileDiff,
       }))
-      .toSorted((left, right) => compareTreePaths(left.path, right.path))
+    const order = treeOrder(files.map((file) => file.path))
+    return files.toSorted(
+      (left, right) => (order.get(left.path) ?? 0) - (order.get(right.path) ?? 0),
+    )
   }, [data, repoId])
 
   /**
