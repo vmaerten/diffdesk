@@ -33,7 +33,6 @@ interface Options {
   help: boolean
   port: number
   base: string | null
-  untracked: boolean
   target: string | null
   daemon: boolean
   useDaemon: boolean
@@ -64,8 +63,6 @@ Commands:
 Options:
   --json         With \`comments\`: machine-readable output instead of markdown
   --base <rev>   Compare against <rev> instead of the guessed base
-  --untracked    Include untracked files in the diff (off by default: they are
-                 often numerous and unrelated to the change under review)
   --port <n>     Listen on <n>, or on the next free port after it
                  (default: ${DEFAULT_PORT}, or $GHL_PORT; 0 picks any free port)
   --no-open      Do not open the browser
@@ -102,7 +99,6 @@ function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Options {
     help: false,
     port: env.GHL_PORT ? parsePort(env.GHL_PORT, 'GHL_PORT') : DEFAULT_PORT,
     base: null,
-    untracked: false,
     target: null,
     daemon: false,
     useDaemon: true,
@@ -118,7 +114,6 @@ function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Options {
     if (!arg.startsWith('-') && options.target === null) options.target = arg
     else if (arg === '-h' || arg === '--help') options.help = true
     else if (arg === '--no-open') options.open = false
-    else if (arg === '--untracked') options.untracked = true
     else if (arg === '--print') options.print = true
     else if (arg === '--json') options.json = true
     else if (arg === '--base') options.base = next(++i, '--base')
@@ -274,9 +269,7 @@ async function serveViaDaemon(options: Options, entry: RepoEntry): Promise<strin
     await waitForDaemon(options.port)
   }
 
-  // Handed over as bare paths, which is all an entry holds beyond the untracked
-  // flag: that one belongs to the invocation that passed it, and that terminal
-  // is long gone.
+  // Handed over as bare paths, which is all an entry holds.
   for (const repoPath of inherited) {
     if (repoPath !== entry.repoPath) await post(options.port, 'repos', { repoPath })
   }
@@ -301,10 +294,7 @@ async function runComments(
   options: Options,
 ): Promise<void> {
   const [{ patch, files }, branch, { state }] = await Promise.all([
-    buildPatch(repoPath, base.ref, {
-      target: options.target,
-      includeUntracked: options.untracked,
-    }),
+    buildPatch(repoPath, base.ref, { target: options.target }),
     // Without a target, resolveBase has already asked — that is `base.branch`.
     options.target ? currentBranch(repoPath) : base.branch,
     readState(repoPath),
@@ -349,10 +339,7 @@ async function main() {
   if (command === 'comments') return runComments(repoPath, base, options)
 
   if (options.print) {
-    const { patch, untracked, untrackedIncluded } = await buildPatch(repoPath, base.ref, {
-      target: options.target,
-      includeUntracked: options.untracked,
-    })
+    const { patch, untracked } = await buildPatch(repoPath, base.ref, { target: options.target })
     const { files, additions, deletions } = summarise(patch)
     const state = await repoState(repoPath)
     const origin: Record<BaseSource, string> = {
@@ -368,7 +355,7 @@ async function main() {
       `reviewing ${options.target ?? `${base.branch ?? 'HEAD'} + working tree`}`,
       `base      ${base.ref}  — ${origin[base.source]}`,
       `changes   ${files} file(s), +${additions} -${deletions}`,
-      `untracked ${untracked.length} file(s)${untrackedIncluded ? ' (included)' : ' (excluded, use --untracked)'}`,
+      `untracked ${untracked.length} file(s) (excluded)`,
     ]
     const chain = base.stack
     if (chain) {
@@ -388,7 +375,7 @@ async function main() {
     return
   }
 
-  const entry: RepoEntry = { repoPath, includeUntracked: options.untracked }
+  const entry: RepoEntry = { repoPath }
 
   let port = options.port
   let repoId = repoIdFor(repoPath)
