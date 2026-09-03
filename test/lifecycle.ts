@@ -185,25 +185,32 @@ export async function runLifecycle(check: Check): Promise<void> {
     check('in the same process', (await health(port))?.pid === up?.pid)
     check('and no second one was started', daemonCount(runtime) === 1)
 
-    // 3 — re-registering updates the entry rather than adding one
+    // 3 — re-registering does not duplicate, and an entry has nothing else to say
     writeFileSync(join(two.path, 'stray.txt'), 'untracked\n')
     // Through git, as the server does: on macOS mkdtemp hands back /var/folders
     // while `rev-parse --show-toplevel` resolves it to /private/var/folders, and
     // the two spell different repo ids.
     const twoId = repoIdFor(await resolveRepoRoot(two.path))
-    const untrackedFlag = async () => {
-      const response = await fetch(`http://127.0.0.1:${port}/r/${twoId}/api/diff`)
+    await cli(runtime, two.path, ['--no-open', '--port', String(port)])
+    check(
+      're-running the same repository does not duplicate it',
+      (await servedIds(port)).length === 2,
+    )
+
+    // An entry holds a path and nothing else now, so what a diff contains is
+    // only ever asked for in the address — the whole of #55, checked on the flag
+    // that was the last to move there. Bare, as the page writes it and as it is
+    // typed by hand: `get` would return the empty string, which is falsy, and
+    // the flag would be inert without saying so.
+    const untrackedFlag = async (query: string) => {
+      const response = await fetch(`http://127.0.0.1:${port}/r/${twoId}/api/diff${query}`)
       return ((await response.json()) as { untrackedIncluded?: boolean }).untrackedIncluded
     }
-    const was = await untrackedFlag()
-    await cli(runtime, two.path, ['--no-open', '--port', String(port), '--untracked'])
-    const now = await untrackedFlag()
     check(
-      're-running with a flag updates the entry',
-      was === false && now === true,
-      `${was} -> ${now}`,
+      'the untracked files are reachable from the address',
+      (await untrackedFlag('?untracked')) === true,
     )
-    check('without duplicating it', (await servedIds(port)).length === 2)
+    check('  and from nowhere else', (await untrackedFlag('')) === false)
 
     // 3b — what the command line asks for rides in the address, not in the entry
     const opened = await cli(runtime, two.path, [
@@ -318,6 +325,34 @@ export async function runLifecycle(check: Check): Promise<void> {
     // Quoted from the patch the CLI built itself, which is what makes the export
     // usable without the reader having to go and look the line up.
     check('  with the line it points at', withOne.includes('null_resource'))
+
+    // A remark on a file git does not track yet. The page has a button to leave
+    // those out and a reader who chose; the export has neither, and one written
+    // here would be dropped by `commentsIn` — stored, and invisible. Reviewed
+    // without a target: with one there is no working tree, so no untracked file
+    // at all.
+    writeFileSync(join(one.path, 'sketch.ts'), 'export const sketch = 1\n')
+    await putComment(one.path, {
+      id: 'on-an-untracked-file',
+      path: 'sketch.ts',
+      side: 'additions',
+      start: 1,
+      end: 1,
+      body: 'this one is not tracked yet',
+      anchor: ['export const sketch = 1'],
+      range: 'main..main',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    })
+    const onUntracked = await cli(runtime, one.path, ['comments'])
+    check(
+      'a remark on an untracked file reaches stdout too',
+      onUntracked.includes('this one is not tracked yet'),
+      onUntracked.trim().split('\n')[0],
+    )
+    check(
+      '  quoting the line, so the file was really in the patch',
+      onUntracked.includes('export const sketch = 1'),
+    )
   } finally {
     for (const port of ports) await stop(port)
     for (const repo of repos) repo.cleanup()

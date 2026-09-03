@@ -145,6 +145,8 @@ export interface TopbarState {
   /** The stack chain: its trunk, then one entry per layer. Empty without one. */
   trunk: string | null
   layers: { name: string; pr: string | null; current: boolean; merged: boolean; gone: boolean }[]
+  /** The revision group's buttons, in order: what each says about the diff. */
+  toggles: { label: string; pressed: boolean; off: boolean }[]
   search: string
 }
 
@@ -168,6 +170,11 @@ export function topbar(page: Page): Promise<TopbarState> {
       current: e.classList.contains('current'),
       merged: e.classList.contains('merged'),
       gone: e.querySelector('.stack-name')?.disabled === true,
+    })),
+    toggles: [...document.querySelectorAll('.revision .toggle button')].map((e) => ({
+      label: e.textContent.trim(),
+      pressed: e.getAttribute('aria-pressed') === 'true',
+      off: e.disabled,
     })),
     search: location.search,
   }))()`) as Promise<TopbarState>

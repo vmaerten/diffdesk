@@ -17,6 +17,7 @@ import order from './suites/order.ts'
 import stack from './suites/stack.ts'
 import commits from './suites/commits.ts'
 import worktree from './suites/worktree.ts'
+import untracked from './suites/untracked.ts'
 
 const SUITES: Suite[] = [
   tree,
@@ -30,6 +31,7 @@ const SUITES: Suite[] = [
   stack,
   commits,
   worktree,
+  untracked,
 ]
 
 /**
