@@ -264,7 +264,8 @@ const sum = (files: FileStat[]): Totals =>
  *
  * Untracked files are listed but kept out of the patch by default. One repo here
  * has 2 modified files against 446 untracked ones — real, unignored, and enough
- * to drown the diff. Callers opt in with `includeUntracked`.
+ * to drown the diff. Callers opt in with `includeUntracked`, and the ones they
+ * take in join `files` like any other: measured, counted, commentable.
  */
 export async function buildPatch(
   repoPath: string,
@@ -298,7 +299,16 @@ export async function buildPatch(
   }
 
   const extra = await untrackedPatch(repoPath, paths)
-  return { patch: tracked + extra, untracked: paths, untrackedIncluded: true, files, totals }
+  // In the patch, so in the counts: a file the diff shows is one it can measure,
+  // and one `commentsIn` will not drop a remark from — both read `files`.
+  const all = [...files, ...extra.counts.map((f) => ({ ...f, status: 'untracked' as const }))]
+  return {
+    patch: tracked + extra.patch,
+    untracked: paths,
+    untrackedIncluded: true,
+    files: all,
+    totals: sum(all),
+  }
 }
 
 /**
