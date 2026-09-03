@@ -294,7 +294,12 @@ async function runComments(
   options: Options,
 ): Promise<void> {
   const [{ patch, files }, branch, { state }] = await Promise.all([
-    buildPatch(repoPath, base.ref, { target: options.target }),
+    // Untracked files in, always. The page has a button to leave them out and a
+    // reader who chose; this has neither, and `commentsIn` filters on the patch
+    // — so a remark written on a file git does not track yet would be dropped
+    // here with nothing left to ask for it back. The exclusion exists to keep
+    // 446 files out of a diff, not one sentence out of a review.
+    buildPatch(repoPath, base.ref, { target: options.target, includeUntracked: true }),
     // Without a target, resolveBase has already asked — that is `base.branch`.
     options.target ? currentBranch(repoPath) : base.branch,
     readState(repoPath),
