@@ -114,6 +114,15 @@ export default function App() {
     new URLSearchParams(location.search).has('committed'),
   )
   /**
+   * True while untracked files are part of the diff rather than merely listed.
+   *
+   * Not `untracked`: `data.untracked` is the list of their paths, and two names
+   * that close three lines apart on different types is a trap for free.
+   */
+  const [withUntracked, setWithUntracked] = useState(() =>
+    new URLSearchParams(location.search).has('untracked'),
+  )
+  /**
    * A base forced from the command line, until something is picked here.
    *
    * Held rather than ignored: the server has no memory of it, so a parameter we
@@ -141,8 +150,9 @@ export default function App() {
     if (target) params.set('target', target)
     if (commit) params.set('commit', commit)
     if (committed) params.set('committed', '1')
+    if (withUntracked) params.set('untracked', '1')
     return params.size > 0 ? `?${params}` : ''
-  }, [baseOverride, target, commit, committed])
+  }, [baseOverride, target, commit, committed, withUntracked])
 
   /**
    * The single refresh path.
@@ -222,6 +232,17 @@ export default function App() {
       const url = new URL(location.href)
       if (on) url.searchParams.delete('committed')
       else url.searchParams.set('committed', '1')
+      history.replaceState(null, '', url)
+      return !on
+    })
+  }, [])
+
+  /** Put the untracked files in the diff, or take them back out. */
+  const toggleUntracked = useCallback(() => {
+    setWithUntracked((on) => {
+      const url = new URL(location.href)
+      if (on) url.searchParams.delete('untracked')
+      else url.searchParams.set('untracked', '1')
       history.replaceState(null, '', url)
       return !on
     })
@@ -358,8 +379,6 @@ export default function App() {
   const stats = data?.totals ?? { files: 0, additions: 0, deletions: 0 }
   const viewedCount = Object.keys(viewed).length
 
-  const untrackedSet = useMemo(() => new Set(data?.untracked ?? []), [data])
-
   const commentCounts = useMemo(() => {
     const counts = new Map<string, number>()
     for (const comment of comments) {
@@ -379,9 +398,7 @@ export default function App() {
         additions: stat?.additions ?? 0,
         deletions: stat?.deletions ?? 0,
         binary: stat?.binary ?? false,
-        // Untracked files never reach `git diff`, so they carry no status of
-        // their own — the untracked list is the only place that knows.
-        status: untrackedSet.has(item.path) ? 'untracked' : (stat?.status ?? 'modified'),
+        status: stat?.status ?? 'modified',
         // Membership, not truthiness: the stored hash is null for files git
         // reports without one, and that must still count as viewed.
         viewed: item.path in viewed,
@@ -390,7 +407,7 @@ export default function App() {
         comments: commentCounts.get(item.path) ?? 0,
       }
     })
-  }, [allItems, data, viewed, untrackedSet, commentCounts])
+  }, [allItems, data, viewed, commentCounts])
 
   const toggleViewed = useCallback(
     async (path: string, next: boolean) => {
@@ -870,6 +887,7 @@ export default function App() {
           <span className="toggle">
             <button
               type="button"
+              className="worktree"
               // The server's answer, not this button's own state: in a commit or
               // a ref view the working tree is out whatever the flag says, and a
               // pressed button there would claim the opposite.
@@ -880,6 +898,29 @@ export default function App() {
               title="Include the uncommitted work, staged or not"
             >
               Working tree
+            </button>
+          </span>
+
+          {/* Its own group: `.toggle` joins what it holds into one segmented
+              control, and these two are separate settings rather than two halves
+              of one choice. */}
+          <span className="toggle">
+            <button
+              type="button"
+              className="untracked"
+              aria-pressed={data?.untrackedIncluded ?? withUntracked}
+              onClick={toggleUntracked}
+              // One condition for the four cases that leave nothing to include —
+              // a ref, a commit, the working tree out, a checkout with no stray
+              // file — because `buildPatch` empties the list in all of them.
+              disabled={!data || data.untracked.length === 0}
+              title="Include the files git does not track yet"
+            >
+              {/* The count is the whole reason the default is off: 2 changed
+                  files against 446 untracked ones is what it protects against,
+                  and it reads both ways — what is being hidden, or what was
+                  taken in. */}
+              Untracked{data && data.untracked.length > 0 ? ` (${data.untracked.length})` : ''}
             </button>
           </span>
 
@@ -989,13 +1030,6 @@ export default function App() {
         </div>
       )}
 
-      {data && data.untracked.length > 0 && !data.untrackedIncluded && (
-        <div className="warning">
-          {data.untracked.length} untracked file(s) hidden. Run with <code>--untracked</code> to
-          include them.
-        </div>
-      )}
-
       {error && <p className="message">{error}</p>}
 
       {!error && data && allItems.length === 0 && (
@@ -1010,6 +1044,13 @@ export default function App() {
             <>
               Nothing to show — nothing is committed above <code>{data.base.ref}</code>, and the
               working tree is excluded.
+            </>
+          ) : data.untracked.length > 0 ? (
+            // Not "matches the base" either: the files are there, and the button
+            // carrying that count is what keeps them out.
+            <>
+              Nothing to show — nothing but {data.untracked.length} untracked file(s), which the
+              Untracked button brings in.
             </>
           ) : (
             <>
