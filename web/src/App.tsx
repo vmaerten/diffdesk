@@ -16,6 +16,7 @@ import CommitSelector from './CommitSelector.tsx'
 import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import CommentThread, { type Composer, type SaveState } from './CommentThread.tsx'
+import { searchDiff } from './diffSearch.ts'
 import { asMarkdown } from '../../src/export.ts'
 import { treeOrder } from './fileOrder.ts'
 import type {
@@ -137,6 +138,14 @@ export default function App() {
   const treeRef = useRef<FileTreeHandle>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [sidebarWidth, setSidebarWidth] = useState(storedWidth)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchIndex, setSearchIndex] = useState(0)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const selectionBeforeSearchRef = useRef<{
+    id: string
+    range: SelectedLineRange
+  } | null>(null)
 
   /**
    * What the server needs to build the diff this page is showing.
@@ -633,8 +642,94 @@ export default function App() {
     [items, goTo],
   )
 
+  /** Browser find cannot see CodeView rows that the virtual window has unmounted. */
+  const searchMatches = useMemo(() => searchDiff(items, searchQuery), [items, searchQuery])
+  const boundedSearchIndex = searchMatches.length > 0 ? searchIndex % searchMatches.length : 0
+  const activeSearchMatch = searchMatches[boundedSearchIndex]
+
+  const openSearch = useCallback(() => {
+    setPicking(null)
+    if (!searchOpen) selectionBeforeSearchRef.current = viewRef.current?.getSelectedLines() ?? null
+    setSearchOpen(true)
+    requestAnimationFrame(() => {
+      searchInputRef.current?.focus()
+      searchInputRef.current?.select()
+    })
+  }, [searchOpen])
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false)
+    viewRef.current?.setSelectedLines(selectionBeforeSearchRef.current)
+    selectionBeforeSearchRef.current = null
+  }, [])
+
+  const stepSearch = useCallback(
+    (offset: number) => {
+      if (searchMatches.length === 0) return
+      setSearchIndex((current) => (current + offset + searchMatches.length) % searchMatches.length)
+    },
+    [searchMatches.length],
+  )
+
+  useEffect(() => {
+    if (!searchOpen) return
+    searchInputRef.current?.focus()
+    searchInputRef.current?.select()
+  }, [searchOpen])
+
+  useEffect(() => {
+    if (!searchOpen) return
+    if (!activeSearchMatch) {
+      viewRef.current?.clearSelectedLines()
+      return
+    }
+
+    const itemIndex = items.findIndex((item) => item.id === activeSearchMatch.id)
+    if (itemIndex >= 0) setActiveIndex(itemIndex)
+    treeRef.current?.reveal(activeSearchMatch.path)
+
+    if (activeSearchMatch.type === 'path') {
+      viewRef.current?.clearSelectedLines()
+      viewRef.current?.scrollTo({
+        type: 'item',
+        id: activeSearchMatch.id,
+        align: 'start',
+      })
+      return
+    }
+
+    const range = {
+      start: activeSearchMatch.lineNumber,
+      end: activeSearchMatch.lineNumber,
+      side: activeSearchMatch.side,
+      endSide: activeSearchMatch.side,
+    }
+    viewRef.current?.setSelectedLines({ id: activeSearchMatch.id, range })
+    viewRef.current?.scrollTo({
+      type: 'line',
+      id: activeSearchMatch.id,
+      lineNumber: activeSearchMatch.lineNumber,
+      side: activeSearchMatch.side,
+      align: 'center',
+    })
+  }, [searchOpen, activeSearchMatch, items])
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLocaleLowerCase()
+      const command = event.metaKey || event.ctrlKey
+
+      if (items.length > 0 && command && !event.altKey && key === 'f') {
+        event.preventDefault()
+        openSearch()
+        return
+      }
+      if (searchOpen && ((command && !event.altKey && key === 'g') || event.key === 'F3')) {
+        event.preventDefault()
+        stepSearch(event.shiftKey ? -1 : 1)
+        return
+      }
+
       // Never steal keys from an input or from a browser shortcut.
       // Not `target`: that name already means the revision under review.
       const focused = event.target
@@ -674,7 +769,20 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [activeIndex, goTo, refresh, items, viewed, toggleViewed, picking, composer, openComposer])
+  }, [
+    activeIndex,
+    goTo,
+    refresh,
+    items,
+    viewed,
+    toggleViewed,
+    picking,
+    composer,
+    openComposer,
+    searchOpen,
+    openSearch,
+    stepSearch,
+  ])
 
   const resizeSidebar = useCallback((width: number) => {
     setSidebarWidth(width)
@@ -887,6 +995,12 @@ export default function App() {
                       <kbd>r</kbd>
                     </dt>
                     <dd>Refresh</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <kbd>⌘/Ctrl</kbd> <kbd>f</kbd>
+                    </dt>
+                    <dd>Search changed code</dd>
                   </div>
                 </dl>
               </div>
@@ -1209,6 +1323,68 @@ export default function App() {
               renderAnnotation={renderAnnotation}
               style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}
             />
+            <div className="diff-search" role="search" hidden={!searchOpen}>
+              <label className="visually-hidden" htmlFor="diff-search-input">
+                Search changed code
+              </label>
+              <input
+                id="diff-search-input"
+                ref={searchInputRef}
+                className="diff-search-input"
+                type="search"
+                value={searchQuery}
+                placeholder="Search changed code…"
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value)
+                  setSearchIndex(0)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    stepSearch(event.shiftKey ? -1 : 1)
+                  } else if (event.key === 'Escape') {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    closeSearch()
+                  }
+                }}
+              />
+              <output className="diff-search-count" aria-live="polite">
+                {searchQuery.trim()
+                  ? searchMatches.length > 0
+                    ? `${boundedSearchIndex + 1}/${searchMatches.length}`
+                    : 'No results'
+                  : ''}
+              </output>
+              <button
+                type="button"
+                aria-label="Previous match"
+                title="Previous match (Shift+Enter)"
+                disabled={searchMatches.length === 0}
+                onClick={() => stepSearch(-1)}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                aria-label="Next match"
+                title="Next match (Enter)"
+                disabled={searchMatches.length === 0}
+                onClick={() => stepSearch(1)}
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                aria-label="Close search"
+                title="Close (Escape)"
+                onClick={closeSearch}
+              >
+                ×
+              </button>
+            </div>
           </div>
         </div>
       )}
