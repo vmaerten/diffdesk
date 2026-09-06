@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 import { buildPatch, resolveBase } from '../src/revision.ts'
 import type { Check } from './harness.ts'
@@ -43,6 +43,54 @@ function dirtyRepo(): { path: string; cleanup: () => void } {
   write('untracked.ts', 'export const untracked = 1\n')
 
   return { path, cleanup: () => rmSync(path, { recursive: true, force: true }) }
+}
+
+/**
+ * gh-stack's metadata belongs to the checkout that created it. In a linked
+ * worktree that means the worktree Git directory, not the repository's common
+ * `.git` directory.
+ */
+function stackedLinkedWorktree(): { path: string; cleanup: () => void } {
+  const root = mkdtempSync(join(tmpdir(), 'ghl-linked-worktree-'))
+  const main = join(root, 'main')
+  const linked = join(root, 'linked')
+  mkdirSync(main)
+
+  git(main, ['init', '-q', '--initial-branch=main'])
+  git(main, ['config', 'user.email', 'worktree@example.invalid'])
+  git(main, ['config', 'user.name', 'ghl worktree'])
+  git(main, ['config', 'commit.gpgsign', 'false'])
+  git(main, ['config', 'core.hooksPath', '/dev/null'])
+
+  writeFileSync(join(main, 'base.ts'), 'export const base = 1\n')
+  git(main, ['add', '-A'])
+  git(main, ['commit', '-q', '-m', 'base'])
+
+  git(main, ['checkout', '-q', '-b', 'stack/a'])
+  writeFileSync(join(main, 'a.ts'), 'export const a = 1\n')
+  git(main, ['add', '-A'])
+  git(main, ['commit', '-q', '-m', 'bottom layer'])
+
+  git(main, ['worktree', 'add', '-q', '-b', 'stack/b', linked, 'stack/a'])
+  writeFileSync(join(linked, 'b.ts'), 'export const b = 1\n')
+  git(linked, ['add', '-A'])
+  git(linked, ['commit', '-q', '-m', 'top layer'])
+
+  const gitDir = git(linked, ['rev-parse', '--git-dir']).trim()
+  writeFileSync(
+    resolve(linked, gitDir, 'gh-stack'),
+    JSON.stringify({
+      schemaVersion: 1,
+      stacks: [
+        {
+          trunk: { branch: 'main' },
+          branches: [{ branch: 'stack/a' }, { branch: 'stack/b' }],
+        },
+      ],
+    }),
+  )
+
+  return { path: linked, cleanup: () => rmSync(root, { recursive: true, force: true }) }
 }
 
 export async function runWorktree(check: Check): Promise<void> {
@@ -95,5 +143,22 @@ export async function runWorktree(check: Check): Promise<void> {
     )
   } finally {
     repo.cleanup()
+  }
+
+  const linked = stackedLinkedWorktree()
+  try {
+    const base = await resolveBase(linked.path)
+    check(
+      'a stack stored in a linked worktree is found',
+      base.ref === 'stack/a' && base.source === 'stack',
+      `${base.ref} (${base.source})`,
+    )
+    check(
+      '  with the whole chain attached',
+      base.stack?.layers.map((layer) => layer.branch).join(', ') === 'stack/a, stack/b',
+      base.stack?.layers.map((layer) => layer.branch).join(', ') ?? 'no stack',
+    )
+  } finally {
+    linked.cleanup()
   }
 }
