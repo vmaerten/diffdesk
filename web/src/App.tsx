@@ -796,184 +796,268 @@ export default function App() {
 
   const activePath = items[activeIndex]?.path
   const stack = data?.base.stack ?? null
+  const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
 
   return (
     <div className="app">
       <header className="topbar">
-        <div className="revision">
-          <span className="base-anchor">
-            <button
-              type="button"
-              className="ref base"
-              onClick={() => setPicking((p) => (p === 'base' ? null : 'base'))}
-              title="Change the base (b)"
-              aria-expanded={picking === 'base'}
-              disabled={!data}
-            >
-              {data?.base?.ref ?? '…'} <span className="caret">▾</span>
-            </button>
+        <div className="appbar">
+          <div className="repo-context">
+            <span className="brand-mark" aria-hidden="true">
+              g
+            </span>
+            <span className="product-name">ghl</span>
+            <span className="repo-divider">/</span>
+            <strong className="repo-name" title={data?.repo.path}>
+              {repoName}
+            </strong>
+            <span className="review-badge">Review</span>
+          </div>
 
-            {picking === 'base' && data && (
-              <RefSelector
-                repoId={repoId}
-                current={data.base.ref}
-                source={data.base.source}
-                onPick={pickBase}
-                onClose={() => setPicking(null)}
-              />
-            )}
-          </span>
+          <div className="app-actions">
+            <div className="toggle view-toggle" aria-label="Diff layout">
+              <button
+                type="button"
+                aria-pressed={diffStyle === 'unified'}
+                onClick={() => setDiffStyle('unified')}
+              >
+                Unified
+              </button>
+              <button
+                type="button"
+                aria-pressed={diffStyle === 'split'}
+                onClick={() => setDiffStyle('split')}
+              >
+                Split
+              </button>
+            </div>
 
-          <span className="arrow">→</span>
-
-          <span className="base-anchor">
-            <button
-              type="button"
-              className="ref target"
-              onClick={() => setPicking((p) => (p === 'target' ? null : 'target'))}
-              title="Review another revision (t)"
-              aria-expanded={picking === 'target'}
-              disabled={!data}
-            >
-              {data?.target?.ref ?? 'HEAD'} <span className="caret">▾</span>
-            </button>
-
-            {picking === 'target' && data && (
-              <RefSelector
-                repoId={repoId}
-                current={data.target.ref}
-                source={data.target.workingTree ? 'working tree' : 'ref'}
-                extra={{
-                  value: '__working_tree__ this checkout working tree',
-                  label: 'This checkout (working tree)',
-                  hint: 'uncommitted work included',
-                  pick: null,
-                }}
-                onPick={pickTarget}
-                onClose={() => setPicking(null)}
-              />
-            )}
-          </span>
-
-          {/* Beside the chain, not a third link in it: `main → feature → abc1234`
-              reads as "from main up to that commit", which is the cumulative
-              diff. This one is the commit's own. */}
-          <span className="base-anchor">
-            <button
-              type="button"
-              className="ref commit"
-              onClick={() => setPicking((p) => (p === 'commit' ? null : 'commit'))}
-              title="Show one commit (l)"
-              aria-expanded={picking === 'commit'}
-              disabled={!data}
-            >
-              {data?.commit ? `${data.commit.short} ${data.commit.subject}` : 'All commits'}{' '}
-              <span className="caret">▾</span>
-            </button>
-
-            {picking === 'commit' && data && (
-              <CommitSelector
-                repoId={repoId}
-                target={target}
-                current={data.commit}
-                onPick={pickCommit}
-                onClose={() => setPicking(null)}
-              />
-            )}
-          </span>
-
-          {/* A state, not a command, so it lives with the revision controls
-              rather than beside Refresh: it changes what the diff contains. */}
-          <span className="toggle">
-            <button
-              type="button"
-              className="worktree"
-              // The server's answer, not this button's own state: in a commit or
-              // a ref view the working tree is out whatever the flag says, and a
-              // pressed button there would claim the opposite.
-              aria-pressed={data?.target.workingTree ?? !committed}
-              onClick={toggleCommitted}
-              // Already out of the diff there, and both cases say so themselves.
-              disabled={!data || target !== null || commit !== null}
-              title="Include the uncommitted work, staged or not"
-            >
-              Working tree
-            </button>
-          </span>
-
-          {/* Its own group: `.toggle` joins what it holds into one segmented
-              control, and these two are separate settings rather than two halves
-              of one choice. */}
-          <span className="toggle">
-            <button
-              type="button"
-              className="untracked"
-              aria-pressed={data?.untrackedIncluded ?? withUntracked}
-              onClick={toggleUntracked}
-              // One condition for the four cases that leave nothing to include —
-              // a ref, a commit, the working tree out, a checkout with no stray
-              // file — because `buildPatch` empties the list in all of them.
-              disabled={!data || data.untracked.length === 0}
-              title="Include the files git does not track yet"
-            >
-              {/* The count is the whole reason the default is off: 2 changed
-                  files against 446 untracked ones is what it protects against,
-                  and it reads both ways — what is being hidden, or what was
-                  taken in. */}
-              Untracked{data && data.untracked.length > 0 ? ` (${data.untracked.length})` : ''}
-            </button>
-          </span>
-
-          {baseSource && <span className="source">base {baseSource}</span>}
-          {data?.commit ? (
-            <span className="source">one commit — the base is not compared</span>
-          ) : (
-            data &&
-            !data.target.workingTree && (
-              <span className="source">
-                {target ? 'reviewing a ref, working tree excluded' : 'working tree excluded'}
+            <button type="button" className="refresh" onClick={refresh} disabled={refreshing}>
+              <span className={refreshing ? 'refresh-icon spinning' : 'refresh-icon'} aria-hidden>
+                ↻
               </span>
-            )
+              <span className="refresh-label">{refreshing ? 'Refreshing…' : 'Refresh'}</span>
+            </button>
+
+            <details className="shortcuts">
+              <summary className="icon-button" aria-label="Keyboard shortcuts" title="Shortcuts">
+                ?
+              </summary>
+              <div className="shortcuts-panel">
+                <strong>Keyboard shortcuts</strong>
+                <dl>
+                  <div>
+                    <dt>
+                      <kbd>b</kbd>
+                    </dt>
+                    <dd>Choose base</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <kbd>t</kbd>
+                    </dt>
+                    <dd>Choose target</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <kbd>l</kbd>
+                    </dt>
+                    <dd>Choose commit</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <kbd>j</kbd> <kbd>k</kbd>
+                    </dt>
+                    <dd>Move between files</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <kbd>v</kbd>
+                    </dt>
+                    <dd>Mark viewed</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <kbd>c</kbd>
+                    </dt>
+                    <dd>Comment selection</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      <kbd>r</kbd>
+                    </dt>
+                    <dd>Refresh</dd>
+                  </div>
+                </dl>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <div className="reviewbar">
+          <div className="revision">
+            <div className="toolbar-group compare-group">
+              <span className="toolbar-label">
+                Compare {baseSource && <span className="source">· base {baseSource}</span>}
+              </span>
+              <div className="revision-flow">
+                <span className="base-anchor">
+                  <span className="ref-role">Base</span>
+                  <button
+                    type="button"
+                    className="ref base"
+                    onClick={() => setPicking((p) => (p === 'base' ? null : 'base'))}
+                    title="Change the base (b)"
+                    aria-label={`Base: ${data?.base?.ref ?? 'loading'}`}
+                    aria-expanded={picking === 'base'}
+                    disabled={!data}
+                  >
+                    {data?.base?.ref ?? '…'} <span className="caret">▾</span>
+                  </button>
+
+                  {picking === 'base' && data && (
+                    <RefSelector
+                      repoId={repoId}
+                      current={data.base.ref}
+                      source={data.base.source}
+                      onPick={pickBase}
+                      onClose={() => setPicking(null)}
+                    />
+                  )}
+                </span>
+
+                <span className="arrow" aria-hidden="true">
+                  →
+                </span>
+
+                <span className="base-anchor">
+                  <span className="ref-role">Target</span>
+                  <button
+                    type="button"
+                    className="ref target"
+                    onClick={() => setPicking((p) => (p === 'target' ? null : 'target'))}
+                    title="Review another revision (t)"
+                    aria-label={`Target: ${data?.target?.ref ?? 'HEAD'}`}
+                    aria-expanded={picking === 'target'}
+                    disabled={!data}
+                  >
+                    {data?.target?.ref ?? 'HEAD'} <span className="caret">▾</span>
+                  </button>
+
+                  {picking === 'target' && data && (
+                    <RefSelector
+                      repoId={repoId}
+                      current={data.target.ref}
+                      source={data.target.workingTree ? 'working tree' : 'ref'}
+                      extra={{
+                        value: '__working_tree__ this checkout working tree',
+                        label: 'This checkout (working tree)',
+                        hint: 'uncommitted work included',
+                        pick: null,
+                      }}
+                      onPick={pickTarget}
+                      onClose={() => setPicking(null)}
+                    />
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* Beside the chain, not a third link in it: `main → feature → abc1234`
+                reads as "from main up to that commit", which is the cumulative
+                diff. This one is the commit's own. */}
+            <div className="toolbar-group commit-group">
+              <span className="toolbar-label">Commit</span>
+              <span className="base-anchor">
+                <button
+                  type="button"
+                  className="ref commit"
+                  onClick={() => setPicking((p) => (p === 'commit' ? null : 'commit'))}
+                  title="Show one commit (l)"
+                  aria-expanded={picking === 'commit'}
+                  disabled={!data}
+                >
+                  {data?.commit ? `${data.commit.short} ${data.commit.subject}` : 'All commits'}{' '}
+                  <span className="caret">▾</span>
+                </button>
+
+                {picking === 'commit' && data && (
+                  <CommitSelector
+                    repoId={repoId}
+                    target={target}
+                    current={data.commit}
+                    onPick={pickCommit}
+                    onClose={() => setPicking(null)}
+                  />
+                )}
+              </span>
+            </div>
+
+            <div className="toolbar-group scope-group">
+              <span className="toolbar-label">Include</span>
+              <div className="scope-controls">
+                {/* A state, not a command: it changes what the diff contains. */}
+                <label className="scope-check" title="Include the uncommitted work, staged or not">
+                  <input
+                    type="checkbox"
+                    className="worktree"
+                    // The server's answer, not this button's own state: in a commit or
+                    // a ref view the working tree is out whatever the flag says, and a
+                    // checked box there would claim the opposite.
+                    checked={data?.target.workingTree ?? !committed}
+                    onChange={toggleCommitted}
+                    // Already out of the diff there, and both cases say so themselves.
+                    disabled={!data || target !== null || commit !== null}
+                  />
+                  <span>Working tree</span>
+                </label>
+
+                <label className="scope-check" title="Include the files git does not track yet">
+                  <input
+                    type="checkbox"
+                    className="untracked"
+                    checked={data?.untrackedIncluded ?? withUntracked}
+                    onChange={toggleUntracked}
+                    // One condition for the four cases that leave nothing to include —
+                    // a ref, a commit, the working tree out, a checkout with no stray
+                    // file — because `buildPatch` empties the list in all of them.
+                    disabled={!data || data.untracked.length === 0}
+                  />
+                  <span>
+                    {/* The count is the whole reason the default is off: 2 changed
+                        files against 446 untracked ones is what it protects against,
+                        and it reads both ways — what is being hidden, or what was
+                        taken in. */}
+                    Untracked
+                    {data && data.untracked.length > 0 ? ` (${data.untracked.length})` : ''}
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {data?.commit ? (
+              <span className="source revision-note">one commit — the base is not compared</span>
+            ) : (
+              data &&
+              !data.target.workingTree && (
+                <span className="source revision-note">
+                  {target ? 'reviewing a ref, working tree excluded' : 'working tree excluded'}
+                </span>
+              )
+            )}
+          </div>
+
+          {data && (
+            <span className="stats" aria-label="Diff statistics">
+              <span className="file-count">{stats.files} files</span>
+              <span className="add">+{stats.additions}</span>
+              <span className="del">−{stats.deletions}</span>
+            </span>
           )}
         </div>
 
-        {data && (
-          <span className="stats">
-            {stats.files} files <span className="add">+{stats.additions}</span>{' '}
-            <span className="del">−{stats.deletions}</span>
-          </span>
-        )}
-
-        <span className="spacer" />
-
-        <span className="hint">
-          <kbd>b</kbd> base · <kbd>l</kbd> commit · <kbd>j</kbd>
-          <kbd>k</kbd> files · <kbd>v</kbd> viewed · <kbd>c</kbd> comment · <kbd>r</kbd> refresh
-        </span>
-
-        <button type="button" className="refresh" onClick={refresh} disabled={refreshing}>
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
-
-        <div className="toggle">
-          <button
-            type="button"
-            aria-pressed={diffStyle === 'unified'}
-            onClick={() => setDiffStyle('unified')}
-          >
-            Unified
-          </button>
-          <button
-            type="button"
-            aria-pressed={diffStyle === 'split'}
-            onClick={() => setDiffStyle('split')}
-          >
-            Split
-          </button>
-        </div>
-
-        {/* Last child, and full width: the topbar wraps, so the chain gets a row
-            of its own without any of the controls above it moving. */}
+        {/* The stack is a third, conditional level: it tells a different story
+            than the comparison controls above and should never disrupt them. */}
         {stack && (
           <nav className="stack" aria-label="Stack">
             <span>{stack.trunk}</span>
@@ -1050,7 +1134,7 @@ export default function App() {
             // carrying that count is what keeps them out.
             <>
               Nothing to show — nothing but {data.untracked.length} untracked file(s), which the
-              Untracked button brings in.
+              Untracked checkbox brings in.
             </>
           ) : (
             <>

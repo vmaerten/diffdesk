@@ -117,20 +117,20 @@ already is. That runs against the checkout, not the installed copy.
 `ghl` with no argument shows **everything that is not in the base**, committed or not:
 the diff from `merge-base(base, HEAD)` down to the working tree.
 
-The **Working tree** button in the topbar takes that last part back out. Released, the diff
+The **Working tree** checkbox in the topbar takes that last part back out. Cleared, the diff
 stops at HEAD — the branch as its pull request will show it, without checking anything else
 out. Staged and unstaged go together, since both are uncommitted, and the untracked files
-leave with them whatever their own button says. The button is disabled while a ref or a single
+leave with them whatever their own checkbox says. The checkbox is disabled while a ref or a single
 commit is under review: there is no working tree in either, and both already say so.
 
-Files git does not track yet are listed but kept out of the diff, and the **Untracked** button
+Files git does not track yet are listed but kept out of the diff, and the **Untracked** checkbox
 brings them in. It is off by default because one repository here has 2 modified files against
 446 untracked ones — real, unignored, and enough to drown the change under review. It carries
-the count, which is the whole reason for that default and reads both ways: released it says
-what is being kept out, pressed it says what was taken in. A file it brings in is a file the
+the count, which is the whole reason for that default and reads both ways: unchecked it says
+what is being kept out, checked it says what was taken in. A file it brings in is a file the
 diff counts and a file you can comment on, like any other.
 
-`ghl comments` takes them in unconditionally: the page has a button and a reader who chose
+`ghl comments` takes them in unconditionally: the page has a scope control and a reader who chose
 what is on screen, the export has neither, and its scope is the review rather than the view.
 
 The state lives in the URL and nowhere else. A remembered preference would answer over what

@@ -314,6 +314,11 @@ export default {
 
     // ---- deleting ----------------------------------------------------------
 
+    // The selection exercise above can leave the pane far enough down for the
+    // original card to fall outside the virtual window. Reload at its file
+    // before asking its button to delete it: absence from the DOM is not a click.
+    await ready()
+    await sleep(1200)
     await page.evaluate(clickButton('Delete'))
     await sleep(1500)
     check('deleting removes the comment', (await count('.comment')) === 0)

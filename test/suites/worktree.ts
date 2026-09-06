@@ -4,8 +4,8 @@ import { join } from 'node:path'
 
 import { sleep, topbar, type Suite } from '../harness.ts'
 
-/** Named, since the revision group holds a second toggle beside it. */
-const BUTTON = `document.querySelector('.revision .toggle button.worktree')`
+/** Named, since the revision group holds a second checkbox beside it. */
+const BUTTON = `document.querySelector('.revision .scope-check input.worktree')`
 
 export default {
   name: 'worktree',
@@ -17,7 +17,7 @@ export default {
     const button = () =>
       page.evaluate(`(() => {
         const b = ${BUTTON}
-        return b ? { pressed: b.getAttribute('aria-pressed'), off: b.disabled } : null
+        return b ? { pressed: String(b.checked), off: b.disabled } : null
       })()`) as Promise<{ pressed: string; off: boolean } | null>
     const files = () =>
       page.evaluate(
@@ -27,7 +27,7 @@ export default {
       page.evaluate(`document.querySelector('.message')?.textContent?.trim() ?? null`) as Promise<
         string | null
       >
-    /** The button beside it, which the working tree commands without touching. */
+    /** The checkbox beside it, which the working tree controls without changing. */
     const untrackedButton = async () => (await topbar(page)).toggles.at(-1)
 
     try {
@@ -46,7 +46,7 @@ export default {
         (await files()) ?? 'nothing',
       )
       check(
-        '  and the button says so',
+        '  and the checkbox says so',
         (await button())?.pressed === 'true',
         JSON.stringify(await button()),
       )
@@ -71,7 +71,7 @@ export default {
         (await message()) ?? 'no message',
       )
       // The untracked files leave with the working tree, whatever their own
-      // button says — so it must stop counting them and stop inviting a click.
+      // checkbox says — so it must stop counting them and stop inviting a click.
       check(
         '  taking the untracked files with it',
         (await untrackedButton())?.label === 'Untracked' && (await untrackedButton())?.off === true,
@@ -97,7 +97,7 @@ export default {
         (await files()) ?? 'nothing',
       )
 
-      // Reviewing a ref: the working tree is out whatever the button says, so it
+      // Reviewing a ref: the working tree is out whatever the checkbox says, so it
       // must neither claim otherwise nor invite a click.
       await load('?target=feature')
       await sleep(1500)

@@ -68,7 +68,7 @@ headless does no real compositing. Redo with CDP tracing if the need arises.
 | 1 | ~~**One-shot CLI**, no daemon~~ → **one shared process**, the CLI hands it a repository and returns | The latency argument still holds — a daemon saves 40–80 ms out of ~600 ms — but latency was never the motivation. Going back and forth across 39 repositories was: a process per tab, dying with the terminal that opened it. See §3b |
 | 2 | **Node end to end** | One parsing implementation (server and client), and the `./ssr` export stays reachable |
 | 3 | Default = **virtual PR**: `merge-base(base, HEAD)` → working tree | "The PR I would open if I pushed right now" |
-| 3b | Untracked files **listed but excluded** from the diff | Measured on prebid-server-proxy: 2 modified files against 446 untracked ones. The **Untracked** button opts in — it was `--untracked` until a flag deciding what a diff contains turned out to be #55 again |
+| 3b | Untracked files **listed but excluded** from the diff | Measured on prebid-server-proxy: 2 modified files against 446 untracked ones. The **Untracked** checkbox opts in — it was `--untracked` until a flag deciding what a diff contains turned out to be #55 again |
 | 4 | Base **guessed, displayed, remembered** | A heuristic stays a heuristic: it must be visible and correctable |
 | 8 | `cmdk` for the base picker, no design system | 79 KB headless, no provider, no theme competing with the one Shiki imposes. Mantine core is 8.6 MB and brings its own theming |
 | 5 | **Manual** refresh (button + `R`) | `.git` watcher deferred; `.git` changes constantly, debouncing is a topic of its own |
@@ -298,7 +298,7 @@ threshold mean "no tab" rather than "no click".
 - **Patches are `isPartial`.** Context expansion needs an endpoint serving both full file
   versions, wired to `loadDiffFiles`. That is what puts it in V2.
 - **Untracked files are noise.** 446 of them on prebid-server-proxy against 2 real changes.
-  Excluded by default, the Untracked button to include. The count belongs on the button: it is
+  Excluded by default, the Untracked checkbox includes them. The count belongs on the control: it is
   what the default exists for, and it reads both ways — what is hidden, or what was taken in.
 - **A file in the patch was not a file in `files`.** `numstat` and `--name-status` never see an
   untracked file, so the ones `includeUntracked` added to the patch were drawn in the tree and
