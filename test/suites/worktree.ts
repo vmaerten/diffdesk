@@ -4,8 +4,8 @@ import { join } from 'node:path'
 
 import { sleep, topbar, type Suite } from '../harness.ts'
 
-/** The button, which is the only one in the revision group. */
-const BUTTON = `document.querySelector('.revision .toggle button')`
+/** Named, since the revision group holds a second toggle beside it. */
+const BUTTON = `document.querySelector('.revision .toggle button.worktree')`
 
 export default {
   name: 'worktree',
@@ -27,10 +27,8 @@ export default {
       page.evaluate(`document.querySelector('.message')?.textContent?.trim() ?? null`) as Promise<
         string | null
       >
-    const warnings = () =>
-      page.evaluate(
-        `[...document.querySelectorAll('.warning')].map((e) => e.textContent.trim()).join(' | ')`,
-      ) as Promise<string>
+    /** The button beside it, which the working tree commands without touching. */
+    const untrackedButton = async () => (await topbar(page)).toggles.at(-1)
 
     try {
       // The fixture sits on `main`, which is its own trunk, so the bare URL
@@ -53,9 +51,9 @@ export default {
         JSON.stringify(await button()),
       )
       check(
-        '  with the untracked file reported as hidden',
-        (await warnings()).includes('untracked'),
-        (await warnings()) || 'nothing',
+        '  with the untracked file counted on its own button',
+        (await untrackedButton())?.label === 'Untracked (1)',
+        JSON.stringify(await untrackedButton()),
       )
 
       await page.evaluate(`${BUTTON}.click()`)
@@ -72,10 +70,12 @@ export default {
         (await message())?.includes('nothing is committed above') === true,
         (await message()) ?? 'no message',
       )
+      // The untracked files leave with the working tree, whatever their own
+      // button says — so it must stop counting them and stop inviting a click.
       check(
-        '  and the untracked warning goes with it',
-        !(await warnings()).includes('untracked'),
-        (await warnings()) || 'nothing',
+        '  taking the untracked files with it',
+        (await untrackedButton())?.label === 'Untracked' && (await untrackedButton())?.off === true,
+        JSON.stringify(await untrackedButton()),
       )
       const notes = (await topbar(page)).notes.join(' | ')
       check(

@@ -104,7 +104,7 @@ export async function runWorktree(check: Check): Promise<void> {
     const included = await paths(false)
     check(
       'the working tree is in the diff by default',
-      included.join(', ') === 'committed.ts, staged.ts, unstaged.ts',
+      included.join(', ') === 'committed.ts, staged.ts, unstaged.ts, untracked.ts',
       included.join(', ') || 'nothing',
     )
 
@@ -130,6 +130,28 @@ export async function runWorktree(check: Check): Promise<void> {
       '  which the same call does show without the flag',
       withThem.untracked.join(', ') === 'untracked.ts' && withThem.untrackedIncluded,
       withThem.untracked.join(', ') || 'nothing',
+    )
+
+    // A file in the patch is a file the diff counts: `numstat` and
+    // `--name-status` never see an untracked one, so without this it was drawn
+    // in the tree, reported as `+0 -0`, left out of the totals, and dropped by
+    // `commentsIn` — which filters remarks on `files`.
+    const stat = withThem.files.find((f) => f.path === 'untracked.ts')
+    check(
+      '  and counts as one of the files, with the lines git gives it',
+      stat?.status === 'untracked' && stat.additions === 1 && stat.deletions === 0,
+      JSON.stringify(stat) || 'absent',
+    )
+    check(
+      '  which the totals say too',
+      withThem.totals.files === 4,
+      `${withThem.totals.files} file(s)`,
+    )
+    const without = await buildPatch(repo.path, 'main')
+    check(
+      '  and which it does not count when it is not showing it',
+      without.files.every((f) => f.path !== 'untracked.ts') && without.totals.files === 3,
+      `${without.totals.files} file(s): ${without.files.map((f) => f.path).join(', ')}`,
     )
 
     // The trap this option exists to avoid: `HEAD` reaching `resolveBase`, which

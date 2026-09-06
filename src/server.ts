@@ -39,17 +39,13 @@ import { runtimeRevision } from './version.ts'
 /**
  * One repository the server is willing to serve, as the CLI registers it.
  *
- * It holds only what the UI cannot choose. A base and a revision under review
- * are choices the page makes, and it says so by leaving the parameter out at its
- * default value — which an entry answering in its place turns into "the CLI
- * wins forever" (#55). Those travel in the URL the CLI opens instead.
- *
- * `includeUntracked` stays because nothing on screen sets it, so there is no
- * default to mistake for silence. The day a control does, it moves too.
+ * A path, and nothing else. Everything that decides what a diff contains is the
+ * page's choice, and it says so by leaving the parameter out at its default
+ * value — which an entry answering in its place turns into "the CLI wins
+ * forever" (#55). Those travel in the URL the CLI opens instead.
  */
 export interface RepoEntry {
   repoPath: string
-  includeUntracked?: boolean
 }
 
 /** Why the server is being asked to stop. */
@@ -164,16 +160,17 @@ const readBody = (req: IncomingMessage): Promise<string> =>
  * The patch is returned as a thunk, not awaited here, so a caller with other
  * git work to do can keep it in its own `Promise.all`.
  */
-async function resolveRequest(repoPath: string, entry: RepoEntry, url: URL) {
-  // The query string is the only source for all four. A registry fallback would
+async function resolveRequest(repoPath: string, url: URL) {
+  // The query string is the only source for all five. A registry fallback would
   // answer whenever the page left a parameter out at its default value, which is
   // indistinguishable from never having chosen — #55.
   const override = url.searchParams.get('base')
   const target = url.searchParams.get('target')
   const commitRef = url.searchParams.get('commit')
-  // `has`, not `get`: written bare as `?committed`, `get` returns the empty
-  // string, which is falsy, and the flag would be inert without saying so.
+  // `has`, not `get`, for both: written bare as `?committed`, `get` returns the
+  // empty string, which is falsy, and the flag would be inert without saying so.
   const committed = url.searchParams.has('committed')
+  const untracked = url.searchParams.has('untracked')
 
   const [base, commit] = await Promise.all([
     resolveBase(repoPath, { override, target }),
@@ -186,7 +183,7 @@ async function resolveRequest(repoPath: string, entry: RepoEntry, url: URL) {
       : buildPatch(repoPath, base.ref, {
           target,
           committed,
-          includeUntracked: entry.includeUntracked ?? false,
+          includeUntracked: untracked,
         })
 
   return { base, target, commitRef, commit, committed, build }
@@ -244,8 +241,8 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         // a repository, and registering a subdirectory registers its root.
         const repoPath = await resolveRepoRoot(body.repoPath)
         const id = repoIdFor(repoPath)
-        // set(), so a second `ghl --untracked` updates the entry in place.
-        registry.set(id, { repoPath, includeUntracked: body.includeUntracked ?? false })
+        // set(), so registering the same repository twice keeps one entry.
+        registry.set(id, { repoPath })
         return json(res, 200, { id, path: repoPath })
       }
 
@@ -279,7 +276,6 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
       if (route === 'api/diff' && req.method === 'GET') {
         const { base, target, commitRef, commit, committed, build } = await resolveRequest(
           repoPath,
-          entry,
           url,
         )
 
@@ -362,7 +358,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         // Through `resolveRequest` for its base: a list built against another
         // one describes another range, and the picker would offer commits the
         // view cannot show.
-        const { base, target } = await resolveRequest(repoPath, entry, url)
+        const { base, target } = await resolveRequest(repoPath, url)
         const reviewing = target ?? base.branch ?? 'HEAD'
         const payload: CommitsPayload = {
           commits: await listCommits(repoPath, base.ref, reviewing),
@@ -397,7 +393,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         // Through the same resolution as `api/diff`, so the patch is the one on
         // screen: a remark written while reading a single commit anchors on the
         // lines that commit had, not on what the branch made of them since.
-        const { build } = await resolveRequest(repoPath, entry, url)
+        const { build } = await resolveRequest(repoPath, url)
         const { patch } = await build()
 
         const comment: Comment = {

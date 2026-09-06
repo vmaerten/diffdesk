@@ -354,22 +354,47 @@ export async function untrackedPaths(repoPath: string): Promise<string[]> {
 }
 
 /**
- * Synthesise a patch for untracked files.
+ * Synthesise a patch for untracked files, and the counts that go with it.
  *
  * They stay invisible to `git diff` until staged, and `git add -N` would mutate
  * the user's index. Diffed against /dev/null out of tree instead.
+ *
+ * `--numstat` rides in the same invocation rather than a second one: this is
+ * already one process per file, and how many lines a file holds is git's answer
+ * to give — counting the `+` here would have to know about binary files and
+ * about "\ No newline at end of file".
  */
-export async function untrackedPatch(repoPath: string, paths: string[]): Promise<string> {
-  const chunks = []
+export async function untrackedPatch(
+  repoPath: string,
+  paths: string[],
+): Promise<{ patch: string; counts: FileCounts[] }> {
+  const chunks: string[] = []
+  const counts: FileCounts[] = []
   for (const path of paths) {
-    const patch = await git(
+    const out = await git(
       repoPath,
-      ['diff', '--no-index', '--no-color', '--', '/dev/null', path],
+      ['diff', '--no-index', '--numstat', '-p', '--no-color', '--', '/dev/null', path],
       { allowFailure: true },
     )
-    if (patch.trim()) chunks.push(patch)
+    // The numstat line, a blank one, then the patch. Its path field is not read:
+    // out of tree git writes it `/dev/null => <path>`, the same arrow no other
+    // reading of the diff agrees with — and the path asked for is on hand.
+    const [first = '', ...rest] = out.split('\n')
+    const [additions, deletions] = first.split('\t')
+    if (additions === undefined || deletions === undefined) continue
+    const patch = rest.join('\n').trimStart()
+    if (!patch) continue
+
+    chunks.push(patch)
+    const binary = additions === '-'
+    counts.push({
+      path,
+      additions: binary ? 0 : Number.parseInt(additions, 10),
+      deletions: binary ? 0 : Number.parseInt(deletions, 10),
+      binary,
+    })
   }
-  return chunks.join('')
+  return { patch: chunks.join(''), counts }
 }
 
 /** Default branch as recorded by `origin/HEAD`, e.g. "origin/main". */
