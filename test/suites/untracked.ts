@@ -3,14 +3,14 @@ import { join } from 'node:path'
 
 import { sleep, topbar, TREE_ROWS, type Suite, type TreeRow } from '../harness.ts'
 
-const BUTTON = `document.querySelector('.revision .toggle button.untracked')`
+const BUTTON = `document.querySelector('.revision .scope-check input.untracked')`
 
 export default {
   name: 'untracked',
   async run({ page, load, repoPath }, check) {
     const stray = join(repoPath, 'ut-stray.ts')
 
-    /** The second toggle in the revision group, which is this one. */
+    /** The second scope checkbox in the revision group, which is this one. */
     const button = async () => (await topbar(page)).toggles.at(-1)
     const row = async () => {
       const { rows } = (await page.evaluate(TREE_ROWS)) as { rows: TreeRow[] }
@@ -59,7 +59,7 @@ export default {
       const [head, side] = await counts()
       check('  and the two file counts agree', head === side && head === '1', `${head} vs ${side}`)
       check(
-        '  which the button says with its label',
+        '  which the checkbox says with its label',
         (await button())?.label === 'Untracked (1)',
         JSON.stringify(await button()),
       )
@@ -101,7 +101,7 @@ export default {
       )
 
       // A ref holds no working tree, so nothing is untracked in it whatever the
-      // flag says — and a pressed button there would claim otherwise.
+      // flag says — and a checked checkbox there would claim otherwise.
       await load('?target=feature&untracked=1')
       await sleep(1000)
       const onRef = await button()
