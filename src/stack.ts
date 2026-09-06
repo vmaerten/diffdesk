@@ -31,17 +31,27 @@ interface StackFile {
 }
 
 async function readStackFile(repoPath: string): Promise<StackFile | null> {
-  try {
-    // `--git-common-dir`: a worktree has its own `.git`, and the stack belongs
-    // to the repository rather than to one checkout of it.
-    const path = await gitDirPath(repoPath, 'gh-stack', { common: true })
-    const parsed: StackFile = JSON.parse(await readFile(path, 'utf8'))
-    // A schema we do not know is not a stack we can read: guessing at it would
-    // produce a confident, wrong chain.
-    return parsed.schemaVersion === SCHEMA_VERSION ? parsed : null
-  } catch {
-    return null // no gh stack here, or nothing readable — not an error
+  // Current gh-stack versions keep one file per worktree. Older versions used
+  // the common Git directory, so keep that as a fallback for repositories that
+  // have not rewritten their stack since upgrading.
+  const paths = new Set([
+    await gitDirPath(repoPath, 'gh-stack'),
+    await gitDirPath(repoPath, 'gh-stack', { common: true }),
+  ])
+
+  for (const path of paths) {
+    try {
+      const parsed: StackFile = JSON.parse(await readFile(path, 'utf8'))
+      // A schema we do not know is not a stack we can read: guessing at it
+      // would produce a confident, wrong chain. Do not fall through to a stale
+      // common file when the active worktree has an authoritative newer one.
+      return parsed.schemaVersion === SCHEMA_VERSION ? parsed : null
+    } catch {
+      // Missing or unreadable at this location: try the compatibility path.
+    }
   }
+
+  return null // no gh stack here, or nothing readable — not an error
 }
 
 /**
