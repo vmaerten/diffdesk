@@ -2,6 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { asMarkdown } from '../../src/export.ts'
+import type { DiffPayload } from '../../src/types.ts'
 import { allTreeRows, sleep, type Suite } from '../harness.ts'
 
 /**
@@ -163,9 +165,6 @@ export default {
       (await bodies()).join(' | '),
     )
     check('  and no composer is left open', (await count('.comment-composer')) === 0)
-    // Only its presence and its count. What it puts on the clipboard is the CLI's
-    // markdown, from the same function, and that text is asserted where it can be
-    // read without asking a headless browser for clipboard permissions.
     const copyLabel = () =>
       page.evaluate(
         `([...document.querySelectorAll('.sidebar-head button')].find((b) => b.textContent.startsWith('Copy')) || {}).textContent || null`,
@@ -180,6 +179,35 @@ export default {
       (await pencilled()).length === 1,
       (await pencilled())[0]?.path,
     )
+
+    // Copy before reloading: a GET can repair an incomplete save response and
+    // hide the bug. Capture the clipboard write without browser permissions.
+    const checkCopy = async (name: string) => {
+      const payload = (await page.evaluate(`(async () => {
+        return (await fetch(location.pathname + '/api/diff' + location.search)).json()
+      })()`)) as DiffPayload
+      const copied = await page.evaluate(`(async () => {
+        let text = null
+        Object.defineProperty(navigator, 'clipboard', {
+          configurable: true,
+          value: { writeText: async (value) => { text = value } },
+        })
+        const button = [...document.querySelectorAll('.sidebar-head button')]
+          .find((b) => b.textContent.startsWith('Copy'))
+        button.click()
+        await Promise.resolve()
+        return text
+      })()`)
+      check(name, copied === asMarkdown(payload.comments, { range: payload.range }), String(copied))
+      await sleep(100)
+      check(
+        '  and confirms the copy',
+        (await page.evaluate(
+          `[...document.querySelectorAll('.sidebar-head button')].some((b) => b.textContent === 'Copied')`,
+        )) === true,
+      )
+    }
+    await checkCopy('a newly saved comment copies with its code without reloading')
 
     // The decisive one: the comment lives in .git/ghl/state.json, not in memory.
     await ready()
@@ -248,6 +276,7 @@ export default {
     // One comment, not two: the id comes from the client, so an edit rewrites its
     // own entry instead of appending a second one.
     check('  and does not add a second comment', (await count('.comment')) === 1)
+    await checkCopy('an edited comment copies with its code without reloading')
 
     // ---- cancelling lets go of the line ------------------------------------
 

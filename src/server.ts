@@ -411,7 +411,14 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           createdAt: new Date().toISOString(),
         }
         const comments = await putComment(repoPath, comment)
-        return json(res, 200, { comment, comments })
+        // The UI replaces its optimistic entry with this response, so include
+        // the code used by Copy, just as api/diff does. Read the stored entry
+        // to preserve the original createdAt when this was an edit.
+        const [saved] = serveComments(
+          comments.filter((stored) => stored.id === comment.id),
+          patch,
+        )
+        return json(res, 200, { comment: saved, comments })
       }
 
       if (route === 'api/comments' && req.method === 'DELETE') {
