@@ -254,12 +254,12 @@ export async function commitDetail(repoPath: string, sha: string): Promise<Commi
  */
 export type DiffRange =
   | { kind: 'merge-base'; base: string; target?: string | null }
-  | { kind: 'two-point'; from: string; to: string }
+  | { kind: 'two-point'; from: string; to: string | null }
 
 const revisionArgs = (range: DiffRange): string[] =>
   range.kind === 'merge-base'
     ? ['--merge-base', range.base, ...(range.target ? [range.target] : [])]
-    : [range.from, range.to]
+    : [range.from, ...(range.to ? [range.to] : [])]
 
 /** The patch itself, over whichever range. */
 export async function diffPatch(

@@ -1283,3 +1283,25 @@ body.resizing * {
   background-size: 20px 20px;
   cursor: default;
 }
+
+.context-errors {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.context-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  color: #f0f6fc;
+  background: #3d2525;
+  border: 1px solid #f85149;
+  border-radius: 6px;
+  pointer-events: auto;
+}
