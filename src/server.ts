@@ -10,9 +10,12 @@ import {
   headSha,
   listCommits,
   listRefDetails,
+  mergeBase,
+  revParse,
   repoState,
   resolveRepoRoot,
 } from './git.ts'
+import { imageComparisons, imageType, readImage } from './images.ts'
 import {
   buildCommitPatch,
   buildPatch,
@@ -273,6 +276,26 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
       const route = segments.slice(2).join('/')
       const { repoPath } = entry
 
+      if (route === 'api/image' && req.method === 'GET') {
+        const path = url.searchParams.get('path') ?? ''
+        const revision = url.searchParams.get('revision') ?? ''
+        try {
+          const bytes = await readImage(repoPath, revision, path)
+          res.writeHead(200, {
+            'content-type': imageType(path)!,
+            'content-length': bytes.length,
+            'cache-control': 'no-store',
+            'x-content-type-options': 'nosniff',
+            // SVGs remain inert even when their URL is opened as a document.
+            'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+          })
+          res.end(bytes)
+        } catch {
+          json(res, 404, { error: 'Image preview unavailable' })
+        }
+        return
+      }
+
       if (route === 'api/diff' && req.method === 'GET') {
         const { base, target, commitRef, commit, committed, build } = await resolveRequest(
           repoPath,
@@ -301,6 +324,21 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
             ? rangeKey(patchResult.parent, commit.sha)
             : rangeKey(base.ref, reviewing)
         const hashes = sectionHashes(patch)
+        const hasImages = files.some((file) => imageType(file.path))
+        const tip = hasImages
+          ? (commit?.sha ?? (target ? await revParse(repoPath, target) : sha))
+          : null
+        const before = patchResult.parent ?? (tip ? await mergeBase(repoPath, base.ref, tip) : null)
+        const images = before
+          ? await imageComparisons(
+              repoPath,
+              repoId,
+              files,
+              before,
+              !target && !commit && !committed ? null : tip,
+            )
+          : null
+        for (const [path, image] of images ?? []) hashes[path] = image.hash
 
         // Ticks only survive while the file's diff is unchanged.
         const viewed = pruneStale(stored.state.viewed[range] ?? {}, hashes)
@@ -317,7 +355,11 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           state,
           untracked,
           untrackedIncluded,
-          files: files.map((f) => ({ ...f, hash: hashes[f.path] ?? null })),
+          files: files.map((f) => ({
+            ...f,
+            hash: hashes[f.path] ?? null,
+            image: images?.get(f.path)?.image,
+          })),
           totals,
           viewed,
           comments: serveComments(

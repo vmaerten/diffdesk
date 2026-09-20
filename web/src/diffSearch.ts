@@ -6,7 +6,7 @@ export interface SearchableDiffItem {
   id: string
   path: string
   collapsed?: boolean
-  fileDiff: FileDiffMetadata
+  fileDiff?: FileDiffMetadata
 }
 
 export type DiffSearchMatch =
@@ -39,13 +39,13 @@ export function searchDiff(
 
   for (const item of items) {
     const diff = item.fileDiff
-    if (contains(item.path) || contains(diff.prevName)) {
+    if (contains(item.path) || contains(diff?.prevName)) {
       matches.push({ type: 'path', id: item.id, path: item.path })
     }
 
     // A viewed file exposes only its header. Indexing hidden lines would find a
     // result that CodeView cannot reveal without changing the viewed state.
-    if (item.collapsed) continue
+    if (item.collapsed || !diff) continue
 
     for (const hunk of diff.hunks) {
       let deletionLineNumber = hunk.deletionStart

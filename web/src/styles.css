@@ -1149,3 +1149,137 @@ body.resizing * {
     monospace;
   text-align: center;
 }
+
+.image-comparison {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  width: 100%;
+  box-sizing: border-box;
+  font:
+    13px system-ui,
+    sans-serif;
+  color: var(--text);
+  white-space: normal;
+}
+
+.image-side {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+}
+
+.image-side figcaption {
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.image-canvas {
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: #fff;
+  background-image: conic-gradient(#e5e5e5 25%, transparent 0 50%, #e5e5e5 0 75%, transparent 0);
+  background-size: 20px 20px;
+}
+
+.image-canvas img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.image-details {
+  min-height: 18px;
+  margin-top: 8px;
+  color: var(--text-dim);
+}
+
+.image-error {
+  padding: 16px;
+  background: #fff;
+  color: #555;
+}
+
+.image-zoom-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.image-zoom-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.image-zoom {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 32px;
+  border: 0;
+  color: var(--text);
+  background: rgb(0 0 0 / 88%);
+  cursor: zoom-out;
+}
+
+.image-zoom[open] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.image-zoom::backdrop {
+  background: transparent;
+}
+
+.image-zoom-heading {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  max-width: 100%;
+  cursor: default;
+}
+
+.image-zoom-heading span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-zoom-heading button {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  font-size: 24px;
+}
+
+.image-zoom-content {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100dvh - 120px);
+  object-fit: contain;
+  background-color: #fff;
+  background-image: conic-gradient(#e5e5e5 25%, transparent 0 50%, #e5e5e5 0 75%, transparent 0);
+  background-size: 20px 20px;
+  cursor: default;
+}

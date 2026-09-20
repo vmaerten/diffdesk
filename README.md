@@ -52,6 +52,15 @@ offered, but it does not enter the patch. Merges are listed too, badged, and rea
 their first parent. A sha that no longer resolves — rebased away, amended — falls back to
 the whole range and says so, rather than showing the branch under a commit's name.
 
+Image changes have visual previews: additions show the new image, modifications show
+**Before / After** side by side, and deletions show the old image. PNG, JPEG, GIF, WebP,
+AVIF, SVG, ICO and BMP are supported, with dimensions, file sizes and a checkerboard for
+transparency. Previews follow the selected revision and the Working tree / Untracked
+controls, and fold when marked viewed. Images over 20 MB or that cannot be decoded show
+an explanation instead of a preview.
+Click an image to enlarge it in an overlay; close it with Escape, the close button or a
+click on the background.
+
 Ticks are keyed on the commit, so a file read there is not counted as read of the branch.
 And since a commit's diff cannot change, a tick set on one never clears itself — unlike the
 branch view, where the next commit unticks the file it touched.
@@ -182,6 +191,7 @@ pnpm test            # all of them
 pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename, order,
                      # stack, commits, worktree, untracked
 pnpm test lifecycle  # the shared process, without starting a browser
+pnpm test images     # image API and previews, using a dedicated fixture and Chrome
 ```
 
 `lifecycle` drives real `ghl` processes — cold start, a second repository joining, a newer

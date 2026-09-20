@@ -4,6 +4,7 @@ import {
   isDiffAnnotation,
   parsePatchFiles,
   type CodeViewDiffItem,
+  type CodeViewFileItem,
   type CodeViewItem,
   type DiffLineAnnotation,
   type LineAnnotation,
@@ -16,6 +17,7 @@ import CommitSelector from './CommitSelector.tsx'
 import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import CommentThread, { type Composer, type SaveState } from './CommentThread.tsx'
+import ImageDiff from './ImageDiff.tsx'
 import { searchDiff } from './diffSearch.ts'
 import { asMarkdown } from '../../src/export.ts'
 import { treeOrder } from './fileOrder.ts'
@@ -24,6 +26,7 @@ import type {
   Comment,
   DiffPayload,
   DiffSide,
+  ImageComparison,
   ServedComment,
   ViewedMap,
 } from '../../src/types.ts'
@@ -32,7 +35,9 @@ import type {
  * `CodeViewDiffItem` carries no path; we add one and read it back from our own
  * array, which the library ignores.
  */
-type DiffItem = CodeViewDiffItem & { path: string }
+type DiffItem = (CodeViewDiffItem | (CodeViewFileItem & { image: ImageComparison })) & {
+  path: string
+}
 
 /**
  * What the library hands a selection callback. `CodeViewDiffItemContext` is not
@@ -281,8 +286,15 @@ export default function App() {
     // the caller's problem. Two views of the same checkout share a head sha —
     // the branch and one of its commits — and the second was served rows
     // highlighted for the first.
-    const files = parsePatchFiles(data.patch, `${repoId}-${data.head.sha}-${data.range}`)
+    const imageFiles = new Map(
+      data.files.filter((file) => file.image).map((file) => [file.path, file]),
+    )
+    const files: DiffItem[] = parsePatchFiles(
+      data.patch,
+      `${repoId}-${data.head.sha}-${data.range}`,
+    )
       .flatMap((patch) => patch.files ?? [])
+      .filter((file) => !imageFiles.has(file.name))
       .map((fileDiff, index) => ({
         id: fileDiff.cacheKey ?? `file-${index}`,
         path: fileDiff.name,
@@ -297,6 +309,17 @@ export default function App() {
             ? { ...fileDiff, lang: getFiletypeFromFileName(fileDiff.name) }
             : fileDiff,
       }))
+    // Empty file items give images the same header, navigation and measured
+    // file-level annotation slot as text, without inventing source lines.
+    for (const file of imageFiles.values()) {
+      files.push({
+        id: `image:${data.range}:${file.path}:${file.hash}`,
+        path: file.path,
+        type: 'file',
+        file: { name: file.path, contents: '', lang: 'text', cacheKey: `image:${file.hash}` },
+        image: file.image!,
+      })
+    }
     const order = treeOrder(files.map((file) => file.path))
     return files.toSorted(
       (left, right) => (order.get(left.path) ?? 0) - (order.get(right.path) ?? 0),
@@ -363,7 +386,7 @@ export default function App() {
   const versions = useRef(new Map<string, { key: string; version: number }>())
   const items = useMemo(
     () =>
-      allItems.map((item) => {
+      allItems.map((item): DiffItem => {
         const collapsed = item.path in viewed
         // The pane re-reads an item only when its `version` moves; anything
         // reaching it *through* the item — `collapsed`, `annotations` — is
@@ -380,7 +403,9 @@ export default function App() {
             ? (previous?.version ?? 0)
             : previous.version + 1
         versions.current.set(item.path, { key, version })
-        return { ...item, collapsed, version, annotations: annotations.byPath.get(item.path) }
+        return item.type === 'file'
+          ? { ...item, collapsed, version, annotations: collapsed ? [] : [{ lineNumber: 0 }] }
+          : { ...item, collapsed, version, annotations: annotations.byPath.get(item.path) }
       }),
     [allItems, viewed, annotations],
   )
@@ -818,6 +843,8 @@ export default function App() {
       diffStyle,
       theme: 'github-dark' as const,
       stickyHeaders: true,
+      // File items are image previews; only text diff items have source rows.
+      unsafeCSS: '[data-file] [data-line], [data-file] [data-gutter] { display: none; }',
       // Both gutter APIs are declared mutually exclusive and the library throws
       // on the pair, so this is the native "+" button, not a rendered one.
       // Setting the handler is also what enables dragging on the gutter.
@@ -839,6 +866,10 @@ export default function App() {
    */
   const renderAnnotation = useCallback(
     (annotation: LineAnnotation | DiffLineAnnotation, item: CodeViewItem<undefined>) => {
+      if (item.type === 'file') {
+        const image = (item as Extract<DiffItem, { type: 'file' }>).image
+        return image ? <ImageDiff image={image} path={item.file.name} /> : null
+      }
       if (item.type !== 'diff' || !isDiffAnnotation(annotation)) return null
       const key = threadKey(item.fileDiff.name, annotation.side, annotation.lineNumber)
       const thread = threads.get(key)
@@ -883,7 +914,7 @@ export default function App() {
    */
   const renderHeaderMetadata = useCallback(
     (item: CodeViewItem<undefined>) => {
-      const path = item.type === 'diff' ? item.fileDiff.name : null
+      const path = item.type === 'diff' ? item.fileDiff.name : item.file.name
       if (!path) return null
       const isViewed = path in viewed
       return (

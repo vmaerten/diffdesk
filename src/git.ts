@@ -50,6 +50,15 @@ export async function git(
   }
 }
 
+/** Read a blob without decoding binary bytes as UTF-8. */
+export async function gitBlob(repoPath: string, oid: string, maxBytes: number): Promise<Buffer> {
+  const { stdout } = await execFileAsync('git', ['-C', repoPath, 'cat-file', 'blob', oid], {
+    encoding: 'buffer',
+    maxBuffer: maxBytes,
+  })
+  return stdout
+}
+
 /** Absolute path of the repository containing `startDir`. */
 export async function resolveRepoRoot(startDir: string): Promise<string> {
   const root = await git(startDir, ['rev-parse', '--show-toplevel'])

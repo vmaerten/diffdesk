@@ -5,6 +5,7 @@ import { runLifecycle } from './lifecycle.ts'
 import { runRefs } from './refs.ts'
 import { runWorktree } from './worktree.ts'
 import { runState } from './state.ts'
+import { runImages } from './images.ts'
 
 import tree from './suites/tree.ts'
 import resize from './suites/resize.ts'
@@ -37,9 +38,8 @@ const SUITES: Suite[] = [
 ]
 
 /**
- * Suites that need no browser: one drives real CLI processes, the other calls
- * plain functions. They run first — a shadow DOM is a poor place to find out
- * that a string comparison was wrong.
+ * Suites with their own repositories. Most need no browser; images also checks
+ * its dedicated fixture in Chrome after validating the API.
  */
 const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'state', run: runState },
@@ -47,6 +47,7 @@ const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'commits', run: runCommits },
   { name: 'worktree', run: runWorktree },
   { name: 'lifecycle', run: runLifecycle },
+  { name: 'images', run: runImages },
 ]
 
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-'))
