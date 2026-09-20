@@ -7,7 +7,8 @@ import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
 import { buildPatch } from '../src/revision.ts'
 import { comparisonReader } from '../src/comparison.ts'
 import { asMarkdown } from '../src/export.ts'
-import type { DiffFiles, DiffPayload, ServedComment } from '../src/types.ts'
+import { putComment } from '../src/state.ts'
+import type { Comment, DiffFiles, DiffPayload, ServedComment } from '../src/types.ts'
 import { DIFF_SCROLLER, clickTreeRow, sleep, withHarness, type Check } from './harness.ts'
 
 export async function runContext(check: Check): Promise<void> {
@@ -136,10 +137,43 @@ export async function runContext(check: Check): Promise<void> {
       'comment outside patch has its anchor and current code',
       saved.comment.anchor.join('|') === 'line 90|line 91' && !saved.comment.stale,
     )
+    await putComment(path, {
+      id: 'outside-comparison',
+      path: 'absent.txt',
+      side: 'additions',
+      start: 1,
+      end: 1,
+      body: 'Keep this hidden comment',
+      anchor: ['original'],
+      range: 'other..range',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    })
+    const resaved: { comment: ServedComment; comments: Comment[] } = await (
+      await fetch(`${base}/api/comments?base=main`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...saved.comment, body: 'Review this context again' }),
+      })
+    ).json()
+    check(
+      'saving an edit enriches its stored entry and preserves the original timestamp',
+      resaved.comment.id === saved.comment.id &&
+        resaved.comment.createdAt === saved.comment.createdAt &&
+        resaved.comment.body === 'Review this context again' &&
+        resaved.comment.code.join('|') === 'line 90|line 91' &&
+        !resaved.comment.stale,
+    )
+    check(
+      'save response keeps the full raw comment list, including hidden comments',
+      resaved.comments.map((entry) => entry.id).join('|') ===
+        'context-comment|outside-comparison' &&
+        resaved.comments.every((entry) => !('code' in entry) && !('stale' in entry)),
+    )
     const restored = await diff()
     check(
       'reload preserves comment status and HTTP export code',
-      restored.comments[0]?.code.join('|') === 'line 90|line 91' &&
+      restored.comments.length === 1 &&
+        restored.comments[0]?.code.join('|') === 'line 90|line 91' &&
         !restored.comments[0].stale &&
         asMarkdown(restored.comments, { range: restored.range }).includes('line 90'),
     )
@@ -305,7 +339,7 @@ export async function runContext(check: Check): Promise<void> {
       check(
         'expanded context restores the saved comment',
         (await page.evaluate(
-          `Boolean((${root})?.querySelector('slot[name="annotation-additions-91"]')) && [...document.querySelectorAll('.comment p')].some(el => el.textContent === 'Review this context')`,
+          `Boolean((${root})?.querySelector('slot[name="annotation-additions-91"]')) && [...document.querySelectorAll('.comment p')].some(el => el.textContent === 'Review this context again')`,
         )) === true,
       )
       await page.keyboard.down('Meta')

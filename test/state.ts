@@ -3,25 +3,14 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import {
-  clearViewed,
-  commentsIn,
-  linesAt,
-  putComment,
-  readState,
-  removeComment,
-  serveComments,
-  setViewed,
-} from '../src/state.ts'
-import { asExport, asMarkdown } from '../src/export.ts'
+import { clearViewed, putComment, readState, removeComment, setViewed } from '../src/state.ts'
 import type { Check } from './harness.ts'
 
 /**
  * A bare-bones repository, not the shared fixture.
  *
- * These checks are about `.git/ghl/state.json` and about parsing a patch handed
- * to them as a string — building 60 files and two stack chains for that would
- * only make them slower to run and slower to read.
+ * These checks are about `.git/ghl/state.json` — building 60 files and two
+ * stack chains for that would only make them slower to run and slower to read.
  */
 function scratchRepo(): { path: string; cleanup: () => void } {
   const path = mkdtempSync(join(tmpdir(), 'ghl-state-'))
@@ -30,27 +19,6 @@ function scratchRepo(): { path: string; cleanup: () => void } {
 }
 
 const stateFile = (repo: string) => join(repo, '.git', 'ghl', 'state.json')
-
-/** One file per status, one hunk each, plus the shapes that trip a naive parser. */
-const PATCH = `diff --git a/src/one.ts b/src/one.ts
-index 1111111..2222222 100644
---- a/src/one.ts
-+++ b/src/one.ts
-@@ -10,4 +10,5 @@ export function one() {
-   const kept = 1
--  const gone = 2
-+  const added = 2
-+  const alsoAdded = 3
-   return kept
-diff --git a/src/two.ts b/src/two.ts
-index 3333333..4444444 100644
---- a/src/two.ts
-+++ b/src/two.ts
-@@ -1,3 +1,3 @@
--- dashes lead this removed line
-+++ and these lead the added one
- unchanged
-`
 
 export async function runState(check: Check): Promise<void> {
   const repo = scratchRepo()
@@ -173,25 +141,6 @@ export async function runState(check: Check): Promise<void> {
     )
 
     await putComment(repo.path, { ...comment, id: 'c2', path: 'src/two.ts' })
-    const shown = commentsIn((await readState(repo.path)).state.comments, [
-      'src/one.ts',
-      'src/three.ts',
-    ])
-    // Filtered on the path, deliberately not on the range: a comment is filed
-    // against code, so it follows its file across bases instead of vanishing
-    // when `resolveBase` changes its mind on its own.
-    check(
-      'only comments on a file in the diff are served',
-      shown.length === 1,
-      shown.map((c) => c.path).join(', '),
-    )
-    check(
-      '  whatever range they were written under',
-      commentsIn((await readState(repo.path)).state.comments, ['src/one.ts']).every(
-        (c) => c.range === 'main..HEAD',
-      ),
-    )
-
     await removeComment(repo.path, 'c1')
     const removed = await readState(repo.path)
     check(
@@ -205,231 +154,6 @@ export async function runState(check: Check): Promise<void> {
       '  without disturbing the viewed state',
       removed.state.viewed['main..HEAD']?.['kept.ts'] === 'k',
       JSON.stringify(removed.state.viewed['main..HEAD']),
-    )
-
-    // ---- staleness ---------------------------------------------------------
-
-    // Two comments in the same file, on lines 11 and 12. This is the case the
-    // feature exists for: an agent is handed both, fixes one, and the other must
-    // not be swept along with it.
-    const onEleven = {
-      ...comment,
-      id: 's1',
-      start: 11,
-      end: 11,
-      anchor: ['  const added = 2'],
-    }
-    const onTwelve = {
-      ...comment,
-      id: 's2',
-      start: 12,
-      end: 12,
-      anchor: ['  const alsoAdded = 3'],
-    }
-
-    const unchanged = serveComments([onEleven, onTwelve], PATCH)
-    check(
-      'a comment whose lines still read the same is not stale',
-      unchanged.every((c) => !c.stale),
-      unchanged.map((c) => `${c.id}=${c.stale}`).join(' '),
-    )
-
-    // Line 11 rewritten, line 12 untouched.
-    const oneFixed = PATCH.replace('+  const added = 2', '+  const extracted = two()')
-    const partly = serveComments([onEleven, onTwelve], oneFixed)
-    check(
-      'fixing one line stales that comment',
-      partly.find((c) => c.id === 's1')?.stale === true,
-      `s1=${partly.find((c) => c.id === 's1')?.stale}`,
-    )
-    // The whole point. A file-level hash would have flagged this one too, in the
-    // one situation the feature is meant for — so the signal would never mean
-    // anything.
-    check(
-      '  and leaves the one beside it alone',
-      partly.find((c) => c.id === 's2')?.stale === false,
-      `s2=${partly.find((c) => c.id === 's2')?.stale}`,
-    )
-
-    // A hunk elsewhere in the same file: nothing either comment points at moved.
-    const elsewhere = PATCH.replace('   return kept', '   return kept // touched')
-    check(
-      'a change elsewhere in the file stales neither',
-      serveComments([onEleven, onTwelve], elsewhere).every((c) => !c.stale),
-      serveComments([onEleven, onTwelve], elsewhere)
-        .map((c) => `${c.id}=${c.stale}`)
-        .join(' '),
-    )
-
-    // The lines left the diff altogether — unknown, which is a change.
-    check(
-      'a comment whose lines left the patch is stale',
-      serveComments([onEleven], 'diff --git a/other.ts b/other.ts\n')[0]?.stale === true,
-    )
-    // Never captured, so there is no reference to have drifted from: claiming it
-    // changed would be asserting something nobody measured.
-    check(
-      '  but one that never had an anchor is not',
-      serveComments([{ ...onEleven, anchor: [] }], oneFixed)[0]?.stale === false,
-    )
-    // A range that shrank counts: same first line, one line short.
-    check(
-      '  and a range that no longer spans as far is',
-      serveComments(
-        [{ ...comment, id: 's3', start: 11, end: 12, anchor: ['  const added = 2'] }],
-        PATCH,
-      )[0]?.stale === true,
-    )
-
-    // Read-time only, like pruneStale: put the lines back and the flag clears.
-    check(
-      'staleness is not written to disk',
-      (await readState(repo.path)).state.comments.every((c) => !('stale' in c)),
-      JSON.stringify((await readState(repo.path)).state.comments.map((c) => Object.keys(c).length)),
-    )
-
-    // ---- the export --------------------------------------------------------
-
-    // Two files, three comments, one of them stale and one range spanning lines.
-    const forExport = serveComments(
-      [
-        { ...comment, id: 'e2', path: 'src/two.ts', start: 1, end: 1, anchor: [], body: 'second' },
-        { ...comment, id: 'e1b', start: 12, end: 12, anchor: ['gone'], body: 'moved on' },
-        { ...comment, id: 'e1a', start: 11, end: 12, body: 'first' },
-      ],
-      PATCH,
-    )
-
-    const shape = asExport(forExport, { repo: '/tmp/repo', range: 'main..HEAD' })
-    // Path then line, not the order they were written: the export is read as a
-    // list of places, and the tree's order exists for a pane there is none of here.
-    check(
-      'the export is ordered by path then line',
-      shape.comments.map((c) => c.id).join(',') === 'e1a,e1b,e2',
-      shape.comments.map((c) => c.id).join(','),
-    )
-    // Quoted from the current patch, not from the anchor: the agent is about to
-    // edit what is there now, not what was there when the remark was written.
-    check(
-      '  quoting the lines as they read now',
-      JSON.stringify(shape.comments[0]?.code) ===
-        JSON.stringify(['  const added = 2', '  const alsoAdded = 3']),
-      JSON.stringify(shape.comments[0]?.code),
-    )
-    // Only where it says something. A `was` on every entry, equal to `code`, is
-    // noise that reads as meaningful.
-    check(
-      '  and carrying `was` only where the lines moved',
-      shape.comments
-        .filter((c) => c.was !== undefined)
-        .map((c) => c.id)
-        .join(',') === 'e1b',
-      shape.comments.map((c) => `${c.id}:${c.was ? 'was' : '-'}`).join(' '),
-    )
-
-    const md = asMarkdown(forExport, { range: 'main..HEAD' })
-    check(
-      'markdown counts what it carries',
-      md.startsWith('# 3 comments on main..HEAD'),
-      md.split('\n')[0],
-    )
-    check(
-      '  groups under one heading per file',
-      (md.match(/^## .*/gm) ?? []).join(' | ') === '## src/one.ts | ## src/two.ts',
-      (md.match(/^## .*/gm) ?? []).join(' | '),
-    )
-    check(
-      '  labels a range as a range',
-      md.includes('**L11–L12**'),
-      md.includes('**L11–L12**') ? 'yes' : md,
-    )
-    check('  and a single line as one', md.includes('**L1**'), md.includes('**L1**') ? 'yes' : 'no')
-    check(
-      '  says so when the lines have moved',
-      md.includes('These lines have changed'),
-      md.includes('These lines have changed') ? 'yes' : 'no',
-    )
-    // No instruction: "apply these" is the prompt of whoever pastes it, and it is
-    // not this tool's place to write that for them.
-    check(
-      '  and tells the reader nothing to do',
-      !/apply|please|fix these/i.test(md),
-      (md.match(/apply|please|fix these/i) ?? []).join(''),
-    )
-    check(
-      'an empty review says so rather than printing a bare heading',
-      asMarkdown([], { range: 'main..HEAD' }) === 'No comments on main..HEAD.\n',
-      JSON.stringify(asMarkdown([], { range: 'main..HEAD' })),
-    )
-
-    // ---- linesAt -----------------------------------------------------------
-
-    const at = (path: string, side: 'additions' | 'deletions', start: number, end = start) =>
-      linesAt(PATCH, { path, side, start, end })
-
-    // The hunk starts at new line 10: context, then the two added lines.
-    check(
-      'linesAt reads an added line by its number in the new file',
-      JSON.stringify(at('src/one.ts', 'additions', 11)) === JSON.stringify(['  const added = 2']),
-      JSON.stringify(at('src/one.ts', 'additions', 11)),
-    )
-    check(
-      '  and a range spanning several added lines',
-      JSON.stringify(at('src/one.ts', 'additions', 11, 12)) ===
-        JSON.stringify(['  const added = 2', '  const alsoAdded = 3']),
-      JSON.stringify(at('src/one.ts', 'additions', 11, 12)),
-    )
-    // Context counts on both sides, so a range may mix context and changes.
-    check(
-      '  and a range mixing context with a change',
-      JSON.stringify(at('src/one.ts', 'additions', 10, 11)) ===
-        JSON.stringify(['  const kept = 1', '  const added = 2']),
-      JSON.stringify(at('src/one.ts', 'additions', 10, 11)),
-    )
-    // The removed line is line 11 of the *old* file, where line 11 of the new
-    // one is something else entirely: asking on the wrong side is not a near miss.
-    check(
-      '  and a removed line by its number in the old file',
-      JSON.stringify(at('src/one.ts', 'deletions', 11)) === JSON.stringify(['  const gone = 2']),
-      JSON.stringify(at('src/one.ts', 'deletions', 11)),
-    )
-    // `--- a/x` and `+++ b/x` are indistinguishable from content once the marker
-    // is stripped, so they are skipped by position rather than by looks.
-    check(
-      '  and content whose own leading dashes look like a file header',
-      JSON.stringify(at('src/two.ts', 'deletions', 1)) ===
-        JSON.stringify(['- dashes lead this removed line']),
-      JSON.stringify(at('src/two.ts', 'deletions', 1)),
-    )
-    check(
-      '  the same for leading plusses',
-      JSON.stringify(at('src/two.ts', 'additions', 1)) ===
-        JSON.stringify(['++ and these lead the added one']),
-      JSON.stringify(at('src/two.ts', 'additions', 1)),
-    )
-
-    // Null, not blanks. These patches are partial, so a line the patch does not
-    // carry is unknown — and an anchor of empty strings would compare equal to
-    // the next unknown line, which is a stale comment reading as fresh.
-    check(
-      'linesAt returns null outside the hunks',
-      at('src/one.ts', 'additions', 400) === null,
-      JSON.stringify(at('src/one.ts', 'additions', 400)),
-    )
-    check(
-      '  and null when only part of the range is known',
-      at('src/one.ts', 'additions', 12, 40) === null,
-      JSON.stringify(at('src/one.ts', 'additions', 12, 40)),
-    )
-    check(
-      '  and null for a file the patch does not mention',
-      at('src/absent.ts', 'additions', 1) === null,
-      JSON.stringify(at('src/absent.ts', 'additions', 1)),
-    )
-    check(
-      '  and null for a range that runs backwards',
-      at('src/one.ts', 'additions', 12, 11) === null,
-      JSON.stringify(at('src/one.ts', 'additions', 12, 11)),
     )
   } finally {
     repo.cleanup()

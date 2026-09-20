@@ -134,7 +134,7 @@ export type DiffSide = 'deletions' | 'additions'
  */
 export interface Comment {
   id: string
-  /** The b-side path, as the keys of `sectionHashes` are. */
+  /** The b-side path used by the comparison reader. */
   path: string
   side: DiffSide
   /** 1-based in that side's version of the file. `end === start` for one line. */
