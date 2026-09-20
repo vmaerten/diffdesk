@@ -23,6 +23,18 @@ export interface FileStat extends FileCounts {
 /** As served: the hash identifies the diff section a viewed tick was set on. */
 export interface ServedFileStat extends FileStat {
   hash: string | null
+  image?: ImageComparison
+}
+
+export interface ImageVersion {
+  url: string | null
+  bytes?: number
+  error?: string
+}
+
+export interface ImageComparison {
+  before: ImageVersion | null
+  after: ImageVersion | null
 }
 
 /**
