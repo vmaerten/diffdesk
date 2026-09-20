@@ -1,20 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStableCallback } from '@pierre/diffs/react'
-import {
-  useReviewDiff,
-  type LoadedReviewDiff,
-  type CommentSubmission,
-  type SaveState,
-} from './useReviewDiff.tsx'
-
+import { useReviewDiff, type LoadedReviewDiff } from './useReviewDiff.tsx'
 import { useReviewSelection } from './reviewSelection.ts'
+import { useCommentPersistence, type CommentSubmission } from './commentPersistence.ts'
 
 import RefSelector from './RefSelector.tsx'
 import CommitSelector from './CommitSelector.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import { asMarkdown } from '../../src/export.ts'
-import type { BaseSource, DiffPayload, ServedComment, ViewedMap } from '../../src/types.ts'
+import type { BaseSource, DiffPayload, ViewedMap } from '../../src/types.ts'
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -48,21 +43,11 @@ export default function App() {
   /** path -> hash of the diff section that was marked as read. */
   const [viewed, setViewedState] = useState<ViewedMap>({})
   const [picking, setPicking] = useState<'base' | 'target' | 'commit' | null>(null)
-  const [comments, setComments] = useState<ServedComment[]>([])
-  /** Momentary, so the button can say the clipboard actually took it. */
-  const [copied, setCopied] = useState(false)
-  /** id -> how its last write went. Read while painting, so it is state. */
-  const [saving, setSaving] = useState<Map<string, SaveState>>(new Map())
-  /**
-   * Comments the server has not confirmed, by id.
-   *
-   * A ref rather than state because `refresh()` has to merge them back in, and
-   * depending on them would rebuild `refresh` and re-fire the effect that calls
-   * it. Without this merge, an `r` between writing and saving loses the text.
-   */
-  const pendingRef = useRef(new Map<string, ServedComment>())
   const [selection, select] = useReviewSelection(repoId)
   const { target, commit, committed, withUntracked, query } = selection
+  const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId)
+  /** Momentary, so the button can say the clipboard actually took it. */
+  const [copied, setCopied] = useState(false)
   /** Folding and revealing live inside the tree, which owns that state. */
   const treeRef = useRef<FileTreeHandle>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -84,6 +69,7 @@ export default function App() {
     const controller = new AbortController()
     controllerRef.current = controller
     setRefreshing(true)
+    const receiveComments = commentPersistence.refresh()
     try {
       const response = await fetch(`/r/${repoId}/api/diff${selection.query}`, {
         signal: controller.signal,
@@ -94,13 +80,7 @@ export default function App() {
       setData({ ...body, loadId, query: selection.query, signal: controller.signal })
       // The server already dropped ticks whose file changed since.
       setViewedState(body.viewed ?? {})
-      // Whatever the server has, plus what it has not been told yet: a comment
-      // still in flight, or one whose write failed, must survive a refresh.
-      const served = body.comments ?? []
-      const unconfirmed = [...pendingRef.current.values()].filter(
-        (pending) => !served.some((comment) => comment.id === pending.id),
-      )
-      setComments([...served, ...unconfirmed])
+      receiveComments(body.comments ?? [])
       setError(null)
     } catch (cause) {
       if (controller.signal.aborted) return
@@ -109,7 +89,7 @@ export default function App() {
     } finally {
       if (!controller.signal.aborted) setRefreshing(false)
     }
-  }, [repoId, selection])
+  }, [repoId, selection, commentPersistence])
 
   useEffect(() => {
     refresh()
@@ -190,77 +170,13 @@ export default function App() {
     })
   }, [data, repoId])
 
-  /**
-   * Send a comment, and let the card carry the outcome.
-   *
-   * Deliberately not `toggleViewed`'s pattern of a banner above the page: losing
-   * a tick costs a click, losing a sentence costs the sentence, and a global
-   * banner never says *which* comment is missing from the export.
-   */
-  const save = useStableCallback(async (comment: ServedComment) => {
-    pendingRef.current.set(comment.id, comment)
-    setSaving((current) => new Map(current).set(comment.id, 'saving'))
-    try {
-      // The same query as the read: the server rebuilds the patch to cut the
-      // anchor, and it has to be the patch this remark was written on.
-      const response = await fetch(`/r/${repoId}/api/comments${query}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(comment),
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const body: { comment: ServedComment } = await response.json()
-      pendingRef.current.delete(comment.id)
-      // The server fills the anchor and keeps the original createdAt, so take
-      // its version rather than leaving the optimistic one in place.
-      setComments((current) => current.map((c) => (c.id === body.comment.id ? body.comment : c)))
-      setSaving((current) => {
-        const next = new Map(current)
-        next.delete(comment.id)
-        return next
-      })
-    } catch {
-      setSaving((current) => new Map(current).set(comment.id, 'failed'))
-    }
-  })
-
   const submitComment = useStableCallback((draft: CommentSubmission) => {
-    if (!data) return
-    const existing = draft.editing
-      ? comments.find((comment) => comment.id === draft.editing)
-      : undefined
-    const comment: ServedComment = {
-      // Written against what is on screen, so it describes it by construction.
-      // The server decides otherwise on the next read, never here.
-      stale: false,
-      // Optimistic and therefore unknown until the server answers: it cuts the
-      // lines from the patch, and this side has no business guessing them.
-      code: existing?.code ?? [],
-      // From here, not from the server: a save retried after having in fact
-      // succeeded then rewrites its own entry instead of adding a second one.
-      id: draft.editing ?? crypto.randomUUID(),
-      path: draft.path,
-      side: draft.side,
-      start: draft.start,
-      end: draft.end,
-      body: draft.body,
-      anchor: existing?.anchor ?? [],
-      range: data.range,
-      createdAt: existing?.createdAt ?? new Date().toISOString(),
-    }
-    setComments((current) =>
-      current.some((c) => c.id === comment.id)
-        ? current.map((c) => (c.id === comment.id ? comment : c))
-        : [...current, comment],
-    )
-    save(comment)
+    if (data) void commentPersistence.submit(draft, data)
   })
 
   const deleteComment = useStableCallback(async (id: string) => {
-    setComments((current) => current.filter((comment) => comment.id !== id))
-    pendingRef.current.delete(id)
     try {
-      await fetch(`/r/${repoId}/api/comments?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      await commentPersistence.remove(id)
     } catch (cause) {
       setError(`could not delete the comment: ${cause instanceof Error ? cause.message : cause}`)
     }
@@ -315,7 +231,9 @@ export default function App() {
     onViewedChange: toggleViewed,
     onSubmit: submitComment,
     onDelete: deleteComment,
-    onRetry: save,
+    onRetry: (comment) => {
+      void commentPersistence.retry(comment.id)
+    },
     onRevealFile: revealFile,
   })
 

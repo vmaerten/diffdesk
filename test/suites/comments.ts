@@ -263,6 +263,23 @@ export default {
     // stored, once being rewritten.
     check('  and the stored copy steps aside', (await count('.comment')) === 0)
 
+    // Keep the edit unsaved while refresh reads the old copy of the same ID.
+    await page.evaluate(`(() => {
+      const original = window.fetch
+      window.__restoreCommentFetch = () => { window.fetch = original }
+      window.fetch = (input, init) => {
+        if (String(input).includes('/api/comments') && init?.method === 'POST') {
+          return new Promise((resolve, reject) => {
+            window.__releaseCommentSave = () => {
+              original(input, init).then(resolve, reject)
+              window.fetch = original
+            }
+          })
+        }
+        return original(input, init)
+      }
+    })()`)
+
     await page.evaluate(
       `(() => { const t = document.querySelector('.comment-composer textarea'); t.value = 'rename it too'; t.dispatchEvent(new Event('change', { bubbles: true })) })()`,
     )
@@ -276,6 +293,25 @@ export default {
     // One comment, not two: the id comes from the client, so an edit rewrites its
     // own entry instead of appending a second one.
     check('  and does not add a second comment', (await count('.comment')) === 1)
+    await page.evaluate(`document.activeElement?.blur()`)
+    const refreshed = page.waitForResponse((response) => /\/api\/diff(?:\?|$)/.test(response.url()))
+    await page.keyboard.press('r')
+    await refreshed
+    await sleep(1500)
+    check(
+      'refresh preserves an unsaved edit even when the server returns its old ID',
+      (await bodies())[0] === 'rename it too' &&
+        (await page.evaluate(`document.querySelector('.comment-state')?.textContent`)) ===
+          'saving…',
+      (await bodies()).join(' | '),
+    )
+    const saved = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/comments') && response.request().method() === 'POST',
+    )
+    await page.evaluate(`window.__releaseCommentSave(); window.__restoreCommentFetch()`)
+    await saved
+    await page.waitForFunction(() => !document.querySelector('.comment-state'))
     await checkCopy('an edited comment copies with its code without reloading')
 
     // ---- cancelling lets go of the line ------------------------------------

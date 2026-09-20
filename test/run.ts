@@ -11,6 +11,7 @@ import { runImages } from './images.ts'
 import { runComparison } from './comparison.ts'
 import { runRepositoryFile } from './repositoryFile.ts'
 import { runReviewSelection } from './reviewSelection.ts'
+import { runCommentPersistence } from './commentPersistence.ts'
 
 import tree from './suites/tree.ts'
 import resize from './suites/resize.ts'
@@ -48,6 +49,7 @@ const SUITES: Suite[] = [
  */
 const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'review-selection', run: runReviewSelection },
+  { name: 'comment-persistence', run: runCommentPersistence },
   { name: 'repository-file', run: runRepositoryFile },
   { name: 'comparison', run: runComparison },
   { name: 'state', run: runState },

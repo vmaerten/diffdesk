@@ -12,7 +12,8 @@ import {
 } from '@pierre/diffs'
 import { CodeView, useStableCallback, type CodeViewHandle } from '@pierre/diffs/react'
 
-import CommentThread, { type Composer, type SaveState } from './CommentThread.tsx'
+import CommentThread, { type Composer } from './CommentThread.tsx'
+import type { CommentSubmission, SaveState } from './commentPersistence.ts'
 import ImageDiff from './ImageDiff.tsx'
 import type { TreeEntry } from './FileTree.tsx'
 import { diffFilesLoader, type ContextError } from './diffFiles.ts'
@@ -27,18 +28,11 @@ import type {
   ViewedMap,
 } from '../../src/types.ts'
 
-export type { SaveState } from './CommentThread.tsx'
-
 /** The loaded comparison and the lifetime of the request that owns it. */
 export type LoadedReviewDiff = DiffPayload & {
   loadId: number
   query: string
   signal: AbortSignal
-}
-
-/** A review action, with no renderer coordinates or annotation identifiers. */
-export type CommentSubmission = Pick<Comment, 'path' | 'side' | 'start' | 'end' | 'body'> & {
-  editing: string | null
 }
 
 interface ReviewDiffOptions {
