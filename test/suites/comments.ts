@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { asMarkdown } from '../../src/export.ts'
 import type { DiffPayload } from '../../src/types.ts'
-import { allTreeRows, sleep, type Suite } from '../harness.ts'
+import { allTreeRows, DIFF_SCROLLER, sleep, type Suite } from '../harness.ts'
 
 /**
  * The gutter cell of the first mounted file, and the "+" the library puts in it
@@ -338,6 +338,30 @@ export default {
     await page.keyboard.press('c')
     await sleep(800)
     check('  and c comments that selection', (await count('.comment-composer')) === 1)
+
+    // A card leaves the DOM with its virtualised file. Its draft belongs to the
+    // review renderer, so scrolling it back must restore the text and anchor.
+    await page.type('.comment-composer textarea', 'keep this draft across scrolling')
+    const draftSlots = await slots()
+    const draftScroll = await page.evaluate(`(() => {
+      document.activeElement?.blur()
+      const scroller = ${DIFF_SCROLLER}
+      const top = scroller.scrollTop
+      scroller.scrollTop = scroller.scrollHeight
+      return top
+    })()`)
+    await page.waitForFunction(`document.querySelector('.comment-composer') === null`)
+    check('scrolling away unmounts the draft card', (await count('.comment-composer')) === 0)
+    await page.evaluate(`${DIFF_SCROLLER}.scrollTop = ${draftScroll}`)
+    await page.waitForSelector('.comment-composer textarea')
+    check(
+      'scrolling back restores the draft on the same lines',
+      (await page.$eval(
+        '.comment-composer textarea',
+        (el) => (el as HTMLTextAreaElement).value,
+      )) === 'keep this draft across scrolling' &&
+        (await slots()).join('|') === draftSlots.join('|'),
+    )
     await page.keyboard.press('Escape')
     await sleep(600)
 

@@ -1,9 +1,34 @@
-import { DIFF_ON_SCREEN, sleep, type Suite } from '../harness.ts'
+import { DIFF_ON_SCREEN, DIFF_SCROLLER, sleep, type Suite } from '../harness.ts'
+
+const SELECTED_TEXT = `(() => {
+  for (const host of document.querySelectorAll('.diff diffs-container')) {
+    const lines = host.shadowRoot?.querySelectorAll('[data-selected-line]') ?? []
+    const text = [...lines].map((line) => line.textContent ?? '').join(' ')
+    if (text) return text
+  }
+  return ''
+})()`
 
 export default {
   name: 'search',
   async run({ page, load }, check) {
     await load()
+
+    const gutter = (await page.evaluate(`(() => {
+      for (const host of document.querySelectorAll('.diff diffs-container')) {
+        const cell = host.shadowRoot?.querySelector('[data-gutter]')
+        if (!cell) continue
+        const rect = cell.getBoundingClientRect()
+        if (rect.width) return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+      }
+      return null
+    })()`)) as { x: number; y: number } | null
+    check('a source line can be selected before searching', gutter !== null)
+    if (!gutter) return
+    await page.mouse.click(gutter.x, gutter.y)
+    await page.waitForFunction(`(${SELECTED_TEXT}).length > 0`)
+    const beforeSearch = await page.evaluate(SELECTED_TEXT)
+    const beforeScroll = await page.evaluate(`${DIFF_SCROLLER}.scrollTop`)
 
     // Widget44 is near the end of a virtualised pane and does not exist in the
     // initial DOM. Native browser find cannot reach this line.
@@ -24,18 +49,18 @@ export default {
       onScreen.join(' | '),
     )
 
-    const selected = (await page.evaluate(`(() => {
-      for (const host of document.querySelectorAll('.diff diffs-container')) {
-        const lines = host.shadowRoot?.querySelectorAll('[data-selected-line]') ?? []
-        const text = [...lines].map((line) => line.textContent ?? '').join(' ')
-        if (text) return text
-      }
-      return ''
-    })()`)) as string
+    const selected = (await page.evaluate(SELECTED_TEXT)) as string
     check('the matching line is highlighted', selected.includes('widget44_27'), selected.trim())
 
     await page.keyboard.press('Escape')
     const closed = await page.$eval('.diff-search', (element) => element.hasAttribute('hidden'))
     check('Escape closes diff search', closed)
+
+    await page.evaluate(`${DIFF_SCROLLER}.scrollTop = ${beforeScroll}`)
+    await page.waitForFunction(`(${SELECTED_TEXT}).length > 0`)
+    check(
+      'closing search restores the original source selection',
+      (await page.evaluate(SELECTED_TEXT)) === beforeSearch,
+    )
   },
 } satisfies Suite
