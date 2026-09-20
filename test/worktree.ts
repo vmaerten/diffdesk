@@ -135,7 +135,7 @@ export async function runWorktree(check: Check): Promise<void> {
     // A file in the patch is a file the diff counts: `numstat` and
     // `--name-status` never see an untracked one, so without this it was drawn
     // in the tree, reported as `+0 -0`, left out of the totals, and dropped by
-    // `commentsIn` — which filters remarks on `files`.
+    // the comparison reader — which filters remarks on `files`.
     const stat = withThem.files.find((f) => f.path === 'untracked.ts')
     check(
       '  and counts as one of the files, with the lines git gives it',

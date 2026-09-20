@@ -304,7 +304,7 @@ export async function buildPatch(
 
   const extra = await untrackedPatch(repoPath, paths)
   // In the patch, so in the counts: a file the diff shows is one it can measure,
-  // and one `commentsIn` will not drop a remark from — both read `files`.
+  // and one the comparison reader will not drop a remark from — both read `files`.
   const all = [...files, ...extra.counts.map((f) => ({ ...f, status: 'untracked' as const }))]
   return {
     comparison,

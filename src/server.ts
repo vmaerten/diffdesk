@@ -10,7 +10,6 @@ import { imageType, readImage } from './images.ts'
 import { detectTrunk, rememberBase } from './revision.ts'
 import {
   clearViewed,
-  commentsIn,
   pruneStale,
   putComment,
   readState,
@@ -288,12 +287,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           repo: { id: repoId, path: repoPath },
           state,
           viewed: pruneStale(stored.state.viewed[display.range] ?? {}, hashes),
-          comments: await comparisonReader(repoPath, patchResult).comments(
-            commentsIn(
-              stored.state.comments,
-              patchResult.files.map((file) => file.path),
-            ),
-          ),
+          comments: await comparisonReader(repoPath, patchResult).comments(stored.state.comments),
           notice: [stored.notice, display.notice].filter(Boolean).join(' — ') || null,
         }
         return json(res, 200, payload)

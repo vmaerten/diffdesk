@@ -9,7 +9,7 @@ import { currentBranch, repoState, resolveRepoRoot } from '../src/git.ts'
 import { buildPatch, rangeKey, resolveBase } from '../src/revision.ts'
 import { createGhlServer, listen, listenNear, repoIdFor, type RepoEntry } from '../src/server.ts'
 import { comparisonReader } from '../src/comparison.ts'
-import { commentsIn, readState } from '../src/state.ts'
+import { readState } from '../src/state.ts'
 import type { BaseResolution, BaseSource } from '../src/types.ts'
 import { runtimeRevision } from '../src/version.ts'
 
@@ -296,8 +296,8 @@ async function runComments(
 ): Promise<void> {
   const [result, branch, { state }] = await Promise.all([
     // Untracked files in, always. The page has a button to leave them out and a
-    // reader who chose; this has neither, and `commentsIn` filters on the patch
-    // — so a remark written on a file git does not track yet would be dropped
+    // reader who chose; this has neither. The comparison reader filters on files,
+    // so a remark written on a file git does not track yet would be dropped
     // here with nothing left to ask for it back. The exclusion exists to keep
     // 446 files out of a diff, not one sentence out of a review.
     buildPatch(repoPath, base.ref, { target: options.target, includeUntracked: true }),
@@ -308,12 +308,7 @@ async function runComments(
   // The same key the server files them under, from the same function: computing
   // it here by hand is how the two would come to disagree about the same review.
   const range = rangeKey(base.ref, options.target ?? branch ?? 'HEAD')
-  const comments = await comparisonReader(repoPath, result).comments(
-    commentsIn(
-      state.comments,
-      result.files.map((f) => f.path),
-    ),
-  )
+  const comments = await comparisonReader(repoPath, result).comments(state.comments)
 
   process.stdout.write(
     options.json

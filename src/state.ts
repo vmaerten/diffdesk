@@ -1,16 +1,8 @@
-import { createHash } from 'node:crypto'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 import { gitDirPath } from './git.ts'
-import type {
-  Comment,
-  DiffSide,
-  ServedComment,
-  StateRead,
-  StoredState,
-  ViewedMap,
-} from './types.ts'
+import type { Comment, StateRead, StoredState, ViewedMap } from './types.ts'
 
 /** Inside `.git`, so it is never committed and dies with the repository. */
 const statePath = (repoPath: string) => gitDirPath(repoPath, 'ghl/state.json')
@@ -93,102 +85,6 @@ async function writeState(repoPath: string, state: StoredState): Promise<void> {
   await rename(temporary, file)
 }
 
-/**
- * Split a patch per file and hash each section.
- *
- * The diff, not the file: hashing the contents would clear the tick for edits
- * outside the diff, and hashing nothing would leave it on code never re-read.
- */
-export function sectionHashes(patch: string): Record<string, string> {
-  const hashes: Record<string, string> = {}
-  let path: string | null = null
-  let section: string[] = []
-
-  const flush = () => {
-    if (!path) return
-    hashes[path] = createHash('sha1').update(section.join('\n')).digest('hex').slice(0, 12)
-  }
-
-  for (const line of patch.split('\n')) {
-    const match = line.match(/^diff --git a\/(.+?) b\/(.+)$/)
-    if (match?.[2]) {
-      flush()
-      path = match[2]
-      section = []
-    }
-    section.push(line)
-  }
-  flush()
-
-  return hashes
-}
-
-/**
- * The text of lines `start`..`end` of one side of a file, as the patch has them.
- *
- * `deletions` counts in the old file, `additions` in the new one — the same
- * coordinates the diff pane reports. Null rather than blanks when any line of
- * the range falls outside the hunks: these patches are partial, so a line the
- * patch does not carry is unknown, not empty.
- */
-export function linesAt(
-  patch: string,
-  { path, side, start, end }: { path: string; side: DiffSide; start: number; end: number },
-): string[] | null {
-  if (start < 1 || end < start) return null
-
-  const found = new Map<number, string>()
-  let inFile = false
-  let inHunk = false
-  let old = 0
-  let now = 0
-
-  for (const line of patch.split('\n')) {
-    const file = line.match(/^diff --git a\/(.+?) b\/(.+)$/)
-    if (file) {
-      if (inFile) break // its section is over, and nothing after it can help
-      inFile = file[2] === path
-      inHunk = false
-      continue
-    }
-    if (!inFile) continue
-
-    const hunk = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/)
-    if (hunk) {
-      old = Number(hunk[1])
-      now = Number(hunk[2])
-      inHunk = true
-      continue
-    }
-    // Before the first hunk sit `--- a/x` and `+++ b/x`, which a removed line
-    // reading `--foo` is indistinguishable from once the marker is stripped.
-    if (!inHunk) continue
-
-    const text = line.slice(1)
-    const at = side === 'additions' ? now : old
-
-    if (line.startsWith('+')) {
-      if (side === 'additions' && at >= start && at <= end) found.set(at, text)
-      now++
-    } else if (line.startsWith('-')) {
-      if (side === 'deletions' && at >= start && at <= end) found.set(at, text)
-      old++
-    } else if (line.startsWith(' ')) {
-      if (at >= start && at <= end) found.set(at, text)
-      old++
-      now++
-    }
-  }
-
-  const lines: string[] = []
-  for (let at = start; at <= end; at++) {
-    const text = found.get(at)
-    if (text === undefined) return null
-    lines.push(text)
-  }
-  return lines
-}
-
 /** Viewed entries whose hash still matches the current diff. */
 export function pruneStale(viewed: ViewedMap, hashes: Record<string, string>): ViewedMap {
   const live: ViewedMap = {}
@@ -259,41 +155,5 @@ export async function removeComment(repoPath: string, id: string): Promise<Comme
     state.comments = state.comments.filter((stored) => stored.id !== id)
     await writeState(repoPath, state)
     return state.comments
-  })
-}
-
-/**
- * The comments a diff can show: those on a file it contains.
- *
- * Not those written against this range. A comment is filed against code, so it
- * follows the file across bases rather than vanishing when the base changes —
- * what keeps it from landing on unrelated lines is its anchor, not this filter.
- */
-export function commentsIn(comments: Comment[], paths: Iterable<string>): Comment[] {
-  const inDiff = new Set(paths)
-  return comments.filter((comment) => inDiff.has(comment.path))
-}
-
-/**
- * Each comment against the patch on hand: the lines it points at now, and
- * whether they still read as they did when it was written.
- *
- * Its own lines, not its file: reusing `sectionHashes` would flag every comment
- * in a file the moment any hunk in it moved, which is the nominal case — an agent
- * handed four remarks fixes one and leaves three. A signal that always fires is
- * one nobody reads.
- *
- * Read-time only, like `pruneStale`, and never written: put the lines back and
- * the flag clears on its own. And a comment with no anchor is not called stale —
- * it was never given a reference, so there is nothing to say it drifted from.
- */
-export function serveComments(comments: Comment[], patch: string): ServedComment[] {
-  return comments.map((comment) => {
-    const code = linesAt(patch, comment) ?? []
-    const stale =
-      comment.anchor.length > 0 &&
-      (code.length !== comment.anchor.length ||
-        code.some((line, at) => line !== comment.anchor[at]))
-    return { ...comment, stale, code }
   })
 }

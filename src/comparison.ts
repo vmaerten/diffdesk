@@ -6,7 +6,6 @@ import { isAbsolute, join } from 'node:path'
 import { commitDetail, currentBranch, git, gitBlob, headSha } from './git.ts'
 import { imageComparisons } from './images.ts'
 import { buildCommitPatch, buildPatch, rangeKey, resolveBase } from './revision.ts'
-import { linesAt, sectionHashes } from './state.ts'
 import type {
   Comment,
   DiffFiles,
@@ -91,6 +90,102 @@ export async function resolveComparison(
   }
 
   return { base, target, patch, display }
+}
+
+/**
+ * Split a patch per file and hash each section.
+ *
+ * The diff, not the file: hashing the contents would clear the tick for edits
+ * outside the diff, and hashing nothing would leave it on code never re-read.
+ */
+function sectionHashes(patch: string): Record<string, string> {
+  const hashes: Record<string, string> = {}
+  let path: string | null = null
+  let section: string[] = []
+
+  const flush = () => {
+    if (!path) return
+    hashes[path] = createHash('sha1').update(section.join('\n')).digest('hex').slice(0, 12)
+  }
+
+  for (const line of patch.split('\n')) {
+    const match = line.match(/^diff --git a\/(.+?) b\/(.+)$/)
+    if (match?.[2]) {
+      flush()
+      path = match[2]
+      section = []
+    }
+    section.push(line)
+  }
+  flush()
+
+  return hashes
+}
+
+/**
+ * The text of lines `start`..`end` of one side of a file, as the patch has them.
+ *
+ * `deletions` counts in the old file, `additions` in the new one — the same
+ * coordinates the diff pane reports. Null rather than blanks when any line of
+ * the range falls outside the hunks: these patches are partial, so a line the
+ * patch does not carry is unknown, not empty.
+ */
+function linesAt(
+  patch: string,
+  { path, side, start, end }: { path: string; side: DiffSide; start: number; end: number },
+): string[] | null {
+  if (start < 1 || end < start) return null
+
+  const found = new Map<number, string>()
+  let inFile = false
+  let inHunk = false
+  let old = 0
+  let now = 0
+
+  for (const line of patch.split('\n')) {
+    const file = line.match(/^diff --git a\/(.+?) b\/(.+)$/)
+    if (file) {
+      if (inFile) break // its section is over, and nothing after it can help
+      inFile = file[2] === path
+      inHunk = false
+      continue
+    }
+    if (!inFile) continue
+
+    const hunk = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/)
+    if (hunk) {
+      old = Number(hunk[1])
+      now = Number(hunk[2])
+      inHunk = true
+      continue
+    }
+    // Before the first hunk sit `--- a/x` and `+++ b/x`, which a removed line
+    // reading `--foo` is indistinguishable from once the marker is stripped.
+    if (!inHunk) continue
+
+    const text = line.slice(1)
+    const at = side === 'additions' ? now : old
+
+    if (line.startsWith('+')) {
+      if (side === 'additions' && at >= start && at <= end) found.set(at, text)
+      now++
+    } else if (line.startsWith('-')) {
+      if (side === 'deletions' && at >= start && at <= end) found.set(at, text)
+      old++
+    } else if (line.startsWith(' ')) {
+      if (at >= start && at <= end) found.set(at, text)
+      old++
+      now++
+    }
+  }
+
+  const lines: string[] = []
+  for (let at = start; at <= end; at++) {
+    const text = found.get(at)
+    if (text === undefined) return null
+    lines.push(text)
+  }
+  return lines
 }
 
 const MAX_BYTES = 20 * 1024 * 1024
@@ -273,17 +368,21 @@ export function comparisonReader(repoPath: string, result: PatchResult) {
     return end <= all.length ? all.slice(start - 1, end) : null
   }
 
+  // A comment follows its file across bases, regardless of its stored range.
+  const paths = new Set(result.files.map((file) => file.path))
   const comments = async (stored: Comment[]): Promise<ServedComment[]> =>
     Promise.all(
-      stored.map(async (comment) => {
-        // An unavailable file makes the anchor stale; it must not hide the review.
-        const code = (await lines(comment).catch(() => null)) ?? []
-        const stale =
-          comment.anchor.length > 0 &&
-          (code.length !== comment.anchor.length ||
-            code.some((line, index) => line !== comment.anchor[index]))
-        return { ...comment, code, stale }
-      }),
+      stored
+        .filter((comment) => paths.has(comment.path))
+        .map(async (comment) => {
+          // Keep comments on unavailable sources; only a nonempty anchor can be stale.
+          const code = (await lines(comment).catch(() => null)) ?? []
+          const stale =
+            comment.anchor.length > 0 &&
+            (code.length !== comment.anchor.length ||
+              code.some((line, index) => line !== comment.anchor[index]))
+          return { ...comment, code, stale }
+        }),
     )
   return { files, lines, comments }
 }

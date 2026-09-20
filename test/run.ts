@@ -5,6 +5,7 @@ import { runLifecycle } from './lifecycle.ts'
 import { runRefs } from './refs.ts'
 import { runWorktree } from './worktree.ts'
 import { runState } from './state.ts'
+import { runExport } from './export.ts'
 import { runContext } from './context.ts'
 import { runImages } from './images.ts'
 import { runComparison } from './comparison.ts'
@@ -46,6 +47,7 @@ const SUITES: Suite[] = [
 const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'comparison', run: runComparison },
   { name: 'state', run: runState },
+  { name: 'export', run: runExport },
   { name: 'refs', run: runRefs },
   { name: 'commits', run: runCommits },
   { name: 'worktree', run: runWorktree },

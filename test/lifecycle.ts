@@ -328,9 +328,9 @@ export async function runLifecycle(check: Check): Promise<void> {
 
     // A remark on a file git does not track yet. The page has a button to leave
     // those out and a reader who chose; the export has neither, and one written
-    // here would be dropped by `commentsIn` — stored, and invisible. Reviewed
-    // without a target: with one there is no working tree, so no untracked file
-    // at all.
+    // here would be dropped by the comparison reader — stored, and invisible.
+    // Reviewed without a target: with one there is no working tree, so no
+    // untracked file at all.
     writeFileSync(join(one.path, 'sketch.ts'), 'export const sketch = 1\n')
     await putComment(one.path, {
       id: 'on-an-untracked-file',
