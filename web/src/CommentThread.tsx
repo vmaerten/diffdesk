@@ -1,6 +1,7 @@
 import { useRef, type RefObject } from 'react'
 
 import type { Comment, ServedComment } from '../../src/types.ts'
+import type { SaveState } from './commentPersistence.ts'
 
 /** Where a comment is being written, or which one is being rewritten. */
 export interface Composer {
@@ -13,9 +14,6 @@ export interface Composer {
   /** Id of the comment being edited, or null when writing a new one. */
   editing: string | null
 }
-
-/** How a comment's last write went. Absent means the server has it. */
-export type SaveState = 'saving' | 'failed'
 
 interface Props {
   comments: ServedComment[]

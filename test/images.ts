@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync, symlinkSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -184,6 +184,24 @@ export async function runImages(check: Check): Promise<void> {
       'working-tree symlinks cannot expose outside files',
       (await getImage('worktree', 'link.svg')).status === 404,
     )
+    check(
+      'symlink previews preserve the image-specific explanation',
+      (await diff('untracked=1')).files.find((file) => file.path === 'link.svg')?.image?.after
+        ?.error === 'Symlink images are not previewed',
+    )
+    mkdirSync(join(path, 'directory'))
+    writeFileSync(join(path, 'directory', 'nested.svg'), svg('red'))
+    check(
+      'canonical nested image paths remain readable',
+      (await getImage('worktree', 'directory/nested.svg')).status === 200,
+    )
+    for (const name of ['changed.svg/', './changed.svg', 'directory//nested.svg']) {
+      check(
+        `malformed image paths are rejected: ${name}`,
+        (await getImage('worktree', name)).status === 404,
+      )
+    }
+    rmSync(join(path, 'directory'), { recursive: true })
     check(
       'path traversal is rejected',
       (await getImage('worktree', '../outside.svg')).status === 404,

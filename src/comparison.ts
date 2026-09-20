@@ -1,10 +1,8 @@
 import { createHash } from 'node:crypto'
-import { constants } from 'node:fs'
-import { lstat, open, realpath } from 'node:fs/promises'
-import { isAbsolute, join } from 'node:path'
 
-import { commitDetail, currentBranch, git, gitBlob, headSha } from './git.ts'
+import { commitDetail, currentBranch, headSha } from './git.ts'
 import { imageComparisons } from './images.ts'
+import { repositoryFile, RepositoryFileError } from './repositoryFile.ts'
 import { buildCommitPatch, buildPatch, rangeKey, resolveBase } from './revision.ts'
 import type {
   Comment,
@@ -192,59 +190,26 @@ const MAX_BYTES = 20 * 1024 * 1024
 const empty = (name: string) => ({ name, contents: '', cacheKey: 'empty', sha1: '' })
 const changed = () => new Error('Comparison changed; refresh the diff before expanding context')
 
-/** Read only regular repository files, with a bounded read even if they grow. */
+const TEXT_READ_ERRORS: Record<RepositoryFileError['reason'], string> = {
+  'invalid-path': 'Unsupported file path',
+  'invalid-revision': 'Invalid revision',
+  symlink: 'Context is available only for regular files, not symlinks or special files',
+  'non-regular-path': 'Context is available only for regular files, not symlinks or special files',
+  'non-regular-handle': 'Not a regular file',
+  'non-regular-git': 'Context is available only for regular files',
+  'too-large': 'File exceeds the 20 MB context limit',
+  changed: 'Comparison changed; refresh the diff before expanding context',
+}
+
 async function readText(repoPath: string, revision: string | null, path: string) {
-  if (
-    !path ||
-    isAbsolute(path) ||
-    path.includes('\\') ||
-    path.includes('\0') ||
-    path
-      .split('/')
-      .some((part) => !part || part === '.' || part === '..' || part.toLowerCase() === '.git')
-  )
-    throw new Error('Unsupported file path')
   let bytes: Buffer
-  if (revision === null) {
-    const file = join(await realpath(repoPath), path)
-    if ((await realpath(file)) !== file || !(await lstat(file)).isFile()) {
-      throw new Error('Context is available only for regular files, not symlinks or special files')
-    }
-    const handle = await open(
-      file,
-      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-    )
-    try {
-      const stat = await handle.stat()
-      if (!stat.isFile()) throw new Error('Not a regular file')
-      if (stat.size > MAX_BYTES) throw new Error('File exceeds the 20 MB context limit')
-      const buffer = Buffer.alloc(stat.size + 1)
-      let size = 0
-      while (size < buffer.length) {
-        const read = await handle.read(buffer, size, buffer.length - size, size)
-        if (!read.bytesRead) break
-        size += read.bytesRead
-      }
-      if (size > stat.size) throw changed()
-      bytes = buffer.subarray(0, size)
-    } finally {
-      await handle.close()
-    }
-  } else {
-    if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(revision)) throw new Error('Invalid revision')
-    const entry = await git(repoPath, [
-      '--literal-pathspecs',
-      'ls-tree',
-      '-z',
-      '-l',
-      revision,
-      '--',
-      path,
-    ])
-    const match = /^(100644|100755) blob ([a-f0-9]+)\s+(\d+)\t/.exec(entry)
-    if (!match) throw new Error('Context is available only for regular files')
-    if (Number(match[3]) > MAX_BYTES) throw new Error('File exceeds the 20 MB context limit')
-    bytes = await gitBlob(repoPath, match[2]!, MAX_BYTES)
+  try {
+    const source = await repositoryFile(repoPath, revision, path, MAX_BYTES)
+    bytes = await source.read()
+  } catch (error) {
+    if (error instanceof RepositoryFileError)
+      throw new Error(TEXT_READ_ERRORS[error.reason], { cause: error })
+    throw error
   }
   if (bytes.includes(0)) throw new Error('Binary files cannot be expanded')
   let contents: string

@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto'
-import { constants } from 'node:fs'
-import { lstat, open, realpath } from 'node:fs/promises'
-import { extname, isAbsolute, join } from 'node:path'
+import { extname } from 'node:path'
 
-import { git, gitBlob } from './git.ts'
+import { git } from './git.ts'
+import { repositoryFile, RepositoryFileError } from './repositoryFile.ts'
 import type { ImageComparison, ImageVersion, PatchResult } from './types.ts'
 
 const IMAGE_TYPES: Record<string, string> = {
@@ -21,67 +20,36 @@ const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 export const imageType = (path: string): string | undefined =>
   IMAGE_TYPES[extname(path).toLowerCase()]
 
-function validPath(path: string): boolean {
-  return (
-    Boolean(path) &&
-    !isAbsolute(path) &&
-    !path.includes('\\') &&
-    !path.includes('\0') &&
-    !path.split('/').some((part) => part === '..' || part === '.' || part.toLowerCase() === '.git')
-  )
+const IMAGE_READ_ERRORS: Record<RepositoryFileError['reason'], string> = {
+  'invalid-path': 'Unsupported image path',
+  'invalid-revision': 'Invalid image revision',
+  symlink: 'Symlink images are not previewed',
+  'non-regular-path': 'Not a regular image file',
+  'non-regular-handle': 'Not a regular image file',
+  'non-regular-git': 'Image is missing or is not a regular file',
+  'too-large': 'Image exceeds the 20 MB preview limit',
+  changed: 'Image changed while reading; refresh to retry',
 }
 
-/** Only regular image files, never a symlink or a path outside this checkout. */
 async function imageSource(repoPath: string, revision: string, path: string) {
-  if (!validPath(path) || !imageType(path)) throw new Error('Unsupported image path')
-  if (revision === 'worktree') {
-    const root = await realpath(repoPath)
-    const file = join(root, path)
-    if ((await realpath(file)) !== file) throw new Error('Symlink images are not previewed')
-    if (!(await lstat(file)).isFile()) throw new Error('Not a regular image file')
-    const handle = await open(
-      file,
-      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+  if (!imageType(path)) throw new Error('Unsupported image path')
+  try {
+    return await repositoryFile(
+      repoPath,
+      revision === 'worktree' ? null : revision,
+      path,
+      MAX_IMAGE_BYTES,
     )
-    try {
-      const stat = await handle.stat()
-      if (!stat.isFile()) throw new Error('Not a regular image file')
-      if (stat.size > MAX_IMAGE_BYTES) throw new Error('Image exceeds the 20 MB preview limit')
-      // Bound the read even if the file grows after stat.
-      const buffer = Buffer.alloc(stat.size + 1)
-      let bytesRead = 0
-      while (bytesRead < buffer.length) {
-        const read = await handle.read(buffer, bytesRead, buffer.length - bytesRead, bytesRead)
-        if (read.bytesRead === 0) break
-        bytesRead += read.bytesRead
-      }
-      if (bytesRead > stat.size) throw new Error('Image changed while reading; refresh to retry')
-      const bytes = buffer.subarray(0, bytesRead)
-      return { bytes, size: bytes.length, hash: createHash('sha256').update(bytes).digest('hex') }
-    } finally {
-      await handle.close()
-    }
+  } catch (error) {
+    if (error instanceof RepositoryFileError)
+      throw new Error(IMAGE_READ_ERRORS[error.reason], { cause: error })
+    throw error
   }
-  if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(revision)) throw new Error('Invalid image revision')
-  const entry = await git(repoPath, [
-    '--literal-pathspecs',
-    'ls-tree',
-    '-z',
-    '-l',
-    revision,
-    '--',
-    path,
-  ])
-  const match = /^(100644|100755) blob ([a-f0-9]+)\s+(\d+)\t/.exec(entry)
-  if (!match) throw new Error('Image is missing or is not a regular file')
-  const size = Number(match[3])
-  if (size > MAX_IMAGE_BYTES) throw new Error('Image exceeds the 20 MB preview limit')
-  return { oid: match[2]!, size, hash: match[2]! }
 }
 
 export async function readImage(repoPath: string, revision: string, path: string): Promise<Buffer> {
   const source = await imageSource(repoPath, revision, path)
-  return source.bytes ?? gitBlob(repoPath, source.oid!, MAX_IMAGE_BYTES)
+  return source.read()
 }
 
 /** Metadata is small; the browser only requests bytes for mounted previews. */
@@ -122,8 +90,13 @@ export async function imageComparisons(
   ): Promise<ImageVersion & { hash: string }> => {
     try {
       const source = await imageSource(repoPath, revision, path)
-      const query = new URLSearchParams({ revision, path, v: source.hash })
-      return { url: `/r/${repoId}/api/image?${query}`, bytes: source.size, hash: source.hash }
+      const hash =
+        source.objectId ??
+        createHash('sha256')
+          .update(await source.read())
+          .digest('hex')
+      const query = new URLSearchParams({ revision, path, v: hash })
+      return { url: `/r/${repoId}/api/image?${query}`, bytes: source.size, hash }
     } catch (error) {
       return {
         url: null,
