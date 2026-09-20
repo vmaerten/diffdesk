@@ -7,6 +7,18 @@ const CORE = 'widen the core'
 export default {
   name: 'commits',
   async run({ page, load }, check) {
+    await load('?target=feature&base=feature%5E')
+    await openPicker(page, 'l')
+    const explicitBase = await page.evaluate(() =>
+      [...document.querySelectorAll('.picker-item .picker-name')].map((item) =>
+        item.textContent?.trim(),
+      ),
+    )
+    check(
+      'commit picker uses the explicit base of the displayed diff',
+      explicitBase.length === 2 && explicitBase[0] === 'All commits' && explicitBase[1] === NEWEST,
+      explicitBase.join(' | '),
+    )
     await load('?target=feature')
 
     await openPicker(page, 'l')
@@ -78,6 +90,15 @@ export default {
     await sleep(1500)
     const tickedAgain = (await allTreeRows(page)).filter((r) => r.decoration.includes('✓'))
     check('  while the commit keeps it', tickedAgain.length === 1, tickedAgain[0]?.path)
+
+    await openPicker(page, 't')
+    await page.keyboard.type('working tree')
+    await page.keyboard.press('Enter')
+    await page.waitForFunction(() => !new URLSearchParams(location.search).has('commit'))
+    check(
+      'changing target clears the commit selected in the previous history',
+      !(await topbar(page)).search.includes('commit='),
+    )
 
     // A rebase, an amend: the sha is gone. Falling back in silence would leave
     // the reader believing they are still on that commit.

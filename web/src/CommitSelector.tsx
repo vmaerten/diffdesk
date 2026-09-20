@@ -5,8 +5,8 @@ import type { CommitDetail, CommitsPayload } from '../../src/types.ts'
 
 interface CommitSelectorProps {
   repoId: string | null
-  /** The revision under review, so the list is the one the diff is cut from. */
-  target: string | null
+  /** The same selection as the diff, including an explicit base. */
+  query: string
   /** The commit being shown, or null for the whole range. */
   current: CommitDetail | null
   onPick: (sha: string | null) => void
@@ -22,7 +22,7 @@ interface CommitSelectorProps {
  */
 export default function CommitSelector({
   repoId,
-  target,
+  query,
   current,
   onPick,
   onClose,
@@ -34,7 +34,6 @@ export default function CommitSelector({
     let cancelled = false
     ;(async () => {
       try {
-        const query = target ? `?target=${encodeURIComponent(target)}` : ''
         const response = await fetch(`/r/${repoId}/api/commits${query}`)
         const body: CommitsPayload & { error?: string } = await response.json()
         if (cancelled) return
@@ -47,7 +46,7 @@ export default function CommitSelector({
     return () => {
       cancelled = true
     }
-  }, [repoId, target])
+  }, [repoId, query])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

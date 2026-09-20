@@ -7,6 +7,8 @@ import {
   type SaveState,
 } from './useReviewDiff.tsx'
 
+import { useReviewSelection } from './reviewSelection.ts'
+
 import RefSelector from './RefSelector.tsx'
 import CommitSelector from './CommitSelector.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
@@ -59,57 +61,12 @@ export default function App() {
    * it. Without this merge, an `r` between writing and saving loses the text.
    */
   const pendingRef = useRef(new Map<string, ServedComment>())
-  /** Revision under review. null means the working tree of this checkout. */
-  const [target, setTarget] = useState<string | null>(() =>
-    new URLSearchParams(location.search).get('target'),
-  )
-  /** One commit of that range, or null for all of them. */
-  const [commit, setCommit] = useState<string | null>(() =>
-    new URLSearchParams(location.search).get('commit'),
-  )
-  /** True while the diff stops at HEAD, leaving uncommitted work out. */
-  const [committed, setCommitted] = useState(() =>
-    new URLSearchParams(location.search).has('committed'),
-  )
-  /**
-   * True while untracked files are part of the diff rather than merely listed.
-   *
-   * Not `untracked`: `data.untracked` is the list of their paths, and two names
-   * that close three lines apart on different types is a trap for free.
-   */
-  const [withUntracked, setWithUntracked] = useState(() =>
-    new URLSearchParams(location.search).has('untracked'),
-  )
-  /**
-   * A base forced from the command line, until something is picked here.
-   *
-   * Held rather than ignored: the server has no memory of it, so a parameter we
-   * stop sending is a base we stop forcing — which is how picking one takes
-   * effect in the session that picked it (#55).
-   */
-  const [baseOverride, setBaseOverride] = useState<string | null>(() =>
-    new URLSearchParams(location.search).get('base'),
-  )
+  const [selection, select] = useReviewSelection(repoId)
+  const { target, commit, committed, withUntracked, query } = selection
   /** Folding and revealing live inside the tree, which owns that state. */
   const treeRef = useRef<FileTreeHandle>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [sidebarWidth, setSidebarWidth] = useState(storedWidth)
-
-  /**
-   * What the server needs to build the diff this page is showing.
-   *
-   * One string for every call that has to agree with the view — the read, and
-   * the comment write whose anchor is cut from the same patch.
-   */
-  const query = useMemo(() => {
-    const params = new URLSearchParams()
-    if (baseOverride) params.set('base', baseOverride)
-    if (target) params.set('target', target)
-    if (commit) params.set('commit', commit)
-    if (committed) params.set('committed', '1')
-    if (withUntracked) params.set('untracked', '1')
-    return params.size > 0 ? `?${params}` : ''
-  }, [baseOverride, target, commit, committed, withUntracked])
 
   /**
    * The single refresh path.
@@ -128,11 +85,13 @@ export default function App() {
     controllerRef.current = controller
     setRefreshing(true)
     try {
-      const response = await fetch(`/r/${repoId}/api/diff${query}`, { signal: controller.signal })
+      const response = await fetch(`/r/${repoId}/api/diff${selection.query}`, {
+        signal: controller.signal,
+      })
       const body: DiffPayload & { error?: string } = await response.json()
       if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
       if (controller.signal.aborted) return
-      setData({ ...body, loadId, query, signal: controller.signal })
+      setData({ ...body, loadId, query: selection.query, signal: controller.signal })
       // The server already dropped ticks whose file changed since.
       setViewedState(body.viewed ?? {})
       // Whatever the server has, plus what it has not been told yet: a comment
@@ -150,7 +109,7 @@ export default function App() {
     } finally {
       if (!controller.signal.aborted) setRefreshing(false)
     }
-  }, [repoId, query])
+  }, [repoId, selection])
 
   useEffect(() => {
     refresh()
@@ -177,50 +136,21 @@ export default function App() {
     }
   }, [])
 
-  /** Review another revision. Kept in the URL so a reload stays on it. */
-  const pickTarget = useCallback((ref: string | null) => {
-    setPicking(null)
-    setTarget(ref)
-    const url = new URL(location.href)
-    if (ref) url.searchParams.set('target', ref)
-    else url.searchParams.delete('target')
-    // Another revision is another history: the commit belonged to the old one.
-    url.searchParams.delete('commit')
-    setCommit(null)
-    history.replaceState(null, '', url)
-  }, [])
-
-  /** Take the uncommitted work out of the diff, or put it back. */
-  const toggleCommitted = useCallback(() => {
-    setCommitted((on) => {
-      const url = new URL(location.href)
-      if (on) url.searchParams.delete('committed')
-      else url.searchParams.set('committed', '1')
-      history.replaceState(null, '', url)
-      return !on
-    })
-  }, [])
-
-  /** Put the untracked files in the diff, or take them back out. */
-  const toggleUntracked = useCallback(() => {
-    setWithUntracked((on) => {
-      const url = new URL(location.href)
-      if (on) url.searchParams.delete('untracked')
-      else url.searchParams.set('untracked', '1')
-      history.replaceState(null, '', url)
-      return !on
-    })
-  }, [])
-
-  /** Narrow to one commit, or back to the whole range. Also kept in the URL. */
-  const pickCommit = useCallback((sha: string | null) => {
-    setPicking(null)
-    setCommit(sha)
-    const url = new URL(location.href)
-    if (sha) url.searchParams.set('commit', sha)
-    else url.searchParams.delete('commit')
-    history.replaceState(null, '', url)
-  }, [])
+  const pickTarget = useCallback(
+    (ref: string | null) => {
+      setPicking(null)
+      select.pickTarget(ref)
+    },
+    [select],
+  )
+  const pickCommit = useCallback(
+    (sha: string | null) => {
+      setPicking(null)
+      select.pickCommit(sha)
+    },
+    [select],
+  )
+  const { toggleCommitted, toggleUntracked } = select
 
   const stats = data?.totals ?? { files: 0, additions: 0, deletions: 0 }
   const viewedCount = Object.keys(viewed).length
@@ -354,32 +284,14 @@ export default function App() {
     }
   })
 
-  /** Remember the chosen base for this branch, then reload against it. */
-  const pickBase = useCallback(
-    async (base: string | null) => {
-      setPicking(null)
-      if (!base || base === data?.base?.ref) return
-      await fetch(`/r/${repoId}/api/base`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ base, target }),
-      })
-      if (baseOverride) {
-        // Drop the base forced from the command line: it is written down now, in
-        // `.git/config`, and leaving the parameter on would keep overriding the
-        // very choice just made — which was the whole of #55. No refresh here:
-        // clearing it rebuilds `query`, and the effect watching it refetches on
-        // its own, where calling refresh now would fire the stale query first.
-        setBaseOverride(null)
-        const url = new URL(location.href)
-        url.searchParams.delete('base')
-        history.replaceState(null, '', url)
-        return
-      }
-      await refresh()
-    },
-    [data, repoId, refresh, target, baseOverride],
-  )
+  const pickBase = useStableCallback(async (base: string | null) => {
+    setPicking(null)
+    try {
+      await select.pickBase(base, data?.base.ref)
+    } catch (cause) {
+      setError(`could not save the base: ${cause instanceof Error ? cause.message : cause}`)
+    }
+  })
 
   const revealFile = useCallback((path: string) => treeRef.current?.reveal(path), [])
   const {
@@ -672,7 +584,7 @@ export default function App() {
                 {picking === 'commit' && data && (
                   <CommitSelector
                     repoId={repoId}
-                    target={target}
+                    query={query}
                     current={data.commit}
                     onPick={pickCommit}
                     onClose={() => setPicking(null)}

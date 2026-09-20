@@ -10,6 +10,7 @@ import { runContext } from './context.ts'
 import { runImages } from './images.ts'
 import { runComparison } from './comparison.ts'
 import { runRepositoryFile } from './repositoryFile.ts'
+import { runReviewSelection } from './reviewSelection.ts'
 
 import tree from './suites/tree.ts'
 import resize from './suites/resize.ts'
@@ -46,6 +47,7 @@ const SUITES: Suite[] = [
  * its dedicated fixture in Chrome after validating the API.
  */
 const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
+  { name: 'review-selection', run: runReviewSelection },
   { name: 'repository-file', run: runRepositoryFile },
   { name: 'comparison', run: runComparison },
   { name: 'state', run: runState },
