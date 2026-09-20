@@ -3,9 +3,95 @@ import { constants } from 'node:fs'
 import { lstat, open, realpath } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 
-import { git, gitBlob } from './git.ts'
+import { commitDetail, currentBranch, git, gitBlob, headSha } from './git.ts'
+import { imageComparisons } from './images.ts'
+import { buildCommitPatch, buildPatch, rangeKey, resolveBase } from './revision.ts'
 import { linesAt, sectionHashes } from './state.ts'
-import type { Comment, DiffFiles, DiffSide, PatchResult, ServedComment } from './types.ts'
+import type {
+  Comment,
+  DiffFiles,
+  DiffPayload,
+  DiffSide,
+  PatchResult,
+  ServedComment,
+} from './types.ts'
+
+export interface ComparisonSelection {
+  override?: string | null
+  target?: string | null
+  commitRef?: string | null
+  committed?: boolean
+  includeUntracked?: boolean
+}
+
+type ComparisonPayload = Omit<DiffPayload, 'repo' | 'state' | 'viewed' | 'comments'>
+
+/** One request owns one lazily built patch, shared by text and image readers. */
+export async function resolveComparison(
+  repoPath: string,
+  {
+    override,
+    target = null,
+    commitRef,
+    committed = false,
+    includeUntracked = false,
+  }: ComparisonSelection = {},
+) {
+  const [base, commit] = await Promise.all([
+    resolveBase(repoPath, { override, target }),
+    commitRef ? commitDetail(repoPath, commitRef) : null,
+  ])
+
+  // Listing commits needs only the resolved base. The first reader captures
+  // the patch; later readers, including images, must keep its exact versions.
+  let pending: Promise<PatchResult> | undefined
+  const patch = (): Promise<PatchResult> =>
+    (pending ??= commit
+      ? buildCommitPatch(repoPath, commit.sha)
+      : buildPatch(repoPath, base.ref, { target, committed, includeUntracked }))
+
+  const display = async (repoId: string) => {
+    const [patchResult, branch, sha] = await Promise.all([
+      patch(),
+      target ? currentBranch(repoPath) : base.branch,
+      headSha(repoPath),
+    ])
+    const reviewing = target ?? branch ?? 'HEAD'
+    // A commit's viewed ticks belong to its own parent/commit pair, while
+    // branch reviews keep the symbolic range across refreshes.
+    const range = commit
+      ? rangeKey(patchResult.comparison.before, commit.sha)
+      : rangeKey(base.ref, reviewing)
+    const hashes = sectionHashes(patchResult.patch)
+    const images = await imageComparisons(repoPath, repoId, patchResult)
+    for (const [path, image] of images) hashes[path] = image.hash
+
+    const payload: ComparisonPayload = {
+      comparison: patchResult.comparison,
+      patch: patchResult.patch,
+      untracked: patchResult.untracked,
+      untrackedIncluded: patchResult.untrackedIncluded,
+      totals: patchResult.totals,
+      base,
+      head: { branch, sha },
+      target: { ref: reviewing, workingTree: !target && !commit && !committed },
+      commit,
+      range,
+      files: patchResult.files.map((file) => ({
+        ...file,
+        hash: hashes[file.path] ?? null,
+        image: images.get(file.path)?.image,
+      })),
+      notice:
+        commitRef && !commit
+          ? `commit ${commitRef} no longer resolves — showing every commit`
+          : null,
+    }
+    return { patchResult, hashes, payload }
+  }
+
+  return { base, target, patch, display }
+}
 
 const MAX_BYTES = 20 * 1024 * 1024
 const empty = (name: string) => ({ name, contents: '', cacheKey: 'empty', sha1: '' })

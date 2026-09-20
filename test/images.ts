@@ -60,7 +60,23 @@ export async function runImages(check: Check): Promise<void> {
     const diff = async (query: string): Promise<DiffPayload> => {
       const response = await fetch(`${base}/api/diff?base=main&${query}`)
       if (!response.ok) throw new Error(await response.text())
-      return response.json()
+      const payload: DiffPayload = await response.json()
+      check(
+        `image URL revisions match the returned comparison (${query || 'worktree'})`,
+        payload.files.every(
+          ({ image }) =>
+            !image ||
+            (['before', 'after'] as const).every((side) => {
+              const url = image[side]?.url
+              return (
+                !url ||
+                new URL(url, origin).searchParams.get('revision') ===
+                  (payload.comparison[side] ?? 'worktree')
+              )
+            }),
+        ),
+      )
+      return payload
     }
     const bytes = async (url: string | null | undefined) => {
       if (!url) return Buffer.alloc(0)

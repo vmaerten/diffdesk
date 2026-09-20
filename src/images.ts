@@ -4,7 +4,7 @@ import { lstat, open, realpath } from 'node:fs/promises'
 import { extname, isAbsolute, join } from 'node:path'
 
 import { git, gitBlob } from './git.ts'
-import type { FileStat, ImageComparison, ImageVersion } from './types.ts'
+import type { ImageComparison, ImageVersion, PatchResult } from './types.ts'
 
 const IMAGE_TYPES: Record<string, string> = {
   '.png': 'image/png',
@@ -88,9 +88,7 @@ export async function readImage(repoPath: string, revision: string, path: string
 export async function imageComparisons(
   repoPath: string,
   repoId: string,
-  files: FileStat[],
-  before: string,
-  after: string | null,
+  { files, comparison: { before, after } }: Pick<PatchResult, 'files' | 'comparison'>,
 ): Promise<Map<string, { image: ImageComparison; hash: string }>> {
   const images = files.filter((file) => imageType(file.path))
   const result = new Map<string, { image: ImageComparison; hash: string }>()

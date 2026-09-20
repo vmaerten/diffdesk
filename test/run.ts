@@ -7,6 +7,7 @@ import { runWorktree } from './worktree.ts'
 import { runState } from './state.ts'
 import { runContext } from './context.ts'
 import { runImages } from './images.ts'
+import { runComparison } from './comparison.ts'
 
 import tree from './suites/tree.ts'
 import resize from './suites/resize.ts'
@@ -43,6 +44,7 @@ const SUITES: Suite[] = [
  * its dedicated fixture in Chrome after validating the API.
  */
 const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
+  { name: 'comparison', run: runComparison },
   { name: 'state', run: runState },
   { name: 'refs', run: runRefs },
   { name: 'commits', run: runCommits },
