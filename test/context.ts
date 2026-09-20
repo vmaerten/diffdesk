@@ -380,10 +380,10 @@ export async function runContext(check: Check): Promise<void> {
       await clickTreeRow(page, 'context.txt')
       await page.evaluate(`(() => {
         const originalFetch = window.fetch;
-        let fail = true;
+        window.failContext = true;
         window.fetch = (...args) => {
-          if (String(args[0]).includes('/api/diff-files?') && fail) {
-            fail = false;
+          if (String(args[0]).includes('/api/diff-files?') && window.failContext) {
+            window.failContext = false;
             return Promise.reject(new Error('Temporary context failure'));
           }
           return originalFetch(...args);
@@ -402,6 +402,34 @@ export async function runContext(check: Check): Promise<void> {
         'retry completes the original expansion',
         !(await page.$('.context-error')) &&
           (await rows()).some((line) => line.includes('line 73')),
+      )
+
+      // Cancellation belongs to the loaded comparison, even if refreshing it
+      // fails before a replacement arrives. Its old Retry must disappear.
+      await page.click('.refresh')
+      await sleep(1500)
+      await clickTreeRow(page, 'context.txt')
+      await page.evaluate('window.failContext = true')
+      await expandZone(1, 'up')
+      await page.waitForSelector('.context-error')
+      await page.evaluate(`(() => {
+        const originalFetch = window.fetch;
+        window.fetch = (...args) => {
+          if (String(args[0]).includes('/api/diff?')) {
+            window.fetch = originalFetch;
+            return Promise.reject(new Error('Temporary refresh failure'));
+          }
+          return originalFetch(...args);
+        };
+      })()`)
+      await page.click('.refresh')
+      await page.waitForFunction(
+        `document.querySelector('.message')?.textContent.includes('Temporary refresh failure')`,
+      )
+      check(
+        'refresh clears cancelled context errors even when the next comparison fails',
+        !(await page.$('.context-error')) &&
+          (await rows()).some((line) => line.includes('changed 50')),
       )
 
       // Hold a successful response past a comparison change, even ignoring
