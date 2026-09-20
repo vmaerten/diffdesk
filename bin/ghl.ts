@@ -8,7 +8,8 @@ import { asExport, asMarkdown } from '../src/export.ts'
 import { currentBranch, repoState, resolveRepoRoot } from '../src/git.ts'
 import { buildPatch, rangeKey, resolveBase } from '../src/revision.ts'
 import { createGhlServer, listen, listenNear, repoIdFor, type RepoEntry } from '../src/server.ts'
-import { commentsIn, readState, serveComments } from '../src/state.ts'
+import { comparisonReader } from '../src/comparison.ts'
+import { commentsIn, readState } from '../src/state.ts'
 import type { BaseResolution, BaseSource } from '../src/types.ts'
 import { runtimeRevision } from '../src/version.ts'
 
@@ -293,7 +294,7 @@ async function runComments(
   base: BaseResolution,
   options: Options,
 ): Promise<void> {
-  const [{ patch, files }, branch, { state }] = await Promise.all([
+  const [result, branch, { state }] = await Promise.all([
     // Untracked files in, always. The page has a button to leave them out and a
     // reader who chose; this has neither, and `commentsIn` filters on the patch
     // — so a remark written on a file git does not track yet would be dropped
@@ -307,12 +308,11 @@ async function runComments(
   // The same key the server files them under, from the same function: computing
   // it here by hand is how the two would come to disagree about the same review.
   const range = rangeKey(base.ref, options.target ?? branch ?? 'HEAD')
-  const comments = serveComments(
+  const comments = await comparisonReader(repoPath, result).comments(
     commentsIn(
       state.comments,
-      files.map((f) => f.path),
+      result.files.map((f) => f.path),
     ),
-    patch,
   )
 
   process.stdout.write(

@@ -189,7 +189,18 @@ export interface StateRead {
   notice: string | null
 }
 
+export interface Comparison {
+  before: string
+  after: string | null
+}
+
+export interface DiffFiles {
+  oldFile: { name: string; contents: string; cacheKey: string } | null
+  newFile: { name: string; contents: string; cacheKey: string }
+}
+
 export interface PatchResult {
+  comparison: Comparison
   patch: string
   untracked: string[]
   untrackedIncluded: boolean
@@ -199,6 +210,7 @@ export interface PatchResult {
 
 /** The body of `GET /r/:repoId/api/diff`. */
 export interface DiffPayload {
+  comparison: Comparison
   repo: { id: string; path: string }
   base: BaseResolution
   head: { branch: string | null; sha: string }

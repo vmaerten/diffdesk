@@ -18,6 +18,7 @@ import FileTree, { type FileTreeHandle, type TreeEntry } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import CommentThread, { type Composer, type SaveState } from './CommentThread.tsx'
 import ImageDiff from './ImageDiff.tsx'
+import { diffFilesLoader, type ContextError } from './diffFiles.ts'
 import { searchDiff } from './diffSearch.ts'
 import { asMarkdown } from '../../src/export.ts'
 import { treeOrder } from './fileOrder.ts'
@@ -82,7 +83,12 @@ const BASE_SOURCES: Record<BaseSource, string> = {
 
 export default function App() {
   const repoId = useMemo(repoIdFromLocation, [])
-  const [data, setData] = useState<DiffPayload | null>(null)
+  const [data, setData] = useState<
+    (DiffPayload & { loadId: number; query: string; controller: AbortController }) | null
+  >(null)
+  const loadRef = useRef(0)
+  const controllerRef = useRef<AbortController | null>(null)
+  const [contextErrors, setContextErrors] = useState<Record<string, ContextError>>({})
   const [error, setError] = useState<string | null>(null)
   const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>('unified')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -179,12 +185,18 @@ export default function App() {
       setError('no repository in the URL (expected /r/<repoId>)')
       return
     }
+    const loadId = ++loadRef.current
+    controllerRef.current?.abort()
+    const controller = new AbortController()
+    controllerRef.current = controller
+    setContextErrors({})
     setRefreshing(true)
     try {
-      const response = await fetch(`/r/${repoId}/api/diff${query}`)
+      const response = await fetch(`/r/${repoId}/api/diff${query}`, { signal: controller.signal })
       const body: DiffPayload & { error?: string } = await response.json()
       if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
-      setData(body)
+      if (controller.signal.aborted) return
+      setData({ ...body, loadId, query, controller })
       // The server already dropped ticks whose file changed since.
       setViewedState(body.viewed ?? {})
       // Whatever the server has, plus what it has not been told yet: a comment
@@ -196,15 +208,17 @@ export default function App() {
       setComments([...served, ...unconfirmed])
       setError(null)
     } catch (cause) {
+      if (controller.signal.aborted) return
       if (cause instanceof TypeError) setError(NOT_LISTENING)
       else setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
-      setRefreshing(false)
+      if (!controller.signal.aborted) setRefreshing(false)
     }
   }, [repoId, query])
 
   useEffect(() => {
     refresh()
+    return () => controllerRef.current?.abort()
   }, [refresh])
 
   /**
@@ -291,7 +305,7 @@ export default function App() {
     )
     const files: DiffItem[] = parsePatchFiles(
       data.patch,
-      `${repoId}-${data.head.sha}-${data.range}`,
+      `${repoId}-${data.head.sha}-${data.range}-${data.loadId}`,
     )
       .flatMap((patch) => patch.files ?? [])
       .filter((file) => !imageFiles.has(file.name))
@@ -382,6 +396,25 @@ export default function App() {
     }
     return { byPath, fingerprints }
   }, [threads, composer])
+
+  // Hydration mutates FileDiffMetadata in place, including its line arrays and
+  // hunk offsets. Search retains a separate snapshot of the initial patch.
+  const searchItems = useMemo(() => structuredClone(allItems), [allItems])
+
+  const loadDiffFiles = useMemo(
+    () =>
+      data && repoId
+        ? diffFilesLoader(repoId, data, data.query, data.controller.signal, (path, failure) => {
+            setContextErrors((previous) => {
+              const next = { ...previous }
+              if (failure) next[path] = failure
+              else delete next[path]
+              return next
+            })
+          })
+        : undefined,
+    [data, repoId],
+  )
 
   const versions = useRef(new Map<string, { key: string; version: number }>())
   const items = useMemo(
@@ -668,7 +701,14 @@ export default function App() {
   )
 
   /** Browser find cannot see CodeView rows that the virtual window has unmounted. */
-  const searchMatches = useMemo(() => searchDiff(items, searchQuery), [items, searchQuery])
+  const searchMatches = useMemo(
+    () =>
+      searchDiff(
+        searchItems.map((item) => ({ ...item, collapsed: item.path in viewed })),
+        searchQuery,
+      ),
+    [searchItems, viewed, searchQuery],
+  )
   const boundedSearchIndex = searchMatches.length > 0 ? searchIndex % searchMatches.length : 0
   const activeSearchMatch = searchMatches[boundedSearchIndex]
 
@@ -841,6 +881,9 @@ export default function App() {
   const options = useMemo(
     () => ({
       diffStyle,
+      loadDiffFiles,
+      expansionLineCount: 20,
+      hunkSeparators: 'line-info' as const,
       theme: 'github-dark' as const,
       stickyHeaders: true,
       // File items are image previews; only text diff items have source rows.
@@ -853,7 +896,7 @@ export default function App() {
       enableLineSelection: true,
       onLineSelectionEnd,
     }),
-    [diffStyle, onGutterUtilityClick, onLineSelectionEnd],
+    [diffStyle, loadDiffFiles, onGutterUtilityClick, onLineSelectionEnd],
   )
 
   /**
@@ -1354,6 +1397,18 @@ export default function App() {
               renderAnnotation={renderAnnotation}
               style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}
             />
+            <div className="context-errors" aria-live="polite">
+              {Object.entries(contextErrors).map(([path, failure]) => (
+                <div className="context-error" key={path} role="alert">
+                  <span>
+                    {path}: {failure.message}
+                  </span>
+                  <button type="button" onClick={failure.retry}>
+                    Retry
+                  </button>
+                </div>
+              ))}
+            </div>
             <div className="diff-search" role="search" hidden={!searchOpen}>
               <label className="visually-hidden" htmlFor="diff-search-input">
                 Search changed code

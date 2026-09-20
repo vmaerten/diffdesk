@@ -5,6 +5,7 @@ import { runLifecycle } from './lifecycle.ts'
 import { runRefs } from './refs.ts'
 import { runWorktree } from './worktree.ts'
 import { runState } from './state.ts'
+import { runContext } from './context.ts'
 import { runImages } from './images.ts'
 
 import tree from './suites/tree.ts'
@@ -48,6 +49,7 @@ const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'worktree', run: runWorktree },
   { name: 'lifecycle', run: runLifecycle },
   { name: 'images', run: runImages },
+  { name: 'context', run: runContext },
 ]
 
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-'))

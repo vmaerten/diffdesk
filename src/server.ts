@@ -15,6 +15,7 @@ import {
   repoState,
   resolveRepoRoot,
 } from './git.ts'
+import { comparisonReader } from './comparison.ts'
 import { imageComparisons, imageType, readImage } from './images.ts'
 import {
   buildCommitPatch,
@@ -27,13 +28,11 @@ import {
 import {
   clearViewed,
   commentsIn,
-  linesAt,
   pruneStale,
   putComment,
   readState,
   removeComment,
   sectionHashes,
-  serveComments,
   setViewed,
 } from './state.ts'
 import type { Comment, CommitsPayload, DiffPayload, PatchResult, RefsPayload } from './types.ts'
@@ -296,6 +295,28 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         return
       }
 
+      if (route === 'api/diff-files' && req.method === 'GET') {
+        const path = url.searchParams.get('path')
+        const hash = url.searchParams.get('hash')
+        if (!path || !hash) return json(res, 400, { error: 'Missing path or expected file hash' })
+        const { build } = await resolveRequest(repoPath, url)
+        const result = await build()
+        const expected = url.searchParams.get('comparison')
+        if (expected && expected !== JSON.stringify(result.comparison)) {
+          return json(res, 409, {
+            error: 'Comparison changed; refresh the diff before expanding context',
+          })
+        }
+        try {
+          const files = await comparisonReader(repoPath, result).files(path, hash)
+          res.setHeader('cache-control', 'no-store')
+          return json(res, 200, files)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          return json(res, /refresh/.test(message) ? 409 : 422, { error: message })
+        }
+      }
+
       if (route === 'api/diff' && req.method === 'GET') {
         const { base, target, commitRef, commit, committed, build } = await resolveRequest(
           repoPath,
@@ -344,6 +365,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         const viewed = pruneStale(stored.state.viewed[range] ?? {}, hashes)
 
         const payload: DiffPayload = {
+          comparison: patchResult.comparison,
           repo: { id: repoId, path: repoPath },
           base,
           head: { branch, sha },
@@ -362,12 +384,11 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           })),
           totals,
           viewed,
-          comments: serveComments(
+          comments: await comparisonReader(repoPath, patchResult).comments(
             commentsIn(
               stored.state.comments,
               files.map((f) => f.path),
             ),
-            patch,
           ),
           // A sha that stopped resolving — rebased away, amended — falls back to
           // the whole range, and silently would leave the reader thinking they
@@ -436,7 +457,10 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         // screen: a remark written while reading a single commit anchors on the
         // lines that commit had, not on what the branch made of them since.
         const { build } = await resolveRequest(repoPath, url)
-        const { patch } = await build()
+        const result = await build()
+        const reader = comparisonReader(repoPath, result)
+        const anchor = await reader.lines({ path, side, start, end })
+        if (!anchor) return json(res, 400, { error: 'Lines are not available in this comparison' })
 
         const comment: Comment = {
           id: String(id),
@@ -445,7 +469,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           start,
           end,
           body: String(body.body ?? ''),
-          anchor: linesAt(patch, { path, side, start, end }) ?? [],
+          anchor,
           range: String(range),
           // Ours, not the client's: it orders a thread, and a clock we do not
           // control orders it by whichever tab was wrong. An edit keeps the
@@ -456,10 +480,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         // The UI replaces its optimistic entry with this response, so include
         // the code used by Copy, just as api/diff does. Read the stored entry
         // to preserve the original createdAt when this was an edit.
-        const [saved] = serveComments(
-          comments.filter((stored) => stored.id === comment.id),
-          patch,
-        )
+        const [saved] = await reader.comments(comments.filter((stored) => stored.id === comment.id))
         return json(res, 200, { comment: saved, comments })
       }
 

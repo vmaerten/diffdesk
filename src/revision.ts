@@ -278,7 +278,11 @@ export async function buildPatch(
 ): Promise<PatchResult> {
   // `target` names the revision under review; this names the tip of the diff.
   const tip = target ?? (committed ? 'HEAD' : null)
-  const range: DiffRange = { kind: 'merge-base', base, target: tip }
+  const resolvedTip = await revParse(repoPath, tip ?? 'HEAD')
+  const before = resolvedTip && (await mergeBase(repoPath, base, resolvedTip))
+  if (!before || !resolvedTip) throw new Error('Comparison no longer resolves; refresh to retry')
+  const comparison = { before, after: tip ? resolvedTip : null }
+  const range: DiffRange = { kind: 'two-point', from: before, to: comparison.after }
   // Four readings of the same range, none of which needs the others: the patch,
   // the counts git reports rather than the ones the patch implies, the statuses,
   // and what git does not track at all.
@@ -295,7 +299,7 @@ export async function buildPatch(
   const totals = sum(files)
 
   if (!includeUntracked || paths.length === 0) {
-    return { patch: tracked, untracked: paths, untrackedIncluded: false, files, totals }
+    return { comparison, patch: tracked, untracked: paths, untrackedIncluded: false, files, totals }
   }
 
   const extra = await untrackedPatch(repoPath, paths)
@@ -303,6 +307,7 @@ export async function buildPatch(
   // and one `commentsIn` will not drop a remark from — both read `files`.
   const all = [...files, ...extra.counts.map((f) => ({ ...f, status: 'untracked' as const }))]
   return {
+    comparison,
     patch: tracked + extra.patch,
     untracked: paths,
     untrackedIncluded: true,
@@ -336,5 +341,13 @@ export async function buildCommitPatch(
 
   const files = describe(counts, statuses)
   // A commit holds no working tree, so there is nothing untracked to weigh.
-  return { patch, untracked: [], untrackedIncluded: false, files, totals: sum(files), parent }
+  return {
+    comparison: { before: parent, after: sha },
+    patch,
+    untracked: [],
+    untrackedIncluded: false,
+    files,
+    totals: sum(files),
+    parent,
+  }
 }
