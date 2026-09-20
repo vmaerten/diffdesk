@@ -4,27 +4,10 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { basename, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import {
-  commitDetail,
-  currentBranch,
-  headSha,
-  listCommits,
-  listRefDetails,
-  mergeBase,
-  revParse,
-  repoState,
-  resolveRepoRoot,
-} from './git.ts'
-import { comparisonReader } from './comparison.ts'
-import { imageComparisons, imageType, readImage } from './images.ts'
-import {
-  buildCommitPatch,
-  buildPatch,
-  detectTrunk,
-  rangeKey,
-  rememberBase,
-  resolveBase,
-} from './revision.ts'
+import { currentBranch, listCommits, listRefDetails, repoState, resolveRepoRoot } from './git.ts'
+import { comparisonReader, resolveComparison } from './comparison.ts'
+import { imageType, readImage } from './images.ts'
+import { detectTrunk, rememberBase } from './revision.ts'
 import {
   clearViewed,
   commentsIn,
@@ -32,10 +15,9 @@ import {
   putComment,
   readState,
   removeComment,
-  sectionHashes,
   setViewed,
 } from './state.ts'
-import type { Comment, CommitsPayload, DiffPayload, PatchResult, RefsPayload } from './types.ts'
+import type { Comment, CommitsPayload, DiffPayload, RefsPayload } from './types.ts'
 import { runtimeRevision } from './version.ts'
 
 /**
@@ -152,43 +134,19 @@ const readBody = (req: IncomingMessage): Promise<string> =>
     req.on('error', reject)
   })
 
-/**
- * What a request is comparing, from its query string.
- *
- * Shared by the routes that need a patch rather than repeated in each: the
- * comment route cuts its anchor out of the patch, and one built from another
- * revision simply does not carry the lines being commented on.
- *
- * The patch is returned as a thunk, not awaited here, so a caller with other
- * git work to do can keep it in its own `Promise.all`.
- */
-async function resolveRequest(repoPath: string, url: URL) {
+/** Translate the page's scope once for every route that reads its comparison. */
+function resolveRequest(repoPath: string, url: URL) {
   // The query string is the only source for all five. A registry fallback would
   // answer whenever the page left a parameter out at its default value, which is
   // indistinguishable from never having chosen — #55.
-  const override = url.searchParams.get('base')
-  const target = url.searchParams.get('target')
-  const commitRef = url.searchParams.get('commit')
-  // `has`, not `get`, for both: written bare as `?committed`, `get` returns the
-  // empty string, which is falsy, and the flag would be inert without saying so.
-  const committed = url.searchParams.has('committed')
-  const untracked = url.searchParams.has('untracked')
-
-  const [base, commit] = await Promise.all([
-    resolveBase(repoPath, { override, target }),
-    commitRef ? commitDetail(repoPath, commitRef) : null,
-  ])
-
-  const build = (): Promise<PatchResult & { parent?: string }> =>
-    commit
-      ? buildCommitPatch(repoPath, commit.sha)
-      : buildPatch(repoPath, base.ref, {
-          target,
-          committed,
-          includeUntracked: untracked,
-        })
-
-  return { base, target, commitRef, commit, committed, build }
+  return resolveComparison(repoPath, {
+    override: url.searchParams.get('base'),
+    target: url.searchParams.get('target'),
+    commitRef: url.searchParams.get('commit'),
+    // Bare ?committed and ?untracked count too: get() would return an empty string.
+    committed: url.searchParams.has('committed'),
+    includeUntracked: url.searchParams.has('untracked'),
+  })
 }
 
 /**
@@ -299,8 +257,8 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         const path = url.searchParams.get('path')
         const hash = url.searchParams.get('hash')
         if (!path || !hash) return json(res, 400, { error: 'Missing path or expected file hash' })
-        const { build } = await resolveRequest(repoPath, url)
-        const result = await build()
+        const { patch } = await resolveRequest(repoPath, url)
+        const result = await patch()
         const expected = url.searchParams.get('comparison')
         if (expected && expected !== JSON.stringify(result.comparison)) {
           return json(res, 409, {
@@ -318,91 +276,25 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
       }
 
       if (route === 'api/diff' && req.method === 'GET') {
-        const { base, target, commitRef, commit, committed, build } = await resolveRequest(
-          repoPath,
-          url,
-        )
-
-        // Everything the response needs beyond the base, and none of it depends
-        // on another: awaited one by one, the request waited for the sum of five
-        // git round-trips rather than the longest.
-        const [patchResult, branch, sha, state, stored] = await Promise.all([
-          build(),
-          // Without a target, resolveBase has already asked — that is `base.branch`.
-          target ? currentBranch(repoPath) : base.branch,
-          headSha(repoPath),
+        const comparison = await resolveRequest(repoPath, url)
+        const [{ patchResult, hashes, payload: display }, state, stored] = await Promise.all([
+          comparison.display(repoId),
           repoState(repoPath),
           readState(repoPath),
         ])
 
-        const { patch, untracked, untrackedIncluded, files, totals } = patchResult
-        const reviewing = target ?? branch ?? 'HEAD'
-        // A commit is keyed on itself: its patch cannot change, so a tick set on
-        // it never goes stale, and one set on the branch view has no business
-        // showing here — it was set on another diff.
-        const range =
-          commit && patchResult.parent
-            ? rangeKey(patchResult.parent, commit.sha)
-            : rangeKey(base.ref, reviewing)
-        const hashes = sectionHashes(patch)
-        const hasImages = files.some((file) => imageType(file.path))
-        const tip = hasImages
-          ? (commit?.sha ?? (target ? await revParse(repoPath, target) : sha))
-          : null
-        const before = patchResult.parent ?? (tip ? await mergeBase(repoPath, base.ref, tip) : null)
-        const images = before
-          ? await imageComparisons(
-              repoPath,
-              repoId,
-              files,
-              before,
-              !target && !commit && !committed ? null : tip,
-            )
-          : null
-        for (const [path, image] of images ?? []) hashes[path] = image.hash
-
-        // Ticks only survive while the file's diff is unchanged.
-        const viewed = pruneStale(stored.state.viewed[range] ?? {}, hashes)
-
         const payload: DiffPayload = {
-          comparison: patchResult.comparison,
+          ...display,
           repo: { id: repoId, path: repoPath },
-          base,
-          head: { branch, sha },
-          // A commit holds no working tree either, and the field means "the
-          // uncommitted work is in this diff".
-          target: { ref: reviewing, workingTree: !target && !commit && !committed },
-          commit,
-          range,
           state,
-          untracked,
-          untrackedIncluded,
-          files: files.map((f) => ({
-            ...f,
-            hash: hashes[f.path] ?? null,
-            image: images?.get(f.path)?.image,
-          })),
-          totals,
-          viewed,
+          viewed: pruneStale(stored.state.viewed[display.range] ?? {}, hashes),
           comments: await comparisonReader(repoPath, patchResult).comments(
             commentsIn(
               stored.state.comments,
-              files.map((f) => f.path),
+              patchResult.files.map((file) => file.path),
             ),
           ),
-          // A sha that stopped resolving — rebased away, amended — falls back to
-          // the whole range, and silently would leave the reader thinking they
-          // are still on that commit.
-          notice:
-            [
-              stored.notice,
-              commitRef && !commit
-                ? `commit ${commitRef} no longer resolves — showing every commit`
-                : null,
-            ]
-              .filter(Boolean)
-              .join(' — ') || null,
-          patch,
+          notice: [stored.notice, display.notice].filter(Boolean).join(' — ') || null,
         }
         return json(res, 200, payload)
       }
@@ -456,8 +348,8 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         // Through the same resolution as `api/diff`, so the patch is the one on
         // screen: a remark written while reading a single commit anchors on the
         // lines that commit had, not on what the branch made of them since.
-        const { build } = await resolveRequest(repoPath, url)
-        const result = await build()
+        const { patch } = await resolveRequest(repoPath, url)
+        const result = await patch()
         const reader = comparisonReader(repoPath, result)
         const anchor = await reader.lines({ path, side, start, end })
         if (!anchor) return json(res, 400, { error: 'Lines are not available in this comparison' })
