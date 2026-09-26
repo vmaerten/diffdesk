@@ -4,12 +4,16 @@ import { useReviewDiff, type LoadedReviewDiff } from './useReviewDiff.tsx'
 import { useReviewSelection } from './reviewSelection.ts'
 import { useCommentPersistence, type CommentSubmission } from './commentPersistence.ts'
 
+import { useTheme } from './theme.ts'
+import ThemePicker from './ThemePicker.tsx'
+import CommentsPanel from './CommentsPanel.tsx'
+import Icon from './Icon.tsx'
 import RefSelector from './RefSelector.tsx'
 import CommitSelector from './CommitSelector.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import { asMarkdown } from '../../src/export.ts'
-import type { BaseSource, DiffPayload, ViewedMap } from '../../src/types.ts'
+import type { BaseSource, DiffPayload, ServedComment, ViewedMap } from '../../src/types.ts'
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -33,6 +37,7 @@ const BASE_SOURCES: Record<BaseSource, string> = {
 }
 
 export default function App() {
+  const { theme, syntaxTheme, chooseTheme } = useTheme()
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
   const loadRef = useRef(0)
@@ -47,7 +52,24 @@ export default function App() {
   const { target, commit, committed, withUntracked, query } = selection
   const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId)
   /** Momentary, so the button can say the clipboard actually took it. */
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+  const [copyError, setCopyError] = useState<string | null>(null)
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [filesOpen, setFilesOpen] = useState(false)
+  const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)')
+    const update = () => setMobile(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+  useEffect(
+    () => () => {
+      if (copyTimer.current) clearTimeout(copyTimer.current)
+    },
+    [],
+  )
   /** Folding and revealing live inside the tree, which owns that state. */
   const treeRef = useRef<FileTreeHandle>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -189,14 +211,21 @@ export default function App() {
    * produce different text for the same review. Failing to reach the clipboard is
    * said out loud: the point of the gesture is that the text left the page.
    */
-  const copyComments = useStableCallback(async () => {
+  const copyComments = useStableCallback(async (comment?: ServedComment) => {
     if (!data) return
+    setCopyError(null)
+    setCopied(null)
     try {
-      await navigator.clipboard.writeText(asMarkdown(comments, { range: data.range }))
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(
+        asMarkdown(comment ? [comment] : comments, { range: data.range }),
+      )
+      setCopied(comment?.id ?? 'all')
+      if (copyTimer.current) clearTimeout(copyTimer.current)
+      copyTimer.current = setTimeout(() => setCopied(null), 2000)
     } catch (cause) {
-      setError(`could not copy: ${cause instanceof Error ? cause.message : cause}`)
+      setCopyError(
+        `Could not copy. Try again or check your browser's clipboard permissions. ${cause instanceof Error ? cause.message : ''}`,
+      )
     }
   })
 
@@ -217,6 +246,8 @@ export default function App() {
     isComposing,
     searchOpen,
     selectFile,
+    revealComment,
+    canRevealComment,
     navigate,
     commentSelection,
     openSearch,
@@ -224,9 +255,12 @@ export default function App() {
   } = useReviewDiff({
     repoId,
     data,
-    diffStyle,
+    diffStyle: mobile ? 'unified' : diffStyle,
+    syntaxTheme,
     viewed,
     comments,
+    copied,
+    onCopy: copyComments,
     saving,
     onViewedChange: toggleViewed,
     onSubmit: submitComment,
@@ -239,6 +273,11 @@ export default function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (commentsOpen) return
+      if (event.key === 'Escape' && filesOpen) {
+        setFilesOpen(false)
+        return
+      }
       const key = event.key.toLocaleLowerCase()
       const command = event.metaKey || event.ctrlKey
 
@@ -258,7 +297,7 @@ export default function App() {
       // Not `target`: that name already means the revision under review.
       const focused = event.target
       const tag = focused instanceof HTMLElement ? focused.tagName : null
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       if (focused instanceof HTMLElement && focused.isContentEditable) return
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
@@ -286,6 +325,8 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [
+    commentsOpen,
+    filesOpen,
     activePath,
     navigate,
     refresh,
@@ -316,7 +357,7 @@ export default function App() {
         <div className="appbar">
           <div className="repo-context">
             <span className="brand-mark" aria-hidden="true">
-              g
+              <Icon name="file" />
             </span>
             <span className="product-name">ghl</span>
             <span className="repo-divider">/</span>
@@ -327,23 +368,7 @@ export default function App() {
           </div>
 
           <div className="app-actions">
-            <div className="toggle view-toggle" aria-label="Diff layout">
-              <button
-                type="button"
-                aria-pressed={diffStyle === 'unified'}
-                onClick={() => setDiffStyle('unified')}
-              >
-                Unified
-              </button>
-              <button
-                type="button"
-                aria-pressed={diffStyle === 'split'}
-                onClick={() => setDiffStyle('split')}
-              >
-                Split
-              </button>
-            </div>
-
+            <ThemePicker theme={theme} onChange={chooseTheme} />
             <button type="button" className="refresh" onClick={refresh} disabled={refreshing}>
               <span className={refreshing ? 'refresh-icon spinning' : 'refresh-icon'} aria-hidden>
                 ↻
@@ -623,6 +648,106 @@ export default function App() {
         )}
       </header>
 
+      <div className="review-tools">
+        <div className="review-tools-title">
+          <button
+            className="button files-toggle"
+            type="button"
+            aria-expanded={filesOpen}
+            aria-controls="changed-files"
+            onClick={() => setFilesOpen((value) => !value)}
+          >
+            <Icon name="file" />
+            Files
+          </button>
+          <strong>Files changed</strong>
+          <span className="counter">{stats.files}</span>
+          {viewedCount > 0 && (
+            <span className="review-progress">
+              {viewedCount}/{stats.files} viewed
+            </span>
+          )}
+        </div>
+        <div className="review-tools-actions">
+          <div className="toggle view-toggle" aria-label="Diff layout">
+            <button
+              type="button"
+              aria-pressed={diffStyle === 'unified'}
+              onClick={() => setDiffStyle('unified')}
+            >
+              Unified
+            </button>
+            <button
+              type="button"
+              aria-pressed={diffStyle === 'split'}
+              onClick={() => setDiffStyle('split')}
+            >
+              Split
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className="button comments-trigger"
+            disabled={!data}
+            aria-haspopup="dialog"
+            aria-expanded={commentsOpen}
+            aria-controls="comments-panel"
+            onClick={() => setCommentsOpen(true)}
+          >
+            <Icon name="comment" />
+            Comments <span className="counter">{comments.length}</span>
+          </button>
+          <button
+            type="button"
+            className="button primary copy-all"
+            disabled={comments.length === 0}
+            onClick={() => copyComments()}
+          >
+            <Icon name="copy" />
+            {copied === 'all' ? 'Copied' : 'Copy all'}
+          </button>
+        </div>
+      </div>
+      <span className="visually-hidden" role="status">
+        {copied ? 'Comments copied to clipboard' : ''}
+      </span>
+      <CommentsPanel
+        open={commentsOpen}
+        comments={comments}
+        currentRange={data?.range ?? ''}
+        saving={saving}
+        copied={copied}
+        copyError={copyError}
+        onClose={() => setCommentsOpen(false)}
+        onCopy={copyComments}
+        canView={canRevealComment}
+        onView={(comment) => {
+          setCommentsOpen(false)
+          setFilesOpen(false)
+          revealComment(comment)
+        }}
+        onUpdate={(comment, body) =>
+          submitComment({
+            path: comment.path,
+            side: comment.side,
+            start: comment.start,
+            end: comment.end,
+            editing: comment.id,
+            body,
+          })
+        }
+        onDelete={deleteComment}
+        onRetry={(comment) => {
+          void commentPersistence.retry(comment.id)
+        }}
+      />
+
+      {copyError && !commentsOpen && (
+        <div className="warning" role="alert">
+          {copyError}
+        </div>
+      )}
       {data?.notice && <div className="warning">{data.notice}</div>}
 
       {data?.state?.operation && (
@@ -665,11 +790,11 @@ export default function App() {
 
       {entries.length > 0 && (
         <div
-          className="body"
+          className={`body${filesOpen ? ' files-open' : ''}`}
           ref={bodyRef}
           style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
         >
-          <aside className="sidebar">
+          <aside className="sidebar" id="changed-files" aria-label="Changed files">
             <div className="sidebar-head">
               <span>
                 {viewedCount > 0
@@ -677,17 +802,6 @@ export default function App() {
                   : `${entries.length} files`}
               </span>
               <span className="spacer" />
-              {/* The end of a review: the remarks go somewhere they can be acted
-                  on. Same markdown `ghl comments` writes, from the same function. */}
-              {comments.length > 0 && (
-                <button
-                  type="button"
-                  onClick={copyComments}
-                  title={`Copy ${comments.length} comment(s) as markdown`}
-                >
-                  {copied ? 'Copied' : `Copy ✎${comments.length}`}
-                </button>
-              )}
               {viewedCount > 0 && (
                 <button type="button" onClick={resetViewed} title="Unmark every file">
                   Reset
@@ -702,12 +816,24 @@ export default function App() {
             </div>
             <FileTree
               ref={treeRef}
+              syntaxTheme={syntaxTheme}
               entries={entries}
               activePath={activePath}
-              onSelect={selectFile}
+              onSelect={(path) => {
+                selectFile(path)
+                setFilesOpen(false)
+              }}
             />
           </aside>
 
+          {filesOpen && (
+            <button
+              type="button"
+              className="files-backdrop"
+              aria-label="Close files"
+              onClick={() => setFilesOpen(false)}
+            />
+          )}
           <Resizer containerRef={bodyRef} onCommit={resizeSidebar} />
 
           {view}

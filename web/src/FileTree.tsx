@@ -17,6 +17,7 @@ import {
 } from '@pierre/trees'
 import { FileTree as TreeView, useFileTree } from '@pierre/trees/react'
 
+import type { SyntaxTheme } from './theme.ts'
 import type { GitStatus } from '../../src/types.ts'
 
 /** The root of `@pierre/trees` does not re-export this one. */
@@ -46,6 +47,7 @@ export interface FileTreeHandle {
 }
 
 interface FileTreeProps {
+  syntaxTheme: SyntaxTheme
   entries: TreeEntry[]
   activePath: string | undefined
   onSelect: (path: string) => void
@@ -66,11 +68,10 @@ interface DirectoryTotals {
 }
 
 /** Same palette as the diff pane, so counts read identically on both sides. */
-const ADDED = '#3fb950'
-const DELETED = '#f85149'
-const MUTED = '#8b949e'
+const ADDED = 'var(--success)'
+const MUTED = 'var(--text-dim)'
 /** The accent from styles.css, so a comment count reads as a control, not a count. */
-const ACCENT = '#2f81f7'
+const ACCENT = 'var(--accent)'
 
 /**
  * Every directory a file sits under, as the tree addresses them: with a trailing
@@ -113,7 +114,7 @@ const asText = (parts: DecorationPart[]): FileTreeRowDecoration => ({
  *    the +/- counts share a single string.
  */
 function FileTree(
-  { entries, activePath, onSelect }: FileTreeProps,
+  { entries, activePath, onSelect, syntaxTheme }: FileTreeProps,
   ref: React.ForwardedRef<FileTreeHandle>,
 ) {
   const [themeStyles, setThemeStyles] = useState<TreeThemeStyles | null>(null)
@@ -135,6 +136,7 @@ function FileTree(
   const { model } = useFileTree({
     paths: entries.map((e) => e.path),
     icons: { set: 'complete', colored: true },
+    unsafeCSS: `[data-item-git-status] > [data-item-section="content"] { color: var(--text); font-weight: 400; }`,
     density: 'compact',
     flattenEmptyDirectories: true,
     initialExpansion: 'open',
@@ -161,10 +163,6 @@ function FileTree(
       // is one string, so this cannot be a node of its own.
       if (entry.comments > 0) parts.push({ text: `✎${entry.comments} `, color: ACCENT })
       if (entry.binary) parts.push({ text: 'bin', color: MUTED })
-      else {
-        if (entry.additions > 0) parts.push({ text: `+${entry.additions}`, color: ADDED })
-        if (entry.deletions > 0) parts.push({ text: ` −${entry.deletions}`, color: DELETED })
-      }
       return parts.length > 0 ? asText(parts) : null
     },
   })
@@ -174,7 +172,7 @@ function FileTree(
     let cancelled = false
     const load = async () => {
       try {
-        const theme = await resolveTheme('github-dark')
+        const theme = await resolveTheme(syntaxTheme)
         if (!cancelled) setThemeStyles(themeToTreeStyles(theme))
       } catch {
         // Falls back to the tree's own dark palette, close enough to live with.
@@ -184,7 +182,7 @@ function FileTree(
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [syntaxTheme])
 
   /** Expand every directory on the way to `path`, or scrollToPath finds nothing. */
   const reveal = useCallback(
@@ -322,9 +320,17 @@ function FileTree(
       flex: 1,
       minHeight: 0,
       ...themeStyles,
-      // github-dark's sidebar colour is a shade off ours, and the gap shows as a
-      // seam under the header.
-      '--trees-theme-sidebar-bg': 'var(--bg-raised)',
+      // Match the app surface to avoid a seam below the sidebar header.
+      backgroundColor: 'var(--bg)',
+      '--trees-theme-sidebar-bg': 'var(--bg)',
+      '--trees-bg-override': 'var(--bg)',
+      '--trees-fg-override': 'var(--text)',
+      '--trees-fg-muted-override': 'var(--text-dim)',
+      '--trees-git-added-color': 'var(--success)',
+      '--trees-git-deleted-color': 'var(--danger)',
+      '--trees-git-modified-color': 'var(--warn)',
+      '--trees-git-renamed-color': 'var(--warn)',
+      '--trees-git-untracked-color': 'var(--success)',
     }),
     [themeStyles],
   )

@@ -335,11 +335,17 @@ export function comparisonReader(repoPath: string, result: PatchResult) {
 
   // A comment follows its file across bases, regardless of its stored range.
   const paths = new Set(result.files.map((file) => file.path))
-  const comments = async (stored: Comment[]): Promise<ServedComment[]> =>
+  const comments = async (
+    stored: Comment[],
+    { includeOutside = false }: { includeOutside?: boolean } = {},
+  ): Promise<ServedComment[]> =>
     Promise.all(
       stored
-        .filter((comment) => paths.has(comment.path))
+        .filter((comment) => includeOutside || paths.has(comment.path))
         .map(async (comment) => {
+          // The overview also shows comments outside this comparison. No current
+          // code means we cannot conclude that their original lines changed.
+          if (!paths.has(comment.path)) return { ...comment, code: [], stale: false }
           // Keep comments on unavailable sources; only a nonempty anchor can be stale.
           const code = (await lines(comment).catch(() => null)) ?? []
           const stale =

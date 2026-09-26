@@ -2,6 +2,7 @@ import { useRef, type RefObject } from 'react'
 
 import type { Comment, ServedComment } from '../../src/types.ts'
 import type { SaveState } from './commentPersistence.ts'
+import CommentCard, { lineLabel } from './CommentCard.tsx'
 
 /** Where a comment is being written, or which one is being rewritten. */
 export interface Composer {
@@ -17,6 +18,8 @@ export interface Composer {
 
 interface Props {
   comments: ServedComment[]
+  copied: string | null
+  onCopy: (comment: ServedComment) => void
   composing: Composer | null
   /** What the diff on screen compares, to spot comments written against another. */
   currentRange: string
@@ -35,11 +38,10 @@ interface Props {
   onRetry: (comment: ServedComment) => void
 }
 
-const lineLabel = (start: number, end: number) =>
-  start === end ? `L${start}` : `L${start}–L${end}`
-
 export default function CommentThread({
   comments,
+  copied,
+  onCopy,
   composing,
   currentRange,
   saving,
@@ -61,65 +63,19 @@ export default function CommentThread({
   return (
     <div className="comment-thread">
       {comments.map((comment) => {
-        const state = saving.get(comment.id)
-        // Hidden while its own editor is open, or the card would show the text
-        // twice — once as it is stored, once as it is being rewritten.
         if (composing?.editing === comment.id) return null
         return (
-          <article key={comment.id} className={comment.stale ? 'comment stale' : 'comment'}>
-            <header>
-              <span className="comment-lines">{lineLabel(comment.start, comment.end)}</span>
-              {/* Its own lines moved. Usually that means the remark was acted on,
-                  so this reads as "probably done" rather than as a warning — but
-                  never as a reason to delete it: the lines can change without
-                  anyone having done what the comment asked. */}
-              {comment.stale && (
-                <span className="comment-state stale" title="These lines are not what they were">
-                  lines changed
-                </span>
-              )}
-              {/* Comments are filed against code, not against a comparison, so
-                  one written under another base can legitimately show up here.
-                  Said out loud rather than hidden — its line numbers came from a
-                  diff this is not. */}
-              {comment.range !== currentRange && (
-                <span
-                  className="comment-elsewhere"
-                  title={`Written while reviewing ${comment.range}`}
-                >
-                  from {comment.range}
-                </span>
-              )}
-              <span className="spacer" />
-              {state === 'saving' && <span className="comment-state">saving…</span>}
-              {state === 'failed' && (
-                <>
-                  <span className="comment-state failed">not saved</span>
-                  <button type="button" onClick={() => onRetry(comment)}>
-                    Retry
-                  </button>
-                </>
-              )}
-              <button type="button" onClick={() => onEdit(comment)}>
-                Edit
-              </button>
-              {/* The same call either way. The word is what differs: dismissing a
-                  remark whose lines have moved is finishing with it, not
-                  discarding one that still stands. */}
-              <button type="button" onClick={() => onDelete(comment.id)}>
-                {comment.stale ? 'Done' : 'Delete'}
-              </button>
-            </header>
-            <p>{comment.body}</p>
-            {/* What the lines said when it was written. Kept because a stale
-                comment stripped of it is an instruction about code nobody can
-                point to any more. */}
-            {comment.stale && comment.anchor.length > 0 && (
-              <pre className="comment-anchor" aria-label="the lines as they were">
-                {comment.anchor.join('\n')}
-              </pre>
-            )}
-          </article>
+          <CommentCard
+            key={comment.id}
+            comment={comment}
+            currentRange={currentRange}
+            state={saving.get(comment.id)}
+            copied={copied === comment.id}
+            onCopy={onCopy}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onRetry={onRetry}
+          />
         )
       })}
 

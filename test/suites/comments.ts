@@ -167,11 +167,11 @@ export default {
     check('  and no composer is left open', (await count('.comment-composer')) === 0)
     const copyLabel = () =>
       page.evaluate(
-        `([...document.querySelectorAll('.sidebar-head button')].find((b) => b.textContent.startsWith('Copy')) || {}).textContent || null`,
+        `([...document.querySelectorAll('.review-tools .copy-all')].find((b) => b.textContent.startsWith('Copy')) || {}).textContent || null`,
       )
     check(
       '  and a copy button appears',
-      (await copyLabel()) === 'Copy ✎1',
+      (await copyLabel()) === 'Copy all',
       String(await copyLabel()),
     )
     check(
@@ -192,7 +192,7 @@ export default {
           configurable: true,
           value: { writeText: async (value) => { text = value } },
         })
-        const button = [...document.querySelectorAll('.sidebar-head button')]
+        const button = [...document.querySelectorAll('.review-tools .copy-all')]
           .find((b) => b.textContent.startsWith('Copy'))
         button.click()
         await Promise.resolve()
@@ -203,7 +203,7 @@ export default {
       check(
         '  and confirms the copy',
         (await page.evaluate(
-          `[...document.querySelectorAll('.sidebar-head button')].some((b) => b.textContent === 'Copied')`,
+          `[...document.querySelectorAll('.review-tools .copy-all')].some((b) => b.textContent === 'Copied')`,
         )) === true,
       )
     }
@@ -268,7 +268,7 @@ export default {
       const original = window.fetch
       window.__restoreCommentFetch = () => { window.fetch = original }
       window.fetch = (input, init) => {
-        if (String(input).includes('/api/comments') && init?.method === 'POST') {
+        if (String(input).includes('/api/comments') && init?.method === 'PATCH') {
           return new Promise((resolve, reject) => {
             window.__releaseCommentSave = () => {
               original(input, init).then(resolve, reject)
@@ -302,12 +302,12 @@ export default {
       'refresh preserves an unsaved edit even when the server returns its old ID',
       (await bodies())[0] === 'rename it too' &&
         (await page.evaluate(`document.querySelector('.comment-state')?.textContent`)) ===
-          'saving…',
+          'Saving…',
       (await bodies()).join(' | '),
     )
     const saved = page.waitForResponse(
       (response) =>
-        response.url().includes('/api/comments') && response.request().method() === 'POST',
+        response.url().includes('/api/comments') && response.request().method() === 'PATCH',
     )
     await page.evaluate(`window.__releaseCommentSave(); window.__restoreCommentFetch()`)
     await saved
@@ -413,11 +413,11 @@ export default {
     check('deleting removes the comment', (await count('.comment')) === 0)
     check('  and clears the tree badge', (await pencilled()).length === 0)
     check(
-      '  and takes the copy button with it',
-      (await count('.sidebar-head button')) > 0 &&
-        !(await page.evaluate(
-          `[...document.querySelectorAll('.sidebar-head button')].some((b) => b.textContent.startsWith('Copy'))`,
-        )),
+      '  and disables copying an empty review',
+      await page.$eval(
+        '.copy-all',
+        (button) => button instanceof HTMLButtonElement && button.disabled,
+      ),
     )
 
     await ready()
@@ -496,12 +496,15 @@ export default {
         `(document.querySelector('.comment-anchor') || {}).textContent || null`,
       )
       check('  showing what the line used to say', wasLine === original[at - 1], String(wasLine))
-      // "Done", not "Delete": lines that moved usually mean the remark was acted
-      // on, so the word matches what the situation means.
+      // Changed lines never imply that the comment was resolved.
       const label = await page.evaluate(
         `[...document.querySelectorAll('.comment header button')].map((b) => b.textContent.trim()).join(',')`,
       )
-      check('  and offers to finish with it', String(label).includes('Done'), String(label))
+      check(
+        '  and labels deletion honestly',
+        String(label).includes('Delete') && !String(label).includes('Done'),
+        String(label),
+      )
 
       // Put the line back: the flag is computed on read, never written, so it
       // clears on its own rather than needing to be undone.

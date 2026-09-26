@@ -172,7 +172,7 @@ export async function runContext(check: Check): Promise<void> {
     const restored = await diff()
     check(
       'reload preserves comment status and HTTP export code',
-      restored.comments.length === 1 &&
+      restored.comments.length === 2 &&
         restored.comments[0]?.code.join('|') === 'line 90|line 91' &&
         !restored.comments[0].stale &&
         asMarkdown(restored.comments, { range: restored.range }).includes('line 90'),

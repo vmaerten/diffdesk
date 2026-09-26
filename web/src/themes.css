@@ -1,0 +1,76 @@
+/* GitHub's dark palettes and Catppuccin Frappé, paired with their Shiki themes.
+   https://github.com/primer/primitives · https://catppuccin.com/palette/ */
+:root {
+  color-scheme: dark;
+  --text-subtle: var(--text-dim);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --border-hover: var(--text-dim);
+  --counter-bg: color-mix(in srgb, var(--text-dim) 20%, transparent);
+  --primary-border: color-mix(in srgb, var(--primary-bg) 65%, var(--text));
+  --warning-bg: color-mix(in srgb, var(--warn) 12%, var(--bg));
+  --warning-border: color-mix(in srgb, var(--warn) 45%, var(--bg));
+  --danger-bg: color-mix(in srgb, var(--danger) 12%, var(--bg));
+  --diff-addition: color-mix(in srgb, var(--success) 12%, var(--bg));
+  --diff-addition-gutter: color-mix(in srgb, var(--success) 22%, var(--bg));
+  --diff-deletion: color-mix(in srgb, var(--danger) 12%, var(--bg));
+  --diff-deletion-gutter: color-mix(in srgb, var(--danger) 22%, var(--bg));
+  --diff-separator: color-mix(in srgb, var(--accent) 10%, var(--bg));
+}
+
+:root,
+:root[data-theme='github-dimmed'] {
+  --bg: #22272e;
+  --bg-raised: #2d333b;
+  --bg-overlay: #373e47;
+  --border: #444c56;
+  --border-subtle: #373e47;
+  --text: #adbac7;
+  --text-dim: #909dab;
+  --accent: #539bf5;
+  --accent-strong: #316dca;
+  --on-accent: #fff;
+  --success: #57ab5a;
+  --danger: #f47067;
+  --warn: #daaa3f;
+  --primary-bg: #347d39;
+  --primary-hover: #46954a;
+  --primary-text: #fff;
+}
+
+:root[data-theme='catppuccin-frappe'] {
+  --bg: #303446;
+  --bg-raised: #292c3c;
+  --bg-overlay: #414559;
+  --border: #626880;
+  --border-subtle: #414559;
+  --text: #c6d0f5;
+  --text-dim: #a5adce;
+  --accent: #ca9ee6;
+  --accent-strong: #ca9ee6;
+  --on-accent: #232634;
+  --success: #a6d189;
+  --danger: #e78284;
+  --warn: #e5c890;
+  --primary-bg: #ca9ee6;
+  --primary-hover: #d9baed;
+  --primary-text: #232634;
+}
+
+:root[data-theme='github-dark'] {
+  --bg: #0d1117;
+  --bg-raised: #161b22;
+  --bg-overlay: #21262d;
+  --border: #30363d;
+  --border-subtle: #21262d;
+  --text: #e6edf3;
+  --text-dim: #9198a1;
+  --accent: #58a6ff;
+  --accent-strong: #1f6feb;
+  --on-accent: #fff;
+  --success: #3fb950;
+  --danger: #f85149;
+  --warn: #d29922;
+  --primary-bg: #238636;
+  --primary-hover: #29903b;
+  --primary-text: #fff;
+}

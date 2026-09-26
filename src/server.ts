@@ -15,6 +15,7 @@ import {
   readState,
   removeComment,
   setViewed,
+  updateCommentBody,
 } from './state.ts'
 import type { Comment, CommitsPayload, DiffPayload, RefsPayload } from './types.ts'
 import { runtimeRevision } from './version.ts'
@@ -287,7 +288,9 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
           repo: { id: repoId, path: repoPath },
           state,
           viewed: pruneStale(stored.state.viewed[display.range] ?? {}, hashes),
-          comments: await comparisonReader(repoPath, patchResult).comments(stored.state.comments),
+          comments: await comparisonReader(repoPath, patchResult).comments(stored.state.comments, {
+            includeOutside: true,
+          }),
           notice: [stored.notice, display.notice].filter(Boolean).join(' — ') || null,
         }
         return json(res, 200, payload)
@@ -368,6 +371,20 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
         // to preserve the original createdAt when this was an edit.
         const [saved] = await reader.comments(comments.filter((stored) => stored.id === comment.id))
         return json(res, 200, { comment: saved, comments })
+      }
+
+      if (route === 'api/comments' && req.method === 'PATCH') {
+        const body = JSON.parse((await readBody(req)) || '{}')
+        if (typeof body.id !== 'string' || typeof body.body !== 'string' || !body.body.trim()) {
+          return json(res, 400, { error: 'A comment ID and non-empty body are required' })
+        }
+        const saved = await updateCommentBody(repoPath, body.id, body.body.trim())
+        if (!saved) return json(res, 404, { error: 'Comment no longer exists' })
+        const { patch } = await resolveRequest(repoPath, url)
+        const [comment] = await comparisonReader(repoPath, await patch()).comments([saved], {
+          includeOutside: true,
+        })
+        return json(res, 200, { comment })
       }
 
       if (route === 'api/comments' && req.method === 'DELETE') {

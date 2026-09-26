@@ -89,10 +89,12 @@ export function asMarkdown(comments: ServedComment[], { range }: { range: string
     out.push('', `**${lineLabel(comment)}**`)
     if (comment.code.length > 0) out.push('', '```', ...comment.code, '```')
     out.push('', comment.body)
-    if (comment.stale && comment.anchor.length > 0) {
+    if ((comment.stale || comment.code.length === 0) && comment.anchor.length > 0) {
       out.push(
         '',
-        `> These lines have changed since the remark was written. They read:`,
+        comment.code.length === 0
+          ? '> Code is unavailable in the current comparison. Original lines:'
+          : '> These lines have changed since the remark was written. They read:',
         '',
         '```',
         ...comment.anchor,

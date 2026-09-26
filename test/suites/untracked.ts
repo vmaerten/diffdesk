@@ -51,7 +51,8 @@ export default {
       // come from the reading that synthesised its patch.
       check(
         '  carrying the counts git gives it, and the untracked status',
-        (await row())?.status === 'untracked' && (await row())?.decoration.includes('+3') === true,
+        (await row())?.status === 'untracked' &&
+          (await page.evaluate(() => document.querySelector('.stats .add')?.textContent === '+3')),
         JSON.stringify(await row()),
       )
       // The topbar counts `totals`, the sidebar counts the rows on screen: they

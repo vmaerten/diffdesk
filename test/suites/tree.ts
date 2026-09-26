@@ -80,10 +80,6 @@ export default {
       `${everyFile.length} distinct files seen, counter says ${claimed}`,
     )
 
-    // Counts come through the single decoration slot each row is allowed.
-    const withCounts = start.files.filter((f) => /[+−]\d/.test(f.decoration))
-    check('files show their line counts', withCounts.length > 0, withCounts[0]?.decoration)
-
     // Folding.
     await clickHead('Collapse')
     await sleep(400)
