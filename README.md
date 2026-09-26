@@ -17,8 +17,8 @@ but pushing it just to look at it is not worth the trip.
 | `l` | show one commit, or all of them |
 | `r` | refresh the diff |
 
-The file tree shows an icon per file type, colours each row by its git status (added,
-modified, deleted, renamed, untracked) and folds chains of single-child directories into
+The file tree uses coloured file-type icons and neutral names, with a coloured git status (added,
+modified, deleted, renamed, untracked), and folds chains of single-child directories into
 one row. Both panes are virtualised, so a 107-file diff keeps ~48 rows in the DOM. The diff
 lists files in the tree's order, not the patch's — git sorts whole paths bytewise, so a file
 at the root would otherwise come first on one side and last on the other, and `j`/`k` would
@@ -27,9 +27,8 @@ walk an order the eye is not following.
 Lines can be commented, from the `+` in the gutter or with `c` on a selection. A comment is a
 remark meant to be handed to an agent, so it is filed against the code rather than against the
 comparison: it lives under the repository, keyed by path and by the text of the lines it was
-written on, and follows its file when the base changes. Since a viewed file folds shut and
-takes its cards off screen, the tree carries a `✎N` badge — otherwise a remark on a file marked
-read would have nowhere left to show.
+written on, and follows its file when the base changes. The tree carries a `✎N` badge even
+when the file is marked viewed.
 
 When the lines a comment was written on stop reading the same, it says so and shows what they
 used to say. Its own lines, not its file: an agent handed four remarks fixes one and leaves
@@ -37,13 +36,29 @@ three, so a per-file signal would fire every time and mean nothing. The flag is 
 read and never stored, so putting the lines back clears it — and it is never a reason to delete
 the comment on your behalf, since code can change without anyone having done what it asked.
 
-The point of writing them down is getting them out again: `ghl comments` prints the review as
-markdown, `--json` as something to parse, and the sidebar has a copy button for the same text.
-Both go through one formatter, so the button and the command cannot disagree about a review.
-Each remark comes with the lines it points at **as they read now**, because a path and a line
-number alone go stale between taking the export and acting on it — but not the surrounding hunk,
-which is what `git diff` is for. There is no "apply these" preamble: that is the prompt of
-whoever pastes it.
+The **Comments** button opens an overview of every comment in the repository, grouped by
+file. **View in diff** reveals the commented lines, opening a folded file without clearing
+its Viewed tick. Comments outside the current diff remain readable and editable in the
+panel, with their original code available. The `…` menu offers Edit and Delete; editing
+changes the text without replacing its original code anchor or comparison.
+
+**Copy all** copies every comment in the overview as Markdown, including comments on viewed
+files and files outside the current diff. Each comment also has its own copy button.
+The export includes paths, line numbers, and the code as it reads now. Where current code
+is unavailable, the original lines are included and explicitly labelled as historical.
+A failed clipboard write is reported instead of displaying a successful copy.
+
+`ghl comments` exports the comments belonging to the requested comparison, and `--json`
+provides structured output. The CLI and UI share the Markdown formatter; the UI's overview
+has a wider scope because it also includes comments outside that comparison. Neither adds
+an instruction to apply the remarks: that is the prompt of whoever pastes them.
+
+On narrow screens, **Files** opens the file tree over the diff and closes after selecting
+a file. The diff uses unified mode, while the comments panel fills the screen.
+
+The theme selector offers **GitHub Dark dimmed** (the default), **Catppuccin Frappé**, and
+**GitHub Dark**. It updates the interface and syntax highlighting together, keeps the
+coloured file-type icons, and remembers the choice in this browser.
 
 Press `l` to read the branch one commit at a time. The picker lists what the range holds,
 newest first, and picking one shows that commit's **own** diff — what `git show` shows, not
@@ -189,7 +204,7 @@ Each layer keeps its own viewed ticks, since those are keyed by the revision ran
 ```bash
 pnpm test            # all of them
 pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename, order,
-                     # stack, commits, worktree, untracked
+                     # stack, commits, worktree, untracked, review-panel
 pnpm test lifecycle  # the shared process, without starting a browser
 pnpm test images     # image API and previews, using a dedicated fixture and Chrome
 ```

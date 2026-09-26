@@ -12,6 +12,7 @@ import {
 } from '@pierre/diffs'
 import { CodeView, useStableCallback, type CodeViewHandle } from '@pierre/diffs/react'
 
+import type { SyntaxTheme } from './theme.ts'
 import CommentThread, { type Composer } from './CommentThread.tsx'
 import type { CommentSubmission, SaveState } from './commentPersistence.ts'
 import ImageDiff from './ImageDiff.tsx'
@@ -39,8 +40,11 @@ interface ReviewDiffOptions {
   repoId: string | null
   data: LoadedReviewDiff | null
   diffStyle: 'unified' | 'split'
+  syntaxTheme: SyntaxTheme
   viewed: ViewedMap
   comments: ServedComment[]
+  copied: string | null
+  onCopy: (comment: ServedComment) => void
   saving: Map<string, SaveState>
   onViewedChange: (path: string, viewed: boolean) => void
   onSubmit: (comment: CommentSubmission) => void
@@ -86,8 +90,11 @@ export function useReviewDiff({
   repoId,
   data,
   diffStyle,
+  syntaxTheme,
   viewed,
   comments,
+  copied,
+  onCopy,
   saving,
   onViewedChange: toggleViewed,
   onSubmit,
@@ -96,7 +103,13 @@ export function useReviewDiff({
   onRevealFile: revealFile,
 }: ReviewDiffOptions) {
   const viewRef = useRef<CodeViewHandle<undefined>>(null)
+  const paneRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [revealedPath, setRevealedPath] = useState<string | null>(null)
+  const [commentTarget, setCommentTarget] = useState<ServedComment | null>(null)
+  useEffect(() => {
+    setRevealedPath(null)
+  }, [viewed, data?.range])
   const [composer, setComposer] = useState<Composer | null>(null)
   const draftsRef = useRef(new Map<string, string>())
   const gutterRequestRef = useRef<SelectedLineRange | null>(null)
@@ -251,7 +264,7 @@ export function useReviewDiff({
   const items = useMemo(
     () =>
       allItems.map((item): DiffItem => {
-        const collapsed = item.path in viewed
+        const collapsed = item.path in viewed && item.path !== revealedPath
         // The pane re-reads an item only when its `version` moves; anything
         // reaching it *through* the item — `collapsed`, `annotations` — is
         // otherwise accepted and then ignored, silently, which is how a file
@@ -271,7 +284,7 @@ export function useReviewDiff({
           ? { ...item, collapsed, version, annotations: collapsed ? [] : [{ lineNumber: 0 }] }
           : { ...item, collapsed, version, annotations: annotations.byPath.get(item.path) }
       }),
-    [allItems, viewed, annotations],
+    [allItems, viewed, annotations, revealedPath],
   )
 
   const commentCounts = useMemo(() => {
@@ -303,6 +316,58 @@ export function useReviewDiff({
       }
     })
   }, [allItems, data, viewed, commentCounts])
+
+  // Revealing a comment opens the file for reading without clearing its Viewed tick.
+  const canRevealComment = useCallback(
+    (comment: ServedComment) => {
+      const item = allItems.find((entry) => entry.path === comment.path)
+      if (item?.type !== 'diff') return false
+      return item.fileDiff.hunks.some((hunk) => {
+        const start = comment.side === 'additions' ? hunk.additionStart : hunk.deletionStart
+        const count = comment.side === 'additions' ? hunk.additionCount : hunk.deletionCount
+        return comment.end >= start && comment.end < start + count
+      })
+    },
+    [allItems],
+  )
+
+  const revealComment = useStableCallback((comment: ServedComment) => {
+    if (!canRevealComment(comment)) return
+    setSearchOpen(false)
+    setRevealedPath(comment.path)
+    setCommentTarget(comment)
+  })
+
+  useEffect(() => {
+    if (!commentTarget) return
+    const index = items.findIndex((item) => item.path === commentTarget.path)
+    const item = items[index]
+    if (!item || item.collapsed) return
+    // The React wrapper has committed the expanded item before its next frame.
+    const frame = requestAnimationFrame(() => {
+      setActiveIndex(index)
+      revealFile(item.path)
+      viewRef.current?.setSelectedLines({
+        id: item.id,
+        range: {
+          start: commentTarget.start,
+          end: commentTarget.end,
+          side: commentTarget.side,
+          endSide: commentTarget.side,
+        },
+      })
+      viewRef.current?.scrollTo({
+        type: 'line',
+        id: item.id,
+        lineNumber: commentTarget.end,
+        side: commentTarget.side,
+        align: 'center',
+      })
+      paneRef.current?.focus({ preventScroll: true })
+      setCommentTarget(null)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [commentTarget, items, revealFile])
 
   /** Open a composer on a selected range, from the gutter or from `c`. */
   const openComposer = useStableCallback((path: string, range: SelectedLineRange) => {
@@ -493,10 +558,14 @@ export function useReviewDiff({
       loadDiffFiles,
       expansionLineCount: 20,
       hunkSeparators: 'line-info' as const,
-      theme: 'github-dark' as const,
+      theme: syntaxTheme,
+      layout: { paddingTop: 16, paddingBottom: 16, gap: 16 },
       stickyHeaders: true,
       // File items are image previews; only text diff items have source rows.
-      unsafeCSS: '[data-file] [data-line], [data-file] [data-gutter] { display: none; }',
+      unsafeCSS: `
+        [data-file] [data-line], [data-file] [data-gutter] { display: none; }
+        [data-diffs-header] { border-radius: 6px 6px 0 0; background: var(--bg-raised); }
+      `,
       // Both gutter APIs are declared mutually exclusive and the library throws
       // on the pair, so this is the native "+" button, not a rendered one.
       // Setting the handler is also what enables dragging on the gutter.
@@ -505,7 +574,7 @@ export function useReviewDiff({
       enableLineSelection: true,
       onLineSelectionEnd,
     }),
-    [diffStyle, loadDiffFiles, onGutterUtilityClick, onLineSelectionEnd],
+    [diffStyle, syntaxTheme, loadDiffFiles, onGutterUtilityClick, onLineSelectionEnd],
   )
 
   /**
@@ -531,6 +600,8 @@ export function useReviewDiff({
         <CommentThread
           key={key}
           comments={thread ?? []}
+          copied={copied}
+          onCopy={onCopy}
           composing={composing}
           currentRange={data?.range ?? ''}
           saving={saving}
@@ -545,6 +616,8 @@ export function useReviewDiff({
     },
     [
       threads,
+      copied,
+      onCopy,
       composer,
       data?.range,
       saving,
@@ -574,7 +647,10 @@ export function useReviewDiff({
           <input
             type="checkbox"
             checked={isViewed}
-            onChange={() => toggleViewed(path, !isViewed)}
+            onChange={() => {
+              setRevealedPath(null)
+              toggleViewed(path, !isViewed)
+            }}
           />
           Viewed
         </label>
@@ -587,7 +663,7 @@ export function useReviewDiff({
   // Keep it first in .diff: a conditional sibling before it would remount the
   // renderer when appearing or disappearing, losing scroll and expanded context.
   const view = (
-    <div className="diff">
+    <div className="diff" ref={paneRef} tabIndex={-1} role="region" aria-label="Code changes">
       <CodeView
         ref={viewRef}
         items={items}
@@ -680,6 +756,8 @@ export function useReviewDiff({
     isComposing: composer !== null,
     searchOpen,
     selectFile: selectByPath,
+    revealComment,
+    canRevealComment,
     navigate,
     commentSelection,
     openSearch,

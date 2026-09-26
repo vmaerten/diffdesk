@@ -58,6 +58,25 @@ function setup() {
 
 export async function runCommentPersistence(check: Check): Promise<void> {
   {
+    const methods: boolean[] = []
+    const store = createCommentPersistence({
+      save: async (comment, _query, editing) => {
+        methods.push(editing)
+        if (methods.length === 1) throw new Error('offline')
+        return comment
+      },
+      remove: async () => {},
+    })
+    await store.submit(draft('new comment', null), scope)
+    const id = store.getSnapshot().comments[0]!.id
+    await store.submit(draft('revised after failure', id), scope)
+    await store.submit(draft('edit after creation', id), scope)
+    check(
+      'editing a failed creation still creates before using PATCH',
+      methods.join(',') === 'false,false,true',
+    )
+  }
+  {
     const { store, saves } = setup()
     const save = store.submit(draft('edited'), scope)
     await Promise.resolve()

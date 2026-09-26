@@ -101,4 +101,11 @@ export async function runExport(check: Check): Promise<void> {
     asMarkdown([], { range: 'main..HEAD' }) === 'No comments on main..HEAD.\n',
     JSON.stringify(asMarkdown([], { range: 'main..HEAD' })),
   )
+  const unavailable = asMarkdown([{ ...comment, code: [], stale: false }], { range: 'main..other' })
+  check(
+    'off-diff exports identify historical code instead of dropping its context',
+    unavailable.includes('Code is unavailable') &&
+      unavailable.includes(comment.anchor[0]!) &&
+      !unavailable.includes('These lines have changed'),
+  )
 }

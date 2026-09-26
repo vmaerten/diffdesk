@@ -8,7 +8,7 @@ export type CommentSubmission = Pick<Comment, 'path' | 'side' | 'start' | 'end' 
 }
 
 interface CommentTransport {
-  save: (comment: ServedComment, query: string) => Promise<ServedComment>
+  save: (comment: ServedComment, query: string, editing: boolean) => Promise<ServedComment>
   remove: (id: string) => Promise<void>
 }
 
@@ -16,6 +16,7 @@ interface PendingSave {
   kind: 'save'
   comment: ServedComment
   query: string
+  editing: boolean
   status: SaveState | null
   changedAt: number
 }
@@ -38,6 +39,7 @@ export function createCommentPersistence(transport: CommentTransport) {
   }
   const local = new Map<string, PendingSave | PendingDelete>()
   const writes = new Map<string, Promise<void>>()
+  const persisted = new Set<string>()
   const listeners = new Set<() => void>()
 
   const publish = () => {
@@ -65,11 +67,12 @@ export function createCommentPersistence(transport: CommentTransport) {
     return task
   }
 
-  const save = (comment: ServedComment, query: string) => {
+  const save = (comment: ServedComment, query: string, editing = false) => {
     const entry: PendingSave = {
       kind: 'save',
       comment,
       query,
+      editing,
       status: 'saving',
       changedAt: ++clock,
     }
@@ -77,7 +80,11 @@ export function createCommentPersistence(transport: CommentTransport) {
     publish()
     return enqueue(comment.id, async () => {
       try {
-        entry.comment = await transport.save(comment, query)
+        // A queued edit can follow a failed creation. It still needs to create
+        // the comment; PATCH is only valid once the server has acknowledged it.
+        entry.editing = editing && persisted.has(comment.id)
+        entry.comment = await transport.save(comment, query, entry.editing)
+        persisted.add(comment.id)
         entry.status = null
       } catch {
         entry.status = 'failed'
@@ -103,6 +110,7 @@ export function createCommentPersistence(transport: CommentTransport) {
       return (comments: ServedComment[]) => {
         if (version !== readVersion) return
         served = comments
+        for (const comment of comments) persisted.add(comment.id)
         for (const [id, entry] of local) {
           if (entry.status === null && entry.changedAt <= startedAt) local.delete(id)
         }
@@ -119,20 +127,21 @@ export function createCommentPersistence(transport: CommentTransport) {
           start: draft.start,
           end: draft.end,
           body: draft.body,
-          range,
+          range: existing?.range ?? range,
           createdAt: existing?.createdAt ?? new Date().toISOString(),
           anchor: existing?.anchor ?? [],
           code: existing?.code ?? [],
-          stale: false,
+          stale: existing?.stale ?? false,
         },
         query,
+        draft.editing !== null,
       )
     },
     retry: (id: string) => {
       const entry = local.get(id)
       // Keep the comparison on which the text was written, even after navigation.
       if (entry?.kind === 'save' && entry.status === 'failed')
-        return save(entry.comment, entry.query)
+        return save(entry.comment, entry.query, entry.editing)
       return Promise.resolve()
     },
     remove: (id: string) => {
@@ -162,6 +171,7 @@ export function createCommentPersistence(transport: CommentTransport) {
                     kind: 'save',
                     comment,
                     query: '',
+                    editing: true,
                     status: null,
                     changedAt: 0,
                   }
@@ -181,9 +191,9 @@ export function useCommentPersistence(repoId: string | null) {
   const persistence = useMemo(
     () =>
       createCommentPersistence({
-        save: async (comment, query) => {
+        save: async (comment, query, editing) => {
           const response = await fetch(`/r/${repoId}/api/comments${query}`, {
-            method: 'POST',
+            method: editing ? 'PATCH' : 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify(comment),
           })

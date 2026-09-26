@@ -280,6 +280,16 @@ async function commentChecks(check: Check): Promise<void> {
     )
     const hidden = await (await reader({ target: 'main' })).comments(disk.state.comments)
     check('a file outside the comparison hides its comments', hidden.length === 0)
+    const overview = await (
+      await reader({ target: 'main' })
+    ).comments(disk.state.comments, { includeOutside: true })
+    check(
+      'the overview keeps off-diff comments without claiming their code changed',
+      overview.length === disk.state.comments.length &&
+        overview.every(
+          (entry) => entry.code.length === 0 && !entry.stale && entry.anchor.length > 0,
+        ),
+    )
 
     write('lines.txt', edited.replace('added eleven\n', 'fixed eleven\n'))
     const partly = await read()

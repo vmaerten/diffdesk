@@ -13,6 +13,8 @@ import { runRepositoryFile } from './repositoryFile.ts'
 import { runReviewSelection } from './reviewSelection.ts'
 import { runCommentPersistence } from './commentPersistence.ts'
 
+import reviewPanel from './suites/reviewPanel.ts'
+import themes from './suites/themes.ts'
 import tree from './suites/tree.ts'
 import resize from './suites/resize.ts'
 import viewed from './suites/viewed.ts'
@@ -28,6 +30,8 @@ import untracked from './suites/untracked.ts'
 import search from './suites/search.ts'
 
 const SUITES: Suite[] = [
+  themes,
+  reviewPanel,
   tree,
   resize,
   viewed,

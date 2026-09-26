@@ -149,6 +149,22 @@ export async function putComment(repoPath: string, comment: Comment): Promise<Co
   })
 }
 
+/** Editing prose preserves the original code anchor, even outside the current diff. */
+export async function updateCommentBody(
+  repoPath: string,
+  id: string,
+  body: string,
+): Promise<Comment | null> {
+  return serialise(repoPath, async () => {
+    const { state } = await readState(repoPath)
+    const comment = state.comments.find((entry) => entry.id === id)
+    if (!comment) return null
+    comment.body = body
+    await writeState(repoPath, state)
+    return comment
+  })
+}
+
 export async function removeComment(repoPath: string, id: string): Promise<Comment[]> {
   return serialise(repoPath, async () => {
     const { state } = await readState(repoPath)
