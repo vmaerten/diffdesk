@@ -695,18 +695,23 @@ body.resizing * {
 
    They are rendered into the light DOM through the library's annotation slots,
    so these rules reach them without piercing any shadow root. The library
-   already sizes the slot to the visible code column — giving the card a width
-   of its own would fight it. */
+   sizes the slot to the code column; cards stay within that slot and cap their
+   reading width on wide screens. */
 .comment-thread {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 6px;
+  padding: 6px 12px;
   font:
-    14px/1.5 -apple-system,
+    13px/1.5 -apple-system,
     system-ui,
     sans-serif;
   white-space: normal;
+}
+.comment-thread > .comment,
+.comment-thread > .comment-composer {
+  width: 100%;
+  max-width: 740px;
 }
 
 .comment,
@@ -729,6 +734,42 @@ body.resizing * {
   background: var(--bg-raised);
   color: var(--text-dim);
   font-size: 12px;
+}
+
+.comment header {
+  min-height: 34px;
+  padding: 2px 8px;
+  gap: 4px;
+  flex-wrap: nowrap;
+  border-bottom: 0;
+  background: transparent;
+}
+.comment header .comment-collapse {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  text-align: left;
+}
+.comment-collapse .comment-lines,
+.comment-chevron {
+  flex-shrink: 0;
+}
+.comment-collapse[aria-expanded='true'] .comment-chevron {
+  transform: rotate(90deg);
+}
+.comment-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+.comment.collapsed {
+  background: transparent;
+  border-color: var(--border-subtle);
 }
 
 .comment-composer footer {
@@ -799,7 +840,8 @@ body.resizing * {
 
 .comment p {
   margin: 0;
-  padding: 16px;
+  padding: 2px 12px 10px;
+  font-size: 13px;
   color: var(--text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -809,7 +851,7 @@ body.resizing * {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px;
+  padding: 10px;
 }
 
 /* Fixed height, and no handle. In a unified diff the library does not observe an
@@ -817,7 +859,7 @@ body.resizing * {
    measured at its old size until the next render pass. */
 .comment-composer textarea {
   width: 100%;
-  padding: 12px;
+  padding: 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
@@ -1369,7 +1411,7 @@ button:disabled {
   --diffs-fg-number-override: var(--text-dim);
 }
 .comment-provenance {
-  padding: 8px 16px 0;
+  padding: 2px 12px 6px;
   color: var(--text-dim);
   font-size: 12px;
   overflow-wrap: anywhere;
@@ -1383,7 +1425,7 @@ button:disabled {
   border-top: 1px solid var(--border-subtle);
 }
 .comment-original summary {
-  padding: 8px 16px;
+  padding: 6px 12px;
   cursor: pointer;
 }
 .comment-menu {
@@ -1694,10 +1736,10 @@ button:disabled {
     flex: 1;
   }
   .comment-thread {
-    padding: 8px;
+    padding: 6px;
   }
   .comment p {
-    padding: 12px;
+    padding: 2px 10px 8px;
   }
   .comment-composer footer .hint {
     flex-basis: 100%;

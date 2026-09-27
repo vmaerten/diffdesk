@@ -29,6 +29,10 @@ remark meant to be handed to an agent, so it is filed against the code rather th
 comparison: it lives under the repository, keyed by path and by the text of the lines it was
 written on, and follows its file when the base changes. The tree carries a `✎N` badge even
 when the file is marked viewed.
+Inline comments use compact cards. Click the chevron beside the line number to fold a comment
+into a one-line preview; click again to expand it. The folded state survives scrolling and
+reloads in the same tab. Copy and edit remain available while folded, and **View in diff**
+expands the comment when revealing it.
 
 When the lines a comment was written on stop reading the same, it says so and shows what they
 used to say. Its own lines, not its file: an agent handed four remarks fixes one and leaves

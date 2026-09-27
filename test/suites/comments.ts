@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 import { asMarkdown } from '../../src/export.ts'
 import type { DiffPayload } from '../../src/types.ts'
@@ -224,6 +225,91 @@ export default {
     )
     check('  and the tree still marks the file', (await pencilled()).length === 1)
 
+    const commentSize = () =>
+      page.$eval('.diff .comment', (card) => ({
+        width: card.getBoundingClientRect().width,
+        height: card.getBoundingClientRect().height,
+        host: card.closest('diffs-container')!.getBoundingClientRect().height,
+      }))
+    const expanded = await commentSize()
+    check(
+      'inline comments have a compact reading width and height',
+      expanded.width <= 740 && expanded.height < 85,
+      JSON.stringify(expanded),
+    )
+    for (const theme of ['github-dimmed', 'github-dark', 'catppuccin-frappe']) {
+      await page.evaluate((value: string) => {
+        document.documentElement.dataset.theme = value
+      }, theme)
+      await page.screenshot({ path: join(tmpdir(), `ghl-comment-${theme}.png`) })
+    }
+    await page.click('.comment-collapse')
+    await page.waitForSelector('.comment-collapse[aria-expanded="false"]')
+    await sleep(400)
+    const collapsed = await commentSize()
+    check(
+      'folding leaves a single-line preview and reclaims diff height',
+      collapsed.height <= 38 &&
+        expanded.host - collapsed.host >= 20 &&
+        (await page.$eval(
+          '.comment-preview',
+          (element) => element.textContent === 'extract this expression',
+        )),
+      JSON.stringify({ expanded, collapsed }),
+    )
+    check(
+      'collapse keeps keyboard focus on its control',
+      await page.evaluate(
+        () => document.activeElement?.classList.contains('comment-collapse') === true,
+      ),
+    )
+    await page.screenshot({ path: join(tmpdir(), 'ghl-comment-collapsed.png') })
+    const viewport = page.viewport()!
+    await page.setViewport({ width: 390, height: 844 })
+    await sleep(500)
+    check('collapsed comment fits the mobile diff', (await commentSize()).width <= 390)
+    await page.screenshot({ path: join(tmpdir(), 'ghl-comment-mobile.png') })
+    await page.setViewport(viewport)
+    await ready()
+    await page.waitForSelector('.comment-collapse[aria-expanded="false"]')
+    check(
+      'folded comments survive reload',
+      await page.$eval(
+        '.comment [hidden]',
+        (element) => element.getBoundingClientRect().height === 0,
+      ),
+    )
+    await page.focus('.comment-collapse')
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('.comment-collapse[aria-expanded="true"]')
+    check(
+      'keyboard expands the original comment',
+      (await bodies())[0] === 'extract this expression',
+    )
+    await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.textContent?.trim() === 'Split')
+        ?.click(),
+    )
+    await sleep(500)
+    const splitExpanded = await commentSize()
+    await page.click('.comment-collapse')
+    await page.waitForSelector('.comment-collapse[aria-expanded="false"]')
+    await sleep(400)
+    const splitCollapsed = await commentSize()
+    check(
+      'split diff also reclaims folded comment height',
+      splitExpanded.host - splitCollapsed.host >= 20,
+      JSON.stringify({ splitExpanded, splitCollapsed }),
+    )
+    await page.click('.comment-collapse')
+    await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.textContent?.trim() === 'Unified')
+        ?.click(),
+    )
+    await sleep(400)
+
     // The anchor never reaches the DOM, and nothing above would notice it being
     // empty — which is the whole basis of the staleness check to come. Asked of
     // the server directly, through the page so the repo id and origin are right.
@@ -248,6 +334,8 @@ export default {
 
     // ---- editing -----------------------------------------------------------
 
+    await page.click('.comment-collapse')
+    await page.waitForSelector('.comment-collapse[aria-expanded="false"]')
     await page.evaluate(clickButton('Edit'))
     await sleep(900)
     const prefilled = await page.evaluate(

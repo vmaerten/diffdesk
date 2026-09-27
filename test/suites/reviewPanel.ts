@@ -143,6 +143,10 @@ export default {
 
     await clickTreeRow(page, first.path)
     await sleep(500)
+    await page.click('.diff [data-comment-id="panel-first"] .comment-collapse')
+    await page.waitForSelector(
+      '.diff [data-comment-id="panel-first"] .comment-collapse[aria-expanded="false"]',
+    )
     await page.keyboard.press('v')
     await sleep(500)
     check(
@@ -164,6 +168,13 @@ export default {
       JSON.stringify(position),
     )
     const afterReveal = (await (await fetch(api('diff'))).json()) as DiffPayload
+    check(
+      'View in diff also expands a folded comment',
+      await page.$eval(
+        '.diff [data-comment-id="panel-first"] .comment-collapse',
+        (el) => el.getAttribute('aria-expanded') === 'true',
+      ),
+    )
     check('revealing a comment preserves Viewed state', first.path in afterReveal.viewed)
     await page.keyboard.press('v')
     await sleep(250)

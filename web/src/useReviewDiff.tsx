@@ -111,6 +111,40 @@ export function useReviewDiff({
     setRevealedPath(null)
   }, [viewed, data?.range])
   const [composer, setComposer] = useState<Composer | null>(null)
+  const collapseStorageKey = `ghl.collapsed-comments:${repoId}`
+  const [collapsedComments, setCollapsedComments] = useState<Set<string>>(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(collapseStorageKey) ?? '[]')
+      return new Set(Array.isArray(saved) ? saved.filter((id) => typeof id === 'string') : [])
+    } catch {
+      return new Set()
+    }
+  })
+  const foldComment = useStableCallback((comment: Pick<Comment, 'id'>, collapsed: boolean) => {
+    if (collapsedComments.has(comment.id) === collapsed) return
+    const next = new Set(collapsedComments)
+    if (collapsed) next.add(comment.id)
+    else next.delete(comment.id)
+    setCollapsedComments(next)
+    try {
+      sessionStorage.setItem(collapseStorageKey, JSON.stringify([...next]))
+    } catch {
+      // Folding still works in memory when browser storage is unavailable.
+    }
+  })
+  const toggleComment = useStableCallback((comment: ServedComment) => {
+    foldComment(comment, !collapsedComments.has(comment.id))
+  })
+  const foldedByPath = useMemo(() => {
+    const paths = new Map<string, string[]>()
+    for (const comment of comments) {
+      if (!collapsedComments.has(comment.id)) continue
+      const ids = paths.get(comment.path) ?? []
+      ids.push(comment.id)
+      paths.set(comment.path, ids)
+    }
+    return paths
+  }, [comments, collapsedComments])
   const draftsRef = useRef(new Map<string, string>())
   const gutterRequestRef = useRef<SelectedLineRange | null>(null)
   const [contextErrors, setContextErrors] = useState<Record<string, ContextError>>({})
@@ -272,8 +306,9 @@ export function useReviewDiff({
         //
         // The fingerprint holds the anchors, not the bodies. Editing a body
         // therefore costs nothing here: only the identity of `renderAnnotation`
-        // changes, and that re-renders the card alone.
-        const key = `${collapsed ? 'c' : '-'} ${annotations.fingerprints.get(item.path) ?? ''}`
+        // changes, and that re-renders the card alone. Folding a comment changes
+        // its height, so it also moves the version to remeasure the code rows.
+        const key = `${collapsed ? 'c' : '-'} ${annotations.fingerprints.get(item.path) ?? ''} ${JSON.stringify(foldedByPath.get(item.path) ?? [])}`
         const previous = versions.current.get(item.path)
         const version =
           previous === undefined || previous.key === key
@@ -284,7 +319,7 @@ export function useReviewDiff({
           ? { ...item, collapsed, version, annotations: collapsed ? [] : [{ lineNumber: 0 }] }
           : { ...item, collapsed, version, annotations: annotations.byPath.get(item.path) }
       }),
-    [allItems, viewed, annotations, revealedPath],
+    [allItems, viewed, annotations, revealedPath, foldedByPath],
   )
 
   const commentCounts = useMemo(() => {
@@ -333,6 +368,7 @@ export function useReviewDiff({
 
   const revealComment = useStableCallback((comment: ServedComment) => {
     if (!canRevealComment(comment)) return
+    foldComment(comment, false)
     setSearchOpen(false)
     setRevealedPath(comment.path)
     setCommentTarget(comment)
@@ -383,6 +419,7 @@ export function useReviewDiff({
   })
 
   const editComment = useStableCallback((comment: Comment) => {
+    foldComment(comment, false)
     const key = threadKey(comment.path, comment.side, comment.end)
     draftsRef.current.set(`${key}:${comment.id}`, comment.body)
     setComposer({
@@ -605,6 +642,8 @@ export function useReviewDiff({
           composing={composing}
           currentRange={data?.range ?? ''}
           saving={saving}
+          collapsed={collapsedComments}
+          onToggle={toggleComment}
           drafts={draftsRef}
           onSubmit={submitComment}
           onCancel={closeComposer}
@@ -626,6 +665,8 @@ export function useReviewDiff({
       editComment,
       deleteComment,
       save,
+      collapsedComments,
+      toggleComment,
     ],
   )
 
