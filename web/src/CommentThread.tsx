@@ -24,6 +24,8 @@ interface Props {
   /** What the diff on screen compares, to spot comments written against another. */
   currentRange: string
   saving: Map<string, SaveState>
+  collapsed: Set<string>
+  onToggle: (comment: ServedComment) => void
   /**
    * Drafts, held outside this component on purpose.
    *
@@ -45,6 +47,8 @@ export default function CommentThread({
   composing,
   currentRange,
   saving,
+  collapsed,
+  onToggle,
   drafts,
   onSubmit,
   onCancel,
@@ -70,6 +74,8 @@ export default function CommentThread({
             comment={comment}
             currentRange={currentRange}
             state={saving.get(comment.id)}
+            collapsed={collapsed.has(comment.id)}
+            onToggle={() => onToggle(comment)}
             copied={copied === comment.id}
             onCopy={onCopy}
             onEdit={onEdit}
@@ -88,7 +94,7 @@ export default function CommentThread({
               // uncontrolled field follows the composer from one line to the next.
               key={draftKey}
               ref={area}
-              rows={4}
+              rows={3}
               autoFocus
               placeholder="What should change here?"
               defaultValue={drafts.current?.get(draftKey) ?? ''}
