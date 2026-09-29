@@ -9,12 +9,19 @@ export default {
     check('defaults to GitHub Dark dimmed', (await selected()) === 'github-dimmed')
 
     const palettes = [
-      ['catppuccin-frappe', 'rgb(48, 52, 70)'],
-      ['github-dark', 'rgb(13, 17, 23)'],
-      ['github-dimmed', 'rgb(34, 39, 46)'],
+      ['catppuccin-frappe', 'rgb(48, 52, 70)', 'dark'],
+      ['github-dark', 'rgb(13, 17, 23)', 'dark'],
+      ['vscode-dark', 'rgb(30, 30, 30)', 'dark'],
+      ['darcula', 'rgb(43, 43, 43)', 'dark'],
+      ['catppuccin-mocha', 'rgb(30, 30, 46)', 'dark'],
+      ['github-light', 'rgb(255, 255, 255)', 'light'],
+      ['vscode-light', 'rgb(255, 255, 255)', 'light'],
+      ['catppuccin-latte', 'rgb(239, 241, 245)', 'light'],
+      ['solarized-light', 'rgb(253, 246, 227)', 'light'],
+      ['github-dimmed', 'rgb(34, 39, 46)', 'dark'],
     ] as const
     const tokenColors = new Set<string>()
-    for (const [theme, background] of palettes) {
+    for (const [theme, background, mode] of palettes) {
       await page.select(picker, theme)
       await page.waitForFunction(
         (bg) => {
@@ -24,14 +31,17 @@ export default {
         {},
         background,
       )
+      // Syntax loading is asynchronous, including between two white palettes.
+      await page.waitForNetworkIdle()
       const colors = await page.evaluate(() => {
         const tree = document.querySelector('file-tree-container')!
         const diff = document.querySelector('diffs-container')!
-        const token = diff.shadowRoot?.querySelector('span[style]')
+        const tokens = [...(diff.shadowRoot?.querySelectorAll('span[style]') ?? [])].slice(0, 30)
         return {
           body: getComputedStyle(document.body).backgroundColor,
           tree: getComputedStyle(tree).backgroundColor,
-          token: token ? getComputedStyle(token).color : '',
+          token: tokens.map((token) => getComputedStyle(token).color).join(','),
+          mode: getComputedStyle(document.documentElement).colorScheme,
           icons: tree.shadowRoot?.querySelectorAll('svg use').length ?? 0,
         }
       })
@@ -40,15 +50,19 @@ export default {
         colors.body === background && colors.tree === background,
       )
       check(`${theme} keeps file icons`, colors.icons > 0)
+      check(`${theme} sets the native color scheme`, colors.mode === mode)
       tokenColors.add(colors.token)
     }
-    check('each theme uses its own syntax colors', tokenColors.size === 3 && !tokenColors.has(''))
+    check(
+      'each theme uses its own syntax colors',
+      tokenColors.size === palettes.length && !tokenColors.has(''),
+    )
 
     await clickTreeRow(page, 'web/components/Widget40.tsx')
     await sleep(500)
     const scroll = () => page.evaluate(`${DIFF_SCROLLER}.scrollTop`) as Promise<number>
     const before = await scroll()
-    await page.select(picker, 'catppuccin-frappe')
+    await page.select(picker, 'catppuccin-latte')
     await sleep(600)
     check(
       'switching keeps the reading position',
@@ -59,12 +73,17 @@ export default {
       'comments panel follows the theme',
       await page.$eval(
         '.comments-panel',
-        (el) => getComputedStyle(el).backgroundColor === 'rgb(48, 52, 70)',
+        (el) => getComputedStyle(el).backgroundColor === 'rgb(239, 241, 245)',
       ),
     )
     await page.keyboard.press('Escape')
     await load()
-    check('theme survives a reload', (await selected()) === 'catppuccin-frappe')
+    check('light theme survives a reload', (await selected()) === 'catppuccin-latte')
+    check(
+      'native light controls survive a reload',
+      (await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)) ===
+        'light',
+    )
 
     for (const width of [390, 320]) {
       await page.setViewport({ width, height: 844 })
