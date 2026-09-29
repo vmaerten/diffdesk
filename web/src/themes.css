@@ -1,5 +1,9 @@
-/* GitHub's dark palettes and Catppuccin Frappé, paired with their Shiki themes.
-   https://github.com/primer/primitives · https://catppuccin.com/palette/ */
+/* Editor-inspired palettes, paired with matching syntax themes.
+   https://github.com/primer/primitives
+   https://github.com/microsoft/vscode/tree/main/extensions/theme-defaults
+   https://github.com/JetBrains/intellij-community/blob/master/platform/platform-resources/src/themes/darcula.theme.json
+   https://catppuccin.com/palette/ · https://ethanschoonover.com/solarized/
+   Light status colours are deepened where needed for legible small text. */
 :root {
   color-scheme: dark;
   --text-subtle: var(--text-dim);
@@ -15,6 +19,14 @@
   --diff-deletion: color-mix(in srgb, var(--danger) 12%, var(--bg));
   --diff-deletion-gutter: color-mix(in srgb, var(--danger) 22%, var(--bg));
   --diff-separator: color-mix(in srgb, var(--accent) 10%, var(--bg));
+  --shadow-color: rgb(1 4 9 / 60%);
+  --panel-shadow-color: #01040955;
+}
+
+:root[data-color-mode='light'] {
+  color-scheme: light;
+  --shadow-color: rgb(31 35 40 / 16%);
+  --panel-shadow-color: rgb(31 35 40 / 12%);
 }
 
 :root,
@@ -72,5 +84,138 @@
   --warn: #d29922;
   --primary-bg: #238636;
   --primary-hover: #29903b;
+  --primary-text: #fff;
+}
+
+:root[data-theme='vscode-dark'] {
+  --bg: #1e1e1e;
+  --bg-raised: #252526;
+  --bg-overlay: #333333;
+  --border: #454545;
+  --border-subtle: #333333;
+  --text: #d4d4d4;
+  --text-dim: #a6a6a6;
+  --accent: #4daafc;
+  --accent-strong: #0078d4;
+  --on-accent: #fff;
+  --success: #89d185;
+  --danger: #f48771;
+  --warn: #cca700;
+  --primary-bg: #0078d4;
+  --primary-hover: #006cbe;
+  --primary-text: #fff;
+}
+
+:root[data-theme='darcula'] {
+  --bg: #2b2b2b;
+  --bg-raised: #3c3f41;
+  --bg-overlay: #45494a;
+  --border: #646464;
+  --border-subtle: #45494a;
+  --text: #a9b7c6;
+  --text-dim: #a0a0a0;
+  --accent: #78b2fa;
+  --accent-strong: #365880;
+  --on-accent: #fff;
+  --success: #a5c261;
+  --danger: #f47067;
+  --warn: #e8bf6a;
+  --primary-bg: #365880;
+  --primary-hover: #416a99;
+  --primary-text: #fff;
+}
+
+:root[data-theme='catppuccin-mocha'] {
+  --bg: #1e1e2e;
+  --bg-raised: #181825;
+  --bg-overlay: #313244;
+  --border: #585b70;
+  --border-subtle: #313244;
+  --text: #cdd6f4;
+  --text-dim: #a6adc8;
+  --accent: #cba6f7;
+  --accent-strong: #cba6f7;
+  --on-accent: #11111b;
+  --success: #a6e3a1;
+  --danger: #f38ba8;
+  --warn: #f9e2af;
+  --primary-bg: #cba6f7;
+  --primary-hover: #ddc4fb;
+  --primary-text: #11111b;
+}
+
+:root[data-theme='github-light'] {
+  --bg: #ffffff;
+  --bg-raised: #f6f8fa;
+  --bg-overlay: #eaeef2;
+  --border: #d0d7de;
+  --border-subtle: #d8dee4;
+  --text: #1f2328;
+  --text-dim: #59636e;
+  --accent: #0969da;
+  --accent-strong: #0969da;
+  --on-accent: #fff;
+  --success: #1a7f37;
+  --danger: #cf222e;
+  --warn: #9a6700;
+  --primary-bg: #1f883d;
+  --primary-hover: #1a7f37;
+  --primary-text: #fff;
+}
+
+:root[data-theme='vscode-light'] {
+  --bg: #ffffff;
+  --bg-raised: #f3f3f3;
+  --bg-overlay: #e8e8e8;
+  --border: #cecece;
+  --border-subtle: #e5e5e5;
+  --text: #333333;
+  --text-dim: #616161;
+  --accent: #005fb8;
+  --accent-strong: #005fb8;
+  --on-accent: #fff;
+  --success: #287b32;
+  --danger: #c72e0f;
+  --warn: #895503;
+  --primary-bg: #005fb8;
+  --primary-hover: #0258a8;
+  --primary-text: #fff;
+}
+
+:root[data-theme='catppuccin-latte'] {
+  --bg: #eff1f5;
+  --bg-raised: #e6e9ef;
+  --bg-overlay: #dce0e8;
+  --border: #acb0be;
+  --border-subtle: #ccd0da;
+  --text: #4c4f69;
+  --text-dim: #5c5f77;
+  --accent: #8839ef;
+  --accent-strong: #8839ef;
+  --on-accent: #fff;
+  --success: #287d1c;
+  --danger: #d20f39;
+  --warn: #8a570e;
+  --primary-bg: #8839ef;
+  --primary-hover: #752bd5;
+  --primary-text: #fff;
+}
+
+:root[data-theme='solarized-light'] {
+  --bg: #fdf6e3;
+  --bg-raised: #eee8d5;
+  --bg-overlay: #e4ddc8;
+  --border: #b8b6a4;
+  --border-subtle: #d8d2bf;
+  --text: #586e75;
+  --text-dim: #586e75;
+  --accent: #176da3;
+  --accent-strong: #176da3;
+  --on-accent: #fff;
+  --success: #637300;
+  --danger: #c42b28;
+  --warn: #856500;
+  --primary-bg: #176da3;
+  --primary-hover: #125a88;
   --primary-text: #fff;
 }

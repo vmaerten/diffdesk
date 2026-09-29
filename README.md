@@ -60,9 +60,15 @@ an instruction to apply the remarks: that is the prompt of whoever pastes them.
 On narrow screens, **Files** opens the file tree over the diff and closes after selecting
 a file. The diff uses unified mode, while the comments panel fills the screen.
 
-The theme selector offers **GitHub Dark dimmed** (the default), **Catppuccin Frappé**, and
-**GitHub Dark**. It updates the interface and syntax highlighting together, keeps the
-coloured file-type icons, and remembers the choice in this browser.
+The theme selector groups ten palettes into **Dark** and **Light**:
+
+- **Dark:** GitHub Dark dimmed (the default), GitHub Dark, VS Code Dark+, JetBrains Darcula,
+  Catppuccin Frappé, and Catppuccin Mocha.
+- **Light:** GitHub Light, VS Code Light+, Catppuccin Latte, and Solarized Light.
+
+It updates the interface and syntax highlighting together, keeps the coloured file-type
+icons and reading position, and remembers the choice in this browser. Darcula uses a
+Shiki adaptation of JetBrains' palette; the other syntax themes are bundled with Shiki.
 
 Press `l` to read the branch one commit at a time. The picker lists what the range holds,
 newest first, and picking one shows that commit's **own** diff — what `git show` shows, not
