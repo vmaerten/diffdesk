@@ -16,6 +16,7 @@ import type { SyntaxTheme } from './theme.ts'
 import CommentThread, { type Composer } from './CommentThread.tsx'
 import type { CommentSubmission, SaveState } from './commentPersistence.ts'
 import ImageDiff from './ImageDiff.tsx'
+import CopyFileName from './CopyFileName.tsx'
 import type { TreeEntry } from './FileTree.tsx'
 import { diffFilesLoader, type ContextError } from './diffFiles.ts'
 import { searchDiff } from './diffSearch.ts'
@@ -684,17 +685,20 @@ export function useReviewDiff({
       if (!path) return null
       const isViewed = path in viewed
       return (
-        <label className="viewed-toggle" onClick={(event) => event.stopPropagation()}>
-          <input
-            type="checkbox"
-            checked={isViewed}
-            onChange={() => {
-              setRevealedPath(null)
-              toggleViewed(path, !isViewed)
-            }}
-          />
-          Viewed
-        </label>
+        <div className="file-header-actions">
+          <CopyFileName key={path} path={path} />
+          <label className="viewed-toggle" onClick={(event) => event.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={isViewed}
+              onChange={() => {
+                setRevealedPath(null)
+                toggleViewed(path, !isViewed)
+              }}
+            />
+            Viewed
+          </label>
+        </div>
       )
     },
     [viewed, toggleViewed],

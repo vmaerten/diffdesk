@@ -668,6 +668,52 @@ body.resizing * {
   --trees-accent-override: var(--accent);
 }
 
+.file-header-actions,
+.file-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.file-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.file-copy-button:hover {
+  background: var(--bg-overlay);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.file-copy-button[data-status='copied'] {
+  color: var(--success);
+}
+
+.file-copy-button[data-status='error'],
+.file-copy-error {
+  color: var(--danger);
+}
+
+.file-copy-error {
+  max-width: 180px;
+  white-space: normal;
+  font:
+    12px/1.4 ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
 .viewed-toggle {
   display: inline-flex;
   align-items: center;
