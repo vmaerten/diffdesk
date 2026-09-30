@@ -12,7 +12,7 @@ import RefSelector from './RefSelector.tsx'
 import CommitSelector from './CommitSelector.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
-import { GO_POC } from './capabilities.ts'
+import { GO_POC, GO_RUNTIME } from './capabilities.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment, ViewedMap } from '../../src/types.ts'
 
@@ -130,7 +130,7 @@ export default function App() {
    * mean "no tab" rather than "no click".
    */
   useEffect(() => {
-    if (GO_POC) return
+    if (GO_RUNTIME) return
     const beat = () => {
       if (document.visibilityState === 'visible') fetch('/api/health').catch(() => {})
     }
@@ -311,10 +311,10 @@ export default function App() {
       // item — so a composer can be open with the focus nowhere near it.
       if (isComposing) return
 
-      if (!GO_POC && event.key === 'b') setPicking('base')
-      else if (!GO_POC && event.key === 't') setPicking('target')
+      if (!GO_RUNTIME && event.key === 'b') setPicking('base')
+      else if (!GO_RUNTIME && event.key === 't') setPicking('target')
       // `l` for log, which is what the list is. `c` is the comment key.
-      else if (!GO_POC && event.key === 'l') setPicking('commit')
+      else if (!GO_RUNTIME && event.key === 'l') setPicking('commit')
       else if (event.key === 'j') navigate(1)
       else if (event.key === 'k') navigate(-1)
       else if (event.key === 'r' || event.key === 'R') refresh()
@@ -352,7 +352,7 @@ export default function App() {
 
   const baseSource = data ? BASE_SOURCES[data.base.source] : null
 
-  const stack = GO_POC ? null : (data?.base.stack ?? null)
+  const stack = GO_RUNTIME ? null : (data?.base.stack ?? null)
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
 
   return (
@@ -387,7 +387,7 @@ export default function App() {
               <div className="shortcuts-panel">
                 <strong>Keyboard shortcuts</strong>
                 <dl>
-                  {!GO_POC && (
+                  {!GO_RUNTIME && (
                     <div>
                       <dt>
                         <kbd>b</kbd>
@@ -395,7 +395,7 @@ export default function App() {
                       <dd>Choose base</dd>
                     </div>
                   )}
-                  {!GO_POC && (
+                  {!GO_RUNTIME && (
                     <div>
                       <dt>
                         <kbd>t</kbd>
@@ -403,7 +403,7 @@ export default function App() {
                       <dd>Choose target</dd>
                     </div>
                   )}
-                  {!GO_POC && (
+                  {!GO_RUNTIME && (
                     <div>
                       <dt>
                         <kbd>l</kbd>
@@ -456,7 +456,7 @@ export default function App() {
               <div className="revision-flow">
                 <span className="base-anchor">
                   <span className="ref-role">Base</span>
-                  {GO_POC ? (
+                  {GO_RUNTIME ? (
                     <span className="ref base">{data?.base?.ref ?? '…'}</span>
                   ) : (
                     <button
@@ -472,7 +472,7 @@ export default function App() {
                     </button>
                   )}
 
-                  {!GO_POC && picking === 'base' && data && (
+                  {!GO_RUNTIME && picking === 'base' && data && (
                     <RefSelector
                       repoId={repoId}
                       current={data.base.ref}
@@ -489,7 +489,7 @@ export default function App() {
 
                 <span className="base-anchor">
                   <span className="ref-role">Target</span>
-                  {GO_POC ? (
+                  {GO_RUNTIME ? (
                     <span className="ref target">{data?.target?.ref ?? 'HEAD'}</span>
                   ) : (
                     <button
@@ -505,7 +505,7 @@ export default function App() {
                     </button>
                   )}
 
-                  {!GO_POC && picking === 'target' && data && (
+                  {!GO_RUNTIME && picking === 'target' && data && (
                     <RefSelector
                       repoId={repoId}
                       current={data.target.ref}
@@ -527,7 +527,7 @@ export default function App() {
             {/* Beside the chain, not a third link in it: `main → feature → abc1234`
                 reads as "from main up to that commit", which is the cumulative
                 diff. This one is the commit's own. */}
-            {!GO_POC && (
+            {!GO_RUNTIME && (
               <div className="toolbar-group commit-group">
                 <span className="toolbar-label">Commit</span>
                 <span className="base-anchor">
@@ -575,7 +575,7 @@ export default function App() {
                   <span>Working tree</span>
                 </label>
 
-                {!GO_POC && (
+                {!GO_RUNTIME && (
                   <label className="scope-check" title="Include the files git does not track yet">
                     <input
                       type="checkbox"

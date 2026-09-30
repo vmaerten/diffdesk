@@ -1,4 +1,4 @@
-package main
+package app
 
 type Comparison struct {
 	Before string  `json:"before"`

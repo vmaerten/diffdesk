@@ -209,6 +209,23 @@ Merged layers stay in the chain: their pull request number is still there, but a
 branch is gone is struck through and the one above it falls through to the next live layer.
 Each layer keeps its own viewed ticks, since those are keyed by the revision range.
 
+## Go runtime (in progress)
+
+The production Go entry point embeds React and currently provides tracked text
+review, comments, Viewed and context expansion. The Node CLI remains the default
+while the remaining features and shared daemon are ported.
+
+```bash
+pnpm go:build
+./go/dist/ghl --version
+./go/dist/ghl --repo /path/to/repo --base main
+pnpm go:test
+```
+
+Its temporary state directory is `.git/ghl-go/state.json`; existing Node and PoC
+state stay separate until migration is implemented. See the [Go runtime guide](./go/README.md)
+and [industrialization project](https://github.com/vmaerten/ghl/issues/97).
+
 ## Go proof of concept
 
 A separate Go executable embeds the React UI for evaluating backend cost and

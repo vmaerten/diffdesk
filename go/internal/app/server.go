@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"encoding/json"
@@ -18,6 +18,7 @@ type Server struct {
 	id, base string
 	store    *Store
 	assets   fs.FS
+	poc      bool
 }
 
 var errCommentMissing = errors.New("Comment no longer exists")
@@ -57,7 +58,7 @@ func (s *Server) selection(r *http.Request) (string, bool, error) {
 	q := r.URL.Query()
 	for _, key := range []string{"target", "commit", "untracked", "includeUntracked"} {
 		if q.Has(key) {
-			return "", false, fmt.Errorf("%s is outside the Go PoC scope", key)
+			return "", false, fmt.Errorf("%s is not supported by this Go runtime", key)
 		}
 	}
 	base := s.base
@@ -79,7 +80,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == "/api/health" && r.Method == "GET" {
-		reply(w, 200, map[string]any{"ghlGoPoc": true, "pid": os.Getpid(), "repos": []any{map[string]string{"id": s.id, "path": s.repo.Path}}})
+		info := buildInfo()
+		health := map[string]any{
+			"ghlGo": true, "version": info.Version, "commit": info.Commit,
+			"buildDate": info.BuildDate, "runtime": info.Runtime, "protocolVersion": info.ProtocolVersion,
+			"revision": info.Version + "/" + info.Commit,
+			"pid":      os.Getpid(), "repos": []any{map[string]string{"id": s.id, "path": s.repo.Path}},
+		}
+		if s.poc {
+			health["ghlGoPoc"] = true
+		}
+		reply(w, 200, health)
 		return
 	}
 	prefix := "/r/" + s.id

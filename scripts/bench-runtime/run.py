@@ -204,8 +204,8 @@ def full_poc():
         raise RuntimeError('Requires Node, Go and pnpm poc:go:build')
     # Same bytes and URL in both builds. The entry bundle differs by capability.
     candidates = [p for p in (ROOT / 'web-dist/assets').glob('*.js')
-                  if (ROOT / 'poc/go/assets/assets' / p.name).is_file()
-                  and p.read_bytes() == (ROOT / 'poc/go/assets/assets' / p.name).read_bytes()]
+                  if (ROOT / 'go/cmd/ghl-go-poc/assets/assets' / p.name).is_file()
+                  and p.read_bytes() == (ROOT / 'go/cmd/ghl-go-poc/assets/assets' / p.name).read_bytes()]
     if not candidates:
         raise RuntimeError('Build both frontends before benchmarking')
     asset = max(candidates, key=lambda p: p.stat().st_size)
@@ -236,7 +236,7 @@ def full_poc():
                   'fixture': {'files': 100, 'lines_per_file': 200, 'patch_bytes': len(patch),
                               'asset': str(asset.relative_to(ROOT)), 'asset_bytes': asset.stat().st_size},
                   'binary_bytes': {'go_poc_with_assets': binary.stat().st_size},
-                  'frontend_bytes': {'node': asset_bytes(ROOT / 'web-dist'), 'go_poc': asset_bytes(ROOT / 'poc/go/assets')},
+                  'frontend_bytes': {'node': asset_bytes(ROOT / 'web-dist'), 'go_poc': asset_bytes(ROOT / 'go/cmd/ghl-go-poc/assets')},
                   'idle_seconds': IDLE_SECONDS, 'repeats': REPEATS, 'runs': []}
         destination = ROOT / 'docs/go-poc-benchmark.json'
         names = list(commands)

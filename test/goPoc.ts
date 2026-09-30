@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
@@ -13,6 +21,8 @@ import { asMarkdown } from '../src/export.ts'
 import type { DiffFiles, DiffPayload, ServedComment } from '../src/types.ts'
 import { clickTreeRow, DIFF_SCROLLER, findChrome, sleep } from './harness.ts'
 
+const production = process.argv[2] === 'go'
+const name = production ? 'ghl' : 'ghl-go-poc'
 const temporary = mkdtempSync(join(tmpdir(), 'ghl-go-poc-test-'))
 const repo = join(temporary, 'repository')
 mkdirSync(repo)
@@ -31,14 +41,19 @@ interface Running {
   repoId: string
   url: string
 }
-const binary = join(temporary, 'ghl-go-poc')
+const binary = join(temporary, name)
 const onlyGit = join(temporary, 'path')
 mkdirSync(onlyGit)
 symlinkSync(
   execFileSync('/usr/bin/which', ['git'], { encoding: 'utf8' }).trim(),
   join(onlyGit, 'git'),
 )
-copyFileSync(fileURLToPath(new URL('../poc/go/dist/ghl-go-poc', import.meta.url)), binary)
+copyFileSync(
+  fileURLToPath(
+    new URL(production ? '../go/dist/ghl' : '../poc/go/dist/ghl-go-poc', import.meta.url),
+  ),
+  binary,
+)
 
 async function startServer(): Promise<Running> {
   const child = spawn(binary, ['--repo', repo, '--base', 'main', '--no-open', '--json'], {
@@ -129,7 +144,33 @@ try {
   write('binary.bin', '\0new')
   write('untracked.txt', 'excluded\n')
 
+  // Version works outside a repository and with no Git or toolchain in PATH.
+  const metadata = JSON.parse(
+    execFileSync(binary, ['--version', '--json'], {
+      cwd: temporary,
+      env: { ...env, PATH: '' },
+      encoding: 'utf8',
+    }),
+  )
+  assert.equal(metadata.version, process.env.GHL_BUILD_VERSION ?? '0.1.0')
+  assert.match(metadata.commit, /^[a-f0-9]{40}(-dirty)?$/)
+  assert.ok(Number.isFinite(Date.parse(metadata.buildDate)))
+  assert.equal(metadata.runtime, 'go')
+  assert.equal(metadata.protocolVersion, 1)
+  assert.ok(
+    execFileSync(binary, ['--version'], {
+      cwd: temporary,
+      env: { ...env, PATH: '' },
+      encoding: 'utf8',
+    }).startsWith(`${name} `),
+  )
   go = await startServer()
+  const health = await json<Record<string, unknown>>(`http://127.0.0.1:${go.port}/api/health`)
+  for (const [key, value] of Object.entries(metadata)) assert.deepEqual(health[key], value)
+  assert.equal(health.ghlGo, true)
+  assert.equal(health.ghlGoPoc, production ? undefined : true)
+  assert.equal(health.ghl, undefined, 'unfinished daemon protocol is not advertised to Node')
+  check(`version and health identify ${name} with matching build metadata`)
   const port = await listen(node, 0)
   const nodeBase = `http://127.0.0.1:${port}/r/${repoIdFor(repo)}/api/`
   const goBase = () => `http://127.0.0.1:${go!.port}/r/${go!.repoId}/api/`
@@ -244,6 +285,14 @@ try {
     assert.equal(response.status, 200)
     assert.ok((await response.arrayBuffer()).byteLength > 100)
   }
+  assert.equal(
+    existsSync(join(repo, '.git', production ? 'ghl-go' : 'ghl-go-poc', 'state.json')),
+    true,
+  )
+  assert.equal(
+    existsSync(join(repo, '.git', production ? 'ghl-go-poc' : 'ghl-go', 'state.json')),
+    false,
+  )
   check('standalone binary outside checkout, PATH contains only Git, embedded HTML/JS/CSS served')
 
   git('config', 'core.quotepath', 'true')
@@ -271,6 +320,10 @@ try {
       await sleep(400)
     }
     await load()
+    assert.equal(
+      await page.$eval('.product-name', (el) => el.textContent),
+      production ? 'ghl' : 'ghl Go PoC',
+    )
     assert.equal(await page.$('button.ref.base'), null)
     assert.equal(await page.$('button.ref.target'), null)
     assert.equal(await page.$('.commit-group'), null)

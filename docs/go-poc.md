@@ -13,7 +13,7 @@ pnpm poc:go:build
 ./poc/go/dist/ghl-go-poc --repo /chemin/du/depot --base main
 ```
 
-Le build Vite `go-poc` écrit dans `poc/go/assets/`, puis Go embarque tout ce
+Le build Vite `go-poc` écrit dans `go/cmd/ghl-go-poc/assets/`, puis Go embarque tout ce
 répertoire. Le binaire est construit avec `CGO_ENABLED=0`, `-trimpath` et
 `-ldflags='-s -w'`. Les assets et le binaire générés sont ignorés par Git.
 `pnpm build` continue à produire le build Node habituel dans `web-dist/`.
@@ -71,13 +71,14 @@ et leurs contrats JSON. Aucun framework HTTP, moteur Git ou couche ORM.
 
 | Fichier | Responsabilité et interface |
 | --- | --- |
-| `poc/go/review.go` | `Repository.Compare`, puis `Review.Context`, `Lines`, `Comments` ; capture des révisions, Git, patch, comptes, hashes et versions de fichiers |
-| `poc/go/state.go` | `Store.Snapshot` et `Mutate` ; mutex, validation du schéma, récupération et écriture atomique |
-| `poc/go/server.go` | Routes HTTP, validation des entrées, contrôles Host/Origin et fichiers embarqués |
-| `poc/go/types.go` | Formes JSON du périmètre conservé, alignées sur `src/types.ts` |
-| `poc/go/main.go` | Flags, validation initiale, loopback, annonce, ouverture macOS et arrêt |
+| `go/internal/app/review.go` | `Repository.Compare`, puis `Review.Context`, `Lines`, `Comments` ; capture des révisions, Git, patch, comptes, hashes et versions de fichiers |
+| `go/internal/app/state.go` | `Store.Snapshot` et `Mutate` ; mutex, validation du schéma, récupération et écriture atomique |
+| `go/internal/app/server.go` | Routes HTTP, validation des entrées, contrôles Host/Origin et fichiers embarqués |
+| `go/internal/app/types.go` | Formes JSON du périmètre conservé, alignées sur `src/types.ts` |
+| `go/internal/app/command.go` | Flags, validation initiale, loopback, annonce, ouverture macOS et arrêt |
+| `go/cmd/ghl-go-poc/main.go` | Entrée du PoC et assets embarqués ; le runtime `go/cmd/ghl` partage le backend |
 
-Le backend représente 1 131 lignes Go et ses tests 597 lignes, blancs et
+Le backend initial mesuré représentait 1 131 lignes Go et ses tests 597 lignes, blancs et
 commentaires inclus. Ce relevé décrit uniquement le volume de sources ; le
 harness TypeScript et les adaptations React sont comptés séparément.
 
@@ -116,9 +117,10 @@ pnpm test
 pnpm typecheck
 pnpm lint
 pnpm format:check
+pnpm go:vet
 ```
 
-Validation finale : 12 tests Go avec `-race`, harness PoC et 597
+Validation de la livraison initiale : 12 tests Go avec `-race`, harness PoC et 597
 vérifications de la suite Node habituelle passent. TypeScript, lint, formatage
 et `go vet` passent également.
 
