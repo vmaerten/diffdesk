@@ -1,0 +1,68 @@
+version: '3'
+
+vars:
+  AIR_VERSION: v1.62.0
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  dev:
+    desc: Start React hot reload and the Go backend watcher
+    deps: [dev:tools]
+    env:
+      GHL_DEV_REPO: '{{.REPO | default .USER_WORKING_DIR}}'
+      GHL_DEV_CWD: '{{.USER_WORKING_DIR}}'
+      GHL_DEV_BASE: '{{.BASE | default "HEAD"}}'
+      GHL_DEV_PORT: '{{.PORT | default "5180"}}'
+      GHL_DEV_OPEN: '{{.OPEN | default "true"}}'
+    cmds:
+      - node scripts/dev-go.ts
+
+  dev:tools:
+    desc: Install the pinned development watcher locally
+    vars:
+      GO_ROOT:
+        sh: go env GOROOT
+    status:
+      - test -x .task/bin/air
+      - >-
+        node -e 'process.exit(require("node:child_process").execFileSync(".task/bin/air", ["-v"], {encoding: "utf8"}).includes("{{.AIR_VERSION}}") ? 0 : 1)'
+    cmds:
+      # Bypass toolchain shims that override GOBIN (including mise's Go shim).
+      - GOBIN={{.ROOT_DIR | shellQuote}}/.task/bin {{.GO_ROOT | shellQuote}}/bin/go install github.com/air-verse/air@{{.AIR_VERSION}}
+
+  build:
+    desc: Build the embedded Go executable
+    cmds:
+      - pnpm go:build
+
+  test:
+    desc: Test the Go runtime, API parity and embedded UI
+    cmds:
+      - pnpm go:test
+
+  test:dev:
+    desc: Verify React refresh, Go restart and development cleanup
+    deps: [dev:tools]
+    cmds:
+      - node test/goDev.ts
+
+  check:
+    desc: Check types, lint, formatting and Go vet
+    cmds:
+      - pnpm typecheck
+      - pnpm lint
+      - pnpm format:check
+      - pnpm go:vet
+
+  poc:build:
+    desc: Build the isolated Go PoC
+    cmds:
+      - pnpm poc:go:build
+
+  poc:test:
+    desc: Test the isolated Go PoC
+    cmds:
+      - pnpm poc:go:test

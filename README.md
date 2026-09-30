@@ -148,6 +148,12 @@ To iterate on the UI, run `ghl --no-open` in a repository and `pnpm dev` here: V
 serves the front end on :5180 and forwards data calls to :7777, which is where `ghl`
 already is. That runs against the checkout, not the installed copy.
 
+For the Go runtime under development, `task dev` starts Vite and the Go watcher
+together: React/CSS changes refresh in the browser and Go changes rebuild and
+restart the backend. Use `task dev REPO=/path/to/repository BASE=main` to review
+another checkout. See the [Go development guide](./go/README.md#development)
+for prerequisites and build/test tasks.
+
 `ghl` with no argument shows **everything that is not in the base**, committed or not:
 the diff from `merge-base(base, HEAD)` down to the working tree.
 
