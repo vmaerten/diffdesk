@@ -27,8 +27,7 @@ tasks:
         sh: go env GOROOT
     status:
       - test -x .task/bin/air
-      - >-
-        node -e 'process.exit(require("node:child_process").execFileSync(".task/bin/air", ["-v"], {encoding: "utf8"}).includes("{{.AIR_VERSION}}") ? 0 : 1)'
+      - .task/bin/air -v | grep -F {{.AIR_VERSION | shellQuote}}
     cmds:
       # Bypass toolchain shims that override GOBIN (including mise's Go shim).
       - GOBIN={{.ROOT_DIR | shellQuote}}/.task/bin {{.GO_ROOT | shellQuote}}/bin/go install github.com/air-verse/air@{{.AIR_VERSION}}
@@ -36,12 +35,64 @@ tasks:
   build:
     desc: Build the embedded Go executable
     cmds:
-      - pnpm go:build
+      - task: build:binary
+        vars: { MODE: go, COMMAND: ghl, OUTPUT: go/dist/ghl }
+
+  build:binary:
+    internal: true
+    vars:
+      BUILD_VERSION:
+        sh: node -p 'process.env.GHL_BUILD_VERSION ?? require("./package.json").version'
+      BUILD_COMMIT:
+        sh: |
+          if [ "${GHL_BUILD_COMMIT+x}" ]; then
+            printf '%s' "$GHL_BUILD_COMMIT"
+          else
+            git rev-parse HEAD | tr -d '\n'
+            if [ -n "$(git status --porcelain --untracked-files=no)" ]; then printf '%s' '-dirty'; fi
+          fi
+      BUILD_DATE:
+        sh: |
+          if [ "${SOURCE_DATE_EPOCH+x}" ]; then
+            case "$SOURCE_DATE_EPOCH" in ''|*[!0-9]*) echo 'Invalid SOURCE_DATE_EPOCH' >&2; exit 1;; esac
+            {{if eq OS "darwin"}}date -u -r "$SOURCE_DATE_EPOCH"{{else}}date -u -d "@$SOURCE_DATE_EPOCH"{{end}} +%Y-%m-%dT%H:%M:%S.000Z
+          else
+            date -u +%Y-%m-%dT%H:%M:%S.000Z
+          fi
+      LDFLAGS: >-
+        -s -w
+        -X github.com/vmaerten/ghl/internal/app.version={{.BUILD_VERSION}}
+        -X github.com/vmaerten/ghl/internal/app.commit={{.BUILD_COMMIT}}
+        -X github.com/vmaerten/ghl/internal/app.buildDate={{.BUILD_DATE}}
+    preconditions:
+      - sh: '{{and (regexMatch `^[^\s''"]+$` .BUILD_VERSION) (regexMatch `^[^\s''"]+$` .BUILD_COMMIT)}}'
+        msg: Invalid build version or commit (empty, whitespace or quotes)
+    cmds:
+      - pnpm exec vite build --mode {{.MODE | shellQuote}}
+      # Vite removes the tracked placeholder while cleaning its output.
+      - touch {{printf "go/cmd/%s/assets/.gitkeep" .COMMAND | shellQuote}}
+      - >-
+        CGO_ENABLED=0 go -C go build -trimpath -ldflags={{.LDFLAGS | shellQuote}}
+        -o {{printf "../%s" .OUTPUT | shellQuote}} {{printf "./cmd/%s" .COMMAND | shellQuote}}
 
   test:
     desc: Test the Go runtime, API parity and embedded UI
     cmds:
-      - pnpm go:test
+      - task: build
+      - task: test:go
+      - node test/goPoc.ts go
+
+  test:go:
+    desc: Run Go tests with the race detector
+    dir: go
+    cmds:
+      - go test -race ./...
+
+  vet:
+    desc: Run Go vet
+    dir: go
+    cmds:
+      - go vet ./...
 
   test:dev:
     desc: Verify React refresh, Go restart and development cleanup
@@ -55,14 +106,17 @@ tasks:
       - pnpm typecheck
       - pnpm lint
       - pnpm format:check
-      - pnpm go:vet
+      - task: vet
 
   poc:build:
     desc: Build the isolated Go PoC
     cmds:
-      - pnpm poc:go:build
+      - task: build:binary
+        vars: { MODE: go-poc, COMMAND: ghl-go-poc, OUTPUT: poc/go/dist/ghl-go-poc }
 
   poc:test:
     desc: Test the isolated Go PoC
     cmds:
-      - pnpm poc:go:test
+      - task: poc:build
+      - task: test:go
+      - node test/goPoc.ts

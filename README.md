@@ -222,10 +222,10 @@ review, comments, Viewed and context expansion. The Node CLI remains the default
 while the remaining features and shared daemon are ported.
 
 ```bash
-pnpm go:build
+task build
 ./go/dist/ghl --version
 ./go/dist/ghl --repo /path/to/repo --base main
-pnpm go:test
+task test
 ```
 
 Its temporary state directory is `.git/ghl-go/state.json`; existing Node and PoC
@@ -236,12 +236,12 @@ and [industrialization project](https://github.com/vmaerten/ghl/issues/97).
 
 A separate Go executable embeds the React UI for evaluating backend cost and
 single-file distribution. It requires Git and a browser at runtime; Go ≥ 1.24,
-Node and pnpm are build tools.
+Node, pnpm and Task v3 are build tools.
 
 ```bash
-pnpm poc:go:build
+task poc:build
 ./poc/go/dist/ghl-go-poc --repo /path/to/repo --base main
-pnpm poc:go:test
+task poc:test
 pnpm poc:go:bench
 ```
 
