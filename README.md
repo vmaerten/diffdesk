@@ -218,7 +218,8 @@ Each layer keeps its own viewed ticks, since those are keyed by the revision ran
 ## Go runtime (in progress)
 
 The production Go entry point embeds React and currently provides tracked text
-review, comments, Viewed and context expansion. The Node CLI remains the default
+review, comments, Viewed, context expansion, automatic bases, stacks and
+revision/commit selection. The Node CLI remains the default
 while the remaining features and shared daemon are ported.
 
 ```bash

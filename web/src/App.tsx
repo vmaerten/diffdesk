@@ -311,10 +311,10 @@ export default function App() {
       // item — so a composer can be open with the focus nowhere near it.
       if (isComposing) return
 
-      if (!GO_RUNTIME && event.key === 'b') setPicking('base')
-      else if (!GO_RUNTIME && event.key === 't') setPicking('target')
+      if (!GO_POC && event.key === 'b') setPicking('base')
+      else if (!GO_POC && event.key === 't') setPicking('target')
       // `l` for log, which is what the list is. `c` is the comment key.
-      else if (!GO_RUNTIME && event.key === 'l') setPicking('commit')
+      else if (!GO_POC && event.key === 'l') setPicking('commit')
       else if (event.key === 'j') navigate(1)
       else if (event.key === 'k') navigate(-1)
       else if (event.key === 'r' || event.key === 'R') refresh()
@@ -352,7 +352,7 @@ export default function App() {
 
   const baseSource = data ? BASE_SOURCES[data.base.source] : null
 
-  const stack = GO_RUNTIME ? null : (data?.base.stack ?? null)
+  const stack = GO_POC ? null : (data?.base.stack ?? null)
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
 
   return (
@@ -387,7 +387,7 @@ export default function App() {
               <div className="shortcuts-panel">
                 <strong>Keyboard shortcuts</strong>
                 <dl>
-                  {!GO_RUNTIME && (
+                  {!GO_POC && (
                     <div>
                       <dt>
                         <kbd>b</kbd>
@@ -395,7 +395,7 @@ export default function App() {
                       <dd>Choose base</dd>
                     </div>
                   )}
-                  {!GO_RUNTIME && (
+                  {!GO_POC && (
                     <div>
                       <dt>
                         <kbd>t</kbd>
@@ -403,7 +403,7 @@ export default function App() {
                       <dd>Choose target</dd>
                     </div>
                   )}
-                  {!GO_RUNTIME && (
+                  {!GO_POC && (
                     <div>
                       <dt>
                         <kbd>l</kbd>
@@ -456,7 +456,7 @@ export default function App() {
               <div className="revision-flow">
                 <span className="base-anchor">
                   <span className="ref-role">Base</span>
-                  {GO_RUNTIME ? (
+                  {GO_POC ? (
                     <span className="ref base">{data?.base?.ref ?? '…'}</span>
                   ) : (
                     <button
@@ -472,7 +472,7 @@ export default function App() {
                     </button>
                   )}
 
-                  {!GO_RUNTIME && picking === 'base' && data && (
+                  {!GO_POC && picking === 'base' && data && (
                     <RefSelector
                       repoId={repoId}
                       current={data.base.ref}
@@ -489,7 +489,7 @@ export default function App() {
 
                 <span className="base-anchor">
                   <span className="ref-role">Target</span>
-                  {GO_RUNTIME ? (
+                  {GO_POC ? (
                     <span className="ref target">{data?.target?.ref ?? 'HEAD'}</span>
                   ) : (
                     <button
@@ -505,7 +505,7 @@ export default function App() {
                     </button>
                   )}
 
-                  {!GO_RUNTIME && picking === 'target' && data && (
+                  {!GO_POC && picking === 'target' && data && (
                     <RefSelector
                       repoId={repoId}
                       current={data.target.ref}
@@ -527,7 +527,7 @@ export default function App() {
             {/* Beside the chain, not a third link in it: `main → feature → abc1234`
                 reads as "from main up to that commit", which is the cumulative
                 diff. This one is the commit's own. */}
-            {!GO_RUNTIME && (
+            {!GO_POC && (
               <div className="toolbar-group commit-group">
                 <span className="toolbar-label">Commit</span>
                 <span className="base-anchor">

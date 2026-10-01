@@ -127,6 +127,7 @@ func TestAPICommentsViewedAndRestart(t *testing.T) {
 }
 func TestAPIValidationAndSecurity(t *testing.T) {
 	s := testServer(t)
+	s.poc = true
 	for _, q := range []string{"target=HEAD", "commit=HEAD", "untracked", "includeUntracked=false", "base="} {
 		requireStatus(t, api(t, s, "GET", "diff?"+q, nil), 400)
 		requireStatus(t, api(t, s, "DELETE", "comments?id=test&"+q, nil), 400)

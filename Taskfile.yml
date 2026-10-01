@@ -14,7 +14,7 @@ tasks:
     env:
       GHL_DEV_REPO: '{{.REPO | default .USER_WORKING_DIR}}'
       GHL_DEV_CWD: '{{.USER_WORKING_DIR}}'
-      GHL_DEV_BASE: '{{.BASE | default "HEAD"}}'
+      GHL_DEV_BASE: '{{.BASE | default ""}}'
       GHL_DEV_PORT: '{{.PORT | default "5180"}}'
       GHL_DEV_OPEN: '{{.OPEN | default "true"}}'
     cmds:
@@ -81,6 +81,7 @@ tasks:
       - task: build
       - task: test:go
       - node test/goPoc.ts go
+      - node test/goRevisions.ts
 
   test:go:
     desc: Run Go tests with the race detector

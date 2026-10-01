@@ -74,7 +74,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	flags := flag.NewFlagSet(options.name(), flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	repoPath := flags.String("repo", ".", "Repository path")
-	base := flags.String("base", "HEAD", "Explicit base ref (comparison starts at its merge-base with HEAD)")
+	defaultBase := ""
+	if options.PoC {
+		defaultBase = "HEAD"
+	}
+	base := flags.String("base", defaultBase, "Base ref (production resolves it automatically when omitted)")
 	port := flags.Int("port", 0, "Loopback port, 0 chooses an ephemeral port")
 	noOpen := flags.Bool("no-open", false, "Do not open the browser")
 	announceJSON := flags.Bool("json", false, "Announce {port, repoId, url}, or build metadata with --version")
@@ -97,7 +101,12 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	if err != nil {
 		return err
 	}
-	if _, err = repo.Compare(ctx, *base, false); err != nil {
+	if options.PoC {
+		_, err = repo.Compare(ctx, *base, false)
+	} else {
+		_, err = repo.Resolve(ctx, Selection{Base: *base})
+	}
+	if err != nil {
 		return err
 	}
 	if options.Assets == nil {
@@ -116,7 +125,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	}
 	id := repoID(repo.Path)
 	actualPort := listener.Addr().(*net.TCPAddr).Port
-	address := fmt.Sprintf("http://127.0.0.1:%d/r/%s?base=%s", actualPort, url.PathEscape(id), url.QueryEscape(*base))
+	address := fmt.Sprintf("http://127.0.0.1:%d/r/%s", actualPort, url.PathEscape(id))
+	if *base != "" {
+		address += "?base=" + url.QueryEscape(*base)
+	}
 	app := &Server{repo: repo, id: id, base: *base, assets: options.Assets, poc: options.PoC, store: &Store{path: options.statePath(repo.GitDir)}}
 	server := &http.Server{Handler: app, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, BaseContext: func(net.Listener) context.Context { return ctx }}
 	defer server.Close()
