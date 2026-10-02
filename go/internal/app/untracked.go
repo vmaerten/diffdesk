@@ -27,10 +27,17 @@ func (r Repository) untrackedPatch(ctx context.Context, paths []string) (string,
 		if err := ctx.Err(); err != nil {
 			return "", nil, err
 		}
-		data, mode, err := r.readWorktree(path)
+		source, err := r.worktreeFile(path)
 		if err != nil {
-			return "", nil, fmt.Errorf("Cannot include untracked file %q: %w", path, err)
+			if imageType(path) != "" {
+				// An unavailable preview still needs a tree/header entry. Do not
+				// synthesize text lines or let Git read the unsafe/oversized source.
+				files = append(files, FileStat{Path: path, Status: "untracked", Binary: true})
+				continue
+			}
+			return "", nil, fmt.Errorf("Cannot include untracked file %q: %w", path, sourceError(err, false))
 		}
+		data, mode := source.data, source.mode
 		// Git consults .gitattributes in each ancestor of the diffed path.
 		for dir := filepath.Dir(path); ; dir = filepath.Dir(dir) {
 			attribute := filepath.Join(dir, ".gitattributes")

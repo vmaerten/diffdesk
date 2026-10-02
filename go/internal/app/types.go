@@ -44,12 +44,23 @@ type CommitDetail struct {
 	Files     *int     `json:"files"`
 }
 type FileStat struct {
-	Path      string  `json:"path"`
-	Additions int     `json:"additions"`
-	Deletions int     `json:"deletions"`
-	Binary    bool    `json:"binary"`
-	Status    string  `json:"status"`
-	Hash      *string `json:"hash"`
+	Path      string           `json:"path"`
+	Additions int              `json:"additions"`
+	Deletions int              `json:"deletions"`
+	Binary    bool             `json:"binary"`
+	Status    string           `json:"status"`
+	Hash      *string          `json:"hash"`
+	Image     *ImageComparison `json:"image,omitempty"`
+}
+type ImageVersion struct {
+	URL   *string `json:"url"`
+	Bytes *int64  `json:"bytes,omitempty"`
+	Error string  `json:"error,omitempty"`
+	Hash  string  `json:"hash"`
+}
+type ImageComparison struct {
+	Before *ImageVersion `json:"before"`
+	After  *ImageVersion `json:"after"`
 }
 type Totals struct {
 	Files     int `json:"files"`

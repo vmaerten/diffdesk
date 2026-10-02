@@ -7,6 +7,18 @@ import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
 import type { DiffPayload } from '../src/types.ts'
 import { clickTreeRow, sleep, withHarness, type Check } from './harness.ts'
 
+export interface ImageTestServer {
+  origin: string
+  repoId: string
+  close: () => Promise<void>
+  compare?: (query: string, payload: DiffPayload) => Promise<void>
+}
+
+export interface ImageTestRuntime {
+  serve: (repo: string) => Promise<ImageTestServer>
+  withHarness: typeof withHarness
+}
+
 const git = (cwd: string, args: string[]) =>
   execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
 const svg = (color: string, width = 80) =>
@@ -17,9 +29,9 @@ const png = Buffer.from(
   'base64',
 )
 
-export async function runImages(check: Check): Promise<void> {
+export async function runImages(check: Check, runtime?: ImageTestRuntime): Promise<void> {
   const path = mkdtempSync(join(tmpdir(), 'ghl-images-'))
-  const server = createGhlServer({ repos: [{ repoPath: path }] })
+  let running: ImageTestServer | undefined
   try {
     git(path, ['init', '-q', '--initial-branch=main'])
     git(path, ['config', 'user.name', 'Image tests'])
@@ -31,7 +43,8 @@ export async function runImages(check: Check): Promise<void> {
     const binaryAfter = Buffer.concat([png, Buffer.alloc(400)])
     writeFileSync(join(path, 'modified.PNG'), binaryBefore)
     writeFileSync(join(path, 'deleted.gif'), gif)
-    writeFileSync(join(path, 'old name.png'), Buffer.concat([png, Buffer.alloc(200)]))
+    writeFileSync(join(path, 'opaque.bin'), '\0before')
+    writeFileSync(join(path, 'old name ~*.png'), Buffer.concat([png, Buffer.alloc(200)]))
     git(path, ['add', '-A'])
     git(path, ['commit', '-qm', 'base images'])
     const root = git(path, ['rev-parse', 'HEAD'])
@@ -39,7 +52,8 @@ export async function runImages(check: Check): Promise<void> {
     writeFileSync(join(path, 'changed.svg'), svg('blue', 120))
     writeFileSync(join(path, 'modified.PNG'), binaryAfter)
     writeFileSync(join(path, 'added.png'), png)
-    git(path, ['mv', 'old name.png', 'renamed [1].png'])
+    writeFileSync(join(path, 'opaque.bin'), '\0after')
+    git(path, ['mv', 'old name ~*.png', 'renamed ~*[1].png'])
     git(path, ['rm', '-q', 'deleted.gif'])
     git(path, ['add', '-A'])
     git(path, ['commit', '-qm', 'change images'])
@@ -54,13 +68,23 @@ export async function runImages(check: Check): Promise<void> {
     writeFileSync(join(path, 'changed.svg'), svg('yellow', 200))
     writeFileSync(join(path, 'untracked.png'), png)
 
-    const port = await listen(server, 0)
-    const origin = `http://127.0.0.1:${port}`
-    const base = `${origin}/r/${repoIdFor(path)}`
+    if (runtime) running = await runtime.serve(path)
+    else {
+      const server = createGhlServer({ repos: [{ repoPath: path }] })
+      const port = await listen(server, 0)
+      running = {
+        origin: `http://127.0.0.1:${port}`,
+        repoId: repoIdFor(path),
+        close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+      }
+    }
+    const { origin, repoId } = running
+    const base = `${origin}/r/${repoId}`
     const diff = async (query: string): Promise<DiffPayload> => {
       const response = await fetch(`${base}/api/diff?base=main&${query}`)
       if (!response.ok) throw new Error(await response.text())
       const payload: DiffPayload = await response.json()
+      await running?.compare?.(query, payload)
       check(
         `image URL revisions match the returned comparison (${query || 'worktree'})`,
         payload.files.every(
@@ -100,6 +124,11 @@ export async function runImages(check: Check): Promise<void> {
     )
     const added = feature.files.find((f) => f.path === 'added.png')!
     const binary = feature.files.find((f) => f.path === 'modified.PNG')!
+    const opaque = feature.files.find((f) => f.path === 'opaque.bin')!
+    check(
+      'non-image binaries retain their status and statistics without a preview',
+      opaque.binary && !opaque.image && feature.totals.files === feature.files.length,
+    )
     check(
       'modified binary images expose the exact bytes on both sides',
       (await bytes(binary.image?.before?.url)).equals(binaryBefore) &&
@@ -118,7 +147,7 @@ export async function runImages(check: Check): Promise<void> {
       'deleted images have only a before version',
       deleted.image?.after === null && (await bytes(deleted.image.before?.url)).equals(gif),
     )
-    const renamed = feature.files.find((f) => f.path === 'renamed [1].png')!
+    const renamed = feature.files.find((f) => f.path === 'renamed ~*[1].png')!
     check(
       'renames read the old path and preserve special characters',
       (await bytes(renamed.image?.before?.url)).equals(Buffer.concat([png, Buffer.alloc(200)])) &&
@@ -235,7 +264,7 @@ export async function runImages(check: Check): Promise<void> {
     rmSync(join(path, 'oversized.png'))
     writeFileSync(join(path, 'broken.png'), 'not an image')
 
-    await withHarness(path, async (make) => {
+    await (runtime?.withHarness ?? withHarness)(path, async (make) => {
       const harness = await make()
       const { page, load } = harness
       await load('?base=main&target=feature')
@@ -264,7 +293,9 @@ export async function runImages(check: Check): Promise<void> {
           sizes[0].y === sizes[1].y,
         JSON.stringify(sizes),
       )
-      await page.screenshot({ path: '/tmp/ghl-image-previews.png' })
+      await page.screenshot({
+        path: runtime ? '/tmp/ghl-go-image-previews.png' : '/tmp/ghl-image-previews.png',
+      })
       const zoomTrigger =
         '[data-image-path="changed.svg"] .image-side:last-child .image-zoom-trigger'
       await sleep(600)
@@ -311,7 +342,38 @@ export async function runImages(check: Check): Promise<void> {
         'an added binary image renders once',
         (await page.$$eval('[data-image-path="added.png"] img', (imgs) => imgs.length)) === 1,
       )
+      for (const [query, width] of [
+        ['?base=main', 240],
+        ['?base=main&committed=1', 120],
+        [`?base=main&commit=${commit}`, 120],
+      ] as const) {
+        await load(query)
+        await clickTreeRow(page, 'changed.svg')
+        await page.waitForFunction(
+          (expectedWidth) =>
+            document.querySelector<HTMLImageElement>(
+              '[data-image-path="changed.svg"] .image-side:last-child img',
+            )?.naturalWidth === expectedWidth,
+          {},
+          width,
+        )
+        check(`browser image matches the comparison (${query})`, true)
+      }
       await load('?base=main&untracked=1')
+      await clickTreeRow(page, 'untracked.png')
+      await page.waitForFunction(
+        () =>
+          document.querySelector<HTMLImageElement>('[data-image-path="untracked.png"] img')
+            ?.naturalWidth === 1,
+      )
+      check('an opted-in untracked image renders in the browser', true)
+      await clickTreeRow(page, 'link.svg')
+      await page.waitForSelector('[data-image-path="link.svg"] .image-error')
+      check(
+        'unsafe image sources show their explanation in the browser',
+        (await page.$eval('[data-image-path="link.svg"] .image-error', (el) => el.textContent)) ===
+          'Symlink images are not previewed',
+      )
       await clickTreeRow(page, 'broken.png')
       await page.waitForSelector('[data-image-path="broken.png"] .image-error')
       check(
@@ -323,7 +385,7 @@ export async function runImages(check: Check): Promise<void> {
       check('no browser errors', harness.errors.length === 0, harness.errors.join(' | '))
     })
   } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()))
+    await running?.close()
     rmSync(path, { recursive: true, force: true })
   }
 }

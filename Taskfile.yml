@@ -82,6 +82,7 @@ tasks:
       - task: test:go
       - node test/goPoc.ts go
       - node test/goRevisions.ts
+      - node test/goImages.ts
 
   test:go:
     desc: Run Go tests with the race detector

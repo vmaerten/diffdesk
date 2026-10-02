@@ -5,8 +5,8 @@ and the isolated review PoC. Both use the same backend; their UI assets, command
 identities and state directories remain separate.
 
 The Go runtime supports text review including optional untracked files, context
-expansion, comments, Viewed, automatic bases, stacks and revision/commit selection.
-Image previews, the full CLI, command-line exports and the shared daemon are
+expansion, image previews, comments, Viewed, automatic bases, stacks and revision/commit selection.
+The full CLI, command-line exports and the shared daemon are
 still being ported. The Node command remains the default until that work is validated.
 
 ## Build and run
@@ -65,7 +65,7 @@ Viewed state uses that parent/commit pair. An unavailable commit falls back to
 the whole range with a notice. Invalid bases or targets fail explicitly.
 
 `task test` checks Node/Go payloads, context and anchors across these scopes,
-then runs the existing picker, commit, stack and untracked browser suites against Go.
+then runs the existing picker, commit, stack, untracked and image browser checks against Go.
 The isolated PoC keeps its explicit-base checkout scope and hidden pickers.
 
 The **Untracked** checkbox includes files returned by Git's ignore-aware listing;
@@ -76,16 +76,41 @@ untracked files even when that flag is present. The PoC still rejects this flag.
 Included regular files get Git patches, counts, hashes and comment anchors.
 Executable bits and `.gitattributes` are preserved, without changing the index.
 Before diffing, reads refuse symlinks and special files and enforce the same
-20 MiB limit as context. Binaries remain listed without context or a preview.
+20 MiB limit as context. Non-image binaries remain listed without context or a preview.
 The default listing does not open untracked files, so a large file or symlink
 does not block an ordinary tracked review. Opting in fails explicitly on an
-unsafe, oversized or disappeared source rather than silently omitting it.
+unsafe, oversized or disappeared text source rather than silently omitting it.
 
 Untracked comments follow the same Viewed and stale-line rules as tracked files.
 Excluding or deleting a file leaves its comments and original anchors in the
 panel and in React's Markdown copy. Node/Go contract tests also verify Markdown
 and JSON export data for included, stale and unavailable untracked code; #102
 owns the command-line export commands that consume this comparison support.
+
+## Image previews
+
+PNG, JPEG, GIF, WebP, AVIF, SVG, ICO and BMP previews use the existing React
+before/after view and enlargement overlay. Their URLs identify the exact
+comparison revisions and preserve previous paths for renames. The browser
+decodes images and displays dimensions and sizes; Go serves the original bytes
+with their content type. Committed metadata uses Git object IDs without loading
+blob bytes, while worktree identity hashes a bounded snapshot. Image hashes
+replace patch hashes for Viewed, matching Node's invalidation behavior.
+
+`GET /r/<repoId>/api/image` accepts `revision=worktree` or a full 40/64-character
+Git object ID and a canonical repository-relative image path. Reads share the
+context reader's regular-file checks and 20 MiB bound. Symlinks, special files,
+malformed paths, non-image paths and oversized sources are refused. Responses
+use `no-store`, `nosniff` and a sandboxed CSP that keeps SVG scripts and external
+resources inactive even when opened directly.
+
+Unavailable previews retain their file and an explanation. In particular,
+unsafe or oversized untracked images remain in the tree without asking Git to
+read their bytes: their file count is retained, with no patch or text line counts
+invented for that source. This differs from Node's no-index patch for those
+unavailable sources; valid-image patches, metadata, hashes and bytes are checked
+for parity. Invalid image data reports a decoding failure in React. The isolated
+PoC still has no image route or metadata.
 
 ## Development
 
