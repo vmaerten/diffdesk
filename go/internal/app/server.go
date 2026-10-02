@@ -56,9 +56,9 @@ func decode(w http.ResponseWriter, r *http.Request, body any) error {
 }
 func (s *Server) selection(r *http.Request) (Selection, error) {
 	q := r.URL.Query()
-	excluded := []string{"untracked", "includeUntracked"}
+	excluded := []string{"includeUntracked"}
 	if s.poc {
-		excluded = append(excluded, "target", "commit")
+		excluded = append(excluded, "target", "commit", "untracked")
 	}
 	for _, key := range excluded {
 		if q.Has(key) {
@@ -74,7 +74,7 @@ func (s *Server) selection(r *http.Request) (Selection, error) {
 	if s.poc && !q.Has("base") {
 		base = s.base
 	}
-	return Selection{Base: base, Target: q.Get("target"), Commit: q.Get("commit"), Committed: q.Has("committed")}, nil
+	return Selection{Base: base, Target: q.Get("target"), Commit: q.Get("commit"), Committed: q.Has("committed"), IncludeUntracked: q.Has("untracked")}, nil
 }
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !allowedName("http://" + r.Host) {
@@ -227,7 +227,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"base": review.Resolution,
 			"head": map[string]any{"branch": review.Branch, "sha": review.Head}, "target": map[string]any{"ref": review.Target, "workingTree": review.Comparison.After == nil},
 			"commit": review.Commit, "range": review.Range, "state": map[string]any{"operation": nil, "conflicted": []string{}},
-			"untracked": []string{}, "untrackedIncluded": false, "files": review.Files, "totals": review.Totals,
+			"untracked": review.Untracked, "untrackedIncluded": review.UntrackedIncluded, "files": review.Files, "totals": review.Totals,
 			"viewed": viewed, "comments": review.Comments(r.Context(), state.Comments), "notice": notice, "patch": review.Patch,
 		})
 	case route == "diff-files" && r.Method == "GET":

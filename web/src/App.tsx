@@ -575,7 +575,7 @@ export default function App() {
                   <span>Working tree</span>
                 </label>
 
-                {!GO_RUNTIME && (
+                {!GO_POC && (
                   <label className="scope-check" title="Include the files git does not track yet">
                     <input
                       type="checkbox"

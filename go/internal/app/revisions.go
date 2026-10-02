@@ -20,6 +20,7 @@ import (
 type Selection struct {
 	Base, Target, Commit string
 	Committed            bool
+	IncludeUntracked     bool
 }
 
 func (r Repository) optionalText(ctx context.Context, args ...string) (string, error) {
