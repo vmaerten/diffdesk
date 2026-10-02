@@ -30,12 +30,14 @@ export interface CommentExport {
 /**
  * Path first, then line: the order a reader would take the file in.
  *
+ * UTF-16 path order keeps exports identical across locales and runtimes.
  * Not the tree's order. That one exists so `j`/`k` follow the eye down a rendered
  * pane, and there is no pane here.
  */
 const inReadingOrder = (comments: ServedComment[]): ServedComment[] =>
   comments.toSorted(
-    (left, right) => left.path.localeCompare(right.path) || left.start - right.start,
+    (left, right) =>
+      (left.path < right.path ? -1 : left.path > right.path ? 1 : 0) || left.start - right.start,
   )
 
 const lineLabel = (comment: ServedComment) =>

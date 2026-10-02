@@ -1,0 +1,32 @@
+[
+  {
+    "repo": "/tmp/repo",
+    "range": "main..feature",
+    "comments": [],
+    "markdown": "No comments on main..feature.\n",
+    "export": { "repo": "/tmp/repo", "range": "main..feature", "comments": [] }
+  },
+  {
+    "repo": "/tmp/repo é",
+    "range": "main..feature",
+    "comments": [
+      { "id": "outside", "path": "é.txt", "side": "additions", "start": 7, "end": 7, "body": "Outside this diff", "anchor": ["original"], "code": [], "stale": false, "range": "old..branch", "createdAt": "2026-01-01T00:00:00.000Z" },
+      { "id": "stale", "path": "renamed name.txt", "side": "additions", "start": 2, "end": 3, "body": "Changed\n\n<markup> & text", "anchor": ["old two", "old three"], "code": ["new two", "new three"], "stale": true, "range": "main..feature", "createdAt": "2026-01-01T00:00:00.000Z" },
+      { "id": "deleted", "path": "renamed name.txt", "side": "deletions", "start": 1, "end": 1, "body": "Before rename", "anchor": ["before"], "code": ["before"], "stale": false, "range": "main..feature", "createdAt": "2026-01-01T00:00:00.000Z" },
+      { "id": "unavailable", "path": "renamed name.txt", "side": "additions", "start": 9, "end": 9, "body": "No current line", "anchor": ["gone"], "code": [], "stale": true, "range": "main..feature", "createdAt": "2026-01-01T00:00:00.000Z" },
+      { "id": "empty-anchor", "path": "renamed name.txt", "side": "deletions", "start": 9, "end": 9, "body": "Same position", "anchor": [], "code": [], "stale": true, "range": "main..feature", "createdAt": "2026-01-01T00:00:00.000Z" }
+    ],
+    "markdown": "# 5 comments on main..feature\n\n## renamed name.txt\n\n**L1**\n\n```\nbefore\n```\n\nBefore rename\n\n**L2–L3**\n\n```\nnew two\nnew three\n```\n\nChanged\n\n<markup> & text\n\n> These lines have changed since the remark was written. They read:\n\n```\nold two\nold three\n```\n\n**L9**\n\nNo current line\n\n> Code is unavailable in the current comparison. Original lines:\n\n```\ngone\n```\n\n**L9**\n\nSame position\n\n## é.txt\n\n**L7**\n\nOutside this diff\n\n> Code is unavailable in the current comparison. Original lines:\n\n```\noriginal\n```\n",
+    "export": {
+      "repo": "/tmp/repo é",
+      "range": "main..feature",
+      "comments": [
+        { "id": "deleted", "path": "renamed name.txt", "side": "deletions", "start": 1, "end": 1, "body": "Before rename", "code": ["before"] },
+        { "id": "stale", "path": "renamed name.txt", "side": "additions", "start": 2, "end": 3, "body": "Changed\n\n<markup> & text", "code": ["new two", "new three"], "was": ["old two", "old three"] },
+        { "id": "unavailable", "path": "renamed name.txt", "side": "additions", "start": 9, "end": 9, "body": "No current line", "code": [], "was": ["gone"] },
+        { "id": "empty-anchor", "path": "renamed name.txt", "side": "deletions", "start": 9, "end": 9, "body": "Same position", "code": [], "was": [] },
+        { "id": "outside", "path": "é.txt", "side": "additions", "start": 7, "end": 7, "body": "Outside this diff", "code": [] }
+      ]
+    }
+  }
+]

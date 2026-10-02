@@ -6,8 +6,9 @@ identities and state directories remain separate.
 
 The Go runtime supports text review including optional untracked files, context
 expansion, image previews, comments, Viewed, automatic bases, stacks and revision/commit selection.
-The full CLI, command-line exports and the shared daemon are
-still being ported. The Node command remains the default until that work is validated.
+The CLI supports revision targets, summaries and comment exports. The shared
+daemon is still being ported. The Node command remains the default until the
+remaining compatibility work is validated.
 
 ## Build and run
 
@@ -19,6 +20,9 @@ task build
 ./go/dist/ghl --version
 ./go/dist/ghl --version --json
 ./go/dist/ghl --repo /path/to/repository --base main
+./go/dist/ghl feature --base main --print
+./go/dist/ghl comments --base main
+./go/dist/ghl comments feature --base main --json
 task test
 task vet
 ```
@@ -30,9 +34,54 @@ a C toolchain, and browser tests need Chrome.
 
 The current command runs in the foreground, listens only on `127.0.0.1` and
 stops cleanly with Ctrl-C. Its defaults are the current repository, automatic
-base resolution and an ephemeral port. `--port`, `--no-open` and the startup announcement
-`--json` are available; automatic browser opening currently targets macOS.
+base resolution and an ephemeral port. `--port` overrides `GHL_PORT` (0 picks a
+free port); a requested port must be available. `--no-open`, `--no-daemon` and the
+startup announcement `--json` are available; automatic browser opening targets macOS.
 The stable hostname/port and shared daemon are tracked in #104.
+`--daemon` and `--idle` currently fail with an explicit explanation.
+
+## CLI and exports
+
+`ghl [target] [options]` reviews a branch or revision without checking it out.
+Omitting the target includes the checkout's staged and unstaged changes.
+Options can appear before or after the target. An explicit `--base` or target
+travels in the opening URL, so the UI can clear it and return to its default.
+`ghl comments` reserves that first word as a command; review a branch named
+`comments` with `ghl refs/heads/comments`.
+
+`--print` writes the repository, reviewed target, resolved base and its source,
+patch counts, excluded untracked count and optional stack chain. It exits
+without loading assets, binding a port or opening a browser. Comments exports
+have the same independent behavior; `comments` takes precedence over `--print`.
+An ongoing merge, rebase or cherry-pick is still rejected by the comparison
+backend, including for these commands, rather than exported as a complete review.
+
+`ghl comments [target]` exports Markdown, with `--json` selecting the existing
+`{repo, range, comments}` contract. Only comments on files in the comparison are
+included, regardless of their saved range. Checkout exports include untracked
+files automatically; revision exports exclude checkout edits and untracked files.
+Lines come from the selected side, including context outside displayed hunks
+and previous paths on renamed files. JSON adds `was` only for stale anchors.
+Markdown explains changed or unavailable code and retains original lines.
+The React panel can additionally copy comments on files outside the comparison.
+
+Go, the Node CLI and React use a shared set of export goldens. Their path/line
+order is now stable and independent of the machine's locale (UTF-16 path order,
+then starting line); ties retain input order. This deliberately replaces the
+previous locale-sensitive export sorting, including for Node and React.
+
+Help (`-h` / `--help`), version, summaries and exports go to stdout and return 0
+on success. Errors return 1 with a `ghl:` diagnostic on stderr. A recovered
+corrupt-state notice goes to stderr without contaminating JSON. Short commands
+never print startup announcements; plain server startup prints the repository,
+base and URL, while `--json` prints one `{port, repoId, url}` announcement.
+Help and version work without Git, a checkout or a frontend build.
+
+`test/goCLI.ts`, included in `task test`, compares actual Node/Go command output
+across checkout and revision scopes, base sources, renamed/context/stale/missing
+code and untracked comments. It checks argument failures, stderr separation,
+short commands with an occupied port, and a relocated binary with only Git in
+PATH. Go tests also exercise asset-free commands and shared export goldens.
 
 The interim production entry point stores review state in
 `.git/ghl-go/state.json`, relative to each checkout's git-dir. It does not
@@ -84,8 +133,8 @@ unsafe, oversized or disappeared text source rather than silently omitting it.
 Untracked comments follow the same Viewed and stale-line rules as tracked files.
 Excluding or deleting a file leaves its comments and original anchors in the
 panel and in React's Markdown copy. Node/Go contract tests also verify Markdown
-and JSON export data for included, stale and unavailable untracked code; #102
-owns the command-line export commands that consume this comparison support.
+and JSON export data for included, stale and unavailable untracked code;
+command-line exports consume the same comparison support.
 
 ## Image previews
 
