@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -79,9 +79,13 @@ export async function runState(check: Check): Promise<void> {
     check('an unreadable state file is reported', broken.notice !== null, broken.notice ?? 'null')
     check(
       '  and moved aside rather than overwritten',
-      existsSync(`${file}.corrupt`) &&
-        readFileSync(`${file}.corrupt`, 'utf8') === '{ this is not json',
-      existsSync(`${file}.corrupt`) ? 'kept' : 'gone',
+      broken.notice !== null &&
+        readdirSync(join(repo.path, '.git', 'ghl'))
+          .filter((name) => name.endsWith('.corrupt'))
+          .some(
+            (name) =>
+              readFileSync(join(repo.path, '.git', 'ghl', name), 'utf8') === '{ this is not json',
+          ),
     )
     // Reported once, on the read that found it. Repeating it every refresh would
     // be a banner that never clears, on a file that no longer exists.

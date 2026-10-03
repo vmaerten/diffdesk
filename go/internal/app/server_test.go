@@ -14,7 +14,7 @@ import (
 
 func testServer(t *testing.T) *Server {
 	r := fixture(t)
-	return &Server{repo: r, id: repoID(r.Path), base: "main", store: &Store{path: filepath.Join(r.GitDir, "ghl-go-poc", "state.json")}, assets: fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html>embedded</html>")}}}
+	return &Server{repo: r, id: repoID(r.Path), base: "main", store: Options{PoC: true}.store(r), assets: fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html>embedded</html>")}}}
 }
 
 func TestHealthDistinguishesRuntimeAndBuild(t *testing.T) {
@@ -81,7 +81,7 @@ func TestAPICommentsViewedAndRestart(t *testing.T) {
 	requireStatus(t, api(t, s, "PATCH", "comments", map[string]string{"id": "c1", "body": " edited "}), 200)
 	requireStatus(t, api(t, s, "POST", "viewed", map[string]any{"range": r.Range, "path": f.Path, "hash": f.Hash, "viewed": true}), 200)
 	// New server/store instance reads the isolated file rather than process state.
-	s.store = &Store{path: s.store.path}
+	s.store = &Store{path: s.store.path, gitDir: s.repo.GitDir}
 	w = api(t, s, "GET", "diff", nil)
 	requireStatus(t, w, 200)
 	var payload struct {
@@ -119,7 +119,7 @@ func TestAPICommentsViewedAndRestart(t *testing.T) {
 		t.Fatal("outside anchor changed")
 	}
 	requireStatus(t, api(t, s, "DELETE", "comments?id=c1", nil), 200)
-	state, _, err := s.store.Snapshot()
+	state, _, err := s.store.Snapshot(context.Background())
 	if err != nil || len(state.Comments) != 0 || len(state.Viewed[r.Range]) != 1 {
 		t.Fatal("delete affected viewed state")
 	}

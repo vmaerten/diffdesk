@@ -83,12 +83,65 @@ code and untracked comments. It checks argument failures, stderr separation,
 short commands with an occupied port, and a relocated binary with only Git in
 PATH. Go tests also exercise asset-free commands and shared export goldens.
 
-The interim production entry point stores review state in
-`.git/ghl-go/state.json`, relative to each checkout's git-dir. It does not
-read or change Node's `.git/ghl/state.json` or PoC data. This is temporary:
-#103 owns compatibility, migration and prevention of concurrent data loss
-before the default runtime changes. Do not run concurrent writers against
-the same Go state file yet.
+## State compatibility and transition
+
+Production Go reads and writes Node's version-1 `.git/ghl/state.json` directly.
+Reading an existing file does not rewrite it. Comment IDs, timestamps, anchors,
+range keys and Viewed hashes remain compatible, including nullable binary hashes.
+Older states with omitted version/empty collections are normalized as version 1.
+An unsupported version fails without modifying or quarantining the file.
+
+The path is relative to the checkout's Git directory. A linked worktree has its
+own state and lock, rather than sharing those of the main checkout. The PoC keeps
+`.git/ghl-go-poc/state.json`. Earlier production prototypes' `.git/ghl-go/state.json`
+also stay untouched; neither file is imported automatically.
+
+To merge an existing prototype snapshot, first stop writers of that source and
+run from the repository (or supply `--repo`):
+
+```bash
+./go/dist/ghl --import-state "$(git rev-parse --git-path ghl-go/state.json)"
+# Explicitly opt in to PoC data, with a machine-readable report:
+./go/dist/ghl --import-state "$(git rev-parse --git-path ghl-go-poc/state.json)" --json
+```
+
+This is an independent CLI operation that needs no commit, frontend, server or
+browser. It merges comments by ID and Viewed entries by range/path. Identical
+records are skipped, so repeated imports are idempotent. Different records with
+the same ID or different hashes for the same Viewed entry abort the entire merge.
+Both files remain unchanged on conflict. The source is always retained, and an
+existing destination is copied byte-for-byte to `state-import-*.backup` before
+writing a successful merge. The report gives the backup path and added counts.
+Resolve a conflict in a separate copy of the source rather than editing live state.
+
+Production Go and updated Node reads/mutations hold a common worktree-private Git lock
+through the complete disk transaction. This covers multiple foreground servers,
+CLI exports, imports and Node processes. It uses a prepared
+[`git update-ref --stdin` transaction](https://git-scm.com/docs/git-update-ref),
+aborted on stdin closure; no ref is committed and reference hooks are disabled.
+Waiting is bounded to 10 seconds, with cancellation in Go requests. A parent
+process crash closes the pipe and releases the lock. Git must support the
+`start`/`prepare` transaction commands.
+
+Writes use a unique neighboring temporary file, sync it, then rename it over
+state. A process interruption preserves either the previous or new complete file;
+unfinished temporary files are ignored. Corrupt files move to unique `.corrupt`
+backups and produce a UI notice or CLI stderr diagnostic. Permission and other
+I/O errors fail instead of being treated as empty state.
+
+Stop older Node processes before switching to this build: older installations
+do not use the common lock and cannot safely write concurrently. Updated Node
+and Go can coexist. To roll back, stop active writers and run the previous Node
+runtime against the same version-1 state; no conversion is needed. To undo an
+import, stop writers and restore the reported backup over `state.json` (or remove
+the destination if it did not exist beforehand). Source snapshots remain available.
+
+`test/goState.ts`, included in `task test`, creates state through the real Node
+writer, then tests two Node processes and two Go servers concurrently. It checks
+add/edit/delete/Viewed preservation, both anchor sides, original timestamps,
+restart, imports/conflicts, linked worktrees, a killed Node writer, corrupt-state
+recovery and future-schema refusal. Go race tests additionally cover independent
+stores, cancelled waits and a killed Go writer with an interrupted temporary file.
 
 The initial validated platform is macOS ARM64. Unix context-read flags are
 retained from the PoC; Windows is not a supported build target at this stage.
@@ -188,7 +241,7 @@ successful build until valid code is saved. Ctrl-C stops Vite, Air and the backe
 
 The development command compiles `cmd/ghl-dev`, which uses the live frontend;
 there is no embedded asset build in this loop. It uses the same backend and
-`.git/ghl-go/state.json` as the production Go command. The initial review
+`.git/ghl/state.json` as the production Go command. The initial review
 defaults to the directory where Task was invoked and resolves its base automatically.
 The Node workflow (`pnpm dev`, proxying to port 7777) remains available.
 

@@ -48,11 +48,15 @@ func (o Options) name() string {
 }
 
 func (o Options) statePath(gitDir string) string {
-	directory := "ghl-go"
+	directory := "ghl"
 	if o.PoC {
 		directory = "ghl-go-poc"
 	}
 	return filepath.Join(gitDir, directory, "state.json")
+}
+
+func (o Options) store(repo Repository) *Store {
+	return &Store{path: o.statePath(repo.GitDir), gitDir: repo.GitDir}
 }
 
 func repoID(path string) string {
@@ -94,6 +98,24 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	if err != nil {
 		return err
 	}
+	if cli.importState != "" {
+		store := options.store(repo)
+		result, err := store.Import(ctx, cli.importState)
+		if err != nil {
+			return err
+		}
+		if store.notice != nil {
+			fmt.Fprintln(stderr, "ghl:", *store.notice)
+		}
+		if cli.json {
+			return json.NewEncoder(stdout).Encode(result)
+		}
+		_, err = fmt.Fprintf(stdout, "Imported %d comment(s) and %d Viewed entry(s) into %s\n", result.Comments, result.Viewed, store.path)
+		if err == nil && result.Backup != nil {
+			_, err = fmt.Fprintln(stdout, "Previous state:", *result.Backup)
+		}
+		return err
+	}
 	var review *Review
 	if options.PoC {
 		review, err = repo.Compare(ctx, cli.base, false)
@@ -104,7 +126,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 		return err
 	}
 	if cli.comments {
-		return writeComments(ctx, review, &Store{path: options.statePath(repo.GitDir)}, cli.json, stdout, stderr)
+		return writeComments(ctx, review, options.store(repo), cli.json, stdout, stderr)
 	}
 	if cli.print {
 		return writeSummary(review, cli.target, stdout)
@@ -136,7 +158,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	if len(query) > 0 {
 		address += "?" + query.Encode()
 	}
-	app := &Server{repo: repo, id: id, base: cli.base, assets: options.Assets, poc: options.PoC, store: &Store{path: options.statePath(repo.GitDir)}}
+	app := &Server{repo: repo, id: id, base: cli.base, assets: options.Assets, poc: options.PoC, store: options.store(repo)}
 	server := &http.Server{Handler: app, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, BaseContext: func(net.Listener) context.Context { return ctx }}
 	defer server.Close()
 	if cli.json {

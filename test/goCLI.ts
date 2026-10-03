@@ -345,14 +345,14 @@ try {
   checks++
   git('config', 'core.quotepath', 'false')
 
-  write('.git/ghl-go/state.json', '{broken')
+  write('.git/ghl/state.json', '{broken')
   const corrupt = cli('go', ['comments', '--base', 'main', '--json'])
   assert.equal(corrupt.status, 0)
   assert.deepEqual(JSON.parse(corrupt.stdout), { repo, range: 'main..feature', comments: [] })
   assert.match(corrupt.stderr, /\.corrupt/)
   assert.equal(
     success('node', ['comments', '--base', 'main', '--json']),
-    JSON.stringify(exported, null, 2) + '\n',
+    JSON.stringify({ repo, range: 'main..feature', comments: [] }, null, 2) + '\n',
   )
   checks++
   console.log(

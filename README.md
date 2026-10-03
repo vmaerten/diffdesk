@@ -229,8 +229,9 @@ task build
 task test
 ```
 
-Its temporary state directory is `.git/ghl-go/state.json`; existing Node and PoC
-state stay separate until migration is implemented. See the [Go runtime guide](./go/README.md)
+It shares version-1 `.git/ghl/state.json` with the updated Node runtime, including
+a cross-process lock. Stop older Node processes before switching; prototype and
+PoC data stay separate unless explicitly imported. See the [Go runtime guide](./go/README.md)
 and [industrialization project](https://github.com/vmaerten/ghl/issues/97).
 
 ## Go proof of concept

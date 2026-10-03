@@ -294,7 +294,7 @@ async function runComments(
   base: BaseResolution,
   options: Options,
 ): Promise<void> {
-  const [result, branch, { state }] = await Promise.all([
+  const [result, branch, { state, notice }] = await Promise.all([
     // Untracked files in, always. The page has a button to leave them out and a
     // reader who chose; this has neither. The comparison reader filters on files,
     // so a remark written on a file git does not track yet would be dropped
@@ -309,6 +309,7 @@ async function runComments(
   // it here by hand is how the two would come to disagree about the same review.
   const range = rangeKey(base.ref, options.target ?? branch ?? 'HEAD')
   const comments = await comparisonReader(repoPath, result).comments(state.comments)
+  if (notice) process.stderr.write(`ghl: ${notice}\n`)
 
   process.stdout.write(
     options.json
