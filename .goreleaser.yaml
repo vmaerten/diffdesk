@@ -1,0 +1,59 @@
+version: 2
+project_name: ghl
+dist: go/dist/release
+
+before:
+  hooks:
+    - pnpm install --frozen-lockfile
+    - pnpm exec vite build --mode go
+    - touch go/cmd/ghl/assets/.gitkeep
+    - node scripts/release-notices.ts
+
+builds:
+  - id: ghl
+    dir: go
+    main: ./cmd/ghl
+    binary: ghl
+    env:
+      - CGO_ENABLED=0
+      - GOTOOLCHAIN=local
+    goos: [darwin]
+    goarch: [arm64]
+    flags: [-trimpath]
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    ldflags:
+      - >-
+        -s -w
+        -X github.com/vmaerten/ghl/internal/app.version={{ .Version }}
+        -X github.com/vmaerten/ghl/internal/app.commit={{ .FullCommit }}
+        -X github.com/vmaerten/ghl/internal/app.buildDate={{ .CommitDate }}
+
+archives:
+  - id: ghl
+    ids: [ghl]
+    formats: [tar.gz]
+    name_template: 'ghl_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    builds_info:
+      mtime: '{{ .CommitDate }}'
+    files:
+      - src: LICENSE
+        info:
+          mtime: '{{ .CommitDate }}'
+      - src: .task/release/THIRD_PARTY_NOTICES.txt
+        strip_parent: true
+        info:
+          mtime: '{{ .CommitDate }}'
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+snapshot:
+  version_template: '{{ .Version }}-next-{{ .ShortCommit }}'
+
+# CI publishes the exact verified archive in a separate, write-scoped job.
+# Direct invocations and snapshots never publish or need a release token.
+release:
+  disable: true
+changelog:
+  disable: true

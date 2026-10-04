@@ -234,6 +234,8 @@ It shares version-1 `.git/ghl/state.json` with the updated Node runtime, includi
 a cross-process lock. Stop older Node processes before switching; prototype and
 PoC data stay separate unless explicitly imported. See the [Go runtime guide](./go/README.md)
 and [industrialization project](https://github.com/vmaerten/ghl/issues/97).
+The [release guide](./docs/go-releases.md) covers verified macOS ARM64 archives
+and the GitHub version-tag workflow.
 
 ## Go proof of concept
 

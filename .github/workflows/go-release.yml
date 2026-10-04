@@ -1,0 +1,82 @@
+name: Go release artifacts
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: 2026.10.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Check native build target
+        run: |
+          test "$(go env GOOS)" = darwin
+          test "$(go env GOARCH)" = arm64
+      - run: pnpm install --frozen-lockfile
+      - run: task check
+      - run: task test:go
+      - run: task release:check
+      - name: Build and verify snapshot
+        if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')
+        run: task release:snapshot
+      - name: Build and verify version tag
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: task release:build
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ghl-release-${{ github.sha }}
+          path: |
+            go/dist/release/*.tar.gz
+            go/dist/release/checksums.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ghl-release-${{ github.sha }}
+          path: release
+      # No checkout or build: publish only the immutable, tested job artifact.
+      - name: Verify transferred bytes and publish
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          sha256sum --check --strict checksums.txt
+          options=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then options+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" \
+            --verify-tag --fail-on-no-commits --generate-notes \
+            --title "$RELEASE_TAG" "${options[@]}" \
+            ./*.tar.gz checksums.txt
