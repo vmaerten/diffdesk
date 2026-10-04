@@ -67,8 +67,10 @@ const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
 ]
 
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-'))
+const go = process.argv.includes('--go')
+if (go) process.env.GHL_TEST_RUNTIME = 'go'
 const selected = only.length > 0 ? SUITES.filter((s) => only.includes(s.name)) : SUITES
-const plain = only.length > 0 ? PLAIN.filter((s) => only.includes(s.name)) : PLAIN
+const plain = go ? [] : only.length > 0 ? PLAIN.filter((s) => only.includes(s.name)) : PLAIN
 
 if (selected.length === 0 && plain.length === 0) {
   const names = [...PLAIN.map((s) => s.name), ...SUITES.map((s) => s.name)].join(', ')

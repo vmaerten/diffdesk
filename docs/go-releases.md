@@ -63,10 +63,13 @@ clean checkout. Both local tasks leave publication disabled in the configuration
 
 `.github/workflows/go-release.yml` validates pull requests and main-branch pushes
 on GitHub's native ARM64 `macos-15` runner. It installs the locked tools, runs
-static checks and Go race tests, then builds and verifies a snapshot. Manual
+static checks, Go race tests and the Node reference suite, then builds and verifies a snapshot. Manual
 workflow dispatch also creates a snapshot. Version-tag pushes build and verify
-the tag's release archives instead. The workflow uploads only the archive and
-checksums as a job artifact.
+the tag's release archives instead. Before publishing it also runs the complete
+production acceptance suites and measurements on the extracted executable.
+The workflow uploads the archive and checksums as a release job artifact, and
+the runtime report as a separate artifact. See [Go release acceptance](./go-validation.md)
+for the gate, browser pin, coverage and supported platforms.
 
 A separate publication job runs only after a successful version-tag build. It
 downloads those exact tested files, checks their SHA-256 again and uses

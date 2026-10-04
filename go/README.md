@@ -229,6 +229,7 @@ the whole range with a notice. Invalid bases or targets fail explicitly.
 
 `task test` checks Node/Go payloads, context and anchors across these scopes,
 then runs the existing picker, commit, stack, untracked and image browser checks against Go.
+All fifteen shared browser suites also run against Go through `test/run.ts --go`.
 The isolated PoC keeps its explicit-base checkout scope and hidden pickers.
 
 The **Untracked** checkbox includes files returned by Git's ignore-aware listing;
@@ -321,6 +322,8 @@ archive with the executable, MIT license and third-party notices. A version-tag
 workflow publishes the exact validated files to GitHub Releases. See the
 [release guide](../docs/go-releases.md) for tag checks, metadata, credentials and
 local builds. Consumer installation through mise remains tracked separately.
+The [acceptance guide](../docs/go-validation.md) describes the required CI gate,
+archive-based contract/browser/lifecycle suites and production runtime measurements.
 
 ## Layout and build identity
 

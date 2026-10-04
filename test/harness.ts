@@ -4,6 +4,8 @@ import { platform } from 'node:process'
 import { launch, type Browser, type Page } from 'puppeteer-core'
 
 import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
+import { serveGo } from './goBinary.ts'
+import { testBrowserPath } from '../scripts/test-browser.ts'
 
 /** Where Chrome usually lives, unless CHROME_PATH says otherwise. */
 const CHROME_CANDIDATES: Record<string, string[]> = {
@@ -21,6 +23,8 @@ export function findChrome(): string {
     if (!existsSync(fromEnv)) throw new Error(`CHROME_PATH does not exist: ${fromEnv}`)
     return fromEnv
   }
+  const pinned = testBrowserPath()
+  if (platform === 'darwin' && process.arch === 'arm64' && existsSync(pinned)) return pinned
   const found = (CHROME_CANDIDATES[platform] ?? []).find((path) => existsSync(path))
   if (!found) throw new Error(`no Chrome found on ${platform}; set CHROME_PATH`)
   return found
@@ -57,27 +61,37 @@ export { sleep }
 /**
  * Serve `repoPath` and drive it with one browser, reused across suites.
  *
- * The server runs in this process rather than as a child: the suites are about
- * the UI, and a spawned CLI only adds a port to guess and a signal to forward.
+ * The same suites can use Node in-process or the production Go executable.
  */
 export async function withHarness<T>(
   repoPath: string,
   body: (make: (target?: string) => Promise<Harness>, browser: Browser) => Promise<T>,
 ): Promise<T> {
-  const server = createGhlServer({ repos: [{ repoPath }] })
-  const port = await listen(server, 0)
-  const base = `http://127.0.0.1:${port}/r/${repoIdFor(repoPath)}`
+  const server =
+    process.env.GHL_TEST_RUNTIME === 'go'
+      ? await serveGo(repoPath)
+      : await (async () => {
+          const node = createGhlServer({ repos: [{ repoPath }] })
+          const port = await listen(node, 0)
+          return {
+            origin: `http://127.0.0.1:${port}`,
+            repoId: repoIdFor(repoPath),
+            close: () => new Promise<void>((resolve) => node.close(() => resolve())),
+          }
+        })()
+  const base = `${server.origin}/r/${server.repoId}`
 
-  const browser = await launch({
-    executablePath: findChrome(),
-    headless: 'shell',
-    args: ['--no-sandbox'],
-    defaultViewport: { width: 1600, height: 1000 },
-  })
-
+  let browser: Browser | undefined
   try {
+    browser = await launch({
+      executablePath: findChrome(),
+      headless: 'shell',
+      args: ['--no-sandbox'],
+      defaultViewport: { width: 1600, height: 1000 },
+    })
+
     const make = async (target?: string): Promise<Harness> => {
-      const page = await browser.newPage()
+      const page = await browser!.newPage()
       const errors: string[] = []
       page.on('pageerror', (error) => {
         errors.push(error instanceof Error ? error.message : String(error))
@@ -103,8 +117,11 @@ export async function withHarness<T>(
 
     return await body(make, browser)
   } finally {
-    await browser.close()
-    await new Promise<void>((resolve) => server.close(() => resolve()))
+    try {
+      await browser?.close()
+    } finally {
+      await server.close()
+    }
   }
 }
 

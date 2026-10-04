@@ -39,6 +39,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@puppeteer/browsers": "3.1.0",
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

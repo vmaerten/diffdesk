@@ -1,3 +1,4 @@
+import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
@@ -6,6 +7,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -49,9 +51,7 @@ symlinkSync(
   join(onlyGit, 'git'),
 )
 copyFileSync(
-  fileURLToPath(
-    new URL(production ? '../go/dist/ghl' : '../poc/go/dist/ghl-go-poc', import.meta.url),
-  ),
+  production ? goBinary() : fileURLToPath(new URL('../poc/go/dist/ghl-go-poc', import.meta.url)),
   binary,
 )
 
@@ -174,7 +174,12 @@ try {
       encoding: 'utf8',
     }),
   )
-  assert.equal(metadata.version, process.env.GHL_BUILD_VERSION ?? '0.1.0')
+  assert.equal(
+    metadata.version,
+    process.env.GHL_TEST_VERSION ??
+      process.env.GHL_BUILD_VERSION ??
+      JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version,
+  )
   assert.match(metadata.commit, /^[a-f0-9]{40}(-dirty)?$/)
   assert.ok(Number.isFinite(Date.parse(metadata.buildDate)))
   assert.equal(metadata.runtime, 'go')

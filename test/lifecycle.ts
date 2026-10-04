@@ -1,4 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process'
+import { once } from 'node:events'
 import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, get as httpGet } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -129,10 +130,15 @@ async function waitGone(port: number): Promise<boolean> {
  * Polling /api/health here would be self-defeating: every request counts as
  * activity, so the watching would be exactly what keeps it alive.
  */
-async function waitProcessGone(runtime: Runtime): Promise<boolean> {
+async function waitProcessGone(pid: number): Promise<boolean> {
   const deadline = Date.now() + DEADLINE_MS
   while (Date.now() < deadline) {
-    if (daemonCount(runtime) === 0) return true
+    try {
+      process.kill(pid, 0)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ESRCH') return true
+      throw error
+    }
     await sleep(200)
   }
   return false
@@ -267,9 +273,43 @@ export async function runLifecycle(check: Check): Promise<void> {
     // 6 — nothing watching, so it goes
     const idlePort = await freePort()
     ports.push(idlePort)
-    await cli(runtime, one.path, ['--no-open', '--port', String(idlePort), '--idle', SHORT_IDLE])
-    check('an idle instance is still up right after starting', (await health(idlePort)) !== null)
-    check('and stops on its own once nothing asks for anything', await waitProcessGone(runtime))
+    // Another foreground process using the copied runtime must not be mistaken
+    // for this daemon when checking its idle shutdown.
+    const foregroundPort = await freePort()
+    const foreground = spawn(
+      process.execPath,
+      [
+        join(runtime.path, 'bin', 'ghl.ts'),
+        '--no-daemon',
+        '--no-open',
+        '--port',
+        String(foregroundPort),
+      ],
+      { cwd: one.path, stdio: 'ignore' },
+    )
+    const foregroundExit = once(foreground, 'exit')
+    try {
+      const deadline = Date.now() + DEADLINE_MS
+      while (!(await health(foregroundPort)) && Date.now() < deadline) await sleep(100)
+      check(
+        'an independent foreground instance is running',
+        (await health(foregroundPort)) !== null,
+      )
+      await cli(runtime, one.path, ['--no-open', '--port', String(idlePort), '--idle', SHORT_IDLE])
+      const idle = await health(idlePort)
+      check('an idle instance is still up right after starting', idle !== null)
+      check(
+        'and stops on its own once nothing asks for anything',
+        idle !== null && (await waitProcessGone(idle.pid)),
+      )
+      check(
+        'without stopping the other foreground instance',
+        (await health(foregroundPort)) !== null,
+      )
+    } finally {
+      foreground.kill('SIGTERM')
+      await foregroundExit
+    }
 
     // 7 — the Host allowlist, against a real server rather than a unit
     const hostPort = await freePort()
