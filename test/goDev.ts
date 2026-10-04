@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os'
 import { createServer } from 'node:net'
 import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { stripVTControlCharacters } from 'node:util'
 import { launch } from 'puppeteer-core'
 
 import type { DiffPayload } from '../src/types.ts'
@@ -92,7 +93,7 @@ async function start(port = '0', requestedBackendPort?: number) {
   child.stderr!.on('data', (chunk) => {
     output += String(chunk)
   })
-  return { child, backendPort, output: () => output }
+  return { child, backendPort, output: () => stripVTControlCharacters(output) }
 }
 
 async function waitFor<T>(
