@@ -49,10 +49,20 @@ jobs:
         run: task release:build
       - name: Accept the extracted release candidate
         run: task release:acceptance
+      - name: Accept mise distribution against the local release fixture
+        run: task release:mise
       - name: Measure the extracted release candidate
         env:
           BENCH_OUTPUT: .task/go-runtime-benchmark.json
         run: task release:bench
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: ghl-mise-acceptance-${{ github.sha }}
+          path: .task/go-mise-acceptance.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -99,3 +109,35 @@ jobs:
             --verify-tag --fail-on-no-commits --generate-notes \
             --title "$RELEASE_TAG" "${options[@]}" \
             ./*.tar.gz checksums.txt
+
+  install:
+    name: Published mise installation (macOS ARM64)
+    needs: publish
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          version: 2026.10.2
+          install_args: node --locked
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      # Node is a test driver. The consumer subprocess PATH excludes toolchains;
+      # neither Go/pnpm nor a checkout build is used to install the release.
+      - name: Install and exercise the published archive through mise
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          GHL_MISE_EXPECTED_COMMIT: ${{ github.sha }}
+        run: node test/goMise.ts --published "${RELEASE_TAG#v}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: ghl-mise-published-${{ github.sha }}
+          path: .task/go-mise-published.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

@@ -20,6 +20,7 @@ pnpm test
 task release:check
 task release:snapshot
 task release:acceptance
+task release:mise
 task release:bench
 ```
 
@@ -65,8 +66,16 @@ compatibility and restart are tested separately against actual Node writers.
 
 ## Promotion policy
 
+The [mise distribution checks](./go-installation.md#maintainer-verification)
+exercise the real client/backend with a local release API before publication
+and actual GitHub assets after publication. The fixture is part of the acceptance
+job. The separate read-only post-publication job checks installed bytes, PATH,
+standalone serving and saved state, then upgrades/rolls back when a previous
+compatible release exists. Published download and historical upgrade validation
+remain pending until that job runs successfully.
+
 The publishing job depends on the complete acceptance job. A failed static,
-reference, contract, browser, standalone or measurement-integrity check prevents
+reference, contract, browser, standalone, mise-fixture or measurement-integrity check prevents
 archive upload and publication. Measurements check response correctness and
 record performance; they impose no RAM or latency threshold.
 

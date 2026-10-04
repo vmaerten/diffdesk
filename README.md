@@ -238,6 +238,8 @@ The [release guide](./docs/go-releases.md) covers verified macOS ARM64 archives
 and the GitHub version-tag workflow.
 The [acceptance guide](./docs/go-validation.md) covers the full release gate
 and production runtime measurements.
+The [mise installation guide](./docs/go-installation.md) covers PATH activation,
+version pinning, upgrades and rollback once Go releases are published.
 
 ## Go proof of concept
 
