@@ -141,6 +141,39 @@ func TestUntrackedGitErrorsAreNotDifferences(t *testing.T) {
 	}
 }
 
+func TestUntrackedNestedRepositoryDoesNotAbortReview(t *testing.T) {
+	for _, linked := range []bool{false, true} {
+		t.Run(fmt.Sprintf("linked-worktree=%t", linked), func(t *testing.T) {
+			r := fixture(t)
+			path := filepath.Join(r.Path, ".claude/worktrees/comments-ui")
+			if linked {
+				source := fixture(t)
+				gitFixture(t, source.Path, "worktree", "add", "--detach", path, "HEAD")
+			} else {
+				if err := os.MkdirAll(path, 0700); err != nil {
+					t.Fatal(err)
+				}
+				gitFixture(t, path, "init", "-q", "-b", "main")
+			}
+			writeFixture(t, path, "private.txt", "nested repository content\n")
+			paths := gitFixture(t, r.Path, "ls-files", "--others", "--exclude-standard")
+			if !strings.Contains(paths, ".claude/worktrees/comments-ui/") {
+				t.Fatalf("fixture did not reproduce Git's directory entry: %s", paths)
+			}
+			review, err := r.Resolve(context.Background(), Selection{Base: "main", IncludeUntracked: true})
+			if err != nil {
+				t.Fatalf("including an embedded repository aborted the review: %v", err)
+			}
+			if review.Totals.Files != 7 || statFor(t, review, "untracked.txt").Status != "untracked" {
+				t.Fatalf("ordinary tracked/untracked files were lost: %+v", review.Totals)
+			}
+			if strings.Contains(review.Patch, "nested repository content") || strings.Contains(strings.Join(review.Untracked, "\n"), ".claude/worktrees/comments-ui") {
+				t.Fatal("a nested repository was treated as an ordinary untracked file")
+			}
+		})
+	}
+}
+
 func TestUntrackedCommentViewedAndDisappearance(t *testing.T) {
 	s := testServer(t)
 	const query = "?base=main&untracked"
