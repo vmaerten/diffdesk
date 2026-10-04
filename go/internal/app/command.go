@@ -10,12 +10,10 @@ import (
 	"io"
 	"io/fs"
 	"net"
-	"net/http"
 	"net/url"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"time"
 )
 
 // Set by the build; direct `go build` remains usable for development.
@@ -94,6 +92,26 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	if _, err := exec.LookPath("git"); err != nil {
 		return fmt.Errorf("Git is required: install Git and make git available in PATH (%w)", err)
 	}
+	if cli.daemon {
+		if err := checkAssets(options); err != nil {
+			return err
+		}
+		revision, err := runtimeRevision()
+		if err != nil {
+			return err
+		}
+		listener, server, err := listenRuntime(cli.port, options, revision, true)
+		if err != nil {
+			return err
+		}
+		defer listener.Close()
+		// The private readiness pipe also announces the chosen ephemeral port.
+		if err := json.NewEncoder(stdout).Encode(map[string]int{"port": listener.Addr().(*net.TCPAddr).Port}); err != nil {
+			return err
+		}
+		go server.watchIdle(ctx, cli.idle)
+		return serveHTTP(ctx, listener, server, server.stopped)
+	}
 	repo, err := openRepository(ctx, cli.repo)
 	if err != nil {
 		return err
@@ -131,23 +149,45 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	if cli.print {
 		return writeSummary(review, cli.target, stdout)
 	}
-	if options.Assets == nil {
-		return fmt.Errorf("UI not built")
-	}
-	if _, err := fs.Stat(options.Assets, "index.html"); err != nil {
-		build := "go:build"
-		if options.PoC {
-			build = "poc:go:build"
-		}
-		return fmt.Errorf("UI not built: run pnpm %s", build)
-	}
-	listener, err := net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", cli.port))
-	if err != nil {
+	if err := checkAssets(options); err != nil {
 		return err
 	}
+	var listener net.Listener
+	var handler *reviewRuntime
+	var revision string
+	if !options.PoC {
+		revision, err = runtimeRevision()
+		if err != nil {
+			return err
+		}
+	}
+	actualPort := cli.port
+	if !options.PoC && !cli.noDaemon {
+		actualPort, err = useDaemon(ctx, cli, repo, revision, stderr)
+	} else if options.PoC {
+		listener, err = net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", cli.port))
+	} else {
+		listener, handler, err = listenRuntime(cli.port, options, revision, false)
+		if err == nil {
+			_, err = handler.register(repo)
+		}
+	}
+	if err != nil {
+		if listener != nil {
+			listener.Close()
+		}
+		return err
+	}
+	if listener != nil {
+		defer listener.Close()
+		actualPort = listener.Addr().(*net.TCPAddr).Port
+	}
 	id := repoID(repo.Path)
-	actualPort := listener.Addr().(*net.TCPAddr).Port
-	address := fmt.Sprintf("http://127.0.0.1:%d/r/%s", actualPort, url.PathEscape(id))
+	host := "127.0.0.1"
+	if !options.PoC {
+		host = displayHost(ctx)
+	}
+	address := fmt.Sprintf("http://%s:%d/r/%s", host, actualPort, url.PathEscape(id))
 	query := url.Values{}
 	if cli.base != "" {
 		query.Set("base", cli.base)
@@ -158,9 +198,6 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	if len(query) > 0 {
 		address += "?" + query.Encode()
 	}
-	app := &Server{repo: repo, id: id, base: cli.base, assets: options.Assets, poc: options.PoC, store: options.store(repo)}
-	server := &http.Server{Handler: app, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, BaseContext: func(net.Listener) context.Context { return ctx }}
-	defer server.Close()
 	if cli.json {
 		err = json.NewEncoder(stdout).Encode(map[string]any{"port": actualPort, "repoId": id, "url": address})
 	} else if options.PoC {
@@ -169,7 +206,6 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 		_, err = fmt.Fprintf(stdout, "ghl serving %s\n  base %s (%s)\n  %s\n", repo.Path, review.Base, review.Resolution.Source, address)
 	}
 	if err != nil {
-		listener.Close()
 		return err
 	}
 	if runtime.GOOS == "darwin" && !cli.noOpen {
@@ -177,17 +213,38 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 			fmt.Fprintln(stderr, "Could not open browser:", err)
 		}
 	}
-	done := make(chan error, 1)
-	go func() { done <- server.Serve(listener) }()
-	select {
-	case <-ctx.Done():
-		shutdown, stop := context.WithTimeout(context.Background(), 5*time.Second)
-		defer stop()
-		return server.Shutdown(shutdown)
-	case err := <-done:
-		if errors.Is(err, http.ErrServerClosed) {
-			return nil
-		}
-		return err
+	if listener == nil {
+		return nil
 	}
+	if options.PoC {
+		server := &Server{repo: repo, id: id, base: cli.base, assets: options.Assets, poc: true, store: options.store(repo)}
+		return serveHTTP(ctx, listener, server, nil)
+	}
+	return serveHTTP(ctx, listener, handler, handler.stopped)
+}
+
+func checkAssets(options Options) error {
+	if options.Assets == nil {
+		return fmt.Errorf("UI not built")
+	}
+	if _, err := fs.Stat(options.Assets, "index.html"); err != nil {
+		build := "go:build"
+		if options.PoC {
+			build = "poc:go:build"
+		}
+		return fmt.Errorf("UI not built: run pnpm %s", build)
+	}
+	return nil
+}
+
+func listenRuntime(port int, options Options, revision string, daemon bool) (net.Listener, *reviewRuntime, error) {
+	server, err := newRuntime(options, revision, daemon)
+	if err != nil {
+		return nil, nil, err
+	}
+	listener, err := net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		return nil, nil, fmt.Errorf("Could not listen on port %d: %w; choose --port or GHL_PORT", port, err)
+	}
+	return listener, server, nil
 }

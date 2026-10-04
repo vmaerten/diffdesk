@@ -77,13 +77,19 @@ func (s *Server) selection(r *http.Request) (Selection, error) {
 	}
 	return Selection{Base: base, Target: q.Get("target"), Commit: q.Get("commit"), Committed: q.Has("committed"), IncludeUntracked: q.Has("untracked")}, nil
 }
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func allowedRequest(w http.ResponseWriter, r *http.Request) bool {
 	if !allowedName("http://" + r.Host) {
 		fail(w, 403, fmt.Errorf("unexpected Host header"))
-		return
+		return false
 	}
 	if origin, ok := r.Header["Origin"]; r.Method != "GET" && ok && (len(origin) != 1 || !allowedName(origin[0])) {
 		fail(w, 403, fmt.Errorf("unexpected Origin header"))
+		return false
+	}
+	return true
+}
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !allowedRequest(w, r) {
 		return
 	}
 	if r.URL.Path == "/api/health" && r.Method == "GET" {

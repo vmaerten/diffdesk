@@ -81,6 +81,7 @@ tasks:
       - task: build
       - task: test:go
       - node test/goCLI.ts
+      - node test/goDaemon.ts
       - node test/goState.ts
       - node test/goPoc.ts go
       - node test/goRevisions.ts

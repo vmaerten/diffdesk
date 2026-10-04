@@ -6,9 +6,9 @@ identities and state directories remain separate.
 
 The Go runtime supports text review including optional untracked files, context
 expansion, image previews, comments, Viewed, automatic bases, stacks and revision/commit selection.
-The CLI supports revision targets, summaries and comment exports. The shared
-daemon is still being ported. The Node command remains the default until the
-remaining compatibility work is validated.
+The CLI supports revision targets, summaries, comment exports and a shared
+background daemon. The Node command remains the default until release and
+acceptance work is validated.
 
 ## Build and run
 
@@ -32,13 +32,74 @@ a browser are its runtime prerequisites. Node, pnpm, Go and Task are only requir
 to build; the module has no external Go dependencies. Go race tests also need
 a C toolchain, and browser tests need Chrome.
 
-The current command runs in the foreground, listens only on `127.0.0.1` and
-stops cleanly with Ctrl-C. Its defaults are the current repository, automatic
-base resolution and an ephemeral port. `--port` overrides `GHL_PORT` (0 picks a
-free port); a requested port must be available. `--no-open`, `--no-daemon` and the
-startup announcement `--json` are available; automatic browser opening targets macOS.
-The stable hostname/port and shared daemon are tracked in #104.
-`--daemon` and `--idle` currently fail with an explicit explanation.
+By default the command starts or reuses one detached Go daemon, registers the
+repository and returns. The daemon listens only on `127.0.0.1:7777`. Defaults
+are the current repository and automatic base resolution. `--port` overrides
+`GHL_PORT`; `--port 0` starts a separate daemon on an ephemeral port, without
+sharing or a stable port. A chosen nonzero port is exact: collisions fail with
+an explanation and never silently move to another port.
+
+The opening URL prefers `http://ghl.localhost:7777/r/<repoId>` when the system
+resolves that hostname to IPv4 `127.0.0.1`, otherwise it uses `127.0.0.1`. The
+fallback retains the same port and repository ID. Chrome is tested with both
+the advertised URL and `ghl.localhost`, including the secure-context clipboard.
+There is no hosts-file change, proxy, certificate or port-free setup.
+
+`--no-open` skips the browser; automatic opening targets macOS. `--json` prints
+one `{port, repoId, url}` announcement. `--no-daemon` stays in the foreground
+and stops cleanly with Ctrl-C. `task dev` uses that foreground mode on a
+separate ephemeral backend port, so hot reload does not touch the shared daemon.
+`--idle <minutes>` configures a newly started daemon (default 30, fractional
+minutes allowed, 0 disables shutdown); reusing a daemon keeps its existing idle
+setting. Accepted requests reset the idle clock. A visible React tab sends a
+heartbeat every five minutes, keeping the default daemon alive. Rejected Host/Origin requests do not reset the idle clock.
+
+## Shared runtime lifecycle
+
+A daemon registers canonical repository roots. Subdirectories and symlink
+aliases join the same entry; linked worktrees get their own IDs and state.
+Comparison choices stay in each opening URL. Stable repository URLs survive
+another repository joining and a successful binary upgrade on the same port.
+The registry is in memory: after an idle stop or explicit shutdown, run `ghl`
+in each repository to register it again. Comments and Viewed remain on disk.
+
+Launchers use a per-user, per-port kernel lock in a private temporary directory
+to serialize startup and upgrades across unrelated repositories. A readiness
+pipe announces the actual listening port, including ephemeral mode. The child
+starts a separate session with no terminal stdin; the CLI can exit without
+stopping it. Locks release when a launcher exits, including on a crash.
+
+Discovery checks the Go marker, runtime, protocol version, daemon mode, binary
+revision and instance identity. The binary revision is SHA-256 of the executable,
+including its embedded assets. A different binary with a compatible protocol
+replaces the previous Go daemon and restores its registered repositories.
+Shutdown requires the probed instance ID, so a delayed request cannot stop a
+replacement. Registration freezes before the shutdown response captures the
+handoff list. Missing repositories produce restore notices rather than silently
+being reported as registered. If replacement startup fails, rerun `ghl` in the
+repositories to register them; review state stays on disk.
+
+Node, the isolated PoC, foreground servers, incompatible protocols and unrelated
+listeners are never reused or stopped. For coexistence, choose another port:
+
+```bash
+./go/dist/ghl --port 7778 --no-open
+./go/dist/ghl --no-daemon --port 0 --no-open
+```
+
+`GET /api/health` exposes identity and registered paths. `GET /api/repos` lists
+entries; `POST /api/repos` accepts an absolute `repoPath`, validates it with Git
+and canonicalizes it. `POST /api/heartbeat` records activity. To stop your Go
+daemon, read its current health and send `POST /api/shutdown` with the JSON
+body `{ "instance": "<instance from health>" }`. Requests stay on loopback with
+Host/Origin allowlists; CLI control requests bypass proxies and reject redirects.
+
+`test/goDaemon.ts`, included in `task test`, drives relocated binaries with only
+Git in PATH. It covers cold start, reuse, multiple repos/worktrees, terminal exit,
+simultaneous starts/upgrades, handoff/bookmarks, stale shutdowns, idle/heartbeat,
+ephemeral ports, environment overrides, incompatible listeners, real Node
+coexistence, and Chrome hostname/clipboard checks. Go race tests cover concurrent
+registration, conditional shutdown, rejected requests and lock cancellation.
 
 ## CLI and exports
 
@@ -277,7 +338,7 @@ Direct Go builds use `dev` / `unknown` metadata.
 
 `--version --json` and `/api/health` expose matching `version`, `commit`,
 `buildDate`, `runtime` and `protocolVersion` fields. Health also contains a
-revision identifier, process ID and repository list. Both commands report
-`ghlGo: true`; only the PoC reports `ghlGoPoc: true`. The incomplete Go server
-does not advertise Node's `ghl: true` daemon marker, so the existing CLI cannot
-mistake it for a compatible shared Node instance.
+revision identifier, process ID and repository list. Both health endpoints report
+`ghlGo: true`; only the PoC reports `ghlGoPoc: true`. Production health also
+reports `daemon` and a random `instance` ID. Go does not advertise Node's
+`ghl: true` marker, so the Node CLI cannot mistake it for a Node daemon.

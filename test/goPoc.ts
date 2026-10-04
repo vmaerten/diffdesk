@@ -56,11 +56,23 @@ copyFileSync(
 )
 
 async function startServer(): Promise<Running> {
-  const child = spawn(binary, ['--repo', repo, '--base', 'main', '--no-open', '--json'], {
-    cwd: temporary,
-    env: { ...env, PATH: onlyGit },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
+  const child = spawn(
+    binary,
+    [
+      '--repo',
+      repo,
+      '--base',
+      'main',
+      '--no-open',
+      '--json',
+      ...(production ? ['--no-daemon', '--port', '0'] : []),
+    ],
+    {
+      cwd: temporary,
+      env: { ...env, PATH: onlyGit },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  )
   let stderr = ''
   child.stderr!.on('data', (chunk) => {
     stderr += String(chunk)

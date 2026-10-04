@@ -18,9 +18,13 @@ let active: ImageTestServer | undefined
 const runtime: ImageTestRuntime = {
   serve: async (path) => {
     const repo = realpathSync(path)
-    const child = spawn(binary, ['--repo', repo, '--base', 'main', '--no-open', '--json'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    const child = spawn(
+      binary,
+      ['--repo', repo, '--base', 'main', '--no-open', '--no-daemon', '--port', '0', '--json'],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    )
     let errors = ''
     child.stderr.on('data', (chunk) => {
       errors += String(chunk)

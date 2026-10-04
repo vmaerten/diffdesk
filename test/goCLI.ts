@@ -210,8 +210,8 @@ try {
     ['--base'],
     ['one', 'two'],
     ['--unknown'],
-    ['--idle', '1'],
-    ['--daemon'],
+    ['--idle', '-1'],
+    ['--daemon', '--print'],
   ]) {
     const result = cli('go', args)
     assert.equal(result.status, 1)
@@ -292,7 +292,18 @@ try {
   // CLI selection lives in the opening URL. Clearing it restores defaults.
   const server = spawn(
     binary,
-    ['feature', '--repo', repo, '--base', 'main', '--no-open', '--no-daemon', '--json'],
+    [
+      'feature',
+      '--repo',
+      repo,
+      '--base',
+      'main',
+      '--no-open',
+      '--no-daemon',
+      '--port',
+      '0',
+      '--json',
+    ],
     {
       cwd: directory,
       env,
