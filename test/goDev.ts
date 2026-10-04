@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
+import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import {
   cpSync,
@@ -12,7 +12,8 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { createServer } from 'node:net'
+import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
@@ -32,16 +33,11 @@ for (const directory of ['go', 'web', 'src']) {
       !path.includes('/assets') && !path.includes('/dist') && !path.includes('/node_modules'),
   })
 }
-mkdirSync(join(checkout, 'scripts'))
-for (const path of [
-  'package.json',
-  'tsconfig.json',
-  'vite.config.js',
-  'Taskfile.yml',
-  'scripts/dev-go.ts',
-])
+for (const path of ['package.json', 'tsconfig.json', 'vite.config.js', 'Taskfile.yml'])
   cpSync(join(root, path), join(checkout, path))
 symlinkSync(join(root, 'node_modules'), join(checkout, 'node_modules'), 'dir')
+// Reuse the installed dependencies without pnpm reinstalling the fixture's symlink.
+writeFileSync(join(checkout, 'pnpm-workspace.yaml'), 'verifyDepsBeforeRun: false\n')
 mkdirSync(join(checkout, '.task/bin'), { recursive: true })
 symlinkSync(join(root, '.task/bin/air'), join(checkout, '.task/bin/air'))
 
@@ -58,13 +54,37 @@ git('add', '.')
 git('commit', '-qm', 'base')
 writeFileSync(join(repo, 'context.txt'), 'modified\nunchanged\n')
 
-function start(port = '0') {
-  const child = spawn('task', ['dev', `REPO=${repo}`, 'OPEN=false', `PORT=${port}`], {
-    cwd: checkout,
-    env,
-    detached: true,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
+async function freePort() {
+  const listener = createServer()
+  listener.listen(0, '127.0.0.1')
+  await once(listener, 'listening')
+  const address = listener.address()
+  assert.ok(address && typeof address !== 'string')
+  const port = address.port
+  await new Promise<void>((done, reject) =>
+    listener.close((error) => (error ? reject(error) : done())),
+  )
+  return port
+}
+
+async function start(port = '0', requestedBackendPort?: number) {
+  const backendPort = requestedBackendPort ?? (await freePort())
+  const child = spawn(
+    'task',
+    [
+      'dev',
+      `REPO=${relative(checkout, repo)}`,
+      'OPEN=false',
+      `PORT=${port}`,
+      `BACKEND_PORT=${backendPort}`,
+    ],
+    {
+      cwd: checkout,
+      env,
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  )
   let output = ''
   child.stdout!.on('data', (chunk) => {
     output += String(chunk)
@@ -72,7 +92,7 @@ function start(port = '0') {
   child.stderr!.on('data', (chunk) => {
     output += String(chunk)
   })
-  return { child, output: () => output }
+  return { child, backendPort, output: () => output }
 }
 
 async function waitFor<T>(
@@ -107,22 +127,43 @@ async function stop(child: ChildProcess) {
   }
 }
 
-const running = start()
+const running = await start()
 let browser: Awaited<ReturnType<typeof launch>> | undefined
 let latestPid = 0
 let url = ''
 try {
   url = await waitFor(
     async () => {
-      const match = running.output().match(/Dev URL: (http:\/\/[^\s]+)/)
       if (running.child.exitCode !== null) throw new Error(running.output())
-      return match?.[1] ?? false
+      const frontend = running.output().match(/Local:\s+(http:\/\/[^\s]+)/)?.[1]
+      const backend = running.output().match(/\{"port":\d+,"repoId":.*\}/)?.[0]
+      if (!frontend || !backend) return false
+      const announcement: { port: number; url: string } = JSON.parse(backend)
+      assert.equal(announcement.port, running.backendPort)
+      const review = new URL(announcement.url)
+      return new URL(review.pathname + review.search, frontend).href
     },
     'development startup',
     45_000,
   )
   const origin = new URL(url).origin
   const api = new URL(url).pathname + '/api/'
+  const dryRun = spawnSync(
+    'task',
+    ['--dry', 'dev:web', `REPO=${relative(checkout, repo)}`, 'BASE=main'],
+    {
+      cwd: checkout,
+      env,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  )
+  assert.equal(dryRun.status, 0, dryRun.stderr)
+  const dryOutput = dryRun.stdout + dryRun.stderr
+  assert.ok(
+    dryOutput.includes('--open') && dryOutput.includes(`${new URL(url).pathname}?base=main`),
+    'Task opens the canonical review URL with the explicit base',
+  )
   const health = async () =>
     (await fetch(origin + '/api/health')).json() as Promise<{ pid: number; version: string }>
   const before = await health()
@@ -246,13 +287,32 @@ try {
   ).pid
   console.log('  ok compile errors are visible and saving valid Go recovers')
 
-  const collision = start(new URL(url).port)
+  const collision = await start(new URL(url).port)
   const collisionDone = once(collision.child, 'close')
-  const timer = setTimeout(() => collision.child.kill('SIGKILL'), 10_000)
+  const timer = setTimeout(() => process.kill(-collision.child.pid!, 'SIGKILL'), 15_000)
   const [code] = await collisionDone
   clearTimeout(timer)
   assert.ok(code !== null && code !== 0, collision.output())
   assert.ok(collision.output().includes('already in use'), collision.output())
+  await waitFor(async () => {
+    try {
+      await fetch(`http://127.0.0.1:${collision.backendPort}/api/health`)
+      return false
+    } catch {
+      return true
+    }
+  }, 'conflicting frontend start stops its backend')
+
+  const backendCollision = await start('0', running.backendPort)
+  const backendCollisionDone = once(backendCollision.child, 'close')
+  const backendTimer = setTimeout(
+    () => process.kill(-backendCollision.child.pid!, 'SIGKILL'),
+    15_000,
+  )
+  const [backendCode] = await backendCollisionDone
+  clearTimeout(backendTimer)
+  assert.ok(backendCode !== null && backendCode !== 0, backendCollision.output())
+  assert.ok(backendCollision.output().includes('already in use'), backendCollision.output())
   assert.equal(
     (await health()).pid,
     latestPid,
