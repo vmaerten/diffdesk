@@ -4,10 +4,9 @@ The initial supported platform is **macOS on Apple Silicon (ARM64)**. Git and a
 browser are runtime prerequisites. React is embedded; consumers do not need Node,
 pnpm or Go.
 
-**No Go release has been published yet.** The commands below become usable when
-an archive exists in [GitHub Releases](https://github.com/vmaerten/ghl/releases).
-The existing Node command remains the default until
-[#108](https://github.com/vmaerten/ghl/issues/108). Private releases require
+Go is the default runtime. Release installation requires an archive in
+[GitHub Releases](https://github.com/vmaerten/ghl/releases); source installation is
+covered in the [migration guide](./go-migration.md). Private releases require
 GitHub authentication with read access; see
 [mise's tokens guide](https://mise.jdx.dev/dev-tools/github-tokens.html).
 
@@ -20,10 +19,10 @@ PATH, add this once to `~/.zshrc`:
 eval "$(mise activate zsh)"
 ```
 
-Open a new terminal, then install the latest stable release globally:
+Open a new terminal, then install the first stable release globally:
 
 ```bash
-mise use -g github:vmaerten/ghl@latest
+mise use -g github:vmaerten/ghl@0.1.0
 ghl --version
 cd /path/to/repository
 ghl
@@ -42,7 +41,8 @@ and IDEs: `mise activate zsh --shims` exposes the generated shims.
 Project configuration can override the global selection. Check `mise which ghl`
 and `type -a ghl` if an older Node installation wins in PATH. Current mise defaults
 delay `latest` by 24 hours after publication; an exact version bypasses this
-delay. `latest` excludes prereleases. Use `mise ls-remote github:vmaerten/ghl`
+delay. After that delay, `mise use -g github:vmaerten/ghl@latest` follows stable
+releases. `latest` excludes prereleases. Use `mise ls-remote github:vmaerten/ghl`
 to list published versions.
 
 ## Pin, upgrade and roll back

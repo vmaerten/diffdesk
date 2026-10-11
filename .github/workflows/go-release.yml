@@ -38,7 +38,8 @@ jobs:
       - run: task check
       - run: task test:go
       - run: task test:dev
-      - run: pnpm test
+      - run: task test:install
+      - run: pnpm test:node
       - run: task release:check
       - name: Build and verify snapshot
         if: github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')

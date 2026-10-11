@@ -165,7 +165,7 @@ def main():
         raise RuntimeError('Requires node, go and rustc')
     assets = list((ROOT / 'web-dist' / 'assets').glob('*.js'))
     if not assets:
-        raise RuntimeError('Build the frontend first: pnpm build')
+        raise RuntimeError('Build the Node reference frontend first: pnpm build:node')
     asset = max(assets, key=lambda path: path.stat().st_size)
     env = dict(os.environ, GIT_CONFIG_GLOBAL='/dev/null', GIT_CONFIG_NOSYSTEM='1',
                GIT_AUTHOR_NAME='Benchmark', GIT_AUTHOR_EMAIL='benchmark@example.invalid',
@@ -287,7 +287,7 @@ def production():
     go = os.environ.get('BENCH_GO') or shutil.which('go')
     binary = Path(os.environ.get('BENCH_GHL_GO', ROOT / 'go/dist/ghl')).resolve()
     if not node or not go or not binary.is_file():
-        raise RuntimeError('Requires Node, Go, pnpm build and task build')
+        raise RuntimeError('Requires Node, Go, pnpm build:node and task build')
     embedded = ROOT / 'go/cmd/ghl/assets/assets'
     candidates = [p for p in (ROOT / 'web-dist/assets').glob('*.js')
                   if (embedded / p.name).is_file() and p.read_bytes() == (embedded / p.name).read_bytes()]
