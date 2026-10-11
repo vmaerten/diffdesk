@@ -90,6 +90,7 @@ export default {
       replacement === 'widget43_27',
       replacement,
     )
+    await page.waitForFunction(`(${SELECTED_TEXT}).includes('widget43_27')`)
 
     await page.keyboard.press('Escape')
     const closed = await page.$eval('.diff-search', (element) => element.hasAttribute('hidden'))
