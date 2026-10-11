@@ -20,7 +20,9 @@ const temporary = mkdtempSync(join(tmpdir(), 'ghl-release-guards-'))
 const source = join(root, 'go/dist/release')
 const validator = join(root, 'test/goRelease.ts')
 const tagValidator = join(root, 'scripts/release-tag.ts')
-const archiveNames = readdirSync(source).filter((name) => name.endsWith('.tar.gz') || name.endsWith('.zip'))
+const archiveNames = readdirSync(source).filter(
+  (name) => name.endsWith('.tar.gz') || name.endsWith('.zip'),
+)
 const archiveName = releaseArchiveName(
   JSON.parse(readFileSync(join(source, 'metadata.json'), 'utf8')).version,
   releaseTarget(),
@@ -89,7 +91,9 @@ try {
   reject(duplicate, /Duplicate checksum filename/)
 
   const mislabeled = fixture('wrong-platform')
-  const differentArchive = archiveNames.find((name) => name !== archiveName && name.endsWith('.tar.gz'))!
+  const differentArchive = archiveNames.find(
+    (name) => name !== archiveName && name.endsWith('.tar.gz'),
+  )!
   copyFileSync(join(source, differentArchive), join(mislabeled, archiveName))
   const wrongHash = createHash('sha256')
     .update(readFileSync(join(mislabeled, archiveName)))

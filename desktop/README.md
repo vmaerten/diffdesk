@@ -69,7 +69,7 @@ are checked against the release in both the bundle and native runtime.
 Extract the ZIP and move `ghl Desktop.app` to `/Applications`. The archive has
 free ad hoc signing, with no Apple notarisation. macOS may require a first-launch
 exception after download. No automatic quarantine removal or desktop mise
-installer is included in this layer. See the [release guide](../docs/go-releases.md)
+installer is included in this layer. See the [release guide](../docs/releases.md)
 for local verification and manual publication. Nothing is published by the build.
 
 ## What is preserved

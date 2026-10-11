@@ -52,7 +52,11 @@ assert.deepEqual(
 )
 const checksumNames = [...names, `ghl-desktop_${metadata.version}_darwin_arm64.zip`].toSorted()
 const checksums = readFileSync(join(dist, 'checksums.txt'), 'utf8').trim().split('\n')
-assert.equal(checksums.length, checksumNames.length, 'Every CLI and desktop archive must be checksummed')
+assert.equal(
+  checksums.length,
+  checksumNames.length,
+  'Every CLI and desktop archive must be checksummed',
+)
 const hashes = new Map<string, string>()
 for (const line of checksums) {
   const match = line.match(

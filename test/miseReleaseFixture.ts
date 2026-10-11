@@ -78,7 +78,10 @@ export async function miseReleaseFixture(
     for (const [filename, payload] of [
       [desktopName, desktopBytes] as [string, Buffer],
       ...archives,
-      ['checksums.txt', Buffer.from(`${sha256(desktopBytes)}  ${desktopName}\n${sums}`)] as [string, Buffer],
+      ['checksums.txt', Buffer.from(`${sha256(desktopBytes)}  ${desktopName}\n${sums}`)] as [
+        string,
+        Buffer,
+      ],
     ]) {
       const download = `/vmaerten/ghl/releases/download/v${version}/${filename}`
       const api = `/repos/vmaerten/ghl/releases/assets/${assets.size + 1}`
