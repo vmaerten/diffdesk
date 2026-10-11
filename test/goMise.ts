@@ -47,7 +47,7 @@ const miseVersion = execFileSync(miseBinary, ['--version'], { encoding: 'utf8' }
 assert.match(
   miseVersion,
   /^2026\.10\.2 /,
-  'Use the mise version pinned in release CI (GHL_TEST_MISE can select it)',
+  'Use mise 2026.10.2 for release acceptance (GHL_TEST_MISE can select it)',
 )
 const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-mise-')))
 const reportFile = join(

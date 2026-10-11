@@ -62,37 +62,36 @@ Replace the example with the checked-out tag. The command checks that it matches
 `package.json` and points at HEAD. GoReleaser's non-snapshot mode requires a
 clean checkout. Both local tasks leave publication disabled in the configuration.
 
-`.github/workflows/go-release.yml` validates pull requests and main-branch pushes
-on GitHub's native ARM64 `macos-15` runner. It installs the locked tools, runs
-static checks, Go race tests and the Node reference suite, then builds and verifies a snapshot. Manual
-workflow dispatch also creates a snapshot. Version-tag pushes build and verify
-the tag's release archives instead. Before publishing it also runs the complete
-production acceptance suites and measurements on the extracted executable.
-It also validates installation/upgrade/rollback with the real mise backend
-against a local release API fixture, including corrupted downloads.
-The workflow uploads the archive and checksums as a release job artifact, and
-the runtime report as a separate artifact. See [Go release acceptance](./go-validation.md)
-for the gate, browser pin, coverage and supported platforms.
+GitHub Actions is disabled for this repository and there is no CI workflow.
+Pull requests, branch pushes and tags do not start hosted jobs. Build, acceptance
+and publication run locally on the supported native macOS ARM64 target.
 
-A separate publication job runs only after a successful version-tag build. It
-downloads those exact tested files, checks their SHA-256 again and uses
-`gh release create --verify-tag` to publish them to this repository. It performs
-no checkout or rebuild. Prerelease tags create GitHub prereleases. Existing
-releases fail rather than replacing their files; fix a failed publication and
-rerun its job. The build job has `contents: read`; the publication job gets
-`contents: write` with the repository-scoped `GITHUB_TOKEN`. No external tap,
-registry credentials or personal access token is required.
+After building the checked-out version tag, run the complete
+[local acceptance gate](./go-validation.md), including the extracted archive,
+mise fixture and runtime measurements. Publish those exact tested files without
+rebuilding:
 
-After publication, a separate read-only macOS ARM64 job installs the real release
-through mise and exercises the installed executable, state and lifecycle.
-It needs no Go/pnpm build; Node is a test driver outside the consumer PATH.
-Results are retained as an artifact. This check runs after publication and never
-deletes/replaces release assets on failure. See the installation guide for reruns
-and the first-release limitations on historical upgrades.
+```bash
+git push origin refs/tags/v0.1.0
+gh release create v0.1.0 --verify-tag --title v0.1.0 --notes-file CHANGELOG.md \
+  go/dist/release/ghl_0.1.0_darwin_arm64.tar.gz go/dist/release/checksums.txt
+task release:mise:published VERSION=0.1.0
+```
 
-The actions are pinned to commit SHAs. Go, Node, pnpm, Task and GoReleaser are
-pinned in `.mise.toml`, with download checksums in `mise.lock`; the mise installer
-version is pinned in the workflow. Update these together when upgrading tooling.
+Replace the version in every command when preparing another release. Add
+`--prerelease` for a prerelease tag. An existing release fails rather than
+replacing its files. The authenticated GitHub CLI needs permission to create
+releases; GoReleaser never publishes directly. GitHub Releases and mise remain
+the consumer distribution channels.
+
+The last task downloads the actual published assets through mise and exercises
+the installed executable, state and lifecycle. Node is a local test driver
+outside the consumer PATH; no Go/pnpm build is used to install the release. It
+never deletes or replaces release assets. See the installation guide for the
+first-release limitations on historical upgrades.
+
+Go, Node, pnpm, Task and GoReleaser remain pinned in `.mise.toml`, with download
+checksums in `mise.lock`.
 
 ## License material
 
@@ -111,5 +110,4 @@ The generator handles license material for the embedded frontend. The Taskfile
 and GoReleaser call Go directly; there is no TypeScript build wrapper for Go.
 
 References: [Go builds](https://goreleaser.com/customization/builds/builders/go/),
-[GoReleaser templates](https://goreleaser.com/customization/general/templates/),
-[GitHub runner targets](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+[GoReleaser templates](https://goreleaser.com/customization/general/templates/).

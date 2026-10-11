@@ -51,7 +51,7 @@ checksum:
 snapshot:
   version_template: '{{ .Version }}-next-{{ .ShortCommit }}'
 
-# CI publishes the exact verified archive in a separate, write-scoped job.
+# Publish the exact locally verified archive manually, without rebuilding.
 # Direct invocations and snapshots never publish or need a release token.
 release:
   disable: true

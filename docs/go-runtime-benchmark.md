@@ -11,7 +11,7 @@ Le binaire testé est extrait de l'archive snapshot `0.0.0-next-71b818d`,
 construite au commit `71b818de824c1d2f28b61a708e7d0b21ad538e7e`.
 Le harness de cette branche était en cours d'édition lors du relevé ; le JSON
 le signale avec `source_dirty: true`. Le code de production Go et React est
-celui de ce commit. La CI produit son propre relevé pour chaque candidat.
+celui de ce commit. Les mainteneurs produisent les relevés des candidats en local.
 Les [prototypes minimaux](./runtime-benchmark.md) et le
 [PoC isolé](./go-poc.md) conservent leurs résultats séparés.
 
@@ -99,9 +99,8 @@ mise exec -- task release:bench
 Le mode `--go` de `scripts/bench-runtime/run.py` conserve les anciens modes.
 Il utilise uniquement la bibliothèque standard Python et les exécutables
 locaux. `BENCH_NODE`, `BENCH_GO`, `BENCH_GHL_GO` sélectionnent les runtimes ;
-`BENCH_OUTPUT` choisit le fichier JSON. La CI écrit dans
-`.task/go-runtime-benchmark.json` et conserve le rapport comme artifact,
-avec un diagnostic en cas de différence de contrat. Un rapport interrompu
+`BENCH_OUTPUT` choisit le fichier JSON. Le relevé local peut être conservé dans
+`.task/go-runtime-benchmark.json`, avec un diagnostic en cas de différence de contrat. Un rapport interrompu
 reste marqué incomplet.
 
 - Dépôts temporaires avec noms canoniques : les alias macOS `/var` et
@@ -128,7 +127,7 @@ reste marqué incomplet.
   premier healthcheck ; Go valide déjà une comparaison avant son annonce,
   alors que le harness Node annonce son port avant cette lecture.
 - Serveurs et fixtures supprimés à la fin. Les tests navigateur finissent
-  avant les mesures locales et CI.
+  avant les mesures locales.
 
 ## Décision et limites
 
