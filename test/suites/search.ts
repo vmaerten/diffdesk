@@ -1,4 +1,4 @@
-import { DIFF_ON_SCREEN, DIFF_SCROLLER, sleep, type Suite } from '../harness.ts'
+import { DIFF_ON_SCREEN, DIFF_SCROLLER, type Suite } from '../harness.ts'
 
 const SELECTED_TEXT = `(() => {
   for (const host of document.querySelectorAll('.diff diffs-container')) {
@@ -32,12 +32,47 @@ export default {
 
     // Widget44 is near the end of a virtualised pane and does not exist in the
     // initial DOM. Native browser find cannot reach this line.
-    await page.evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'f', ctrlKey: true, bubbles: true, cancelable: true
-    }))`)
+    // Delay the opening frame until typing has begun, as on a busy renderer.
+    // Opening search must never select characters entered after the shortcut.
+    await page.evaluate(`(() => {
+      const original = window.requestAnimationFrame
+      const cancel = window.cancelAnimationFrame
+      const pending = new Map()
+      let nextId = -1
+      window.requestAnimationFrame = (callback) => {
+        const id = nextId--
+        pending.set(id, callback)
+        return id
+      }
+      window.cancelAnimationFrame = (id) => {
+        if (!pending.delete(id)) cancel.call(window, id)
+      }
+      window.resumeSearchFrame = () => {
+        window.requestAnimationFrame = original
+        window.cancelAnimationFrame = cancel
+        for (const callback of pending.values()) callback(performance.now())
+        delete window.resumeSearchFrame
+      }
+      window.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'f', ctrlKey: true, bubbles: true, cancelable: true
+      }))
+    })()`)
     await page.waitForSelector('.diff-search:not([hidden]) .diff-search-input')
-    await page.type('.diff-search-input', 'widget44_27')
-    await sleep(800)
+    await page.type('.diff-search-input', 'widget44_2')
+    await page.evaluate('window.resumeSearchFrame()')
+    await page.type('.diff-search-input', '7')
+
+    const query = await page.$eval('input.diff-search-input', (input) => input.value)
+    check(
+      'opening search preserves characters typed before the next frame',
+      query === 'widget44_27',
+      query,
+    )
+    if (query !== 'widget44_27') return
+    await page.waitForFunction(
+      `document.querySelector('.diff-search-count')?.textContent.trim() === '1/1'`,
+    )
+    await page.waitForFunction(`(${SELECTED_TEXT}).includes('widget44_27')`)
 
     const count = (await page.$eval('.diff-search-count', (element) => element.textContent)) ?? ''
     check('search indexes lines outside the virtual window', count.trim() === '1/1', count.trim())
@@ -52,11 +87,29 @@ export default {
     const selected = (await page.evaluate(SELECTED_TEXT)) as string
     check('the matching line is highlighted', selected.includes('widget44_27'), selected.trim())
 
+    await page.evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'f', ctrlKey: true, bubbles: true, cancelable: true
+    }))`)
+    await page.keyboard.type('widget43_27')
+    const replacement = await page.$eval('input.diff-search-input', (input) => input.value)
+    check(
+      'reopening search selects the existing query for replacement',
+      replacement === 'widget43_27',
+      replacement,
+    )
+    await page.waitForFunction(`(${SELECTED_TEXT}).includes('widget43_27')`)
+
     await page.keyboard.press('Escape')
     const closed = await page.$eval('.diff-search', (element) => element.hasAttribute('hidden'))
     check('Escape closes diff search', closed)
 
-    await page.evaluate(`${DIFF_SCROLLER}.scrollTop = ${beforeScroll}`)
+    // A reader's scroll cancels CodeView's pending search navigation. Setting
+    // scrollTop alone can be overwritten by its next layout/measurement frame.
+    await page.evaluate(`(() => {
+      const scroller = ${DIFF_SCROLLER}
+      scroller.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: -1 }))
+      scroller.scrollTop = ${beforeScroll}
+    })()`)
     await page.waitForFunction(`(${SELECTED_TEXT}).length > 0`)
     check(
       'closing search restores the original source selection',
