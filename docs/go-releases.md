@@ -3,8 +3,9 @@
 The release pipeline builds one executable containing the production React UI.
 The first supported target is macOS ARM64. Git and a browser are runtime
 prerequisites. The project uses MIT; archives also contain the notices for
-third-party components. Consumer installation through mise is tracked in
-[#107](https://github.com/vmaerten/ghl/issues/107).
+third-party components. The [mise installation guide](./go-installation.md)
+documents the consumer path and its verification; the first published-release
+check is still pending while no Go release exists.
 
 ## Local snapshot
 
@@ -67,6 +68,8 @@ static checks, Go race tests and the Node reference suite, then builds and verif
 workflow dispatch also creates a snapshot. Version-tag pushes build and verify
 the tag's release archives instead. Before publishing it also runs the complete
 production acceptance suites and measurements on the extracted executable.
+It also validates installation/upgrade/rollback with the real mise backend
+against a local release API fixture, including corrupted downloads.
 The workflow uploads the archive and checksums as a release job artifact, and
 the runtime report as a separate artifact. See [Go release acceptance](./go-validation.md)
 for the gate, browser pin, coverage and supported platforms.
@@ -79,6 +82,13 @@ releases fail rather than replacing their files; fix a failed publication and
 rerun its job. The build job has `contents: read`; the publication job gets
 `contents: write` with the repository-scoped `GITHUB_TOKEN`. No external tap,
 registry credentials or personal access token is required.
+
+After publication, a separate read-only macOS ARM64 job installs the real release
+through mise and exercises the installed executable, state and lifecycle.
+It needs no Go/pnpm build; Node is a test driver outside the consumer PATH.
+Results are retained as an artifact. This check runs after publication and never
+deletes/replaces release assets on failure. See the installation guide for reruns
+and the first-release limitations on historical upgrades.
 
 The actions are pinned to commit SHAs. Go, Node, pnpm, Task and GoReleaser are
 pinned in `.mise.toml`, with download checksums in `mise.lock`; the mise installer

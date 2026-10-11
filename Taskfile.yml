@@ -148,6 +148,18 @@ tasks:
     cmds:
       - node test/goAcceptance.ts --bench
 
+  release:mise:
+    desc: Verify mise installation, PATH, upgrades and rollback against a local release fixture
+    cmds:
+      - node test/goMise.ts
+
+  release:mise:published:
+    desc: Verify a published GitHub Release through mise (VERSION=X.Y.Z, optional PREVIOUS=X.Y.Z)
+    requires:
+      vars: [VERSION]
+    cmds:
+      - node test/goMise.ts --published {{.VERSION | shellQuote}}{{if .PREVIOUS}} --previous {{.PREVIOUS | shellQuote}}{{end}}
+
   test:browser:install:
     desc: Install the pinned Chrome for Testing build (macOS ARM64)
     cmds:
