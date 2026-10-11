@@ -4,9 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const commandHelp = `ghl — review the PR you are about to open, without opening it
@@ -25,24 +27,32 @@ Options:
   --print        Print a summary and exit without starting a server or browser
   --import-state <file>  Merge a state snapshot and exit; conflicts abort the import
   --json         JSON comments, build metadata, or {port, repoId, url} at startup
-  --port <n>     Loopback port (default: $GHL_PORT or 0 for an ephemeral port)
+  --port <n>     Loopback port (default: $GHL_PORT or 7777; 0 chooses an ephemeral port)
   --no-open      Do not open the browser
-  --no-daemon    Stay in the foreground (currently the only runtime mode)
+  --no-daemon    Stay in the foreground; stop with Ctrl-C
+  --idle <min>   Stop the daemon after inactivity (default: 30; 0 disables it)
   --version      Print version and build metadata and exit
   -h, --help     Show this help on stdout
 
-This runtime serves in the foreground. Shared daemon options are unavailable.
+The shared daemon serves several repositories and lets this command return.
+An occupied port is an error; use --port or GHL_PORT to choose another.
+--port 0 starts a separate ephemeral daemon.
 `
 
 type commandArgs struct {
 	repo, base, target                           string
 	importState                                  string
 	port                                         int
+	idle                                         time.Duration
+	noDaemon, daemon                             bool
 	noOpen, json, version, help, print, comments bool
 }
 
 func parseCommand(args []string, stderr io.Writer, options Options) (commandArgs, error) {
-	cli := commandArgs{repo: "."}
+	cli := commandArgs{repo: ".", idle: 30 * time.Minute}
+	if !options.PoC {
+		cli.port = 7777
+	}
 	flags := flag.NewFlagSet(options.name(), flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	if options.PoC {
@@ -90,8 +100,19 @@ func parseCommand(args []string, stderr io.Writer, options Options) (commandArgs
 			cli.importState = value
 			return nil
 		})
-		var foreground bool
-		flags.BoolVar(&foreground, "no-daemon", false, "Stay in the foreground")
+		flags.BoolVar(&cli.noDaemon, "no-daemon", false, "Stay in the foreground")
+		flags.BoolVar(&cli.daemon, "daemon", false, "Internal daemon entry point")
+		flags.Func("idle", "Minutes without activity, 0 disables shutdown", func(value string) error {
+			minutes, err := strconv.ParseFloat(value, 64)
+			if err != nil || math.IsNaN(minutes) || math.IsInf(minutes, 0) || minutes < 0 || minutes >= float64(math.MaxInt64)/float64(time.Minute) {
+				return fmt.Errorf("expects a finite non-negative number of minutes, got: %s", value)
+			}
+			cli.idle = time.Duration(minutes * float64(time.Minute))
+			if minutes > 0 && cli.idle <= 0 {
+				return fmt.Errorf("idle duration is too small")
+			}
+			return nil
+		})
 		if len(args) > 0 && args[0] == "comments" {
 			cli.comments = true
 			args = args[1:]
@@ -114,15 +135,12 @@ func parseCommand(args []string, stderr io.Writer, options Options) (commandArgs
 				continue
 			}
 			name, _, inline := strings.Cut(strings.TrimLeft(arg, "-"), "=")
-			if name == "idle" || name == "daemon" {
-				return cli, fmt.Errorf("--%s requires a shared daemon, unavailable in this runtime; use --no-daemon to serve in the foreground", name)
-			}
 			f := flags.Lookup(name)
 			if f == nil {
 				return cli, fmt.Errorf("Unknown option %q; use --help", arg)
 			}
 			ordered = append(ordered, arg)
-			if name == "base" || name == "repo" || name == "port" || name == "import-state" {
+			if name == "base" || name == "repo" || name == "port" || name == "import-state" || name == "idle" {
 				if !inline {
 					if i+1 == len(args) || strings.HasPrefix(args[i+1], "--") {
 						return cli, fmt.Errorf("--%s needs a value", name)
@@ -135,6 +153,9 @@ func parseCommand(args []string, stderr io.Writer, options Options) (commandArgs
 		if err := flags.Parse(ordered); err != nil {
 			return cli, err
 		}
+	}
+	if cli.daemon && (cli.noDaemon || cli.target != "" || cli.base != "" || cli.importState != "" || cli.comments || cli.print) {
+		return cli, fmt.Errorf("--daemon is an internal server mode and cannot be combined with review commands")
 	}
 	if cli.importState != "" && (cli.comments || cli.print || cli.target != "" || cli.base != "") {
 		return cli, fmt.Errorf("--import-state cannot be combined with a review target, --base, --print or comments")

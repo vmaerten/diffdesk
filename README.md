@@ -219,8 +219,9 @@ Each layer keeps its own viewed ticks, since those are keyed by the revision ran
 
 The production Go entry point embeds React and currently provides text review
 with optional untracked files and image previews, comments, Viewed, context expansion, automatic bases,
-stacks and revision/commit selection. The Node CLI remains the default
-while the remaining features and shared daemon are ported.
+stacks, revision/commit selection and a shared background daemon with stable
+repository URLs. The Node CLI remains the default while release and acceptance
+work is completed.
 
 ```bash
 task build

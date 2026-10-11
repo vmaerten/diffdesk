@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestVersionDoesNotRequireGitRepositoryOrAssets(t *testing.T) {
@@ -63,6 +64,15 @@ func TestHelpUsesStdoutWithoutGitOrAssets(t *testing.T) {
 }
 
 func TestCommandParsing(t *testing.T) {
+	t.Setenv("GHL_PORT", "")
+	defaults, err := parseCommand(nil, &bytes.Buffer{}, Options{})
+	if err != nil || defaults.port != 7777 || defaults.idle != 30*time.Minute || defaults.noDaemon {
+		t.Fatalf("bad daemon defaults: %+v %v", defaults, err)
+	}
+	ephemeral, err := parseCommand([]string{"--port", "0", "--idle", "0.5", "--no-daemon"}, &bytes.Buffer{}, Options{})
+	if err != nil || ephemeral.port != 0 || ephemeral.idle != 30*time.Second || !ephemeral.noDaemon {
+		t.Fatalf("lost runtime flags: %+v %v", ephemeral, err)
+	}
 	t.Setenv("GHL_PORT", "12345")
 	for _, args := range [][]string{
 		{"comments", "feature", "--base", "main", "--json", "--print", "--no-daemon"},
@@ -88,7 +98,7 @@ func TestCommandParsing(t *testing.T) {
 	}
 	for _, args := range [][]string{
 		{"one", "two"}, {"--unknown"}, {"--port", "12oops"}, {"--base"}, {"--base", "--print"},
-		{"--repo"}, {"--port"}, {"--port", "-1"}, {"--port=65536"}, {"--daemon"}, {"--idle", "1"},
+		{"--repo"}, {"--port"}, {"--port", "-1"}, {"--port=65536"}, {"--daemon", "--print"}, {"--idle", "-1"}, {"--idle", "NaN"}, {"--idle", "Inf"}, {"--idle", "1e99"},
 		{"--import-state", ""}, {"--import-state"}, {"--import-state", "file", "--print"},
 	} {
 		if _, err := parseCommand(args, &bytes.Buffer{}, Options{}); err == nil {

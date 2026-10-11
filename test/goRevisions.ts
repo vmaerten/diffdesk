@@ -62,9 +62,13 @@ async function json<T>(url: string, body?: unknown): Promise<T> {
 try {
   const nodePort = await listen(node, 0)
   const nodeURL = `http://127.0.0.1:${nodePort}/r/${repoIdFor(repo)}`
-  child = spawn(binary, ['--repo', repo, '--base', 'HEAD', '--no-open', '--json'], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
+  child = spawn(
+    binary,
+    ['--repo', repo, '--base', 'HEAD', '--no-open', '--no-daemon', '--port', '0', '--json'],
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  )
   let errors = ''
   child.stderr!.on('data', (chunk) => {
     errors += String(chunk)

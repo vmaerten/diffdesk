@@ -44,10 +44,14 @@ function command(args: string[]) {
 }
 
 async function start() {
-  const child = spawn(binary, ['--repo', repo, '--base', 'main', '--json', '--no-open'], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, GHL_PORT: '' },
-  })
+  const child = spawn(
+    binary,
+    ['--repo', repo, '--base', 'main', '--json', '--no-open', '--no-daemon', '--port', '0'],
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, GHL_PORT: '' },
+    },
+  )
   servers.push(child)
   let errors = ''
   child.stderr!.on('data', (chunk) => {

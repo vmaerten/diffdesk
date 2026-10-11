@@ -17,7 +17,7 @@ func main() {
 		"--repo", os.Getenv("GHL_DEV_REPO"),
 		"--base", os.Getenv("GHL_DEV_BASE"),
 		"--port", os.Getenv("GHL_DEV_BACKEND_PORT"),
-		"--no-open", "--json",
+		"--no-open", "--no-daemon", "--json",
 	}
 	code := app.Main(ctx, args, os.Stdout, os.Stderr, app.Options{Assets: os.DirFS("../web")})
 	cancel()

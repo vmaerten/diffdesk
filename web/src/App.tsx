@@ -12,7 +12,7 @@ import RefSelector from './RefSelector.tsx'
 import CommitSelector from './CommitSelector.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
-import { GO_POC, GO_RUNTIME } from './capabilities.ts'
+import { GO_POC } from './capabilities.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment, ViewedMap } from '../../src/types.ts'
 
@@ -130,7 +130,7 @@ export default function App() {
    * mean "no tab" rather than "no click".
    */
   useEffect(() => {
-    if (GO_RUNTIME) return
+    if (GO_POC) return
     const beat = () => {
       if (document.visibilityState === 'visible') fetch('/api/health').catch(() => {})
     }
