@@ -36,14 +36,21 @@ export default {
     // Opening search must never select characters entered after the shortcut.
     await page.evaluate(`(() => {
       const original = window.requestAnimationFrame
-      const pending = []
+      const cancel = window.cancelAnimationFrame
+      const pending = new Map()
+      let nextId = -1
       window.requestAnimationFrame = (callback) => {
-        pending.push(callback)
-        return pending.length
+        const id = nextId--
+        pending.set(id, callback)
+        return id
+      }
+      window.cancelAnimationFrame = (id) => {
+        if (!pending.delete(id)) cancel.call(window, id)
       }
       window.resumeSearchFrame = () => {
         window.requestAnimationFrame = original
-        pending.forEach((callback) => callback(performance.now()))
+        window.cancelAnimationFrame = cancel
+        for (const callback of pending.values()) callback(performance.now())
         delete window.resumeSearchFrame
       }
       window.dispatchEvent(new KeyboardEvent('keydown', {
@@ -96,7 +103,13 @@ export default {
     const closed = await page.$eval('.diff-search', (element) => element.hasAttribute('hidden'))
     check('Escape closes diff search', closed)
 
-    await page.evaluate(`${DIFF_SCROLLER}.scrollTop = ${beforeScroll}`)
+    // A reader's scroll cancels CodeView's pending search navigation. Setting
+    // scrollTop alone can be overwritten by its next layout/measurement frame.
+    await page.evaluate(`(() => {
+      const scroller = ${DIFF_SCROLLER}
+      scroller.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: -1 }))
+      scroller.scrollTop = ${beforeScroll}
+    })()`)
     await page.waitForFunction(`(${SELECTED_TEXT}).length > 0`)
     check(
       'closing search restores the original source selection',
