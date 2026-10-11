@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -134,6 +135,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	switch {
+	case !s.poc && route == "image" && r.Method == "GET":
+		q := r.URL.Query()
+		source, err := s.repo.imageSource(r.Context(), q.Get("revision"), q.Get("path"))
+		var data []byte
+		if err == nil {
+			data, err = source.read(r.Context())
+		}
+		if err != nil {
+			fail(w, 404, fmt.Errorf("Image preview unavailable"))
+			return
+		}
+		w.Header().Set("Content-Type", imageType(q.Get("path")))
+		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+		w.WriteHeader(200)
+		_, _ = w.Write(data)
 	case !s.poc && route == "refs" && r.Method == "GET":
 		refs, err := s.repo.refs(r.Context())
 		if err != nil {
@@ -199,6 +218,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		reply(w, 200, map[string]any{"ok": true, "branch": branch, "base": body.Base})
 	case route == "diff" && r.Method == "GET":
+		if !s.poc {
+			if err := review.attachImages(r.Context(), s.id); err != nil {
+				fail(w, 422, err)
+				return
+			}
+		}
 		state, notice, err := s.store.Snapshot()
 		if err != nil {
 			fail(w, 500, err)

@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode/utf8"
 )
@@ -449,85 +447,24 @@ func blobHash(bytes []byte) (string, string) {
 	return hex.EncodeToString(h1[:]), hex.EncodeToString(h2[:])
 }
 
-// Use the same bounded, regular-file-only read for context and untracked diffs.
-// OpenRoot confines racing parent symlinks to the repository; O_NOFOLLOW refuses
-// a final symlink and O_NONBLOCK prevents a replaced FIFO from hanging a request.
+// Retained for the untracked snapshot writer; errors use context terminology.
 func (r Repository) readWorktree(path string) ([]byte, os.FileMode, error) {
-	if !validPath(path) {
-		return nil, 0, fmt.Errorf("Unsupported file path")
-	}
-	root, err := os.OpenRoot(r.Path)
+	source, err := r.worktreeFile(path)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, sourceError(err, false)
 	}
-	defer root.Close()
-	resolved, err := filepath.EvalSymlinks(filepath.Join(r.Path, path))
-	if err != nil {
-		return nil, 0, err
-	}
-	if resolved != filepath.Join(r.Path, path) {
-		return nil, 0, fmt.Errorf("Context is available only for regular files, not symlinks or special files")
-	}
-	file, err := root.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer file.Close()
-	stat, err := file.Stat()
-	if err != nil {
-		return nil, 0, err
-	}
-	if !stat.Mode().IsRegular() {
-		return nil, 0, fmt.Errorf("Context is available only for regular files, not symlinks or special files")
-	}
-	if stat.Size() > maxTextBytes {
-		return nil, 0, fmt.Errorf("File exceeds the 20 MB context limit")
-	}
-	data, err := io.ReadAll(io.LimitReader(file, stat.Size()+1))
-	if err != nil {
-		return nil, 0, err
-	}
-	if int64(len(data)) != stat.Size() {
-		return nil, 0, changed()
-	}
-	return data, stat.Mode(), nil
+	return source.data, source.mode, nil
 }
 func (r Repository) readText(ctx context.Context, revision *string, path string) (*TextFile, error) {
-	if !validPath(path) {
-		return nil, fmt.Errorf("Unsupported file path")
+	source, err := r.fileSource(ctx, revision, path)
+	if err != nil {
+		return nil, sourceError(err, false)
 	}
-	var data []byte
-	if revision == nil {
-		var err error
-		data, _, err = r.readWorktree(path)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		entry, err := r.git(ctx, 64*1024, "--literal-pathspecs", "ls-tree", "-z", "-l", *revision, "--", path)
-		if err != nil {
-			return nil, err
-		}
-		parts := strings.SplitN(string(entry), "\t", 2)
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("Context is available only for regular files")
-		}
-		fields := strings.Fields(parts[0])
-		if len(fields) != 4 || (fields[0] != "100644" && fields[0] != "100755") || fields[1] != "blob" {
-			return nil, fmt.Errorf("Context is available only for regular files")
-		}
-		size, err := strconv.Atoi(fields[3])
-		if err != nil {
-			return nil, err
-		}
-		if size > maxTextBytes {
-			return nil, fmt.Errorf("File exceeds the 20 MB context limit")
-		}
-		data, err = r.git(ctx, maxTextBytes, "cat-file", "blob", fields[2])
-		if err != nil {
-			return nil, err
-		}
+	data, err := source.read(ctx)
+	if err != nil {
+		return nil, err
 	}
+
 	if bytes.IndexByte(data, 0) >= 0 {
 		return nil, fmt.Errorf("Binary files cannot be expanded")
 	}
