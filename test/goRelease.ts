@@ -50,19 +50,20 @@ assert.deepEqual(
     .toSorted(),
   names,
 )
+const checksumNames = [...names, `ghl-desktop_${metadata.version}_darwin_arm64.zip`].toSorted()
 const checksums = readFileSync(join(dist, 'checksums.txt'), 'utf8').trim().split('\n')
-assert.equal(checksums.length, names.length, 'Every platform archive must be checksummed')
+assert.equal(checksums.length, checksumNames.length, 'Every CLI and desktop archive must be checksummed')
 const hashes = new Map<string, string>()
 for (const line of checksums) {
   const match = line.match(
-    /^([\da-f]{64})  (ghl_[\w.+-]+_(?:darwin|linux)_(?:arm64|amd64)\.tar\.gz)$/,
+    /^([\da-f]{64})  (ghl_[\w.+-]+_(?:darwin|linux)_(?:arm64|amd64)\.tar\.gz|ghl-desktop_[\w.+-]+_darwin_arm64\.zip)$/,
   )
   assert.ok(match, 'Expected a portable SHA-256 checksum line')
   assert.ok(!hashes.has(match[2]!), 'Duplicate checksum filename')
   hashes.set(match[2]!, match[1]!)
 }
-assert.deepEqual([...hashes.keys()].toSorted(), names)
-for (const name of names) {
+assert.deepEqual([...hashes.keys()].toSorted(), checksumNames)
+for (const name of checksumNames) {
   assert.equal(
     createHash('sha256')
       .update(readFileSync(join(dist, name)))
