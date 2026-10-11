@@ -4,9 +4,9 @@ This module contains the production entry point being introduced in [#98](https:
 and the isolated review PoC. Both use the same backend; their UI assets, command
 identities and state directories remain separate.
 
-The Go runtime currently supports tracked text review, context expansion,
-comments and Viewed. Automatic base resolution, revision pickers, stacks,
-untracked files, image previews, exports and the shared daemon are still being
+The Go runtime supports tracked text review, context expansion, comments,
+Viewed, automatic bases, stacks and revision/commit selection. Untracked files,
+image previews, the full CLI, exports and the shared daemon are still being
 ported. The Node command remains the default until that work is validated.
 
 ## Build and run
@@ -29,8 +29,8 @@ to build; the module has no external Go dependencies. Go race tests also need
 a C toolchain, and browser tests need Chrome.
 
 The current command runs in the foreground, listens only on `127.0.0.1` and
-stops cleanly with Ctrl-C. Its defaults are the current repository, base `HEAD`
-and an ephemeral port. `--port`, `--no-open` and the startup announcement
+stops cleanly with Ctrl-C. Its defaults are the current repository, automatic
+base resolution and an ephemeral port. `--port`, `--no-open` and the startup announcement
 `--json` are available; automatic browser opening currently targets macOS.
 The stable hostname/port and shared daemon are tracked in #104.
 
@@ -43,6 +43,30 @@ the same Go state file yet.
 
 The initial validated platform is macOS ARM64. Unix context-read flags are
 retained from the PoC; Windows is not a supported build target at this stage.
+
+## Review selection
+
+The production command resolves the base with the same precedence as Node:
+an explicit URL choice, a remembered `branch.<name>.ghlBase`, gh-stack metadata,
+the nearest parent heuristic, then the detected trunk. The trunk wins equal
+parent scores. Stack metadata is read from the worktree's Git directory, with
+the common directory as a compatibility fallback; missing or merged layers
+remain visible while the next layer uses the nearest live base below.
+
+The React base, target and commit pickers and `b` / `t` / `l` shortcuts are
+available in the Go build. Base choices are remembered against the reviewed
+branch. The URL controls each comparison: removing an explicit base re-enables
+resolution, even when the command was started with `--base`.
+
+`target` reviews a revision without checking it out. `committed` excludes staged
+and unstaged work from a checkout review. `commit` shows the selected commit's
+own diff against its first parent, or the empty tree for a root commit; its
+Viewed state uses that parent/commit pair. An unavailable commit falls back to
+the whole range with a notice. Invalid bases or targets fail explicitly.
+
+`task test` checks Node/Go payloads, context and anchors across these scopes,
+then runs the existing picker, commit and stack browser suites against Go.
+The isolated PoC keeps its explicit-base checkout scope and hidden pickers.
 
 ## Development
 
@@ -72,7 +96,7 @@ successful build until valid code is saved. Ctrl-C stops Vite, Air and the backe
 The development command compiles `cmd/ghl-dev`, which uses the live frontend;
 there is no embedded asset build in this loop. It uses the same backend and
 `.git/ghl-go/state.json` as the production Go command. The initial review
-defaults to the directory where Task was invoked and base `HEAD`.
+defaults to the directory where Task was invoked and resolves its base automatically.
 The Node workflow (`pnpm dev`, proxying to port 7777) remains available.
 
 The Taskfile defines the production build, `go test -race` and `go vet`

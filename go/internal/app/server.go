@@ -54,21 +54,27 @@ func decode(w http.ResponseWriter, r *http.Request, body any) error {
 	}
 	return nil
 }
-func (s *Server) selection(r *http.Request) (string, bool, error) {
+func (s *Server) selection(r *http.Request) (Selection, error) {
 	q := r.URL.Query()
-	for _, key := range []string{"target", "commit", "untracked", "includeUntracked"} {
+	excluded := []string{"untracked", "includeUntracked"}
+	if s.poc {
+		excluded = append(excluded, "target", "commit")
+	}
+	for _, key := range excluded {
 		if q.Has(key) {
-			return "", false, fmt.Errorf("%s is not supported by this Go runtime", key)
+			return Selection{}, fmt.Errorf("%s is not supported by this Go runtime", key)
 		}
 	}
-	base := s.base
-	if q.Has("base") {
-		base = q.Get("base")
+	for _, key := range []string{"base", "target", "commit"} {
+		if q.Has(key) && !validRef(q.Get(key)) {
+			return Selection{}, fmt.Errorf("Invalid %s ref", key)
+		}
 	}
-	if !validRef(base) {
-		return "", false, fmt.Errorf("Invalid base ref")
+	base := q.Get("base")
+	if s.poc && !q.Has("base") {
+		base = s.base
 	}
-	return base, q.Has("committed"), nil
+	return Selection{Base: base, Target: q.Get("target"), Commit: q.Get("commit"), Committed: q.Has("committed")}, nil
 }
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !allowedName("http://" + r.Host) {
@@ -108,7 +114,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fail(w, 404, fmt.Errorf("not found"))
 		return
 	}
-	base, committed, err := s.selection(r)
+	selection, err := s.selection(r)
 	if err != nil {
 		fail(w, 400, err)
 		return
@@ -117,13 +123,81 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Only routes that read a comparison pay for Git. Every reader uses this result.
 	var review *Review
 	if (r.Method == "GET" && (route == "diff" || route == "diff-files")) || (route == "comments" && (r.Method == "POST" || r.Method == "PATCH")) {
-		review, err = s.repo.Compare(r.Context(), base, committed)
+		if s.poc {
+			review, err = s.repo.Compare(r.Context(), selection.Base, selection.Committed)
+		} else {
+			review, err = s.repo.Resolve(r.Context(), selection)
+		}
 		if err != nil {
 			fail(w, 422, err)
 			return
 		}
 	}
 	switch {
+	case !s.poc && route == "refs" && r.Method == "GET":
+		refs, err := s.repo.refs(r.Context())
+		if err != nil {
+			fail(w, 422, err)
+			return
+		}
+		trunk, err := s.repo.trunk(r.Context())
+		if err != nil {
+			fail(w, 422, err)
+			return
+		}
+		branch, err := s.repo.currentBranch(r.Context())
+		if err != nil {
+			fail(w, 422, err)
+			return
+		}
+		reply(w, 200, map[string]any{"refs": refs, "trunk": trunk, "branch": branch})
+	case !s.poc && route == "commits" && r.Method == "GET":
+		base, err := s.repo.resolveBase(r.Context(), selection.Base, selection.Target)
+		if err != nil {
+			fail(w, 422, err)
+			return
+		}
+		target := "HEAD"
+		if base.Branch != nil {
+			target = *base.Branch
+		}
+		commits, err := s.repo.commits(r.Context(), base.Ref, target)
+		if err != nil {
+			fail(w, 422, err)
+			return
+		}
+		reply(w, 200, map[string]any{"commits": commits})
+	case !s.poc && route == "base" && r.Method == "POST":
+		var body struct {
+			Base   string  `json:"base"`
+			Target *string `json:"target"`
+		}
+		if err := decode(w, r, &body); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		if !validRef(body.Base) || (body.Target != nil && !validRef(*body.Target)) {
+			fail(w, 400, fmt.Errorf("Valid base and target refs are required"))
+			return
+		}
+		branch := body.Target
+		if branch == nil {
+			branch, err = s.repo.currentBranch(r.Context())
+		} else {
+			var sha string
+			sha, err = s.repo.resolveRef(r.Context(), *branch)
+			if err == nil && sha == "" {
+				err = fmt.Errorf("Invalid target %q", *branch)
+			}
+		}
+		if err == nil {
+			err = s.repo.rememberBase(r.Context(), branch, body.Base)
+		}
+		if err != nil {
+			fail(w, 422, err)
+			return
+		}
+		reply(w, 200, map[string]any{"ok": true, "branch": branch, "base": body.Base})
 	case route == "diff" && r.Method == "GET":
 		state, notice, err := s.store.Snapshot()
 		if err != nil {
@@ -137,15 +211,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				viewed[file.Path] = hash
 			}
 		}
-		target := "HEAD"
-		if review.Branch != nil {
-			target = *review.Branch
+		messages := []string{}
+		if notice != nil {
+			messages = append(messages, *notice)
+		}
+		if review.Notice != nil {
+			messages = append(messages, *review.Notice)
+		}
+		if len(messages) > 0 {
+			joined := strings.Join(messages, " — ")
+			notice = &joined
 		}
 		reply(w, 200, map[string]any{
 			"comparison": review.Comparison, "repo": map[string]string{"id": s.id, "path": s.repo.Path},
-			"base": map[string]any{"ref": review.Base, "source": "override", "branch": review.Branch, "trunk": nil, "stack": nil},
-			"head": map[string]any{"branch": review.Branch, "sha": review.Head}, "target": map[string]any{"ref": target, "workingTree": !committed},
-			"commit": nil, "range": review.Range, "state": map[string]any{"operation": nil, "conflicted": []string{}},
+			"base": review.Resolution,
+			"head": map[string]any{"branch": review.Branch, "sha": review.Head}, "target": map[string]any{"ref": review.Target, "workingTree": review.Comparison.After == nil},
+			"commit": review.Commit, "range": review.Range, "state": map[string]any{"operation": nil, "conflicted": []string{}},
 			"untracked": []string{}, "untrackedIncluded": false, "files": review.Files, "totals": review.Totals,
 			"viewed": viewed, "comments": review.Comments(r.Context(), state.Comments), "notice": notice, "patch": review.Patch,
 		})

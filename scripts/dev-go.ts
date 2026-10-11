@@ -65,7 +65,7 @@ try {
     env: {
       ...process.env,
       GHL_DEV_REPO: repo,
-      GHL_DEV_BASE: process.env.GHL_DEV_BASE ?? 'HEAD',
+      GHL_DEV_BASE: process.env.GHL_DEV_BASE ?? '',
       GHL_DEV_BACKEND_PORT: String(backendPort),
     },
     detached: true,

@@ -59,7 +59,7 @@ git('commit', '-qm', 'base')
 writeFileSync(join(repo, 'context.txt'), 'modified\nunchanged\n')
 
 function start(port = '0') {
-  const child = spawn('task', ['dev', `REPO=${repo}`, 'BASE=HEAD', 'OPEN=false', `PORT=${port}`], {
+  const child = spawn('task', ['dev', `REPO=${repo}`, 'OPEN=false', `PORT=${port}`], {
     cwd: checkout,
     env,
     detached: true,
@@ -131,6 +131,9 @@ try {
   assert.ok(html.includes('/@vite/client'), 'Vite serves the live frontend')
   assert.ok(!html.includes('/assets/index-'), 'no embedded production build is required')
   const data: DiffPayload = await (await fetch(origin + api + 'diff')).json()
+  assert.equal(data.base.ref, 'main', 'development resolves the base automatically')
+  assert.equal(data.base.source, 'trunk')
+  assert.ok(!new URL(url).searchParams.has('base'), 'development does not force a base in the URL')
   assert.equal(
     data.repo.path,
     realpathSync(repo),

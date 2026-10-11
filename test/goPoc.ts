@@ -324,16 +324,18 @@ try {
       await page.$eval('.product-name', (el) => el.textContent),
       production ? 'ghl' : 'ghl Go PoC',
     )
-    assert.equal(await page.$('button.ref.base'), null)
-    assert.equal(await page.$('button.ref.target'), null)
-    assert.equal(await page.$('.commit-group'), null)
+    for (const selector of ['button.ref.base', 'button.ref.target', '.commit-group']) {
+      assert.equal(Boolean(await page.$(selector)), production)
+    }
     assert.equal(await page.$('input.untracked'), null)
     for (const key of ['b', 't', 'l'] as const) {
       await page.keyboard.press(key)
-      assert.equal(await page.$('.picker-input'), null)
+      if (production) await page.waitForSelector('.picker-input')
+      assert.equal(Boolean(await page.$('.picker-input')), production)
+      if (production) await page.keyboard.press('Escape')
     }
     const shortcuts = await page.$eval('.shortcuts', (el) => el.textContent ?? '')
-    assert.ok(!/Choose (base|target|commit)/.test(shortcuts))
+    assert.equal(/Choose (base|target|commit)/.test(shortcuts), production)
     await page.click('input.worktree')
     await page.waitForNetworkIdle()
     assert.ok(!(await page.$eval('input.worktree', (el) => (el as HTMLInputElement).checked)))

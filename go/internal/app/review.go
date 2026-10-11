@@ -107,6 +107,10 @@ type Review struct {
 	Comparison        Comparison
 	Base, Head, Range string
 	Branch            *string
+	Resolution        BaseResolution
+	Target            string
+	Commit            *CommitDetail
+	Notice            *string
 	Patch             string
 	Files             []FileStat
 	Totals            Totals
@@ -116,8 +120,21 @@ type Review struct {
 
 // Resolve once. Patch, statistics, hashes and context all describe these versions.
 func (r Repository) Compare(ctx context.Context, base string, committed bool) (*Review, error) {
-	if !validRef(base) {
+	return r.compare(ctx, Selection{Base: base, Committed: committed}, false)
+}
+
+// Resolve restores production selection while Compare keeps the isolated PoC.
+func (r Repository) Resolve(ctx context.Context, selection Selection) (*Review, error) {
+	return r.compare(ctx, selection, true)
+}
+func (r Repository) compare(ctx context.Context, selection Selection, automatic bool) (*Review, error) {
+	if (!automatic || selection.Base != "") && !validRef(selection.Base) {
 		return nil, fmt.Errorf("Invalid base ref")
+	}
+	for _, ref := range []string{selection.Target, selection.Commit} {
+		if ref != "" && !validRef(ref) {
+			return nil, fmt.Errorf("Invalid revision %q", ref)
+		}
 	}
 	if err := r.checkOperation(); err != nil {
 		return nil, err
@@ -126,32 +143,80 @@ func (r Repository) Compare(ctx context.Context, base string, committed bool) (*
 	if err != nil {
 		return nil, fmt.Errorf("Repository has no commit: %w", err)
 	}
-	baseSHA, err := r.text(ctx, "rev-parse", "--verify", "--end-of-options", base+"^{commit}")
+	branch, err := r.currentBranch(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid base %q: %w", base, err)
-	}
-	before, err := r.text(ctx, "merge-base", baseSHA, head)
-	if err != nil {
-		return nil, fmt.Errorf("Base and HEAD have no merge-base: %w", err)
-	}
-	review := &Review{repo: r, Base: base, Head: head, Comparison: Comparison{Before: before}, Files: []FileStat{}, sections: map[string]*section{}, sources: map[string]*TextFile{}}
-	branch, err := r.text(ctx, "symbolic-ref", "--quiet", "--short", "HEAD")
-	if err == nil {
-		review.Branch = &branch
-	} else if ctx.Err() != nil {
-		return nil, ctx.Err()
+		return nil, err
 	}
 	target := "HEAD"
-	if review.Branch != nil {
-		target = *review.Branch
+	if branch != nil {
+		target = *branch
 	}
-	review.Range = base + ".." + target
-	if committed {
-		review.Comparison.After = &review.Head
+	tip := head
+	if selection.Target != "" {
+		target = selection.Target
+		tip, err = r.resolveRef(ctx, target)
+		if err != nil {
+			return nil, err
+		}
+		if tip == "" {
+			return nil, fmt.Errorf("Invalid target %q: does not resolve to a revision", target)
+		}
+	}
+	resolution := BaseResolution{Ref: selection.Base, Source: "override", Branch: branch}
+	if automatic {
+		reviewing := branch
+		if selection.Target != "" {
+			reviewing = &selection.Target
+		}
+		resolution, err = r.baseFor(ctx, selection.Base, reviewing)
+		if err != nil {
+			return nil, err
+		}
+	}
+	baseSHA, err := r.resolveRef(ctx, resolution.Ref)
+	if err != nil {
+		return nil, err
+	}
+	if baseSHA == "" {
+		return nil, fmt.Errorf("Invalid base %q: does not resolve to a revision", resolution.Ref)
+	}
+	review := &Review{repo: r, Base: resolution.Ref, Resolution: resolution, Head: head, Branch: branch, Target: target, Files: []FileStat{}, sections: map[string]*section{}, sources: map[string]*TextFile{}}
+	if selection.Commit != "" {
+		review.Commit, err = r.commitDetail(ctx, selection.Commit)
+		if err != nil {
+			return nil, err
+		}
+		if review.Commit == nil {
+			notice := fmt.Sprintf("commit %s no longer resolves — showing every commit", selection.Commit)
+			review.Notice = &notice
+		}
+	}
+	before := ""
+	if review.Commit != nil {
+		tip = review.Commit.SHA
+		if len(review.Commit.Parents) > 0 {
+			before = review.Commit.Parents[0]
+		} else {
+			before, err = r.text(ctx, "hash-object", "-t", "tree", "--stdin")
+			if err != nil {
+				return nil, err
+			}
+		}
+		review.Range = before + ".." + tip
+	} else {
+		before, err = r.text(ctx, "merge-base", baseSHA, tip)
+		if err != nil {
+			return nil, fmt.Errorf("Base and target have no merge-base: %w", err)
+		}
+		review.Range = resolution.Ref + ".." + target
+	}
+	review.Comparison.Before = before
+	if selection.Committed || selection.Target != "" || review.Commit != nil {
+		review.Comparison.After = &tip
 	}
 	args := []string{"diff", "-M", "--no-ext-diff", before}
-	if committed {
-		args = append(args, head)
+	if review.Comparison.After != nil {
+		args = append(args, *review.Comparison.After)
 	}
 	// NUL records preserve spaces, tabs and Unicode names. Patch quoting stays Git's.
 	var outputs [3][]byte
