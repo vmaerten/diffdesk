@@ -1,8 +1,7 @@
 import { install, computeExecutablePath, Browser, BrowserPlatform } from '@puppeteer/browsers'
-import { appendFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-// Exact Chrome for Testing build; keep local acceptance and CI on the same browser.
+// Exact Chrome for Testing build; keep all local acceptance suites on the same browser.
 const buildId = '154.0.8037.92'
 const options = {
   browser: Browser.CHROME,
@@ -19,6 +18,4 @@ if (import.meta.main) {
   }
   const browser = await install(options)
   console.log(browser.executablePath)
-  if (process.env.GITHUB_ENV)
-    appendFileSync(process.env.GITHUB_ENV, `CHROME_PATH=${browser.executablePath}\n`)
 }

@@ -94,7 +94,7 @@ shutdown procedure in the runtime lifecycle guide before uninstalling.
 
 ## Maintainer verification
 
-Use mise **2026.10.2**, as pinned in release CI. Node is a test driver; the
+Use mise **2026.10.2**, the version validated by the distribution tests. Node is a test driver; the
 installed executable runs with only Git in PATH. All mise configuration, data,
 cache and state live in temporary directories outside the checkout. Tests do
 not change your mise configuration or install a global `ghl`.
@@ -111,9 +111,8 @@ task release:mise:published VERSION=X.Y.Z PREVIOUS=A.B.C
 `GHL_TEST_MISE=/absolute/path/to/mise` selects a separate test installation.
 `GITHUB_TOKEN` or `GH_TOKEN` can authenticate private release reads, without write
 access. Published mode downloads actual GitHub assets and compares the installed
-executable with the checksummed archive. A separate read-only macOS ARM64 job runs
-it after publication. Failure reports a failed check; it does not delete or
-replace the release. Rerun after diagnosing the failure.
+executable with the checksummed archive. Run it locally after manual publication.
+It does not delete or replace the release. Rerun after diagnosing a failure.
 
 Before publication, `release:mise` routes the real mise GitHub client to a
 loopback API with the supported URL replacement setting. It serves the candidate
@@ -123,8 +122,8 @@ exact pins, actual `mise upgrade`, rollback, daemon replacement, embedded assets
 state preservation and uninstall. It creates no tag or GitHub release. This is
 fixture coverage, not evidence of a published download or historical upgrade.
 
-Reports `.task/go-mise-acceptance.json` and `.task/go-mise-published.json` are CI
-artifacts. They start with `complete: false`; only a finished run sets it to true.
+Reports `.task/go-mise-acceptance.json` and `.task/go-mise-published.json` are local
+validation artifacts. They start with `complete: false`; only a finished run sets it to true.
 `upgrade` records whether two versions were exercised and `latest` whether stable
 resolution was checked. The first release has no historical upgrade to test;
 that remains pending until a second compatible version exists. Prereleases are

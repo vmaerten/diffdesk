@@ -1,11 +1,10 @@
 # Go release acceptance
 
-The initial supported platform is **macOS ARM64**. The release workflow runs
-the `Go release acceptance (macOS ARM64)` check on a native `macos-15` runner.
-It installs the locked toolchain and Chrome for Testing 154.0.8037.92, then
-runs static checks, Go race tests, development hot-reload tests, the complete
-Node reference suite, archive validation, production Go acceptance and
-three-pass runtime measurements.
+The initial supported platform is **macOS ARM64**. GitHub Actions is disabled;
+there are no automatic CI checks or hosted release jobs. Maintainers run the
+locked toolchain and Chrome for Testing 154.0.8037.92 locally, with static checks,
+Go race tests, hot reload, the Node reference suite, installation tests, archive
+validation, production Go acceptance and three-pass runtime measurements.
 
 ## Local gate
 
@@ -18,7 +17,8 @@ task test:browser:install
 task check
 task test:go
 task test:dev
-pnpm test:node
+task test:install
+pnpm test:node:node
 task release:check
 task release:snapshot
 task release:acceptance
@@ -28,7 +28,7 @@ task release:bench
 
 The browser installer downloads into the ignored `.task/browser/` directory.
 The harness prefers this exact build; `CHROME_PATH` can explicitly choose a
-different executable. CI exports the installed browser path for every suite.
+different executable. The harness automatically selects the installed pinned browser.
 Chrome, Python and the C toolchain used by `-race` are test prerequisites;
 they are excluded from the consumer's release archive.
 
@@ -70,24 +70,16 @@ compatibility and restart are tested separately against actual Node writers.
 
 The [mise distribution checks](./go-installation.md#maintainer-verification)
 exercise the real client/backend with a local release API before publication
-and actual GitHub assets after publication. The fixture is part of the acceptance
-job. The separate read-only post-publication job checks installed bytes, PATH,
-standalone serving and saved state, then upgrades/rolls back when a previous
-compatible release exists. Published download and historical upgrade validation
-remain pending until that job runs successfully.
+and actual GitHub assets afterward. The local published check verifies installed
+bytes, PATH, standalone serving and saved state, then upgrades/rolls back when a
+previous compatible release exists. Published download and historical upgrade
+validation remain pending until the corresponding checks pass.
 
-The publishing job depends on the complete acceptance job. A failed static,
-reference, contract, browser, standalone, mise-fixture or measurement-integrity check prevents
-archive upload and publication. Measurements check response correctness and
-record performance; they impose no RAM or latency threshold.
-
-The default command remains Node until [#108](https://github.com/vmaerten/ghl/issues/108).
-Its switch must be reviewed with this gate passing. GitHub currently refuses
-branch protection for this private repository under its current plan, so a
-required merge check cannot be enforced through repository settings. Publication
-is enforced by the workflow dependency; merge enforcement remains a repository
-configuration prerequisite when that feature becomes available. No repository
-visibility or subscription setting was changed.
+Run all relevant local checks before publishing. These checks are not enforced
+by a GitHub workflow; publication is manual using the verified archive.
+Measurements check response correctness and record performance; they impose no
+RAM or latency threshold. Go is the default runtime, with an explicit Node
+fallback during the 0.1.x transition.
 
 Support for other platforms must pass native acceptance before adding or
 advertising their release assets:
