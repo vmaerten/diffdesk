@@ -48,7 +48,8 @@ There is no hosts-file change, proxy, certificate or port-free setup.
 `--no-open` skips the browser; automatic opening targets macOS. `--json` prints
 one `{port, repoId, url}` announcement. `--no-daemon` stays in the foreground
 and stops cleanly with Ctrl-C. `task dev` uses that foreground mode on a
-separate ephemeral backend port, so hot reload does not touch the shared daemon.
+separate development backend port (5181 by default), so hot reload does not
+touch the shared daemon.
 `--idle <minutes>` configures a newly started daemon (default 30, fractional
 minutes allowed, 0 disables shutdown); reusing a daemon keeps its existing idle
 setting. Accepted requests reset the idle clock. A visible React tab sends a
@@ -286,20 +287,31 @@ pnpm install
 task dev
 # Review another checkout, with an explicit base:
 task dev REPO=/path/to/repository BASE=main
-# Choose the frontend port and leave browser opening to you:
-task dev PORT=5181 OPEN=false
+# Choose both ports and leave browser opening to you:
+task dev PORT=5182 BACKEND_PORT=5183 OPEN=false
+# Or run each service in its own terminal:
+task dev:go
+task dev:web
 ```
 
 `task dev` installs the pinned Air watcher in `.task/bin` on its first run.
 That download needs network access; subsequent runs reuse it. Air is a
 development tool only and adds no dependency to the runtime Go module.
 
-Vite serves React on `127.0.0.1:5180` with Fast Refresh and CSS hot reload.
-Go changes trigger a rebuild and restart behind Vite's API proxy, using a
-separate ephemeral backend port. The printed browser URL stays the same
-through those restarts. Air reports compilation errors and restarts the last
-successful build until valid code is saved. Ctrl-C stops Vite, Air and the backend.
-`PORT=0` chooses a free frontend port instead of 5180.
+Task starts Air and the Vite CLI in parallel, without a TypeScript launcher.
+Vite serves React on `127.0.0.1:5180` with Fast Refresh and CSS hot reload,
+proxying API requests to Go on `127.0.0.1:5181`. `BACKEND_PORT` chooses another
+fixed backend port; `PORT=0` chooses a free frontend port instead of 5180.
+Vite waits up to 30 seconds for the backend, then opens the review unless
+`OPEN=false`. An occupied port fails explicitly and stops the other service.
+Use the same `REPO`, `BASE` and `BACKEND_PORT` settings in both terminals when
+running `dev:go` and `dev:web` separately.
+
+Go changes trigger a rebuild and restart behind Vite's API proxy; the browser
+URL stays the same through those restarts. Air reports compilation errors and
+restarts the last successful build until valid code is saved. Ctrl-C stops
+Vite, Air and the backend. The native development tasks also use `curl` and
+`lsof`, supplied with macOS.
 
 The development command compiles `cmd/ghl-dev`, which uses the live frontend;
 there is no embedded asset build in this loop. It uses the same backend and

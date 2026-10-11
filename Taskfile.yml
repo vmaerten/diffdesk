@@ -11,14 +11,55 @@ tasks:
   dev:
     desc: Start React hot reload and the Go backend watcher
     deps: [dev:tools]
-    env:
-      GHL_DEV_REPO: '{{.REPO | default .USER_WORKING_DIR}}'
-      GHL_DEV_CWD: '{{.USER_WORKING_DIR}}'
-      GHL_DEV_BASE: '{{.BASE | default ""}}'
-      GHL_DEV_PORT: '{{.PORT | default "5180"}}'
-      GHL_DEV_OPEN: '{{.OPEN | default "true"}}'
     cmds:
-      - node scripts/dev-go.ts
+      - task: dev:serve
+
+  dev:serve:
+    internal: true
+    failfast: true
+    deps: [dev:go, dev:web]
+
+  dev:go:
+    desc: Watch and restart the Go backend (default port 5181)
+    deps: [dev:tools]
+    dir: go
+    vars:
+      DEV_REPO: '{{if .REPO}}{{if isAbs .REPO}}{{.REPO}}{{else}}{{.USER_WORKING_DIR}}/{{.REPO}}{{end}}{{else}}{{.USER_WORKING_DIR}}{{end}}'
+      DEV_API_PORT: '{{.BACKEND_PORT | default "5181"}}'
+    env:
+      GHL_DEV_REPO: '{{.DEV_REPO}}'
+      GHL_DEV_BASE: '{{.BASE | default ""}}'
+      GHL_DEV_BACKEND_PORT: '{{.DEV_API_PORT}}'
+    preconditions:
+      - sh: '{{and (regexMatch `^[0-9]+$` .DEV_API_PORT) (gt (atoi .DEV_API_PORT) 0) (le (atoi .DEV_API_PORT) 65535)}}'
+        msg: BACKEND_PORT must be between 1 and 65535
+      - sh: '! lsof -nP -iTCP:{{.DEV_API_PORT}} -sTCP:LISTEN -t >/dev/null'
+        msg: Backend port {{.DEV_API_PORT}} already in use; choose BACKEND_PORT
+    cmds:
+      - ../.task/bin/air -c .air.toml
+
+  dev:web:
+    desc: Serve React with Vite, proxying to the development Go backend
+    vars:
+      DEV_REPO: '{{if .REPO}}{{if isAbs .REPO}}{{.REPO}}{{else}}{{.USER_WORKING_DIR}}/{{.REPO}}{{end}}{{else}}{{.USER_WORKING_DIR}}{{end}}'
+      DEV_PORT: '{{.PORT | default "5180"}}'
+      DEV_API_PORT: '{{.BACKEND_PORT | default "5181"}}'
+      REPO_ROOT:
+        sh: |
+          dev_repo_root=$(git -C {{.DEV_REPO | shellQuote}} rev-parse --show-toplevel) || exit 1
+          cd "$dev_repo_root"
+          pwd -P
+      REPO_ID: '{{base .REPO_ROOT}}-{{substr 0 7 (sha1sum .REPO_ROOT)}}'
+      REVIEW_PATH: '/r/{{.REPO_ID | urlquery | replace "+" "%20"}}{{if .BASE}}?base={{.BASE | urlquery}}{{end}}'
+    env:
+      GHL_DEV_API: 'http://127.0.0.1:{{.DEV_API_PORT}}'
+    cmds:
+      - cmd: |
+          until curl --noproxy '*' --fail --silent --max-time 1 "$GHL_DEV_API/api/health" >/dev/null; do sleep 0.1; done
+        timeout: 30s
+      - >-
+        pnpm exec vite --mode go --host 127.0.0.1 --strictPort --port {{.DEV_PORT | shellQuote}}
+        {{if and (ne (.OPEN | default "true") "false") (ne (.OPEN | default "true") "0")}}--open {{.REVIEW_PATH | shellQuote}}{{end}}
 
   dev:tools:
     desc: Install the pinned development watcher locally

@@ -37,6 +37,7 @@ jobs:
       - run: task test:browser:install
       - run: task check
       - run: task test:go
+      - run: task test:dev
       - run: pnpm test
       - run: task release:check
       - name: Build and verify snapshot

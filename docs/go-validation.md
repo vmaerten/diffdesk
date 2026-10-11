@@ -3,8 +3,9 @@
 The initial supported platform is **macOS ARM64**. The release workflow runs
 the `Go release acceptance (macOS ARM64)` check on a native `macos-15` runner.
 It installs the locked toolchain and Chrome for Testing 154.0.8037.92, then
-runs static checks, Go race tests, the complete Node reference suite, archive
-validation, production Go acceptance and three-pass runtime measurements.
+runs static checks, Go race tests, development hot-reload tests, the complete
+Node reference suite, archive validation, production Go acceptance and
+three-pass runtime measurements.
 
 ## Local gate
 
@@ -16,6 +17,7 @@ pnpm install --frozen-lockfile
 task test:browser:install
 task check
 task test:go
+task test:dev
 pnpm test
 task release:check
 task release:snapshot
