@@ -20,7 +20,8 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url))
 /** Overridable so this can be exercised somewhere other than a real home. */
 const HOME = env.GHL_HOME ?? join(env.XDG_DATA_HOME ?? join(homedir(), '.local', 'share'), 'ghl')
 const BIN_DIR = env.GHL_BIN_DIR ?? join(homedir(), '.local', 'bin')
-const LINK = join(BIN_DIR, 'ghl')
+// Go owns `ghl`; keep the reference runtime explicitly named during migration.
+const LINK = join(BIN_DIR, 'ghl-node')
 
 /** Everything the command needs at runtime, and nothing else. */
 const PARTS = ['bin', 'src', 'web-dist']
@@ -37,7 +38,9 @@ function uninstall(): void {
 function install(): void {
   const missing = PARTS.filter((part) => !existsSync(join(ROOT, part)))
   if (missing.includes('web-dist')) {
-    throw new Error('web-dist/ is missing — run `pnpm build` first, or use `pnpm install:local`')
+    throw new Error(
+      'web-dist/ is missing — run `pnpm build:node` first, or use `pnpm install:node`',
+    )
   }
   if (missing.length > 0) throw new Error(`missing from the checkout: ${missing.join(', ')}`)
 

@@ -79,6 +79,39 @@ tasks:
       - task: build:binary
         vars: { MODE: go, COMMAND: ghl, OUTPUT: go/dist/ghl }
 
+  run:
+    desc: Build and run the default Go CLI (arguments after --)
+    cmds:
+      - task build >&2
+      - ./go/dist/ghl {{.CLI_ARGS}}
+
+  install:
+    desc: Build and atomically install the Go CLI locally (optional BIN_DIR)
+    deps: [build]
+    vars:
+      INSTALL_DIR: '{{.BIN_DIR | default (printf "%s/.local/bin" (env "HOME"))}}'
+    cmds:
+      - |
+        install_dir={{.INSTALL_DIR | shellQuote}}
+        mkdir -p "$install_dir"
+        if [ -d "$install_dir/ghl" ]; then
+          echo "Cannot replace directory: $install_dir/ghl" >&2
+          exit 1
+        fi
+        install_tmp=$(mktemp "$install_dir/.ghl-install.XXXXXX") || exit 1
+        trap 'rm -f "$install_tmp"' EXIT
+        cp go/dist/ghl "$install_tmp"
+        chmod 755 "$install_tmp"
+        mv -f "$install_tmp" "$install_dir/ghl"
+        printf 'installed %s\n' "$install_dir/ghl"
+
+  uninstall:
+    desc: Remove the locally installed CLI; preserve repository state
+    vars:
+      INSTALL_DIR: '{{.BIN_DIR | default (printf "%s/.local/bin" (env "HOME"))}}'
+    cmds:
+      - rm -f {{printf "%s/ghl" .INSTALL_DIR | shellQuote}}
+
   build:binary:
     internal: true
     vars:
@@ -119,6 +152,7 @@ tasks:
   test:
     desc: Test the Go runtime, API parity and embedded UI
     cmds:
+      - pnpm build:node
       - task: build
       - task: test:go
       - node test/goCLI.ts
@@ -128,6 +162,11 @@ tasks:
       - node test/goRevisions.ts
       - node test/goImages.ts
       - node test/run.ts --go
+
+  test:install:
+    desc: Verify local Go installation and the explicit Node fallback
+    cmds:
+      - node test/goLocalInstall.ts
 
   test:go:
     desc: Run Go tests with the race detector
@@ -209,7 +248,7 @@ tasks:
   bench:
     desc: Compare production Go and Node on shared fixtures (three passes)
     cmds:
-      - pnpm build
+      - pnpm build:node
       - task: build
       - python3 scripts/bench-runtime/run.py --go
 

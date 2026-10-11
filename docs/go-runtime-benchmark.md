@@ -91,7 +91,7 @@ les remplacements de daemon sont vérifiés dans le
 mise exec -- task bench
 
 # Mesurer le binaire extrait d'un candidat déjà construit :
-pnpm build
+pnpm build:node
 mise exec -- task release:snapshot
 mise exec -- task release:bench
 ```

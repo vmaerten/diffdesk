@@ -5,7 +5,9 @@ Review the PR you are about to open, without opening it.
 A local git diff viewer with a GitHub-like UI, for the moment when the change is written
 but pushing it just to look at it is not worth the trip.
 
-**Status:** V1 complete — steps 1–5 of [PLAN.md](./PLAN.md).
+The default runtime is Go with the React interface embedded. The initial supported
+release platform is **macOS on Apple Silicon (ARM64)**. Git and a browser are the
+only runtime prerequisites. See the [installation guide](./docs/go-installation.md).
 
 | key       | action                           |
 | --------- | -------------------------------- |
@@ -99,7 +101,8 @@ that file's diff section: if the file changes, its tick clears on its own.
 ## Usage
 
 ```bash
-pnpm install && pnpm install:local   # once: builds the UI and installs the command
+mise use -g github:vmaerten/ghl@0.1.0 # install the first stable release
+# Requires a published archive; source installation: pnpm install && task install
 
 ghl                    # open the current repo's virtual PR in the browser
 ghl origin/some-branch # review another revision, without checking it out
@@ -127,33 +130,30 @@ to mean "I have chosen the default" and nothing answers in its place. Bare, the 
 the one to bookmark: it reviews the checkout against the base `ghl` resolves on its own. `*.localhost` is loopback by spec —
 no `/etc/hosts` entry, no dnsmasq — but the name is checked at startup and falls back to
 `127.0.0.1` rather than print a URL that would not connect. The `repoId` is derived from the
-repository path, so each checkout keeps its own address; a second `ghl` running at the same
-time takes the next free port.
+repository path, so each checkout keeps its own address. Concurrent launches reuse
+the daemon on the selected port; a conflicting listener reports an error instead
+of silently changing the URL.
 
 A fixed port makes the address guessable, so the server answers only to `ghl.localhost`,
 `localhost` and the loopback addresses: a page that re-resolved its own domain to
 `127.0.0.1` would otherwise be same-origin with the code being served.
 
-`pnpm install:local` copies `bin/`, `src/` and `web-dist/` into
-`~/.local/share/ghl` and links `~/.local/bin/ghl` at that copy. A symlink straight
-into the checkout would have been shorter, but it keeps the command tied to the
-working copy: move it, delete it, or check out a branch mid-rewrite, and the
-command follows. The copy is frozen instead — **re-run `pnpm install:local` after
-pulling**, and `pnpm uninstall:local` to remove both. Nothing else is installed:
-the server imports nothing outside `node:`, so the command has no dependencies at
-all — the five in `dependencies` build the front end and end up inside
-`web-dist/`.
+For a source installation, run `pnpm install && task install`. Task builds one
+Go executable and atomically replaces `~/.local/bin/ghl`. Add that directory to
+PATH. `task uninstall` removes this executable and preserves repository state.
+GitHub Releases and mise are the consumer distribution channels; source builds
+also require Go, Node, pnpm and Task.
 
-To iterate on the UI, run `ghl --no-open` in a repository and `pnpm dev` here: Vite
-serves the front end on :5180 and forwards data calls to :7777, which is where `ghl`
-already is. That runs against the checkout, not the installed copy.
+`task dev` (or `pnpm dev`) starts Vite and Air together: React/CSS changes refresh
+in the browser and Go changes rebuild and restart the backend. The frontend
+listens on :5180 and the API on :5181. Use
+`task dev REPO=/path/to/repository BASE=main` to review another checkout. See the
+[development guide](./go/README.md#development) for prerequisites and build/test tasks.
 
-For the Go runtime under development, `task dev` starts Vite and Air directly
-together: React/CSS changes refresh in the browser and Go changes rebuild and
-restart the backend. The frontend listens on :5180 and the API on :5181.
-Use `task dev REPO=/path/to/repository BASE=main` to review
-another checkout. See the [Go development guide](./go/README.md#development)
-for prerequisites and build/test tasks.
+The Node fallback remains maintained during the 0.1.x transition.
+`pnpm install:node` installs it as `ghl-node`, without replacing Go;
+`pnpm uninstall:node` removes that fallback. See the
+[migration guide](./docs/go-migration.md) before switching an older installation.
 
 `ghl` with no argument shows **everything that is not in the base**, committed or not:
 the diff from `merge-base(base, HEAD)` down to the working tree.
@@ -216,13 +216,13 @@ Merged layers stay in the chain: their pull request number is still there, but a
 branch is gone is struck through and the one above it falls through to the next live layer.
 Each layer keeps its own viewed ticks, since those are keyed by the revision range.
 
-## Go runtime (in progress)
+## Go runtime
 
-The production Go entry point embeds React and currently provides text review
+The production Go entry point embeds React and provides text review
 with optional untracked files and image previews, comments, Viewed, context expansion, automatic bases,
 stacks, revision/commit selection and a shared background daemon with stable
-repository URLs. The Node CLI remains the default while release and acceptance
-work is completed.
+repository URLs. The same UI and version-1 state are shared with the explicit
+Node fallback.
 
 ```bash
 task build
@@ -240,7 +240,8 @@ and the GitHub version-tag workflow.
 The [acceptance guide](./docs/go-validation.md) covers the full release gate
 and production runtime measurements.
 The [mise installation guide](./docs/go-installation.md) covers PATH activation,
-version pinning, upgrades and rollback once Go releases are published.
+version pinning, upgrades and rollback. The
+[migration guide](./docs/go-migration.md) covers existing Node installations.
 
 ## Go proof of concept
 
@@ -263,11 +264,12 @@ daemon. See [scope, validation and measurements](./docs/go-poc.md).
 ## Tests
 
 ```bash
-pnpm test            # all of them
-pnpm test tree       # one suite: tree, resize, viewed, pickers, scroll, rename, order,
-                     # stack, commits, worktree, untracked, review-panel
-pnpm test lifecycle  # the shared process, without starting a browser
-pnpm test images     # image API and previews, using a dedicated fixture and Chrome
+task test                  # Go race, parity, lifecycle and browser checks
+task test:install          # local installation and explicit Node fallback
+pnpm test:node             # complete Node reference suite
+node test/run.ts --go tree  # one Go browser suite after task build
+pnpm test:node lifecycle   # Node shared process, without starting a browser
+pnpm test:node images      # Node image API and previews
 ```
 
 `lifecycle` drives real `ghl` processes — cold start, a second repository joining, a newer
@@ -286,13 +288,17 @@ enough rows to force both panes to virtualise) and serves that. Nothing touches
 a real repository, and nothing depends on which branch happens to be checked
 out — an earlier version did both, and broke when the branch moved.
 
-`pnpm test` builds the UI first on purpose: `web-dist/` is what the server
-serves, so testing without rebuilding silently tests the previous version.
+`task test` builds both the Go executable and the Node reference UI before checking
+parity. `pnpm test:node` builds `web-dist/` before running the reference suite;
+testing without rebuilding would silently test the previous interface.
 
 ## Layout
 
 ```
-bin/ghl.ts       CLI — the only place that reads the current directory,
+go/cmd/ghl/     default CLI with embedded React assets
+go/internal/app/ Go backend, CLI, state and daemon
+Taskfile.yml    native build, dev, installation and validation tasks
+bin/ghl.ts       Node reference CLI — reads the current directory,
                  and the shared process it starts in the background
 src/git.ts       git layer, every call through `git -C <repoPath>`
 src/revision.ts  base resolution and patch construction
@@ -302,9 +308,9 @@ src/version.ts   what this runtime is, so a stale instance is replaced
 src/types.ts     the shapes that cross the HTTP boundary
 web/src/*.tsx    the UI, importing those same shapes
 web/src/fileOrder.ts  the tree's file order, which the diff list follows
-scripts/install.ts  copies the runtime out of the checkout
+scripts/install.ts  installs the explicit ghl-node fallback
 ```
 
-TypeScript throughout, and the server side runs unbuilt: Node strips the types
+The Node reference backend runs TypeScript unbuilt: Node strips the types
 itself, which is why relative imports name the real `.ts` file and why `engines`
 asks for Node 24 — the first LTS with that on by default.

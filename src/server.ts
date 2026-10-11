@@ -406,7 +406,7 @@ export function createGhlServer({ repos, idleMs = 0, onStop }: GhlServerOptions)
       if (req.method === 'GET' && !route.startsWith('api/')) {
         if (serveStatic(res, 'index.html')) return
         return json(res, 503, {
-          error: 'UI not built — run `pnpm build` in the ghl checkout',
+          error: 'UI not built — run `pnpm build:node` in the ghl checkout',
         })
       }
 

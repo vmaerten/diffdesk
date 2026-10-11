@@ -1,14 +1,14 @@
 # Go runtime
 
-This module contains the production entry point being introduced in [#98](https://github.com/vmaerten/ghl/issues/98)
+This module contains the default production entry point
 and the isolated review PoC. Both use the same backend; their UI assets, command
 identities and state directories remain separate.
 
 The Go runtime supports text review including optional untracked files, context
 expansion, image previews, comments, Viewed, automatic bases, stacks and revision/commit selection.
 The CLI supports revision targets, summaries, comment exports and a shared
-background daemon. The Node command remains the default until release and
-acceptance work is validated.
+background daemon. Node remains an explicit reference/fallback during the 0.1.x
+transition; see the [migration guide](../docs/go-migration.md).
 
 ## Build and run
 
@@ -317,7 +317,8 @@ The development command compiles `cmd/ghl-dev`, which uses the live frontend;
 there is no embedded asset build in this loop. It uses the same backend and
 `.git/ghl/state.json` as the production Go command. The initial review
 defaults to the directory where Task was invoked and resolves its base automatically.
-The Node workflow (`pnpm dev`, proxying to port 7777) remains available.
+The Node reference workflow (`pnpm dev:node`, proxying to port 7777) remains available.
+The default `pnpm dev` uses the Go workflow above.
 
 The Taskfile defines the production build, `go test -race` and `go vet`
 commands directly. `task test` also runs the contract/browser harness;

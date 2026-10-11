@@ -18,7 +18,7 @@ task test:browser:install
 task check
 task test:go
 task test:dev
-pnpm test
+pnpm test:node
 task release:check
 task release:snapshot
 task release:acceptance

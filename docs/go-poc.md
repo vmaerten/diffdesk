@@ -17,7 +17,7 @@ task poc:build
 Le build Vite `go-poc` écrit dans `go/cmd/ghl-go-poc/assets/`, puis Go embarque tout ce
 répertoire. Le binaire est construit avec `CGO_ENABLED=0`, `-trimpath` et
 `-ldflags='-s -w'`. Les assets et le binaire générés sont ignorés par Git.
-`pnpm build` continue à produire le build Node habituel dans `web-dist/`.
+`pnpm build:node` continue à produire le build Node habituel dans `web-dist/`.
 
 Le dépôt par défaut est le répertoire courant, la base `HEAD`, et le port est
 éphémère. Le serveur écoute exclusivement sur `127.0.0.1`, reste au premier
@@ -117,7 +117,7 @@ optimiste React reçoit ensuite la version enregistrée et son code courant.
 
 ```bash
 task poc:test
-pnpm test
+pnpm test:node
 pnpm typecheck
 pnpm lint
 pnpm format:check
