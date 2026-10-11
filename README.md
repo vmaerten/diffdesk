@@ -4,7 +4,7 @@ Review the PR you are about to open, without opening it.
 
 A local Git diff viewer with a GitHub-like interface. Review branches, commits and working-tree changes in your browser, then copy your comments to an agent. Go executable, embedded React UI. Only Git and a browser are needed to run it.
 
-A [Wails desktop prototype](./poc/wails/README.md) opens the same review UI in a single reusable native window: `task wails:run -- --repo .`. It is optional and keeps the installed browser CLI separate.
+A [desktop app](./desktop/README.md) opens the same review UI in a single reusable native window: `task desktop:run -- --repo .`. It is optional and keeps the installed browser CLI separate.
 
 ## Install
 
