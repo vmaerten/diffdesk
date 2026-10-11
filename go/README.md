@@ -313,6 +313,15 @@ refresh, Go restart, persisted review state, compile-error recovery, port
 conflicts and shutdown in an isolated temporary checkout. It needs Chrome.
 `task --list` lists these tasks and the isolated PoC build/test commands.
 
+## Release artifacts
+
+`mise install --locked` installs the build tools pinned in the repository. From
+its root, `mise exec -- task release:snapshot` creates and verifies a macOS ARM64
+archive with the executable, MIT license and third-party notices. A version-tag
+workflow publishes the exact validated files to GitHub Releases. See the
+[release guide](../docs/go-releases.md) for tag checks, metadata, credentials and
+local builds. Consumer installation through mise remains tracked separately.
+
 ## Layout and build identity
 
 ```text

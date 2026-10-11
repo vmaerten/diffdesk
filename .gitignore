@@ -7,3 +7,4 @@ go/dist/
 go/cmd/*/assets/*
 !go/cmd/*/assets/.gitkeep
 .task/
+.pnpm-store/

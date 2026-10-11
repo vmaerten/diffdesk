@@ -113,6 +113,30 @@ tasks:
       - pnpm format:check
       - task: vet
 
+  release:check:
+    desc: Validate the GoReleaser configuration
+    cmds:
+      - goreleaser check
+
+  release:snapshot:
+    desc: Build and verify release archives without publishing
+    cmds:
+      - goreleaser release --snapshot --clean
+      - task: release:verify
+
+  release:build:
+    desc: Build and verify a checked-out version tag without publishing
+    cmds:
+      - node scripts/release-tag.ts
+      - goreleaser release --skip=publish --clean
+      - task: release:verify
+
+  release:verify:
+    desc: Verify checksums, archive contents, build metadata and embedded UI
+    cmds:
+      - node test/goRelease.ts
+      - node test/releaseGuards.ts
+
   poc:build:
     desc: Build the isolated Go PoC
     cmds:
