@@ -9,6 +9,7 @@ go/cmd/*/assets/*
 .task/
 .pnpm-store/
 poc/desktop-bench/*/dist/
+poc/desktop-bench/*/.build/
 poc/desktop-bench/*/target/
 poc/desktop-bench/tauri/gen/
 __pycache__/
