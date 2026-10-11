@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   getFiletypeFromFileName,
   isDiffAnnotation,
@@ -483,12 +483,13 @@ export function useReviewDiff({
   const activeSearchMatch = searchMatches[boundedSearchIndex]
 
   const openSearch = useCallback(() => {
-    if (!searchOpen) selectionBeforeSearchRef.current = viewRef.current?.getSelectedLines() ?? null
-    setSearchOpen(true)
-    requestAnimationFrame(() => {
+    if (searchOpen) {
       searchInputRef.current?.focus()
       searchInputRef.current?.select()
-    })
+      return
+    }
+    selectionBeforeSearchRef.current = viewRef.current?.getSelectedLines() ?? null
+    setSearchOpen(true)
   }, [searchOpen])
 
   const closeSearch = useCallback(() => {
@@ -505,8 +506,10 @@ export function useReviewDiff({
     [searchMatches.length],
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!searchOpen) return
+    // Focus once when the field becomes visible, before the user can type.
+    // A later animation frame would select and replace newly entered text.
     searchInputRef.current?.focus()
     searchInputRef.current?.select()
   }, [searchOpen])
