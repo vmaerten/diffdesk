@@ -142,4 +142,24 @@ export async function runReviewSelection(check: Check): Promise<void> {
     rememberBase: async () => {},
   })
   check('w=0 keeps the full diff', !disabled.getSnapshot().ignoreWhitespace)
+
+  delay = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const pendingFromClosedTab = selection.pickBase('main', 'release')
+  await Promise.resolve()
+  selection.setActive(false)
+  const beforeClose = url.href
+  release()
+  await pendingFromClosedTab
+  check(
+    'a closed review cannot replace the next tab URL after a late base write',
+    url.href === beforeClose,
+  )
+  selection.setActive(true)
+  selection.toggleCommitted()
+  check(
+    'StrictMode effect reactivation keeps selection controls functional',
+    url.href !== beforeClose,
+  )
 }
