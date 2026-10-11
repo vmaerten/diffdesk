@@ -268,8 +268,14 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 			return nil, err
 		}
 		if len(paths) > 0 {
-			review.Untracked = strings.Split(strings.TrimSuffix(string(paths), "\x00"), "\x00")
-			if selection.IncludeUntracked {
+			for _, path := range strings.Split(string(paths), "\x00") {
+				// Git represents embedded repositories/worktrees as directory
+				// entries ending in '/'. They are outside this repository's diff.
+				if path != "" && !strings.HasSuffix(path, "/") {
+					review.Untracked = append(review.Untracked, path)
+				}
+			}
+			if selection.IncludeUntracked && len(review.Untracked) > 0 {
 				patch, files, err := r.untrackedPatch(ctx, review.Untracked)
 				if err != nil {
 					return nil, err
