@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,15 +29,20 @@ type Repository struct{ Path, GitDir string }
 type limitedBuffer struct {
 	buffer bytes.Buffer
 	limit  int
+	err    error
 }
 
 func (b *limitedBuffer) Write(p []byte) (int, error) {
 	if len(p) > b.limit-b.buffer.Len() {
-		return 0, fmt.Errorf("Git output exceeds %d bytes", b.limit)
+		b.err = fmt.Errorf("Git output exceeds %d bytes", b.limit)
+		return 0, b.err
 	}
 	return b.buffer.Write(p)
 }
 func (r Repository) git(ctx context.Context, limit int, args ...string) ([]byte, error) {
+	return r.gitOutput(ctx, limit, false, args...)
+}
+func (r Repository) gitOutput(ctx context.Context, limit int, differenceOK bool, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", r.Path}, args...)...)
 	var stdout = limitedBuffer{limit: limit}
 	var stderr = limitedBuffer{limit: 64 * 1024}
@@ -45,6 +51,18 @@ func (r Repository) git(ctx context.Context, limit int, args ...string) ([]byte,
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
+		}
+		if stdout.err != nil {
+			return nil, stdout.err
+		}
+		if stderr.err != nil {
+			return nil, stderr.err
+		}
+		var exited *exec.ExitError
+		// No-index also returns 1 for some real errors (for example a missing
+		// source). Only accept an actual diff with no diagnostic or truncation.
+		if differenceOK && errors.As(err, &exited) && exited.ExitCode() == 1 && stdout.buffer.Len() > 0 && stderr.buffer.Len() == 0 {
+			return stdout.buffer.Bytes(), nil
 		}
 		return nil, fmt.Errorf("git %s: %s (%w)", args[0], strings.TrimSpace(stderr.buffer.String()), err)
 	}
@@ -114,6 +132,8 @@ type Review struct {
 	Patch             string
 	Files             []FileStat
 	Totals            Totals
+	Untracked         []string
+	UntrackedIncluded bool
 	sections          map[string]*section
 	sources           map[string]*TextFile
 }
@@ -180,7 +200,7 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 	if baseSHA == "" {
 		return nil, fmt.Errorf("Invalid base %q: does not resolve to a revision", resolution.Ref)
 	}
-	review := &Review{repo: r, Base: resolution.Ref, Resolution: resolution, Head: head, Branch: branch, Target: target, Files: []FileStat{}, sections: map[string]*section{}, sources: map[string]*TextFile{}}
+	review := &Review{repo: r, Base: resolution.Ref, Resolution: resolution, Head: head, Branch: branch, Target: target, Files: []FileStat{}, Untracked: []string{}, sections: map[string]*section{}, sources: map[string]*TextFile{}}
 	if selection.Commit != "" {
 		review.Commit, err = r.commitDetail(ctx, selection.Commit)
 		if err != nil {
@@ -243,6 +263,24 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 	review.Files, err = parseCounts(string(outputs[1]), statuses)
 	if err != nil {
 		return nil, err
+	}
+	if automatic && review.Comparison.After == nil {
+		paths, err := r.git(ctx, 256*1024*1024, "ls-files", "--others", "--exclude-standard", "-z")
+		if err != nil {
+			return nil, err
+		}
+		if len(paths) > 0 {
+			review.Untracked = strings.Split(strings.TrimSuffix(string(paths), "\x00"), "\x00")
+			if selection.IncludeUntracked {
+				patch, files, err := r.untrackedPatch(ctx, review.Untracked)
+				if err != nil {
+					return nil, err
+				}
+				review.Patch += patch
+				review.Files = append(review.Files, files...)
+				review.UntrackedIncluded = true
+			}
+		}
 	}
 	review.parseSections(previous)
 	for i := range review.Files {
@@ -410,45 +448,60 @@ func blobHash(bytes []byte) (string, string) {
 	h1, h2 := sha1.Sum(data), sha256.Sum256(data)
 	return hex.EncodeToString(h1[:]), hex.EncodeToString(h2[:])
 }
+
+// Use the same bounded, regular-file-only read for context and untracked diffs.
+// OpenRoot confines racing parent symlinks to the repository; O_NOFOLLOW refuses
+// a final symlink and O_NONBLOCK prevents a replaced FIFO from hanging a request.
+func (r Repository) readWorktree(path string) ([]byte, os.FileMode, error) {
+	if !validPath(path) {
+		return nil, 0, fmt.Errorf("Unsupported file path")
+	}
+	root, err := os.OpenRoot(r.Path)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer root.Close()
+	resolved, err := filepath.EvalSymlinks(filepath.Join(r.Path, path))
+	if err != nil {
+		return nil, 0, err
+	}
+	if resolved != filepath.Join(r.Path, path) {
+		return nil, 0, fmt.Errorf("Context is available only for regular files, not symlinks or special files")
+	}
+	file, err := root.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer file.Close()
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, 0, err
+	}
+	if !stat.Mode().IsRegular() {
+		return nil, 0, fmt.Errorf("Context is available only for regular files, not symlinks or special files")
+	}
+	if stat.Size() > maxTextBytes {
+		return nil, 0, fmt.Errorf("File exceeds the 20 MB context limit")
+	}
+	data, err := io.ReadAll(io.LimitReader(file, stat.Size()+1))
+	if err != nil {
+		return nil, 0, err
+	}
+	if int64(len(data)) != stat.Size() {
+		return nil, 0, changed()
+	}
+	return data, stat.Mode(), nil
+}
 func (r Repository) readText(ctx context.Context, revision *string, path string) (*TextFile, error) {
 	if !validPath(path) {
 		return nil, fmt.Errorf("Unsupported file path")
 	}
 	var data []byte
 	if revision == nil {
-		root, err := os.OpenRoot(r.Path)
+		var err error
+		data, _, err = r.readWorktree(path)
 		if err != nil {
 			return nil, err
-		}
-		defer root.Close()
-		resolved, err := filepath.EvalSymlinks(filepath.Join(r.Path, path))
-		if err != nil {
-			return nil, err
-		}
-		if resolved != filepath.Join(r.Path, path) {
-			return nil, fmt.Errorf("Context is available only for regular files, not symlinks or special files")
-		}
-		file, err := root.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
-		if err != nil {
-			return nil, err
-		}
-		defer file.Close()
-		stat, err := file.Stat()
-		if err != nil {
-			return nil, err
-		}
-		if !stat.Mode().IsRegular() {
-			return nil, fmt.Errorf("Context is available only for regular files, not symlinks or special files")
-		}
-		if stat.Size() > maxTextBytes {
-			return nil, fmt.Errorf("File exceeds the 20 MB context limit")
-		}
-		data, err = io.ReadAll(io.LimitReader(file, stat.Size()+1))
-		if err != nil {
-			return nil, err
-		}
-		if int64(len(data)) > stat.Size() {
-			return nil, changed()
 		}
 	} else {
 		entry, err := r.git(ctx, 64*1024, "--literal-pathspecs", "ls-tree", "-z", "-l", *revision, "--", path)
@@ -503,7 +556,7 @@ func (r *Review) source(ctx context.Context, path, side string) (*TextFile, erro
 		return nil, err
 	}
 	old := side == "deletions"
-	absent := old && stat.Status == "added" || !old && stat.Status == "deleted"
+	absent := old && (stat.Status == "added" || stat.Status == "untracked") || !old && stat.Status == "deleted"
 	file := &TextFile{Name: path, CacheKey: "empty"}
 	if !absent {
 		revision, name := r.Comparison.After, path
@@ -532,12 +585,21 @@ func (r *Review) source(ctx context.Context, path, side string) (*TextFile, erro
 	return file, nil
 }
 func (r *Review) Context(ctx context.Context, path, hash string) (*DiffFiles, error) {
+	// Check identity before requiring a text source: a disappeared file is a
+	// stale request too, matching the Node context contract.
+	current := false
+	for _, file := range r.Files {
+		if file.Path == path && file.Hash != nil && *file.Hash == hash {
+			current = true
+			break
+		}
+	}
+	if !current {
+		return nil, changed()
+	}
 	stat, s, err := r.describe(path)
 	if err != nil {
 		return nil, err
-	}
-	if stat.Hash == nil || *stat.Hash != hash {
-		return nil, changed()
 	}
 	old, err := r.source(ctx, path, "deletions")
 	if err != nil {

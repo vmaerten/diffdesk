@@ -4,10 +4,10 @@ This module contains the production entry point being introduced in [#98](https:
 and the isolated review PoC. Both use the same backend; their UI assets, command
 identities and state directories remain separate.
 
-The Go runtime supports tracked text review, context expansion, comments,
-Viewed, automatic bases, stacks and revision/commit selection. Untracked files,
-image previews, the full CLI, exports and the shared daemon are still being
-ported. The Node command remains the default until that work is validated.
+The Go runtime supports text review including optional untracked files, context
+expansion, comments, Viewed, automatic bases, stacks and revision/commit selection.
+Image previews, the full CLI, command-line exports and the shared daemon are
+still being ported. The Node command remains the default until that work is validated.
 
 ## Build and run
 
@@ -65,8 +65,27 @@ Viewed state uses that parent/commit pair. An unavailable commit falls back to
 the whole range with a notice. Invalid bases or targets fail explicitly.
 
 `task test` checks Node/Go payloads, context and anchors across these scopes,
-then runs the existing picker, commit and stack browser suites against Go.
+then runs the existing picker, commit, stack and untracked browser suites against Go.
 The isolated PoC keeps its explicit-base checkout scope and hidden pickers.
+
+The **Untracked** checkbox includes files returned by Git's ignore-aware listing;
+it defaults to off and keeps its count visible. Its state is the presence of
+`untracked` in the URL. Ref, commit and committed-only views exclude checkout
+untracked files even when that flag is present. The PoC still rejects this flag.
+
+Included regular files get Git patches, counts, hashes and comment anchors.
+Executable bits and `.gitattributes` are preserved, without changing the index.
+Before diffing, reads refuse symlinks and special files and enforce the same
+20 MiB limit as context. Binaries remain listed without context or a preview.
+The default listing does not open untracked files, so a large file or symlink
+does not block an ordinary tracked review. Opting in fails explicitly on an
+unsafe, oversized or disappeared source rather than silently omitting it.
+
+Untracked comments follow the same Viewed and stale-line rules as tracked files.
+Excluding or deleting a file leaves its comments and original anchors in the
+panel and in React's Markdown copy. Node/Go contract tests also verify Markdown
+and JSON export data for included, stale and unavailable untracked code; #102
+owns the command-line export commands that consume this comparison support.
 
 ## Development
 

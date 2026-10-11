@@ -14,11 +14,34 @@ import { findChrome, sleep, type Harness } from './harness.ts'
 import pickers from './suites/pickers.ts'
 import commits from './suites/commits.ts'
 import stack from './suites/stack.ts'
+import untracked from './suites/untracked.ts'
 
-const fixture = createFixture()
+// Relative Git dates must not cross a second between the two API requests.
+const commitDates = {
+  GIT_AUTHOR_DATE: '2020-01-01T00:00:00Z',
+  GIT_COMMITTER_DATE: '2020-01-01T00:00:00Z',
+}
+const fixture = (() => {
+  const previous = {
+    GIT_AUTHOR_DATE: process.env.GIT_AUTHOR_DATE,
+    GIT_COMMITTER_DATE: process.env.GIT_COMMITTER_DATE,
+  }
+  Object.assign(process.env, commitDates)
+  try {
+    return createFixture()
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  }
+})()
 const repo = realpathSync(fixture.path)
 const git = (...args: string[]) =>
-  execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim()
+  execFileSync('git', ['-C', repo, ...args], {
+    encoding: 'utf8',
+    env: { ...process.env, ...commitDates },
+  }).trim()
 const node = createGhlServer({ repos: [{ repoPath: repo }] })
 const binary = fileURLToPath(new URL('../go/dist/ghl', import.meta.url))
 let child: ChildProcess | undefined
@@ -79,6 +102,8 @@ try {
       'totals',
       'patch',
       'notice',
+      'untracked',
+      'untrackedIncluded',
     ] as const) {
       assert.deepEqual(b[key], a[key], `${query || 'automatic checkout'}: ${key}`)
     }
@@ -265,7 +290,7 @@ try {
     assert.ok(ok, `${name}: ${detail ?? ''}`)
     checks++
   }
-  for (const suite of [pickers, commits, stack]) {
+  for (const suite of [pickers, commits, stack, untracked]) {
     await suite.run(harness, check)
     console.log(`  ok existing browser suite against Go: ${suite.name}`)
   }

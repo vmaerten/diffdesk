@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
 import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
-import { asMarkdown } from '../src/export.ts'
+import { asExport, asMarkdown } from '../src/export.ts'
 import type { DiffFiles, DiffPayload, ServedComment } from '../src/types.ts'
 import { clickTreeRow, DIFF_SCROLLER, findChrome, sleep } from './harness.ts'
 
@@ -143,6 +143,16 @@ try {
   write('context.txt', modified)
   write('binary.bin', '\0new')
   write('untracked.txt', 'excluded\n')
+  if (production) {
+    mkdirSync(join(repo, 'nested'))
+    write('nested/space é.txt', 'first\nsecond without newline')
+    write('nested/.gitattributes', 'binary.txt -diff\n')
+    write('nested/binary.txt', 'classified as binary by attributes\n')
+    write('empty-untracked.txt', '')
+    write('untracked.bin', '\0binary')
+    write('.gitignore', 'ignored.txt\n')
+    write('ignored.txt', 'excluded by Git\n')
+  }
 
   // Version works outside a repository and with no Git or toolchain in PATH.
   const metadata = JSON.parse(
@@ -176,7 +186,16 @@ try {
   const goBase = () => `http://127.0.0.1:${go!.port}/r/${go!.repoId}/api/`
   const diff = (suffix = '') => json<DiffPayload>(goBase() + `diff?base=main${suffix}`)
 
-  for (const suffix of ['', '&committed=1']) {
+  for (const suffix of production
+    ? [
+        '',
+        '&committed=1',
+        '&untracked',
+        '&committed=1&untracked',
+        '&target=HEAD&untracked',
+        '&commit=HEAD&untracked',
+      ]
+    : ['', '&committed=1']) {
     const [a, b] = await Promise.all([
       diff(suffix),
       json<DiffPayload>(nodeBase + `diff?base=main${suffix}`),
@@ -191,6 +210,10 @@ try {
       'target',
     ] as const)
       assert.deepEqual(a[field], b[field], field)
+    if (production) {
+      assert.deepEqual(a.untracked, b.untracked)
+      assert.equal(a.untrackedIncluded, b.untrackedIncluded)
+    }
     for (const file of a.files.filter((f) => !f.binary)) {
       const query = new URLSearchParams({
         base: 'main',
@@ -198,7 +221,7 @@ try {
         hash: file.hash!,
         comparison: JSON.stringify(a.comparison),
       })
-      if (suffix) query.set('committed', '1')
+      for (const [key, value] of new URLSearchParams(suffix.slice(1))) query.set(key, value)
       const [goFiles, nodeFiles] = await Promise.all([
         json<DiffFiles>(goBase() + `diff-files?${query}`),
         json<DiffFiles>(nodeBase + `diff-files?${query}`),
@@ -211,6 +234,90 @@ try {
     }
   }
   check('Node/Go parity: patch, counts, hashes, versions and cache keys in both scopes')
+
+  if (production) {
+    const included = await diff('&untracked')
+    const file = included.files.find((entry) => entry.path === 'untracked.txt')!
+    const comment = {
+      id: 'untracked',
+      path: file.path,
+      side: 'additions',
+      start: 1,
+      end: 1,
+      body: 'New file remark',
+      range: included.range,
+    }
+    const [created, reference] = await Promise.all([
+      json<{ comment: ServedComment }>(goBase() + 'comments?base=main&untracked', 'POST', comment),
+      json<{ comment: ServedComment }>(nodeBase + 'comments?base=main&untracked', 'POST', comment),
+    ])
+    assert.deepEqual(created.comment.anchor, reference.comment.anchor)
+    assert.deepEqual(created.comment.code, ['excluded'])
+    for (const base of [goBase(), nodeBase]) {
+      await json(base + 'viewed', 'POST', {
+        range: included.range,
+        path: file.path,
+        hash: file.hash,
+        viewed: true,
+      })
+      await json(base + 'comments?base=main&untracked', 'PATCH', {
+        id: comment.id,
+        body: 'Edited new file remark',
+      })
+    }
+    await stop(go)
+    go = await startServer()
+    assert.equal((await diff('&untracked')).viewed[file.path], file.hash)
+    assert.equal((await diff('&untracked')).comments[0]?.createdAt, created.comment.createdAt)
+    write('untracked.txt', 'changed\n')
+    const staleQuery = new URLSearchParams({
+      base: 'main',
+      untracked: '',
+      path: file.path,
+      hash: file.hash!,
+    })
+    for (const base of [goBase(), nodeBase])
+      assert.equal((await fetch(base + 'diff-files?' + staleQuery)).status, 409)
+    for (const suffix of ['&untracked', '', '&committed', '&target=HEAD']) {
+      const [a, b] = await Promise.all([
+        diff(suffix),
+        json<DiffPayload>(nodeBase + `diff?base=main${suffix}`),
+      ])
+      assert.deepEqual(a.viewed, b.viewed)
+      assert.deepEqual(
+        a.comments.map(({ createdAt: _time, ...rest }) => rest),
+        b.comments.map(({ createdAt: _time, ...rest }) => rest),
+      )
+      assert.equal(
+        asMarkdown(a.comments, { range: a.range }),
+        asMarkdown(b.comments, { range: b.range }),
+      )
+      assert.deepEqual(
+        asExport(a.comments, { repo, range: a.range }),
+        asExport(b.comments, { repo, range: b.range }),
+      )
+      const markdown = asMarkdown(a.comments, { range: a.range })
+      assert.ok(markdown.includes('Edited new file remark'))
+      assert.ok(
+        markdown.includes(
+          suffix === '&untracked' ? 'changed since the remark' : 'Code is unavailable',
+        ),
+      )
+      assert.deepEqual(a.comments[0]?.anchor, ['excluded'])
+    }
+    rmSync(join(repo, 'untracked.txt'))
+    for (const base of [goBase(), nodeBase])
+      assert.equal((await fetch(base + 'diff-files?' + staleQuery)).status, 409)
+    assert.deepEqual((await diff('&untracked')).comments[0]?.code, [])
+    write('untracked.txt', 'excluded\n')
+    for (const base of [goBase(), nodeBase]) {
+      await json(base + 'comments?id=untracked', 'DELETE')
+      await json(base + 'viewed', 'POST', { range: included.range, clear: true })
+    }
+    check(
+      'untracked parity: ignored paths, Unicode, empty/binary files, attributes, contexts, anchors, stale/export contracts, Viewed and restart',
+    )
+  }
 
   const data = await diff()
   const saved: ServedComment[] = []
@@ -327,7 +434,7 @@ try {
     for (const selector of ['button.ref.base', 'button.ref.target', '.commit-group']) {
       assert.equal(Boolean(await page.$(selector)), production)
     }
-    assert.equal(await page.$('input.untracked'), null)
+    assert.equal((await page.$('input.untracked')) !== null, production)
     for (const key of ['b', 't', 'l'] as const) {
       await page.keyboard.press(key)
       if (production) await page.waitForSelector('.picker-input')
@@ -440,6 +547,75 @@ try {
     await page.type('.diff-search input', 'new work')
     await sleep(200)
     assert.ok((await page.$eval('.diff-search', (el) => el.textContent ?? '')).includes('1'))
+    if (production) {
+      const includedURL = () => go!.url + '&untracked'
+      await page.goto(includedURL(), { waitUntil: 'networkidle0' })
+      await page.click('.view-toggle button:first-child')
+      assert.ok(await clickTreeRow(page, 'untracked.txt'))
+      await sleep(300)
+      const host = `[...document.querySelectorAll('.diff diffs-container')].find(host => host.shadowRoot?.querySelector('[data-title]')?.textContent?.trim() === 'untracked.txt')`
+      const untrackedPoint = (await page.evaluate(
+        `(() => { const rect = (${host})?.shadowRoot?.querySelector('[data-column-number="1"]')?.getBoundingClientRect(); return rect ? { x: rect.x + 4, y: rect.y + rect.height / 2 } : null })()`,
+      )) as { x: number; y: number } | null
+      assert.ok(untrackedPoint, 'untracked gutter exists')
+      await page.mouse.click(untrackedPoint.x, untrackedPoint.y)
+      await page.keyboard.press('c')
+      await page.waitForSelector('.comment-composer textarea', { visible: true })
+      await page.type('.comment-composer textarea', 'Browser untracked remark')
+      const posted = page.waitForResponse(
+        (response) =>
+          response.url().includes('/api/comments') && response.request().method() === 'POST',
+      )
+      await page.evaluate(() => {
+        const button = document.querySelector<HTMLButtonElement>(
+          '.comment-composer footer button:last-child',
+        )
+        button?.click()
+      })
+      const postResponse = await posted
+      assert.equal(postResponse.status(), 200, await postResponse.text())
+      await page.waitForNetworkIdle()
+      const savedUntracked = (await diff('&untracked')).comments[0]!
+      assert.deepEqual(savedUntracked.anchor, ['excluded'])
+      await page.evaluate(`(${host})?.querySelector('.viewed-toggle input')?.click()`)
+      await page.waitForNetworkIdle()
+      await stop(go)
+      go = await startServer()
+      await page.goto(includedURL(), { waitUntil: 'networkidle0' })
+      assert.ok((await diff('&untracked')).viewed['untracked.txt'])
+      await page.click('input.untracked')
+      await page.waitForNetworkIdle()
+      assert.ok(!new URL(page.url()).searchParams.has('untracked'))
+      await page.click('.comments-trigger')
+      await page.waitForSelector('.comments-panel[open]')
+      assert.ok(
+        (await page.$eval('.comments-panel', (el) => el.textContent ?? '')).includes(
+          'Outside the current diff',
+        ),
+      )
+      await page.click('.comments-panel .comment-menu summary')
+      await page.click('.comments-panel .comment-menu-items button:first-child')
+      await page.waitForSelector('.panel-editor textarea')
+      await page.$eval('.panel-editor textarea', (el) => (el as HTMLTextAreaElement).select())
+      await page.type('.panel-editor textarea', 'Edited untracked remark')
+      await page.click('.panel-editor button[type="submit"]')
+      await page.waitForNetworkIdle()
+      const outside = (await diff()).comments
+      assert.equal(outside[0]?.body, 'Edited untracked remark')
+      assert.deepEqual(outside[0]?.anchor, savedUntracked.anchor)
+      const historicalCopy = await page.evaluate(
+        `(async () => { let text = ''; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (value) => { text = value } } }); document.querySelector('.copy-all').click(); await Promise.resolve(); return text })()`,
+      )
+      assert.equal(historicalCopy, asMarkdown(outside, { range: data.range }))
+      assert.ok(String(historicalCopy).includes('Code is unavailable'))
+      await page.click('.comments-panel .comment-menu summary')
+      await page.click('.comments-panel .comment-menu-items button:last-child')
+      await page.waitForNetworkIdle()
+      assert.equal((await diff()).comments.length, 0)
+      check(
+        'browser untracked: comment, Viewed/restart, URL exclusion, historical copy, edit and delete',
+      )
+    }
     assert.deepEqual(errors, [])
     // Ensure expanded content was supplied by Go, not only rendered from the patch.
     assert.ok(contextRequests >= 1)
