@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add `ghl-desktop`, a Wails application with review tabs and restoration of drafts, selection and scroll between tabs; share saved comments and Viewed with the browser CLI. Distribute an ad hoc signed macOS app ZIP alongside it.
+- Build, verify and publish all CLI archives and the desktop ZIP through `task release`, automatically invoked by GitHub Actions only for stable release tags.
+
 ## 0.2.0
 
 - Keep comments on their original branch across branch switches and restarts, including in the comments panel, pending saves and CLI exports. ([#148](https://github.com/vmaerten/ghl/pull/148))

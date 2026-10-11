@@ -1,6 +1,6 @@
 # Release acceptance
 
-Release builds target **macOS ARM64/Intel and Linux ARM64/x86-64**. GitHub Actions is disabled; there are no automatic CI checks or hosted release jobs. Maintainers run the locked toolchain and Chrome for Testing 154.0.8037.92 locally. Run the full Go and archive acceptance suites once on the primary platform, macOS ARM64; other targets receive the smoke checks below.
+Release builds target **macOS ARM64/Intel and Linux ARM64/x86-64**. Pull requests and branch pushes do not run CI. Stable version tags run the hosted release job. Maintainers run the locked toolchain and Chrome for Testing 154.0.8037.92 locally. Run the full Go and archive acceptance suites once on the primary platform, macOS ARM64; other targets receive the smoke checks below.
 
 ## Local gate
 
@@ -44,7 +44,7 @@ The daemon upgrade test changes executable identity by appending a payload to a 
 
 The [mise distribution checks](./installation.md#maintainer-verification) exercise the real client/backend with a local release API before publication and actual GitHub assets afterward. The local published check verifies installed bytes, PATH, standalone serving and saved state, then upgrades/rolls back when a previous compatible release exists. The real published-download gate passed for v0.1.0 on macOS ARM64. Other platforms need their own first published-download gate; historical upgrades require a previous published release with an archive for that same target. For v0.2.0, use `PREVIOUS=0.1.0` on macOS ARM64; the other targets have no published predecessor.
 
-Run all relevant local checks before publishing. These checks are not enforced by a GitHub workflow; publication is manual using the verified archive. Measurements check response correctness and record performance; they impose no RAM or latency threshold. Go is the only supported application runtime.
+Run all relevant local checks before pushing a release tag. The tag-only workflow enforces archive and native desktop verification through `task release`; it does not run the full browser/contract/benchmark acceptance suite. Those remain local maintainer checks. See the [release guide](./releases.md). Measurements check response correctness and record performance; they impose no RAM or latency threshold. Go is the only supported application runtime.
 
 ## Platform validation
 
