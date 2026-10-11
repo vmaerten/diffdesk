@@ -82,3 +82,40 @@ Primary references: [Electron process model](https://www.electronjs.org/docs/lat
 [Tauri process model](https://v2.tauri.app/concept/process-model/),
 [Wails manual builds](https://wails.io/docs/guides/manual-builds/),
 [TinyJS docs](https://tinyjs.app/docs.html).
+
+## Chrome and the cost of another tab
+
+The browser baseline reuses the same fixture, Go binary, probe and memory
+sampler. It controls a separate Chrome for Testing with Puppeteer; it never
+connects to the user's Chrome. Install the pinned browser used by the existing
+acceptance suite, then run:
+
+```bash
+node scripts/test-browser.ts
+task desktop:chrome -- --chrome '.task/browser/chrome/mac_arm-154.0.8037.92/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
+```
+
+To measure without rebuilding Go, use `python3 poc/desktop-bench/chrome.py`
+with the same `--chrome` argument. Three fresh temporary profiles are created.
+Each keeps its initial blank tab, opens and traverses the first review tab,
+opens and traverses a duplicate review tab, then navigates that second review
+tab again. Tab counts must be 2, 3, 3. Each phase checks rendering, visible
+1280×720 content and the final file; idle/load timings match the desktop probe.
+No personal tabs, extensions, settings or default-browser association change.
+
+The whole browser family is measured before and after each phase. First-tab
+incremental memory adds Go to the browser-family delta over the warmed blank
+browser. Duplicate/reuse deltas add no second backend. These are paired app
+footprint deltas, not system-wide RAM changes. A warmed blank browser is only
+a controlled proxy for an already-running daily browser. Chrome toolbar and
+UI overhead are included; Puppeteer emulates a 1280×720 viewport in a
+1280×820 window. Automation launch flags, Chrome version and exact binary
+hashes are recorded. Chrome and Electron have different Chromium versions.
+Chrome helpers are descendants of its owned root process; the driver is
+excluded. Output is `.task/desktop-bench/chrome-results.json`, separate from
+the four-framework results.
+
+Navigating an existing tab in the harness demonstrates a bounded tab count.
+It does not implement production tab discovery/focus. The current Go CLI
+calls macOS `open <URL>` and has no existing-tab coordination. A production
+desktop shell would also need single-instance/window-reuse behavior.

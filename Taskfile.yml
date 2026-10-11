@@ -16,6 +16,12 @@ tasks:
       - task: desktop:build
       - python3 poc/desktop-bench/run.py
 
+  desktop:chrome:
+    desc: Measure isolated Chrome tabs and tab reuse (-- --chrome <executable>)
+    cmds:
+      - task: build
+      - python3 poc/desktop-bench/chrome.py {{.CLI_ARGS}}
+
   default:
     cmds:
       - task --list

@@ -42,7 +42,28 @@ Des notifications `ResizeObserver loop completed with undelivered notifications`
 - TinyJS est une alternative JavaScript/txiki.js avec WebView système. Garder notre Go lui ajoute un processus compagnon ; il ne remplace pas automatiquement notre backend.
 - Tauri reste un candidat viable, mais ajoute une chaîne Rust. Sa variabilité mémoire mérite d’être vérifiée sur des dépôts représentatifs avant un choix final.
 
-Ce test ne couvre pas l’édition de commentaires native, le presse-papiers, la distribution signée/notarisée, les mises à jour ou le hot reload des futurs adaptateurs. Il ne compare pas non plus l’application actuelle dans un navigateur déjà ouvert. Les processus système partagés comme WindowServer et le harness sont exclus des chiffres.
+Ce test ne couvre pas l’édition de commentaires native, le presse-papiers, la distribution signée/notarisée, les mises à jour ou le hot reload des futurs adaptateurs. Les processus système partagés comme WindowServer et le harness sont exclus des chiffres.
+
+## Comparaison avec Chrome et accumulation d’onglets
+
+Trois passages supplémentaires avec **Chrome for Testing 154.0.8037.92**, dans des profils temporaires isolés, réutilisent exactement la fixture, le patch, le Go et la sonde du benchmark desktop. Le [JSON Chrome brut](./desktop-chrome-benchmark.json) conserve les processus, les flags d’automatisation, les hashes et les neuf parcours. Le navigateur personnel reste intact.
+
+Chaque passage chauffe Chrome avec un onglet vide, ouvre une première review, ouvre une deuxième review identique puis renavigue ce deuxième onglet. Le premier onglet de review reste ouvert. Les nombres d’onglets sont vérifiés : 2, 3, 3, onglet vide inclus. Go reste le même processus durant les trois phases.
+
+| État | Empreinte totale Chrome + Go | Coût supplémentaire mesuré | Ouverture jusqu’au diff coloré |
+| --- | ---: | ---: | ---: |
+| Chrome chauffé, onglet vide, sans Go | 170.5 Mio | — | — |
+| Première review | 592.9 Mio | +422.4 Mio, Go inclus, par rapport au navigateur vide | 0.30 s ; 0.39 s avec le démarrage Go |
+| Deuxième onglet de review | 840.3 Mio | +244.4 Mio pour Chrome seul, juste avant/après cette ouverture | 0.29 s |
+| Renavigation du deuxième onglet | 717.7 Mio | −118.7 Mio pour Chrome seul, juste avant/après cette navigation | 0.26 s |
+
+Ce sont des médianes de mesures appariées ; les différences entre médianes des totaux ne donnent pas nécessairement la médiane des deltas. Le premier surcoût varie de 421.8 à 424.6 Mio ; celui du deuxième onglet de 241.2 à 321.8 Mio. Les processus partagés et leur mémoire peuvent évoluer entre deux relevés. La diminution après renavigation comprend les libérations du moteur et des caches dans cet échantillon ; **elle ne garantit pas une économie de 119 Mio à chaque navigation**. Le test vérifie surtout que réutiliser un onglet garde le nombre d’onglets constant.
+
+Le premier onglet ajoute environ 422 Mio au Chrome chauffé, Go compris, face à 430 Mio pour une application Wails complète sur le même gros diff. Le budget supplémentaire est donc proche dans cet échantillon. Le total de 593 Mio comprend le navigateur qui existait déjà : le comparer seul aux 430 Mio de Wails surestime le coût supplémentaire pour quelqu’un dont Chrome tourne déjà. La première review Chrome a un rAF p95 médian de 14.3 ms et un CPU de parcours de 3.84 s, sans erreur JavaScript fatale ; les mêmes 99 avertissements ResizeObserver par parcours sont conservés.
+
+Un Chrome vide chauffé représente uniquement une baseline contrôlée, pas les extensions et autres pages du navigateur quotidien. Chrome et Electron ont des versions Chromium différentes. La surface React est vérifiée à 1280×720, avec émulation Puppeteer dans une fenêtre Chrome de 1280×820 ; la barre du navigateur reste incluse dans sa mémoire. Ces deltas portent sur la famille de processus du navigateur, pas sur la RAM totale du système.
+
+Le CLI actuel appelle `open <URL>` sur macOS à chaque invocation et ne retrouve pas un onglet existant. Pour l’usage souhaité, une application desktop à **instance unique** peut afficher ou remettre au premier plan la même fenêtre et changer de dépôt, évitant d’accumuler les vues. Ce comportement reste à implémenter : le framework seul ne le garantit pas. La renavigation Puppeteer démontre la réutilisation dans notre navigateur contrôlé ; elle n’ajoute pas la recherche d’onglets au CLI de production.
 
 ## Reproduire
 
@@ -50,8 +71,10 @@ Le [protocole et les prototypes](../poc/desktop-bench/README.md) décrivent les 
 
 ```bash
 task desktop:bench
+# Après installation du Chrome de test indiqué dans le protocole :
+task desktop:chrome -- --chrome '<chemin de l’exécutable Chrome for Testing>'
 ```
 
-Aucune CI ni publication. Sources de mesure : commit `6a6acc2622202bea496449db8560997a481f0250` ; la suppression ultérieure des fichiers TinyJS générés et la rédaction de ce bilan ne modifient pas les enveloppes. Les binaires exacts ont leurs SHA-256 dans le JSON.
+Aucune CI ni publication. Sources des quatre enveloppes : commit `6a6acc2622202bea496449db8560997a481f0250` ; la suppression ultérieure des fichiers TinyJS générés et la rédaction de ce bilan ne modifient pas les enveloppes. La baseline Chrome est ajoutée dans la même PR, avec le même backend. Les binaires exacts ont leurs SHA-256 dans les JSON.
 
-Références primaires : [Electron](https://www.electronjs.org/docs/latest/tutorial/process-model), [Tauri](https://v2.tauri.app/concept/process-model/), [Wails](https://wails.io/docs/introduction/), [TinyJS](https://tinyjs.app/docs.html).
+Références primaires : [Electron](https://www.electronjs.org/docs/latest/tutorial/process-model), [Tauri](https://v2.tauri.app/concept/process-model/), [Wails](https://wails.io/docs/introduction/), [TinyJS](https://tinyjs.app/docs.html), [architecture multiprocessus Chromium](https://www.chromium.org/developers/design-documents/multi-process-architecture/).
