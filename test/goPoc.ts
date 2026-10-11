@@ -393,7 +393,7 @@ try {
     assert.ok((await response.arrayBuffer()).byteLength > 100)
   }
   assert.equal(
-    existsSync(join(repo, '.git', production ? 'ghl-go' : 'ghl-go-poc', 'state.json')),
+    existsSync(join(repo, '.git', production ? 'ghl' : 'ghl-go-poc', 'state.json')),
     true,
   )
   assert.equal(

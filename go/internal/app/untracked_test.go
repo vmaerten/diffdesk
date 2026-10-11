@@ -172,7 +172,7 @@ func TestUntrackedCommentViewedAndDisappearance(t *testing.T) {
 	c.ID, c.Side = "invalid-old-side", "deletions"
 	requireStatus(t, api(t, s, "POST", "comments"+query, c), 400)
 	requireStatus(t, api(t, s, "POST", "viewed", map[string]any{"range": review.Range, "path": f.Path, "hash": f.Hash, "viewed": true}), 200)
-	s.store = &Store{path: s.store.path}
+	s.store = &Store{path: s.store.path, gitDir: s.repo.GitDir}
 	initial := read(query)
 	if initial.Viewed[f.Path] == nil || len(initial.Comments) != 1 || !reflect.DeepEqual(initial.Comments[0].Anchor, []string{"excluded"}) {
 		t.Fatal("restart lost untracked state")

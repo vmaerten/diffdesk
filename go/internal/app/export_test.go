@@ -67,8 +67,8 @@ func TestReadingOrderIsStableAndIndependentOfLocale(t *testing.T) {
 func TestCLIExportsOnlyCurrentFilesAndReportsCorruption(t *testing.T) {
 	ctx := context.Background()
 	r := fixture(t)
-	store := &Store{path: Options{}.statePath(r.GitDir)}
-	_, err := store.Mutate(func(state *StoredState) error {
+	store := Options{}.store(r)
+	_, err := store.Mutate(context.Background(), func(state *StoredState) error {
 		for id, path := range map[string]string{"current": "context.txt", "outside": "old name é.txt", "untracked": "untracked.txt"} {
 			state.Comments = append(state.Comments, Comment{ID: id, Path: path, Side: "additions", Start: 10, End: 10, Body: id, Anchor: []string{"old"}, Range: "historic..range", CreatedAt: "2020-01-01T00:00:00.000Z"})
 		}

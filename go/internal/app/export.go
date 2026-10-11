@@ -92,7 +92,7 @@ func writeCommentExport(comments []ServedComment, repo, comparison string, jsonO
 }
 
 func writeComments(ctx context.Context, review *Review, store *Store, jsonOutput bool, stdout, stderr io.Writer) error {
-	state, notice, err := store.Snapshot()
+	state, notice, err := store.Snapshot(ctx)
 	if err != nil {
 		return err
 	}

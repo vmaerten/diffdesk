@@ -89,6 +89,7 @@ func TestCommandParsing(t *testing.T) {
 	for _, args := range [][]string{
 		{"one", "two"}, {"--unknown"}, {"--port", "12oops"}, {"--base"}, {"--base", "--print"},
 		{"--repo"}, {"--port"}, {"--port", "-1"}, {"--port=65536"}, {"--daemon"}, {"--idle", "1"},
+		{"--import-state", ""}, {"--import-state"}, {"--import-state", "file", "--print"},
 	} {
 		if _, err := parseCommand(args, &bytes.Buffer{}, Options{}); err == nil {
 			t.Fatalf("accepted invalid args %v", args)

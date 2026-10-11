@@ -58,12 +58,15 @@ paramètres `target`, `commit`, `untracked` et `includeUntracked`, même vides.
 
 L'état version 1 est dans `.git/ghl-go-poc/state.json` ; pour un worktree lié,
 il est dans son git-dir propre. Aucun état de `.git/ghl/state.json` n'est
-importé. Chaque lecture et mutation prend le mutex du store. Une écriture
+importé. Chaque lecture et mutation prend le mutex du store et un verrou Git
+privé au worktree, partagé entre instances de ce PoC. Une écriture
 passe par un fichier temporaire voisin, flushé puis renommé. Un état illisible
 ou invalide est préservé dans un fichier horodaté `.corrupt`, avec une notice
 dans le payload de diff. Cette notice reste disponible pendant le processus.
-Le mutex protège un processus : lancer deux instances sur le même dépôt
-n'apporte pas de verrouillage inter-processus.
+Les écritures concurrentes sont sérialisées entre processus. Une version de
+schéma inconnue est refusée sans déplacer le fichier. Le runtime de production
+peut importer explicitement un snapshot PoC via `--import-state`, en conservant
+la source et une sauvegarde de sa destination.
 
 ## Modules et difficultés
 

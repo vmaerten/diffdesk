@@ -1,7 +1,9 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,10 +11,12 @@ import (
 	"time"
 )
 
-// A process owns one repository. Every disk read and read/modify/write holds mu.
+// mu protects notices in memory; Git serializes complete disk transactions
+// across Store instances, foreground servers, CLI commands and Node processes.
 type Store struct {
 	mu     sync.Mutex
 	path   string
+	gitDir string
 	notice *string
 }
 
@@ -28,23 +32,13 @@ func (s *Store) read() (StoredState, error) {
 	if err != nil {
 		return StoredState{}, err
 	}
-	var state StoredState
-	err = json.Unmarshal(raw, &state)
-	if err == nil && state.Version == 1 && state.Viewed != nil && state.Comments != nil {
-		valid := true
-		for _, c := range state.Comments {
-			if c.ID == "" || !validPath(c.Path) || !validLocation(c) || c.Anchor == nil || c.Range == "" || c.CreatedAt == "" {
-				valid = false
-			}
-		}
-		for _, viewed := range state.Viewed {
-			if viewed == nil {
-				valid = false
-			}
-		}
-		if valid {
-			return state, nil
-		}
+	state, err := decodeState(raw)
+	if err == nil {
+		return state, nil
+	}
+	var unsupported unsupportedStateVersion
+	if errors.As(err, &unsupported) {
+		return state, err
 	}
 	aside := fmt.Sprintf("%s.%d.corrupt", s.path, time.Now().UnixNano())
 	if err := os.Rename(s.path, aside); err != nil {
@@ -55,33 +49,105 @@ func (s *Store) read() (StoredState, error) {
 	return emptyState(), nil
 }
 
-func (s *Store) Snapshot() (StoredState, *string, error) {
+type unsupportedStateVersion int
+
+func (v unsupportedStateVersion) Error() string {
+	return fmt.Sprintf("Unsupported review state version %d; use a compatible runtime. The file was left unchanged", v)
+}
+
+// Version-1 Node states may predate the version field or omit empty collections.
+// Never quarantine a future schema as corruption: that would enable data loss.
+func decodeState(raw []byte) (StoredState, error) {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &object); err != nil || object == nil {
+		return StoredState{}, fmt.Errorf("Review state must be an object")
+	}
+	var version = 1
+	if value := object["version"]; value != nil && string(value) != "null" {
+		if err := json.Unmarshal(value, &version); err != nil {
+			return StoredState{}, err
+		}
+	}
+	if version != 1 {
+		return StoredState{}, unsupportedStateVersion(version)
+	}
+	state := emptyState()
+	if err := json.Unmarshal(raw, &state); err != nil {
+		return state, err
+	}
+	state.Version = 1
+	if state.Viewed == nil {
+		state.Viewed = map[string]ViewedMap{}
+	}
+	if state.Comments == nil {
+		state.Comments = []Comment{}
+	}
+	for _, c := range state.Comments {
+		if c.ID == "" || !validPath(c.Path) || !validLocation(c) || c.Anchor == nil || c.Range == "" || c.CreatedAt == "" {
+			return state, fmt.Errorf("Invalid comment in review state")
+		}
+	}
+	for _, viewed := range state.Viewed {
+		if viewed == nil {
+			return state, fmt.Errorf("Invalid Viewed map in review state")
+		}
+	}
+	return state, nil
+}
+
+func (s *Store) Snapshot(ctx context.Context) (state StoredState, notice *string, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := s.read()
+	unlock, err := stateLock(ctx, s.gitDir, filepath.Base(filepath.Dir(s.path)))
+	if err != nil {
+		return state, nil, err
+	}
+	defer func() {
+		if release := unlock(); err == nil {
+			err = release
+		}
+	}()
+	state, err = s.read()
 	return state, s.notice, err
 }
 
-func (s *Store) Mutate(change func(*StoredState) error) (StoredState, error) {
+func (s *Store) Mutate(ctx context.Context, change func(*StoredState) error) (state StoredState, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := s.read()
+	unlock, err := stateLock(ctx, s.gitDir, filepath.Base(filepath.Dir(s.path)))
+	if err != nil {
+		return state, err
+	}
+	defer func() {
+		if release := unlock(); err == nil {
+			err = release
+		}
+	}()
+	state, err = s.read()
 	if err != nil {
 		return state, err
 	}
 	if err = change(&state); err != nil {
 		return state, err
 	}
-	if err = os.MkdirAll(filepath.Dir(s.path), 0700); err != nil {
+	if err = ctx.Err(); err != nil {
 		return state, err
+	}
+	return state, s.write(state)
+}
+
+func (s *Store) write(state StoredState) error {
+	var err error
+	if err = os.MkdirAll(filepath.Dir(s.path), 0700); err != nil {
+		return err
 	}
 	raw, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
-		return state, err
+		return err
 	}
 	file, err := os.CreateTemp(filepath.Dir(s.path), "state-*.tmp")
 	if err != nil {
-		return state, err
+		return err
 	}
 	defer os.Remove(file.Name())
 	_, err = file.Write(raw)
@@ -90,13 +156,13 @@ func (s *Store) Mutate(change func(*StoredState) error) (StoredState, error) {
 	}
 	closeErr := file.Close()
 	if err != nil {
-		return state, err
+		return err
 	}
 	if closeErr != nil {
-		return state, closeErr
+		return closeErr
 	}
 	err = os.Rename(file.Name(), s.path)
-	return state, err
+	return err
 }
 
 func upsert(state *StoredState, comment Comment) {

@@ -23,6 +23,7 @@ Options:
   --base <rev>   Compare against <rev> instead of the automatically resolved base
   --repo <path>  Review a repository (default: current directory)
   --print        Print a summary and exit without starting a server or browser
+  --import-state <file>  Merge a state snapshot and exit; conflicts abort the import
   --json         JSON comments, build metadata, or {port, repoId, url} at startup
   --port <n>     Loopback port (default: $GHL_PORT or 0 for an ephemeral port)
   --no-open      Do not open the browser
@@ -35,6 +36,7 @@ This runtime serves in the foreground. Shared daemon options are unavailable.
 
 type commandArgs struct {
 	repo, base, target                           string
+	importState                                  string
 	port                                         int
 	noOpen, json, version, help, print, comments bool
 }
@@ -81,6 +83,13 @@ func parseCommand(args []string, stderr io.Writer, options Options) (commandArgs
 		flags.BoolVar(&cli.help, "help", false, "Show help")
 		flags.BoolVar(&cli.help, "h", false, "Show help")
 		flags.BoolVar(&cli.print, "print", false, "Print a summary")
+		flags.Func("import-state", "Import a review state snapshot", func(value string) error {
+			if value == "" {
+				return fmt.Errorf("expects a state file path")
+			}
+			cli.importState = value
+			return nil
+		})
 		var foreground bool
 		flags.BoolVar(&foreground, "no-daemon", false, "Stay in the foreground")
 		if len(args) > 0 && args[0] == "comments" {
@@ -113,7 +122,7 @@ func parseCommand(args []string, stderr io.Writer, options Options) (commandArgs
 				return cli, fmt.Errorf("Unknown option %q; use --help", arg)
 			}
 			ordered = append(ordered, arg)
-			if name == "base" || name == "repo" || name == "port" {
+			if name == "base" || name == "repo" || name == "port" || name == "import-state" {
 				if !inline {
 					if i+1 == len(args) || strings.HasPrefix(args[i+1], "--") {
 						return cli, fmt.Errorf("--%s needs a value", name)
@@ -126,6 +135,9 @@ func parseCommand(args []string, stderr io.Writer, options Options) (commandArgs
 		if err := flags.Parse(ordered); err != nil {
 			return cli, err
 		}
+	}
+	if cli.importState != "" && (cli.comments || cli.print || cli.target != "" || cli.base != "") {
+		return cli, fmt.Errorf("--import-state cannot be combined with a review target, --base, --print or comments")
 	}
 	if cli.port < 0 || cli.port > 65535 {
 		return cli, fmt.Errorf("--port expects a port between 0 and 65535, got: %d", cli.port)

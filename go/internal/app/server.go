@@ -224,7 +224,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		state, notice, err := s.store.Snapshot()
+		state, notice, err := s.store.Snapshot(r.Context())
 		if err != nil {
 			fail(w, 500, err)
 			return
@@ -296,7 +296,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400, fmt.Errorf("A range, path and viewed boolean are required"))
 			return
 		}
-		state, err := s.store.Mutate(func(state *StoredState) error {
+		state, err := s.store.Mutate(r.Context(), func(state *StoredState) error {
 			if state.Viewed[body.Range] == nil || body.Clear {
 				state.Viewed[body.Range] = ViewedMap{}
 			}
@@ -330,7 +330,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		c.Anchor, c.CreatedAt = anchor, time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
-		state, err := s.store.Mutate(func(state *StoredState) error { upsert(state, c); return nil })
+		state, err := s.store.Mutate(r.Context(), func(state *StoredState) error { upsert(state, c); return nil })
 		if err != nil {
 			fail(w, 500, err)
 			return
@@ -357,7 +357,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var saved *Comment
-		_, err := s.store.Mutate(func(state *StoredState) error {
+		_, err := s.store.Mutate(r.Context(), func(state *StoredState) error {
 			for i := range state.Comments {
 				if state.Comments[i].ID == body.ID {
 					state.Comments[i].Body = body.Body
@@ -383,7 +383,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400, fmt.Errorf("missing id"))
 			return
 		}
-		state, err := s.store.Mutate(func(state *StoredState) error {
+		state, err := s.store.Mutate(r.Context(), func(state *StoredState) error {
 			kept := make([]Comment, 0, len(state.Comments))
 			for _, c := range state.Comments {
 				if c.ID != id {
