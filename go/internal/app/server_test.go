@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"context"
@@ -15,6 +15,29 @@ import (
 func testServer(t *testing.T) *Server {
 	r := fixture(t)
 	return &Server{repo: r, id: repoID(r.Path), base: "main", store: &Store{path: filepath.Join(r.GitDir, "ghl-go-poc", "state.json")}, assets: fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html>embedded</html>")}}}
+}
+
+func TestHealthDistinguishesRuntimeAndBuild(t *testing.T) {
+	s := testServer(t)
+	for _, poc := range []bool{false, true} {
+		s.poc = poc
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, httptest.NewRequest("GET", "http://localhost/api/health", nil))
+		requireStatus(t, w, 200)
+		var health struct {
+			BuildInfo
+			Go       bool   `json:"ghlGo"`
+			PoC      bool   `json:"ghlGoPoc"`
+			Node     bool   `json:"ghl"`
+			Revision string `json:"revision"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &health); err != nil {
+			t.Fatal(err)
+		}
+		if health.BuildInfo != buildInfo() || !health.Go || health.PoC != poc || health.Node || health.Revision != version+"/"+commit {
+			t.Fatalf("wrong runtime identity: %s", w.Body.String())
+		}
+	}
 }
 func api(t *testing.T, s *Server, method, route string, body any) *httptest.ResponseRecorder {
 	t.Helper()
