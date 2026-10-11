@@ -12,6 +12,7 @@ import RefSelector from './RefSelector.tsx'
 import CommitSelector from './CommitSelector.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
+import { GO_POC } from './capabilities.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment, ViewedMap } from '../../src/types.ts'
 
@@ -25,7 +26,9 @@ function repoIdFromLocation() {
 const HEARTBEAT_MS = 5 * 60_000
 
 /** A fetch that never reached anything rejects with a TypeError, not an HTTP status. */
-const NOT_LISTENING = 'ghl is no longer listening — run `ghl` again in that repository'
+const NOT_LISTENING = GO_POC
+  ? 'ghl-go-poc is no longer listening — restart it in that repository'
+  : 'ghl is no longer listening — run `ghl` again in that repository'
 
 /** Shorter than the CLI's wording: this is a badge in a topbar, not a report. */
 const BASE_SOURCES: Record<BaseSource, string> = {
@@ -127,6 +130,7 @@ export default function App() {
    * mean "no tab" rather than "no click".
    */
   useEffect(() => {
+    if (GO_POC) return
     const beat = () => {
       if (document.visibilityState === 'visible') fetch('/api/health').catch(() => {})
     }
@@ -307,10 +311,10 @@ export default function App() {
       // item — so a composer can be open with the focus nowhere near it.
       if (isComposing) return
 
-      if (event.key === 'b') setPicking('base')
-      else if (event.key === 't') setPicking('target')
+      if (!GO_POC && event.key === 'b') setPicking('base')
+      else if (!GO_POC && event.key === 't') setPicking('target')
       // `l` for log, which is what the list is. `c` is the comment key.
-      else if (event.key === 'l') setPicking('commit')
+      else if (!GO_POC && event.key === 'l') setPicking('commit')
       else if (event.key === 'j') navigate(1)
       else if (event.key === 'k') navigate(-1)
       else if (event.key === 'r' || event.key === 'R') refresh()
@@ -348,7 +352,7 @@ export default function App() {
 
   const baseSource = data ? BASE_SOURCES[data.base.source] : null
 
-  const stack = data?.base.stack ?? null
+  const stack = GO_POC ? null : (data?.base.stack ?? null)
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
 
   return (
@@ -359,7 +363,7 @@ export default function App() {
             <span className="brand-mark" aria-hidden="true">
               <Icon name="file" />
             </span>
-            <span className="product-name">ghl</span>
+            <span className="product-name">{GO_POC ? 'ghl Go PoC' : 'ghl'}</span>
             <span className="repo-divider">/</span>
             <strong className="repo-name" title={data?.repo.path}>
               {repoName}
@@ -383,24 +387,30 @@ export default function App() {
               <div className="shortcuts-panel">
                 <strong>Keyboard shortcuts</strong>
                 <dl>
-                  <div>
-                    <dt>
-                      <kbd>b</kbd>
-                    </dt>
-                    <dd>Choose base</dd>
-                  </div>
-                  <div>
-                    <dt>
-                      <kbd>t</kbd>
-                    </dt>
-                    <dd>Choose target</dd>
-                  </div>
-                  <div>
-                    <dt>
-                      <kbd>l</kbd>
-                    </dt>
-                    <dd>Choose commit</dd>
-                  </div>
+                  {!GO_POC && (
+                    <div>
+                      <dt>
+                        <kbd>b</kbd>
+                      </dt>
+                      <dd>Choose base</dd>
+                    </div>
+                  )}
+                  {!GO_POC && (
+                    <div>
+                      <dt>
+                        <kbd>t</kbd>
+                      </dt>
+                      <dd>Choose target</dd>
+                    </div>
+                  )}
+                  {!GO_POC && (
+                    <div>
+                      <dt>
+                        <kbd>l</kbd>
+                      </dt>
+                      <dd>Choose commit</dd>
+                    </div>
+                  )}
                   <div>
                     <dt>
                       <kbd>j</kbd> <kbd>k</kbd>
@@ -446,19 +456,23 @@ export default function App() {
               <div className="revision-flow">
                 <span className="base-anchor">
                   <span className="ref-role">Base</span>
-                  <button
-                    type="button"
-                    className="ref base"
-                    onClick={() => setPicking((p) => (p === 'base' ? null : 'base'))}
-                    title="Change the base (b)"
-                    aria-label={`Base: ${data?.base?.ref ?? 'loading'}`}
-                    aria-expanded={picking === 'base'}
-                    disabled={!data}
-                  >
-                    {data?.base?.ref ?? '…'} <span className="caret">▾</span>
-                  </button>
+                  {GO_POC ? (
+                    <span className="ref base">{data?.base?.ref ?? '…'}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ref base"
+                      onClick={() => setPicking((p) => (p === 'base' ? null : 'base'))}
+                      title="Change the base (b)"
+                      aria-label={`Base: ${data?.base?.ref ?? 'loading'}`}
+                      aria-expanded={picking === 'base'}
+                      disabled={!data}
+                    >
+                      {data?.base?.ref ?? '…'} <span className="caret">▾</span>
+                    </button>
+                  )}
 
-                  {picking === 'base' && data && (
+                  {!GO_POC && picking === 'base' && data && (
                     <RefSelector
                       repoId={repoId}
                       current={data.base.ref}
@@ -475,19 +489,23 @@ export default function App() {
 
                 <span className="base-anchor">
                   <span className="ref-role">Target</span>
-                  <button
-                    type="button"
-                    className="ref target"
-                    onClick={() => setPicking((p) => (p === 'target' ? null : 'target'))}
-                    title="Review another revision (t)"
-                    aria-label={`Target: ${data?.target?.ref ?? 'HEAD'}`}
-                    aria-expanded={picking === 'target'}
-                    disabled={!data}
-                  >
-                    {data?.target?.ref ?? 'HEAD'} <span className="caret">▾</span>
-                  </button>
+                  {GO_POC ? (
+                    <span className="ref target">{data?.target?.ref ?? 'HEAD'}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ref target"
+                      onClick={() => setPicking((p) => (p === 'target' ? null : 'target'))}
+                      title="Review another revision (t)"
+                      aria-label={`Target: ${data?.target?.ref ?? 'HEAD'}`}
+                      aria-expanded={picking === 'target'}
+                      disabled={!data}
+                    >
+                      {data?.target?.ref ?? 'HEAD'} <span className="caret">▾</span>
+                    </button>
+                  )}
 
-                  {picking === 'target' && data && (
+                  {!GO_POC && picking === 'target' && data && (
                     <RefSelector
                       repoId={repoId}
                       current={data.target.ref}
@@ -509,32 +527,34 @@ export default function App() {
             {/* Beside the chain, not a third link in it: `main → feature → abc1234`
                 reads as "from main up to that commit", which is the cumulative
                 diff. This one is the commit's own. */}
-            <div className="toolbar-group commit-group">
-              <span className="toolbar-label">Commit</span>
-              <span className="base-anchor">
-                <button
-                  type="button"
-                  className="ref commit"
-                  onClick={() => setPicking((p) => (p === 'commit' ? null : 'commit'))}
-                  title="Show one commit (l)"
-                  aria-expanded={picking === 'commit'}
-                  disabled={!data}
-                >
-                  {data?.commit ? `${data.commit.short} ${data.commit.subject}` : 'All commits'}{' '}
-                  <span className="caret">▾</span>
-                </button>
+            {!GO_POC && (
+              <div className="toolbar-group commit-group">
+                <span className="toolbar-label">Commit</span>
+                <span className="base-anchor">
+                  <button
+                    type="button"
+                    className="ref commit"
+                    onClick={() => setPicking((p) => (p === 'commit' ? null : 'commit'))}
+                    title="Show one commit (l)"
+                    aria-expanded={picking === 'commit'}
+                    disabled={!data}
+                  >
+                    {data?.commit ? `${data.commit.short} ${data.commit.subject}` : 'All commits'}{' '}
+                    <span className="caret">▾</span>
+                  </button>
 
-                {picking === 'commit' && data && (
-                  <CommitSelector
-                    repoId={repoId}
-                    query={query}
-                    current={data.commit}
-                    onPick={pickCommit}
-                    onClose={() => setPicking(null)}
-                  />
-                )}
-              </span>
-            </div>
+                  {picking === 'commit' && data && (
+                    <CommitSelector
+                      repoId={repoId}
+                      query={query}
+                      current={data.commit}
+                      onPick={pickCommit}
+                      onClose={() => setPicking(null)}
+                    />
+                  )}
+                </span>
+              </div>
+            )}
 
             <div className="toolbar-group scope-group">
               <span className="toolbar-label">Include</span>
@@ -555,26 +575,28 @@ export default function App() {
                   <span>Working tree</span>
                 </label>
 
-                <label className="scope-check" title="Include the files git does not track yet">
-                  <input
-                    type="checkbox"
-                    className="untracked"
-                    checked={data?.untrackedIncluded ?? withUntracked}
-                    onChange={toggleUntracked}
-                    // One condition for the four cases that leave nothing to include —
-                    // a ref, a commit, the working tree out, a checkout with no stray
-                    // file — because `buildPatch` empties the list in all of them.
-                    disabled={!data || data.untracked.length === 0}
-                  />
-                  <span>
-                    {/* The count is the whole reason the default is off: 2 changed
+                {!GO_POC && (
+                  <label className="scope-check" title="Include the files git does not track yet">
+                    <input
+                      type="checkbox"
+                      className="untracked"
+                      checked={data?.untrackedIncluded ?? withUntracked}
+                      onChange={toggleUntracked}
+                      // One condition for the four cases that leave nothing to include —
+                      // a ref, a commit, the working tree out, a checkout with no stray
+                      // file — because `buildPatch` empties the list in all of them.
+                      disabled={!data || data.untracked.length === 0}
+                    />
+                    <span>
+                      {/* The count is the whole reason the default is off: 2 changed
                         files against 446 untracked ones is what it protects against,
                         and it reads both ways — what is being hidden, or what was
                         taken in. */}
-                    Untracked
-                    {data && data.untracked.length > 0 ? ` (${data.untracked.length})` : ''}
-                  </span>
-                </label>
+                      Untracked
+                      {data && data.untracked.length > 0 ? ` (${data.untracked.length})` : ''}
+                    </span>
+                  </label>
+                )}
               </div>
             </div>
 

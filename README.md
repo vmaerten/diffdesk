@@ -209,6 +209,24 @@ Merged layers stay in the chain: their pull request number is still there, but a
 branch is gone is struck through and the one above it falls through to the next live layer.
 Each layer keeps its own viewed ticks, since those are keyed by the revision range.
 
+## Go proof of concept
+
+A separate Go executable embeds the React UI for evaluating backend cost and
+single-file distribution. It requires Git and a browser at runtime; Go ≥ 1.24,
+Node and pnpm are build tools.
+
+```bash
+pnpm poc:go:build
+./poc/go/dist/ghl-go-poc --repo /path/to/repo --base main
+pnpm poc:go:test
+pnpm poc:go:bench
+```
+
+The PoC reviews the checkout, including staged and unstaged work, with comments,
+Viewed and context expansion. Its state is isolated in `.git/ghl-go-poc/state.json`.
+It omits image previews, untracked files, stacks, revision pickers and the shared
+daemon. See [scope, validation and measurements](./docs/go-poc.md).
+
 ## Tests
 
 ```bash

@@ -3,12 +3,12 @@ import react from '@vitejs/plugin-react'
 
 // The UI is served from /r/<repoId>, but assets are always requested from the
 // root, so `base: '/'` keeps a single asset path whatever the repo id.
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   root: 'web',
   base: '/',
   plugins: [react({ compiler: true })],
   build: {
-    outDir: '../web-dist',
+    outDir: mode === 'go-poc' ? '../poc/go/assets' : '../web-dist',
     emptyOutDir: true,
   },
   server: {
@@ -22,4 +22,4 @@ export default defineConfig({
       '/api': 'http://localhost:7777',
     },
   },
-})
+}))

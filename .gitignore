@@ -1,3 +1,6 @@
 node_modules/
 web-dist/
 *.log
+poc/go/assets/*
+!poc/go/assets/.gitkeep
+poc/go/dist/

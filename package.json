@@ -22,7 +22,10 @@
     "lint": "oxlint bin scripts src test web/src vite.config.js",
     "lint:fix": "oxlint --fix bin scripts src test web/src vite.config.js",
     "format": "oxfmt bin scripts src test web/src vite.config.js",
-    "format:check": "oxfmt --check bin scripts src test web/src vite.config.js"
+    "format:check": "oxfmt --check bin scripts src test web/src vite.config.js",
+    "poc:go:build": "vite build --mode go-poc && node scripts/poc-go.ts build",
+    "poc:go:test": "pnpm poc:go:build && node scripts/poc-go.ts test && node test/goPoc.ts",
+    "poc:go:bench": "pnpm build && pnpm poc:go:build && python3 scripts/bench-runtime/run.py --go-poc"
   },
   "dependencies": {
     "@pierre/diffs": "^1.3.5",
