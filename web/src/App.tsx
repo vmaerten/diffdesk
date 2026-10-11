@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type Ref,
+} from 'react'
 import { useStableCallback } from '@pierre/diffs/react'
 import { useReviewDiff, type LoadedReviewDiff } from './useReviewDiff.tsx'
 import { useReviewSelection } from './reviewSelection.ts'
@@ -16,6 +25,7 @@ import Resizer, { storedWidth } from './Resizer.tsx'
 import { GO_POC } from './capabilities.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
+import type { ReviewSession, ReviewSessionHandle } from './reviewSession.ts'
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -40,15 +50,23 @@ const BASE_SOURCES: Record<BaseSource, string> = {
   trunk: 'trunk',
 }
 
-/** `onRouteChange` receives every selection URL the review writes. */
-export default function App({ onRouteChange }: { onRouteChange?: (route: string) => void } = {}) {
+export default function App({
+  session,
+  sessionHandle,
+  onRouteChange,
+}: {
+  session?: ReviewSession
+  sessionHandle?: Ref<ReviewSessionHandle>
+  /** Receives every selection URL the review writes. */
+  onRouteChange?: (route: string) => void
+} = {}) {
   const { theme, syntaxTheme, chooseTheme } = useTheme()
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
   const loadRef = useRef(0)
   const controllerRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>('unified')
+  const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(session?.diffStyle ?? 'unified')
   const [refreshing, setRefreshing] = useState(false)
   const [viewed, viewedPersistence] = useViewedPersistence(repoId)
   const [picking, setPicking] = useState<'base' | 'target' | 'commit' | null>(null)
@@ -59,7 +77,8 @@ export default function App({ onRouteChange }: { onRouteChange?: (route: string)
   const [copied, setCopied] = useState<string | null>(null)
   const [copyError, setCopyError] = useState<string | null>(null)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [commentsOpen, setCommentsOpen] = useState(session?.commentsOpen ?? false)
+  const panelSession = useRef(session?.panelEditor ?? { editing: null, draft: '' })
   const [filesOpen, setFilesOpen] = useState(false)
   const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
   useEffect(() => {
@@ -243,7 +262,9 @@ export default function App({ onRouteChange }: { onRouteChange?: (route: string)
     commentSelection,
     openSearch,
     stepSearch,
+    captureSession,
   } = useReviewDiff({
+    session,
     repoId,
     data,
     diffStyle: mobile ? 'unified' : diffStyle,
@@ -261,6 +282,19 @@ export default function App({ onRouteChange }: { onRouteChange?: (route: string)
     },
     onRevealFile: revealFile,
   })
+  useImperativeHandle(
+    sessionHandle,
+    () => ({
+      capture: () => ({
+        version: 1,
+        diffStyle,
+        commentsOpen,
+        panelEditor: { ...panelSession.current },
+        ...captureSession(),
+      }),
+    }),
+    [diffStyle, commentsOpen, captureSession],
+  )
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -732,6 +766,7 @@ export default function App({ onRouteChange }: { onRouteChange?: (route: string)
         {copied ? 'Comments copied to clipboard' : ''}
       </span>
       <CommentsPanel
+        session={panelSession}
         open={commentsOpen}
         comments={comments}
         currentRange={data?.range ?? ''}

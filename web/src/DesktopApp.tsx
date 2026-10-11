@@ -3,6 +3,7 @@ import { useStableCallback } from '@pierre/diffs/react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
 import { releaseUrl } from './reviewSelection.ts'
+import type { ReviewSession, ReviewSessionHandle } from './reviewSession.ts'
 // Inlined so the browser build, which tree-shakes this module, carries no desktop CSS.
 import desktopStyles from './desktop.css?inline'
 
@@ -10,6 +11,7 @@ interface ReviewTab {
   id: string
   name: string
   route: string
+  view?: ReviewSession
 }
 interface Tabs {
   revision: number
@@ -22,6 +24,7 @@ interface DesktopAPI {
   CloseTab(id: string): Promise<Tabs>
   UpdateTabURL(id: string, route: string): Promise<Tabs>
   OpenRepository(): Promise<void>
+  SaveTabView(id: string, raw: string): Promise<void>
 }
 declare global {
   interface Window {
@@ -43,6 +46,8 @@ export default function DesktopApp() {
   const apply = useStableCallback((reply: Promise<Tabs> | undefined) => {
     void reply?.then(accept.current).catch((cause) => setError(String(cause)))
   })
+  const sessions = useRef(new Map<string, ReviewSession>())
+  const sessionHandle = useRef<ReviewSessionHandle>(null)
   useEffect(() => {
     const api = window.go?.main.desktopApp
     const runtime = window.runtime
@@ -51,11 +56,47 @@ export default function DesktopApp() {
       return
     }
     let disposed = false
+    const save = async () => {
+      const id = latest.current.active
+      if (
+        !id ||
+        document.querySelector('.desktop-review')?.getAttribute('data-active-tab') !== id ||
+        !sessionHandle.current
+      )
+        return
+      const view = sessionHandle.current.capture()
+      sessions.current.set(id, view)
+      await api.SaveTabView(id, JSON.stringify(view))
+    }
     const update = (next: Tabs) => {
       if (disposed || next.revision < latest.current.revision) return
       const previous = latest.current
+      if (
+        previous.active &&
+        previous.active !== next.active &&
+        next.tabs.some((tab) => tab.id === previous.active)
+      )
+        void save().catch((cause) => setError(String(cause)))
+      for (const id of sessions.current.keys())
+        if (!next.tabs.some((tab) => tab.id === id)) sessions.current.delete(id)
       latest.current = next
       const active = next.tabs.find((tab) => tab.id === next.active)
+      if (active && !sessions.current.has(active.id))
+        sessions.current.set(
+          active.id,
+          active.view?.version === 1
+            ? active.view
+            : {
+                version: 1,
+                diffStyle: 'unified',
+                commentsOpen: false,
+                panelEditor: { editing: null, draft: '' },
+                scrollTop: 0,
+                composer: null,
+                drafts: [],
+                expansions: [],
+              },
+        )
       runtime.WindowSetTitle(
         active ? `ghl — ${active.name} (prototype)` : 'ghl — desktop prototype',
       )
@@ -70,9 +111,29 @@ export default function DesktopApp() {
     accept.current = update
     const unsubscribe = runtime.EventsOn('desktop:tabs', update)
     apply(api.Tabs())
+    const reload = () => {
+      void save()
+        .then(() => location.reload())
+        .catch((cause) => setError(String(cause)))
+    }
+    const closeActive = () => apply(api.CloseTab(latest.current.active))
+    const cycle = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || event.key !== 'Tab' || latest.current.tabs.length < 2) return
+      event.preventDefault()
+      const tabs = latest.current.tabs
+      const index = tabs.findIndex((tab) => tab.id === latest.current.active)
+      const next = tabs[(index + tabs.length + (event.shiftKey ? -1 : 1)) % tabs.length]
+      if (next) apply(api.ActivateTab(next.id))
+    }
+    window.addEventListener('desktop:reload', reload)
+    window.addEventListener('desktop:close-active', closeActive)
+    window.addEventListener('keydown', cycle)
     return () => {
       disposed = true
       unsubscribe()
+      window.removeEventListener('desktop:reload', reload)
+      window.removeEventListener('desktop:close-active', closeActive)
+      window.removeEventListener('keydown', cycle)
     }
   }, [apply])
   const routeChanged = useStableCallback((route: string) => {
@@ -161,7 +222,12 @@ export default function DesktopApp() {
           aria-labelledby={`review-tab-${active.id}`}
           data-active-tab={active.id}
         >
-          <Review key={active.id} onRouteChange={routeChanged} />
+          <Review
+            key={active.id}
+            session={sessions.current.get(active.id)}
+            sessionHandle={sessionHandle}
+            onRouteChange={routeChanged}
+          />
         </div>
       ) : (
         <div className="desktop-empty">
