@@ -148,6 +148,12 @@ To iterate on the UI, run `ghl --no-open` in a repository and `pnpm dev` here: V
 serves the front end on :5180 and forwards data calls to :7777, which is where `ghl`
 already is. That runs against the checkout, not the installed copy.
 
+For the Go runtime under development, `task dev` starts Vite and the Go watcher
+together: React/CSS changes refresh in the browser and Go changes rebuild and
+restart the backend. Use `task dev REPO=/path/to/repository BASE=main` to review
+another checkout. See the [Go development guide](./go/README.md#development)
+for prerequisites and build/test tasks.
+
 `ghl` with no argument shows **everything that is not in the base**, committed or not:
 the diff from `merge-base(base, HEAD)` down to the working tree.
 
@@ -216,10 +222,10 @@ review, comments, Viewed and context expansion. The Node CLI remains the default
 while the remaining features and shared daemon are ported.
 
 ```bash
-pnpm go:build
+task build
 ./go/dist/ghl --version
 ./go/dist/ghl --repo /path/to/repo --base main
-pnpm go:test
+task test
 ```
 
 Its temporary state directory is `.git/ghl-go/state.json`; existing Node and PoC
@@ -230,12 +236,12 @@ and [industrialization project](https://github.com/vmaerten/ghl/issues/97).
 
 A separate Go executable embeds the React UI for evaluating backend cost and
 single-file distribution. It requires Git and a browser at runtime; Go ≥ 1.24,
-Node and pnpm are build tools.
+Node, pnpm and Task v3 are build tools.
 
 ```bash
-pnpm poc:go:build
+task poc:build
 ./poc/go/dist/ghl-go-poc --repo /path/to/repo --base main
-pnpm poc:go:test
+task poc:test
 pnpm poc:go:bench
 ```
 

@@ -6,10 +6,11 @@ review retenu. Il ne remplace pas `ghl` et ne publie aucun paquet.
 
 ## Construire et lancer
 
-Depuis le checkout, avec les dépendances pnpm installées et Go ≥ 1.24 :
+Depuis le checkout, avec les dépendances pnpm installées, Go ≥ 1.24 et
+[Task v3](https://taskfile.dev/installation/) :
 
 ```bash
-pnpm poc:go:build
+task poc:build
 ./poc/go/dist/ghl-go-poc --repo /chemin/du/depot --base main
 ```
 
@@ -29,7 +30,7 @@ plan et s'arrête avec Ctrl-C. Sur macOS, il ouvre le navigateur ; `--no-open`
 
 Cette commande annonce une ligne JSON `{port, repoId, url}` sur stdout. Les
 erreurs vont sur stderr. L'URL inclut la base configurée. Git et un navigateur
-sont les seuls prérequis utilisateur ; Node, pnpm et Go servent au build.
+sont les seuls prérequis utilisateur ; Node, pnpm, Go et Task servent au build.
 La validation de cette livraison cible macOS ARM64, sans promesse de support
 Windows : la lecture des fichiers utilise les options Unix de non-suivi des
 symlinks et de lecture non bloquante.
@@ -112,20 +113,21 @@ optimiste React reçoit ensuite la version enregistrée et son code courant.
 ## Vérification
 
 ```bash
-pnpm poc:go:test
+task poc:test
 pnpm test
 pnpm typecheck
 pnpm lint
 pnpm format:check
-pnpm go:vet
+task vet
 ```
 
 Validation de la livraison initiale : 12 tests Go avec `-race`, harness PoC et 597
 vérifications de la suite Node habituelle passent. TypeScript, lint, formatage
 et `go vet` passent également.
 
-`poc:go:test` construit les assets et le binaire, lance les tests Go avec
-`-race`, puis le harness de parité et de navigateur. Les tests Go utilisent
+`task poc:test` (également accessible via `pnpm poc:go:test`) construit les
+assets et le binaire, lance les tests Go avec `-race`, puis le harness de parité
+et de navigateur. Les tests Go utilisent
 des dépôts temporaires et des handlers HTTP sans socket. Ils couvrent les
 statistiques, merge-base, noms quotés, renommages purs et édités, les deux
 côtés des ancres, le contexte caché, les hashes obsolètes, les commentaires

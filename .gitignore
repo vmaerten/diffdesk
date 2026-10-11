@@ -6,3 +6,4 @@ poc/go/dist/
 go/dist/
 go/cmd/*/assets/*
 !go/cmd/*/assets/.gitkeep
+.task/

@@ -11,19 +11,20 @@ ported. The Node command remains the default until that work is validated.
 
 ## Build and run
 
-From the repository root, with pnpm dependencies installed and Go >= 1.24:
+From the repository root, with pnpm dependencies installed, Go >= 1.24 and
+[Task v3](https://taskfile.dev/installation/):
 
 ```bash
-pnpm go:build
+task build
 ./go/dist/ghl --version
 ./go/dist/ghl --version --json
 ./go/dist/ghl --repo /path/to/repository --base main
-pnpm go:test
-pnpm go:vet
+task test
+task vet
 ```
 
 The output is one executable with the production Vite build embedded. Git and
-a browser are its runtime prerequisites. Node, pnpm and Go are only required
+a browser are its runtime prerequisites. Node, pnpm, Go and Task are only required
 to build; the module has no external Go dependencies. Go race tests also need
 a C toolchain, and browser tests need Chrome.
 
@@ -43,22 +44,63 @@ the same Go state file yet.
 The initial validated platform is macOS ARM64. Unix context-read flags are
 retained from the PoC; Windows is not a supported build target at this stage.
 
+## Development
+
+Install Node >= 24, pnpm, Go >= 1.24, Git and [Task v3](https://taskfile.dev/installation/),
+then run from the checkout:
+
+```bash
+pnpm install
+task dev
+# Review another checkout, with an explicit base:
+task dev REPO=/path/to/repository BASE=main
+# Choose the frontend port and leave browser opening to you:
+task dev PORT=5181 OPEN=false
+```
+
+`task dev` installs the pinned Air watcher in `.task/bin` on its first run.
+That download needs network access; subsequent runs reuse it. Air is a
+development tool only and adds no dependency to the runtime Go module.
+
+Vite serves React on `127.0.0.1:5180` with Fast Refresh and CSS hot reload.
+Go changes trigger a rebuild and restart behind Vite's API proxy, using a
+separate ephemeral backend port. The printed browser URL stays the same
+through those restarts. Air reports compilation errors and restarts the last
+successful build until valid code is saved. Ctrl-C stops Vite, Air and the backend.
+`PORT=0` chooses a free frontend port instead of 5180.
+
+The development command compiles `cmd/ghl-dev`, which uses the live frontend;
+there is no embedded asset build in this loop. It uses the same backend and
+`.git/ghl-go/state.json` as the production Go command. The initial review
+defaults to the directory where Task was invoked and base `HEAD`.
+The Node workflow (`pnpm dev`, proxying to port 7777) remains available.
+
+The Taskfile defines the production build, `go test -race` and `go vet`
+commands directly. `task test` also runs the contract/browser harness;
+`task check` runs the static checks. `task test:dev` checks React/CSS
+refresh, Go restart, persisted review state, compile-error recovery, port
+conflicts and shutdown in an isolated temporary checkout. It needs Chrome.
+`task --list` lists these tasks and the isolated PoC build/test commands.
+
 ## Layout and build identity
 
 ```text
 cmd/ghl/          production command and generated embedded UI
+cmd/ghl-dev/      development command behind Vite and Air
 cmd/ghl-go-poc/   isolated PoC command and generated embedded UI
 internal/app/    comparison, state, HTTP server and shared command lifecycle
 ```
 
-`pnpm poc:go:build` still produces `poc/go/dist/ghl-go-poc`, and
-`pnpm poc:go:test` runs the same contract/browser harness against that command.
+`task poc:build` produces `poc/go/dist/ghl-go-poc`, and
+`task poc:test` runs the same contract/browser harness against that command.
+The pnpm commands `go:build`, `go:test`, `go:vet`, `poc:go:build` and
+`poc:go:test` remain aliases for the Taskfile tasks.
 Only placeholders are tracked under the asset directories. Vite builds the
 selected frontend before Go compiles its entry point. A direct `go build`
 without a frontend build can print its version/help, but refuses to start a
 server without `index.html`.
 
-The build wrapper defaults to the package version, current Git commit (with
+The build task defaults to the package version, current Git commit (with
 `-dirty` for tracked changes) and the current UTC build time. Release tooling
 can override `GHL_BUILD_VERSION`, `GHL_BUILD_COMMIT` and `SOURCE_DATE_EPOCH`.
 Direct Go builds use `dev` / `unknown` metadata.

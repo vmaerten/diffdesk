@@ -21,10 +21,10 @@ export default defineConfig(({ mode }) => ({
     // In dev, Vite serves the UI and forwards data calls to a running `ghl`.
     proxy: {
       '/r': {
-        target: 'http://localhost:7777',
+        target: process.env.GHL_DEV_API ?? 'http://localhost:7777',
         bypass: (req) => (req.url?.includes('/api/') ? undefined : req.url),
       },
-      '/api': 'http://localhost:7777',
+      '/api': process.env.GHL_DEV_API ?? 'http://localhost:7777',
     },
   },
 }))
