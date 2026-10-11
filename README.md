@@ -7,15 +7,15 @@ but pushing it just to look at it is not worth the trip.
 
 **Status:** V1 complete — steps 1–5 of [PLAN.md](./PLAN.md).
 
-| key | action |
-|-----|--------|
-| `j` / `k` | next / previous file |
-| `v` | mark the current file as viewed |
-| `c` | comment the selected lines |
-| `b` | change the base |
-| `t` | change the revision under review |
-| `l` | show one commit, or all of them |
-| `r` | refresh the diff |
+| key       | action                           |
+| --------- | -------------------------------- |
+| `j` / `k` | next / previous file             |
+| `v`       | mark the current file as viewed  |
+| `c`       | comment the selected lines       |
+| `b`       | change the base                  |
+| `t`       | change the revision under review |
+| `l`       | show one commit, or all of them  |
+| `r`       | refresh the diff                 |
 
 The file tree uses coloured file-type icons and neutral names, with a coloured git status (added,
 modified, deleted, renamed, untracked), and folds chains of single-child directories into
@@ -236,6 +236,8 @@ PoC data stay separate unless explicitly imported. See the [Go runtime guide](./
 and [industrialization project](https://github.com/vmaerten/ghl/issues/97).
 The [release guide](./docs/go-releases.md) covers verified macOS ARM64 archives
 and the GitHub version-tag workflow.
+The [acceptance guide](./docs/go-validation.md) covers the full release gate
+and production runtime measurements.
 
 ## Go proof of concept
 

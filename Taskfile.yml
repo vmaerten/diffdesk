@@ -86,6 +86,7 @@ tasks:
       - node test/goPoc.ts go
       - node test/goRevisions.ts
       - node test/goImages.ts
+      - node test/run.ts --go
 
   test:go:
     desc: Run Go tests with the race detector
@@ -136,6 +137,28 @@ tasks:
     cmds:
       - node test/goRelease.ts
       - node test/releaseGuards.ts
+
+  release:acceptance:
+    desc: Run contract, lifecycle and browser suites against the release archive
+    cmds:
+      - node test/goAcceptance.ts
+
+  release:bench:
+    desc: Compare the extracted release executable with Node (three passes)
+    cmds:
+      - node test/goAcceptance.ts --bench
+
+  test:browser:install:
+    desc: Install the pinned Chrome for Testing build (macOS ARM64)
+    cmds:
+      - node scripts/test-browser.ts
+
+  bench:
+    desc: Compare production Go and Node on shared fixtures (three passes)
+    cmds:
+      - pnpm build
+      - task: build
+      - python3 scripts/bench-runtime/run.py --go
 
   poc:build:
     desc: Build the isolated Go PoC

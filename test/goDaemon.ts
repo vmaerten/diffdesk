@@ -1,3 +1,4 @@
+import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFile, execFileSync, spawn } from 'node:child_process'
 import { once } from 'node:events'
@@ -15,7 +16,6 @@ import {
 import { createServer, get as httpGet, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { launch } from 'puppeteer-core'
 import { findChrome, sleep } from './harness.ts'
@@ -24,7 +24,7 @@ import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
 const directory = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-go-daemon-')))
 const binary = join(directory, 'ghl')
 const upgraded = join(directory, 'ghl-upgraded')
-copyFileSync(fileURLToPath(new URL('../go/dist/ghl', import.meta.url)), binary)
+copyFileSync(goBinary(), binary)
 copyFileSync(binary, upgraded)
 // An appended payload changes executable identity while keeping an executable
 // Mach-O/ELF. This also covers changed assets at identical commit metadata.
@@ -186,6 +186,29 @@ try {
   assert.equal((await json(terminalPort, '/api/health')).daemon, true)
   checks += 2
 
+  const reviewRoute = `/r/${first.repoId}/api/diff?base=main&target=feature`
+  const beforeUpgrade = await json(port, reviewRoute)
+  const hash = beforeUpgrade.files.find((file: { path: string }) => file.path === 'sample.txt').hash
+  const { comment: preserved } = await json(
+    port,
+    `/r/${first.repoId}/api/comments?base=main&target=feature`,
+    'POST',
+    {
+      id: 'preserved-on-upgrade',
+      path: 'sample.txt',
+      side: 'additions',
+      start: 1,
+      end: 1,
+      range: 'main..feature',
+      body: 'persist across executable replacement',
+    },
+  )
+  await json(port, `/r/${first.repoId}/api/viewed`, 'POST', {
+    range: 'main..feature',
+    path: 'sample.txt',
+    hash,
+    viewed: true,
+  })
   await cli(port, secondRepo, [], upgraded)
   const replacement = await json(port, '/api/health')
   assert.notEqual(replacement.pid, original.pid)
@@ -200,6 +223,20 @@ try {
   assert.equal(stale.status, 409)
   assert.equal((await json(port, '/api/health')).pid, replacement.pid)
   checks += 7
+  const afterUpgrade = await json(port, reviewRoute)
+  assert.deepEqual(
+    afterUpgrade.comments.find((comment: { id: string }) => comment.id === preserved.id),
+    preserved,
+  )
+  assert.equal(afterUpgrade.viewed['sample.txt'], hash)
+  await json(port, `/r/${first.repoId}/api/comments?id=${preserved.id}`, 'DELETE')
+  await json(port, `/r/${first.repoId}/api/viewed`, 'POST', {
+    range: 'main..feature',
+    path: 'sample.txt',
+    hash,
+    viewed: false,
+  })
+  checks += 2
 
   const simultaneous = await freePort()
   const opened = await Promise.all([

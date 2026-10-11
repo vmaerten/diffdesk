@@ -1,3 +1,4 @@
+import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
@@ -24,7 +25,7 @@ import type { Comment, DiffPayload } from '../src/types.ts'
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-go-state-')))
 const repo = join(root, 'repo')
 mkdirSync(repo)
-const binary = fileURLToPath(new URL('../go/dist/ghl', import.meta.url))
+const binary = goBinary()
 const workerScript = fileURLToPath(new URL('./stateWorker.ts', import.meta.url))
 const git = (...args: string[]) =>
   execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim()

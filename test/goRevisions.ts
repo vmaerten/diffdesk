@@ -1,10 +1,10 @@
+import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
 import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
@@ -43,7 +43,7 @@ const git = (...args: string[]) =>
     env: { ...process.env, ...commitDates },
   }).trim()
 const node = createGhlServer({ repos: [{ repoPath: repo }] })
-const binary = fileURLToPath(new URL('../go/dist/ghl', import.meta.url))
+const binary = goBinary()
 let child: ChildProcess | undefined
 let browser: Awaited<ReturnType<typeof launch>> | undefined
 let checks = 0

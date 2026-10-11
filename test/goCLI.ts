@@ -1,3 +1,4 @@
+import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
@@ -22,7 +23,7 @@ import type { Comment } from '../src/types.ts'
 const directory = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-go-cli-')))
 const repo = join(directory, 'repo é')
 mkdirSync(repo)
-const binary = fileURLToPath(new URL('../go/dist/ghl', import.meta.url))
+const binary = goBinary()
 const nodeCLI = fileURLToPath(new URL('../bin/ghl.ts', import.meta.url))
 const env = {
   ...process.env,

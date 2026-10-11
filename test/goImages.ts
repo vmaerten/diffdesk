@@ -1,9 +1,9 @@
+import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { realpathSync } from 'node:fs'
 import { createInterface } from 'node:readline'
-import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
 import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
@@ -11,7 +11,7 @@ import type { DiffPayload } from '../src/types.ts'
 import { findChrome, sleep } from './harness.ts'
 import { runImages, type ImageTestRuntime, type ImageTestServer } from './images.ts'
 
-const binary = fileURLToPath(new URL('../go/dist/ghl', import.meta.url))
+const binary = goBinary()
 let checks = 0
 let active: ImageTestServer | undefined
 
