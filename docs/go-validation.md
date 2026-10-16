@@ -1,6 +1,6 @@
 # Go release acceptance
 
-The initial supported platform is **macOS ARM64**. GitHub Actions is disabled;
+Release builds target **macOS ARM64/Intel and Linux ARM64/x86-64**. GitHub Actions is disabled;
 there are no automatic CI checks or hosted release jobs. Maintainers run the
 locked toolchain and Chrome for Testing 154.0.8037.92 locally, with static checks,
 Go race tests, hot reload, installation tests, archive
@@ -72,20 +72,59 @@ The [mise distribution checks](./go-installation.md#maintainer-verification)
 exercise the real client/backend with a local release API before publication
 and actual GitHub assets afterward. The local published check verifies installed
 bytes, PATH, standalone serving and saved state, then upgrades/rolls back when a
-previous compatible release exists. Published download and historical upgrade
-validation remain pending until the corresponding checks pass.
+previous compatible release exists. The real published-download gate passed for v0.1.0 on macOS ARM64. Other
+platforms need their own first published-download gate; historical upgrades
+require a previous published release with an archive for that same target.
 
 Run all relevant local checks before publishing. These checks are not enforced
 by a GitHub workflow; publication is manual using the verified archive.
 Measurements check response correctness and record performance; they impose no
 RAM or latency threshold. Go is the only supported application runtime.
 
-Support for other platforms must pass native acceptance before adding or
-advertising their release assets:
+## Platform validation
+
+Build all four archives with `task release:snapshot`. `release:verify` checks
+all four checksums, archive layouts, licenses and Go build settings, then runs
+the selected archive. `release:acceptance` drives that archive through the CLI,
+state, daemon, API and browser suites. `release:mise` verifies asset selection
+among four platform filenames, activation, shims, checksums and saved state.
+
+```bash
+# Native macOS host archive:
+task release:acceptance
+GHL_TEST_MISE=/path/to/mise-2026.10.2 task release:mise
+
+# macOS Intel, using Rosetta when the host is Apple Silicon:
+task platform:macos-intel
+
+# Debian Linux containers, using the local Docker engine:
+task platform:linux ARCH=arm64
+task platform:linux ARCH=amd64
+```
+
+Docker is a maintainer test prerequisite only. The image pins Node and verifies
+Go/mise downloads against checksums. Git and Chromium are installed in an
+isolated container, running as an unprivileged user. The input checkout and Git
+metadata are read-only; a temporary clone receives the tests. Containers are
+removed after the run, while logs and an initially incomplete validation report
+stay in `.task/platform-linux/<arch>/`. The final report records the kernel,
+engine/target architectures, Go/Node/browser versions and completed gates. macOS
+Intel logs and mise results stay in `.task/platform-macos-intel/`.
+
+CPU translation is reported explicitly. On an Apple Silicon Docker host, Linux
+ARM64 runs on its native CPU architecture in a Linux VM, Linux x86-64 uses
+translation, and macOS Intel uses Rosetta. These runs establish executable
+coverage on the corresponding OS; they do not establish native Intel/x86-64
+hardware coverage or performance. Native hardware acceptance remains required
+before closing the platform issues or advertising that stronger guarantee:
 
 - [macOS Intel #121](https://github.com/vmaerten/ghl/issues/121)
 - [Linux #122](https://github.com/vmaerten/ghl/issues/122)
-- [Windows #123](https://github.com/vmaerten/ghl/issues/123)
+- [Windows #123](https://github.com/vmaerten/ghl/issues/123), still outside the build matrix
+
+Run every applicable gate before publishing that target. A failed or incomplete
+platform gate is not a publication approval. No additional hosted CI is enabled.
+The existing performance benchmark remains macOS ARM64-specific.
 
 See [production runtime measurements](./go-runtime-benchmark.md) for the
 fixtures, results and limits of the performance comparison. Earlier minimal

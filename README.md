@@ -5,9 +5,11 @@ Review the PR you are about to open, without opening it.
 A local git diff viewer with a GitHub-like UI, for the moment when the change is written
 but pushing it just to look at it is not worth the trip.
 
-The runtime is Go with the React interface embedded. The initial supported
-release platform is **macOS on Apple Silicon (ARM64)**. Git and a browser are the
-only runtime prerequisites. See the [installation guide](./docs/go-installation.md).
+The runtime is Go with the React interface embedded. Release builds target macOS
+(Apple Silicon and Intel) and Linux (ARM64 and x86-64). Git and a browser are
+runtime prerequisites. The published v0.1.0 contains macOS ARM64 only; the added
+platform archives require a subsequent release and their platform acceptance gate.
+See the [installation guide](./docs/go-installation.md).
 
 | key       | action                           |
 | --------- | -------------------------------- |
@@ -101,7 +103,7 @@ that file's diff section: if the file changes, its tick clears on its own.
 ## Usage
 
 ```bash
-mise use -g github:vmaerten/ghl@0.1.0 # install the first stable release
+mise use -g github:vmaerten/ghl@X.Y.Z # select a published version with your platform archive
 # Requires a published archive; source installation: pnpm install && task install
 
 ghl                    # open the current repo's virtual PR in the browser
@@ -229,7 +231,7 @@ It preserves existing version-1 `.git/ghl/state.json`, including a cross-process
 lock. Stop legacy Node daemons before switching; prototype and
 PoC data stay separate unless explicitly imported. See the [Go runtime guide](./go/README.md)
 and [industrialization project](https://github.com/vmaerten/ghl/issues/97).
-The [release guide](./docs/go-releases.md) covers verified macOS ARM64 archives
+The [release guide](./docs/go-releases.md) covers verified macOS/Linux archives
 and manual publication from a validated version tag.
 GitHub Actions is disabled; verification runs locally.
 The [acceptance guide](./docs/go-validation.md) covers the full release gate

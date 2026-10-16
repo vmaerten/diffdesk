@@ -1,3 +1,4 @@
+import { loopbackURL } from './system.ts'
 import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
@@ -62,7 +63,7 @@ async function start(repoPath = repo) {
         throw new Error(errors)
       }),
     ])
-    return { child, url: JSON.parse(first).url.split('?')[0] as string }
+    return { child, url: loopbackURL(JSON.parse(first).url).href.split('?')[0] as string }
   } finally {
     clearTimeout(timer)
     lines.close()

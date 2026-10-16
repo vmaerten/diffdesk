@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add release build targets for macOS Intel, Linux ARM64 and Linux x86-64.
+- Open the default Linux browser through `xdg-open`.
+- Validate every archive's checksum, layout and Go OS/architecture settings;
+  exercise platform-specific CLI, browser and mise installation gates locally.
+
 ## 0.1.0
 
 The `ghl` backend and CLI now run exclusively on Go. React is embedded in the

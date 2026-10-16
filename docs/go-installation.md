@@ -1,8 +1,13 @@
 # Install the Go runtime with mise
 
-The initial supported platform is **macOS on Apple Silicon (ARM64)**. Git and a
-browser are runtime prerequisites. React is embedded; consumers do not need Node,
-pnpm or Go.
+Release builds cover macOS Apple Silicon (`darwin_arm64`), macOS Intel
+(`darwin_amd64`), Linux ARM64 (`linux_arm64`) and Linux x86-64 (`linux_amd64`).
+Choose a published version that contains the matching archive: v0.1.0 ships only
+macOS ARM64, and the additional targets first become available in a later release
+after platform acceptance. Git and a browser are runtime prerequisites. React is
+embedded; consumers do not need Node, pnpm or Go. On Linux, automatic browser
+opening uses `xdg-open` (usually supplied by `xdg-utils`); `--no-open` prints the URL
+without invoking a desktop handler.
 
 Go is the default runtime. Release installation requires an archive in
 [GitHub Releases](https://github.com/vmaerten/ghl/releases); source installation is
@@ -19,16 +24,17 @@ PATH, add this once to `~/.zshrc`:
 eval "$(mise activate zsh)"
 ```
 
-Open a new terminal, then install the first stable release globally:
+Open a new terminal, replace `X.Y.Z` with a published version containing your
+platform archive, and install globally:
 
 ```bash
-mise use -g github:vmaerten/ghl@0.1.0
+mise use -g github:vmaerten/ghl@X.Y.Z
 ghl --version
 cd /path/to/repository
 ghl
 ```
 
-The built-in backend selects `ghl_<version>_darwin_arm64.tar.gz`, verifies its
+The built-in backend selects `ghl_<version>_<os>_<arch>.tar.gz`, verifies its
 digest from GitHub or `checksums.txt`, extracts it and exposes `ghl`. No plugin
 is needed; a short `mise use ghl` registry name is not registered.
 
@@ -94,7 +100,8 @@ shutdown procedure in the runtime lifecycle guide before uninstalling.
 
 ## Maintainer verification
 
-Use mise **2026.10.2**, the version validated by the distribution tests. Node is a test driver; the
+Use mise **2026.10.2**, selecting a binary for the architecture being tested
+(`GHL_TEST_MISE` can select it explicitly). Node is a test driver; the
 installed executable runs with only Git in PATH. All mise configuration, data,
 cache and state live in temporary directories outside the checkout. Tests do
 not change your mise configuration or install a global `ghl`.
@@ -122,8 +129,9 @@ exact pins, actual `mise upgrade`, rollback, daemon replacement, embedded assets
 state preservation and uninstall. It creates no tag or GitHub release. This is
 fixture coverage, not evidence of a published download or historical upgrade.
 
-Reports `.task/go-mise-acceptance.json` and `.task/go-mise-published.json` are local
-validation artifacts. They start with `complete: false`; only a finished run sets it to true.
+Target-suffixed reports such as `.task/go-mise-acceptance-linux_arm64.json` and
+`.task/go-mise-published-darwin_amd64.json` are local validation artifacts. Native
+host runs also retain the existing unsuffixed report names for compatibility. They start with `complete: false`; only a finished run sets it to true.
 `upgrade` records whether two versions were exercised and `latest` whether stable
 resolution was checked. The first release has no historical upgrade to test;
 that remains pending until a second compatible version exists. Prereleases are

@@ -1,3 +1,5 @@
+import { archiveName, releaseTarget } from './releaseTarget.ts'
+import { findExecutable, loopbackURL } from './system.ts'
 import assert from 'node:assert/strict'
 import { execFile, execFileSync } from 'node:child_process'
 import {
@@ -37,12 +39,16 @@ if (published)
   assert.ok(requestedVersion && versionPattern.test(requestedVersion), 'Expected a release version')
 if (args[3])
   assert.ok(versionPattern.test(args[3].replace(/^v/, '')), 'Expected a previous release version')
-assert.equal(process.platform, 'darwin')
-assert.equal(process.arch, 'arm64', 'Only macOS ARM64 distribution is validated')
-const miseBinary = realpathSync(
-  process.env.GHL_TEST_MISE ??
-    execFileSync('/usr/bin/which', ['mise'], { encoding: 'utf8' }).trim(),
-)
+const target = releaseTarget()
+const suffix = `_${target}.tar.gz`
+const machineArchitecture = process.env.GHL_TEST_ENGINE_ARCH ?? process.arch
+const executionArchitecture =
+  new Map([
+    ['aarch64', 'arm64'],
+    ['x86_64', 'amd64'],
+    ['x64', 'amd64'],
+  ]).get(machineArchitecture) ?? machineArchitecture
+const miseBinary = realpathSync(process.env.GHL_TEST_MISE ?? findExecutable('mise'))
 const miseVersion = execFileSync(miseBinary, ['--version'], { encoding: 'utf8' }).trim()
 assert.match(
   miseVersion,
@@ -53,31 +59,43 @@ const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-mise-')))
 const reportFile = join(
   root,
   '.task',
-  published ? 'go-mise-published.json' : 'go-mise-acceptance.json',
+  `${published ? 'go-mise-published' : 'go-mise-acceptance'}-${target}.json`,
 )
 const report = {
   complete: false,
   mode: published ? 'github-release' : 'local-release-fixture',
   mise: miseVersion,
-  platform: `${process.platform}-${process.arch}`,
+  platform: target,
+  host: `${process.platform}-${process.arch}`,
+  engineArchitecture: process.env.GHL_TEST_ENGINE_ARCH,
+  execution: target.endsWith(`_${executionArchitecture}`) ? 'native' : 'translated',
   versions: [] as string[],
   checks: [] as string[],
   upgrade: false,
   latest: false,
 }
 mkdirSync(dirname(reportFile), { recursive: true })
+const persistReport = () => {
+  const text = JSON.stringify(report, null, 2) + '\n'
+  writeFileSync(reportFile, text)
+  // Preserve existing native-host tooling paths without overwriting translated runs.
+  const hostTarget = `${process.platform}_${process.arch === 'x64' ? 'amd64' : process.arch}`
+  if (target === hostTarget) {
+    writeFileSync(
+      join(root, '.task', published ? 'go-mise-published.json' : 'go-mise-acceptance.json'),
+      text,
+    )
+  }
+}
 const record = (check: string) => {
   report.checks.push(check)
-  writeFileSync(reportFile, JSON.stringify(report, null, 2) + '\n')
+  persistReport()
   console.log(`mise: ${check}`)
 }
-writeFileSync(reportFile, JSON.stringify(report, null, 2) + '\n')
+persistReport()
 const onlyGit = join(temporary, 'path')
 mkdirSync(onlyGit)
-symlinkSync(
-  execFileSync('/usr/bin/which', ['git'], { encoding: 'utf8' }).trim(),
-  join(onlyGit, 'git'),
-)
+symlinkSync(findExecutable('git'), join(onlyGit, 'git'))
 symlinkSync(miseBinary, join(onlyGit, 'mise'))
 const env: NodeJS.ProcessEnv = {
   PATH: `${onlyGit}:/usr/bin:/bin:/usr/sbin:/sbin`,
@@ -167,15 +185,13 @@ try {
             !release.prerelease &&
             release.tag_name !== `v${current}` &&
             versionPattern.test(release.tag_name.replace(/^v/, '')) &&
-            release.assets.some((asset) => asset.name.endsWith('_darwin_arm64.tar.gz')),
+            release.assets.some((asset) => asset.name.endsWith(suffix)),
         )
         ?.tag_name.replace(/^v/, '')
     for (const version of [current, ...(previous ? [previous] : [])]) {
       const release: Release = await (await github(`releases/tags/v${version}`)).json()
       assert.equal(release.draft, false)
-      const archive = release.assets.find(
-        (asset) => asset.name === `ghl_${version}_darwin_arm64.tar.gz`,
-      )
+      const archive = release.assets.find((asset) => asset.name === archiveName(version, target))
       const sums = release.assets.find((asset) => asset.name === 'checksums.txt')
       assert.ok(archive && sums, `Release v${version} lacks distribution assets`)
       const bytes = await download(archive)
@@ -188,7 +204,7 @@ try {
       if (archive.digest) assert.equal(archive.digest, `sha256:${checksum}`)
       const path = join(temporary, archive.name)
       writeFileSync(path, bytes)
-      const binary = execFileSync('/usr/bin/tar', ['-xOzf', path, 'ghl'], {
+      const binary = execFileSync('tar', ['-xOzf', path, 'ghl'], {
         maxBuffer: 32 * 1024 * 1024,
       })
       expected.set(version, { version, commit: '', hash: sha256(binary) })
@@ -199,10 +215,7 @@ try {
     execFileSync(process.execPath, ['test/goRelease.ts'], { cwd: root, stdio: 'inherit' })
     const dist = join(root, 'go/dist/release')
     const metadata = JSON.parse(readFileSync(join(dist, 'metadata.json'), 'utf8'))
-    mirror = await miseReleaseFixture(
-      temporary,
-      join(dist, `ghl_${metadata.version}_darwin_arm64.tar.gz`),
-    )
+    mirror = await miseReleaseFixture(temporary, join(dist, archiveName(metadata.version, target)))
     env.MISE_URL_REPLACEMENTS = JSON.stringify({
       'https://api.github.com/': `${mirror.origin}/`,
       'https://github.com/': `${mirror.origin}/`,
@@ -244,11 +257,12 @@ try {
   await mise('use', '-g', `${tool}@${initial}`)
   const firstBinary = await verify(initial)
   // Activation puts the selected executable on PATH. Shims are an alternative.
+  const shell = process.platform === 'darwin' ? 'zsh' : 'bash'
   const activated = JSON.parse(
-    await run('/bin/zsh', [
+    await run(`/bin/${shell}`, [
       '-f',
       '-c',
-      'eval "$(mise activate zsh)"; eval "$(mise env -s zsh)"; ghl --version --json',
+      `eval "$(mise activate ${shell})"; eval "$(mise env -s ${shell})"; ghl --version --json`,
     ]),
   )
   assert.equal(activated.version, expected.get(initial)?.version)
@@ -334,7 +348,7 @@ try {
     )
     assert.equal(review.viewed[file.path], file.hash)
     assert.equal(readFileSync(statePath, 'utf8'), stored)
-    const page = await fetch(first.url, {
+    const page = await fetch(loopbackURL(first.url), {
       headers: { Connection: 'close' },
       signal: AbortSignal.timeout(5000),
     })
@@ -345,7 +359,7 @@ try {
     assert.ok(script)
     assert.equal(
       (
-        await fetch(new URL(script, first.url), {
+        await fetch(new URL(script, loopbackURL(first.url)), {
           headers: { Connection: 'close' },
           signal: AbortSignal.timeout(5000),
         })
@@ -402,7 +416,7 @@ try {
     assert.equal(realpathSync(await mise('which', 'ghl')), firstBinary)
     await preserved()
     assert.ok(mirror.requested.some((path) => path.endsWith('/checksums.txt')))
-    assert.ok(mirror.requested.some((path) => path.endsWith('_darwin_arm64.tar.gz')))
+    assert.ok(mirror.requested.some((path) => path.endsWith(suffix)))
     const remote = await mise('ls-remote', tool)
     assert.ok(remote.includes('1.0.1'))
     assert.ok(!remote.includes('rc.1'), 'latest must exclude prereleases by default')

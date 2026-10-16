@@ -1,4 +1,4 @@
-import { findExecutable } from './system.ts'
+import { findExecutable, loopbackURL } from './system.ts'
 import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
@@ -332,7 +332,7 @@ try {
     ])
     clearTimeout(startupTimeout)
     const announcement = JSON.parse(announcementLine)
-    const opening = new URL(announcement.url)
+    const opening = loopbackURL(announcement.url)
     assert.equal(opening.searchParams.get('target'), 'feature')
     assert.equal(opening.searchParams.get('base'), 'main')
     opening.pathname += '/api/diff'

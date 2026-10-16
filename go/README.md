@@ -203,8 +203,11 @@ linked worktrees, corrupt-state recovery and future-schema refusal. Go race test
 also cover independent stores, cancelled waits and a killed Go writer with an
 interrupted temporary file.
 
-The initial validated platform is macOS ARM64. Unix context-read flags are
-retained from the PoC; Windows is not a supported build target at this stage.
+Release builds include macOS ARM64/Intel and Linux ARM64/x86-64. Filesystem
+reads, Git transaction locks and daemon startup use the same Unix implementation.
+Windows is not a supported build target. See the [platform validation guide](../docs/go-validation.md#platform-validation)
+for native and translated execution coverage; cross-compilation alone does not
+establish native hardware support.
 
 ## Review selection
 
