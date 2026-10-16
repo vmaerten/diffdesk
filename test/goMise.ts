@@ -28,10 +28,12 @@ import {
 const root = fileURLToPath(new URL('..', import.meta.url))
 const args = process.argv.slice(2)
 const published = args[0] === '--published'
+const smoke = args.length === 1 && args[0] === '--smoke'
 assert.ok(
   args.length === 0 ||
+    smoke ||
     (published && (args.length === 2 || (args.length === 4 && args[2] === '--previous'))),
-  'Usage: node test/goMise.ts [--published VERSION [--previous VERSION]]',
+  'Usage: node test/goMise.ts [--smoke | --published VERSION [--previous VERSION]]',
 )
 const requestedVersion = args[1]?.replace(/^v/, '')
 const versionPattern = /^\d+\.\d+\.\d+(?:-[\da-zA-Z]+(?:[.-][\da-zA-Z]+)*)?$/
@@ -64,6 +66,7 @@ const reportFile = join(
 const report = {
   complete: false,
   mode: published ? 'github-release' : 'local-release-fixture',
+  scope: smoke ? 'smoke' : 'full',
   mise: miseVersion,
   platform: target,
   host: `${process.platform}-${process.arch}`,
@@ -170,7 +173,7 @@ try {
     '',
   )
   let current = '1.0.1'
-  let previous: string | undefined = '1.0.0'
+  let previous: string | undefined = smoke ? undefined : '1.0.0'
   const expected = new Map<string, { version: string; commit: string; hash: string }>()
   if (published) {
     current = requestedVersion!
@@ -220,7 +223,8 @@ try {
       'https://api.github.com/': `${mirror.origin}/`,
       'https://github.com/': `${mirror.origin}/`,
     })
-    for (const version of [previous, current]) {
+    if (smoke) mirror.publishNext()
+    for (const version of [...(previous ? [previous] : []), current]) {
       expected.set(version, {
         version: metadata.version,
         commit: metadata.commit,
@@ -406,8 +410,9 @@ try {
     await preserved()
     report.upgrade = true
     record('rollback and exact pin preserve comments, anchors, timestamps and Viewed')
-  } else record('first published version: historical upgrade/rollback awaits a second release')
-  if (mirror) {
+  } else if (!smoke)
+    record('first published version: historical upgrade/rollback awaits a second release')
+  if (mirror && !smoke) {
     // Exercise the exact-version upgrade command used by published mode too.
     await mise('upgrade', '--bump', '--no-prune', `${tool}@${current}`)
     assert.equal(realpathSync(await mise('which', 'ghl')), await verify(current))
@@ -423,7 +428,7 @@ try {
     record(
       'corrupt download rejected without altering selected version or review; prereleases excluded',
     )
-  } else if (!current.includes('-')) {
+  } else if (published && !current.includes('-')) {
     // The live gate validates this release immediately, before mise's default
     // minimum release age. Consumers can retain that delay or pin explicitly.
     await mise('use', '-g', '--minimum-release-age', '0s', `${tool}@latest`)

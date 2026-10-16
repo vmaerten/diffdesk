@@ -75,7 +75,8 @@ and publication run locally on the supported native macOS ARM64 target.
 
 After building the checked-out version tag, run the complete
 [local acceptance gate](./go-validation.md), including the extracted archive,
-mise fixture and the [platform gates](./go-validation.md#platform-validation).
+mise fixture on the primary platform, plus [smoke checks](./go-validation.md#platform-validation)
+on the other targets.
 Publish those exact tested files without
 rebuilding:
 

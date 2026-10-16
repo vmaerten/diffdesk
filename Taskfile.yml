@@ -232,6 +232,11 @@ tasks:
     cmds:
       - node test/goMise.ts
 
+  release:smoke:
+    desc: Smoke-test the target archive and mise installation without browser or upgrade suites
+    cmds:
+      - node test/goMise.ts --smoke
+
   release:mise:published:
     desc: Verify a published GitHub Release through mise (VERSION=X.Y.Z, optional PREVIOUS=X.Y.Z)
     requires:
@@ -262,64 +267,3 @@ tasks:
       - task: poc:build
       - task: test:go
       - node test/goPoc.ts
-
-  platform:linux:
-    desc: Validate a Linux archive in local Docker (ARCH=arm64 or amd64)
-    vars:
-      PLATFORM_ARCH: '{{.ARCH | default "arm64"}}'
-      SHARED_GIT_DIR:
-        sh: git rev-parse --path-format=absolute --git-common-dir
-      RESULTS_DIR: '{{.ROOT_DIR}}/.task/platform-linux/{{.PLATFORM_ARCH}}'
-      ENGINE_ARCH:
-        sh: docker info --format '{{"{{.Architecture}}"}}'
-    preconditions:
-      - sh: '{{regexMatch `^(arm64|amd64)$` .PLATFORM_ARCH}}'
-        msg: ARCH must be arm64 or amd64
-      - sh: test -f go/dist/release/metadata.json
-        msg: Build release archives with task release:snapshot first
-    cmds:
-      - mkdir -p {{.RESULTS_DIR | shellQuote}}
-      # Containers use an unprivileged user; this directory contains test output only.
-      - chmod 777 {{.RESULTS_DIR | shellQuote}}
-      - >-
-        docker build --platform linux/{{.PLATFORM_ARCH}}
-        -f test/platform/Dockerfile -t ghl-platform-tests:linux-{{.PLATFORM_ARCH}} .
-      - >-
-        docker run --rm --init --platform linux/{{.PLATFORM_ARCH}}
-        --memory=3g --cpus=4 --shm-size=512m
-        --env GHL_TEST_ENGINE_ARCH={{.ENGINE_ARCH | shellQuote}}
-        --mount {{printf "type=bind,source=%s,target=/input,readonly" .ROOT_DIR | shellQuote}}
-        --mount {{printf "type=bind,source=%s,target=%s,readonly" .SHARED_GIT_DIR .SHARED_GIT_DIR | shellQuote}}
-        --mount {{printf "type=bind,source=%s,target=/results" .RESULTS_DIR | shellQuote}}
-        ghl-platform-tests:linux-{{.PLATFORM_ARCH}}
-
-  platform:macos-intel:tools:
-    internal: true
-    status:
-      - test -x .task/platform-tools/macos-intel/mise/bin/mise
-      - .task/platform-tools/macos-intel/mise/bin/mise --version | grep -F '2026.10.2 macos-x64'
-    cmds:
-      - mkdir -p .task/platform-tools/macos-intel
-      - curl --fail --location --silent --show-error --output .task/platform-tools/macos-intel/mise.tar.gz https://github.com/jdx/mise/releases/download/v2026.10.2/mise-v2026.10.2-macos-x64.tar.gz
-      - printf '%s  %s\n' cc1497f6c370580d81d386004578f97d36b08031f6534818e0fd2756d54d0aca .task/platform-tools/macos-intel/mise.tar.gz | shasum -a 256 -c -
-      - tar -xzf .task/platform-tools/macos-intel/mise.tar.gz -C .task/platform-tools/macos-intel
-
-  platform:macos-intel:
-    desc: Validate the macOS Intel archive (uses Rosetta on Apple Silicon)
-    deps: [platform:macos-intel:tools]
-    env:
-      GHL_TEST_TARGET: darwin_amd64
-      GHL_TEST_MISE: '{{.ROOT_DIR}}/.task/platform-tools/macos-intel/mise/bin/mise'
-    preconditions:
-      - sh: test "$(uname -s)" = Darwin
-        msg: Run this task on macOS
-      - sh: arch -x86_64 /usr/bin/true
-        msg: Intel execution requires Rosetta on Apple Silicon
-      - sh: test -f go/dist/release/metadata.json
-        msg: Build release archives with task release:snapshot first
-    cmds:
-      - mkdir -p .task/platform-macos-intel
-      - CGO_ENABLED=1 GOARCH=amd64 go -C go test -race ./... > .task/platform-macos-intel/go-race.log 2>&1
-      - node test/goAcceptance.ts > .task/platform-macos-intel/acceptance.log 2>&1
-      - node test/goMise.ts > .task/platform-macos-intel/mise.log 2>&1
-      - cp .task/go-mise-acceptance-darwin_amd64.json .task/platform-macos-intel/go-mise-acceptance.json

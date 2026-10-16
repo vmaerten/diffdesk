@@ -110,6 +110,9 @@ not change your mise configuration or install a global `ghl`.
 task release:snapshot
 task release:mise
 
+# Other target platforms: install/startup check without the upgrade suite
+task release:smoke
+
 # Once releases exist; PREVIOUS is optional:
 task release:mise:published VERSION=X.Y.Z
 task release:mise:published VERSION=X.Y.Z PREVIOUS=A.B.C
@@ -128,10 +131,14 @@ It checks autodetection, checksum fallback, corrupt downloads, activation/shims,
 exact pins, actual `mise upgrade`, rollback, daemon replacement, embedded assets,
 state preservation and uninstall. It creates no tag or GitHub release. This is
 fixture coverage, not evidence of a published download or historical upgrade.
+`release:smoke` reuses the same fixture for one install and startup check; it skips
+upgrade/rollback and corruption scenarios. Run the full suite on the primary
+platform and smoke checks on the other targets.
 
 Target-suffixed reports such as `.task/go-mise-acceptance-linux_arm64.json` and
 `.task/go-mise-published-darwin_amd64.json` are local validation artifacts. Native
 host runs also retain the existing unsuffixed report names for compatibility. They start with `complete: false`; only a finished run sets it to true.
+`scope` distinguishes `full` acceptance from `smoke` checks.
 `upgrade` records whether two versions were exercised and `latest` whether stable
 resolution was checked. The first release has no historical upgrade to test;
 that remains pending until a second compatible version exists. Prereleases are
