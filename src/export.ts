@@ -1,9 +1,8 @@
 /**
  * Turning comments into something to hand over.
  *
- * Pure, and importing nothing: the CLI writes it to stdout and the copy button
- * puts it on the clipboard, and the two must not be able to produce different
- * text for the same review.
+ * Browser-side formatter. Shared golden fixtures keep its Markdown and JSON
+ * output aligned with the Go CLI for the same review.
  */
 
 import type { ServedComment } from './types.ts'

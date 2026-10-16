@@ -1,5 +1,8 @@
 # ghl — local git diff viewer
 
+> Historical implementation plan. Backend and CLI paths below describe the original
+> Node architecture, now replaced by Go. See README.md and go/README.md for current tasks.
+
 Review the PR you are about to open, without opening it. GitHub-like UI (unified/split,
 collapsing, file tree), locally, on any of ~39 active repositories.
 

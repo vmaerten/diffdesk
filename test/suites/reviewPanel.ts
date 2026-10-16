@@ -1,6 +1,8 @@
 import { asMarkdown } from '../../src/export.ts'
-import { putComment } from '../../src/state.ts'
-import type { DiffPayload } from '../../src/types.ts'
+import { execFileSync } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import type { DiffPayload, StoredState } from '../../src/types.ts'
 import { clickTreeRow, sleep, type Suite } from '../harness.ts'
 
 export default {
@@ -38,7 +40,12 @@ export default {
     }
     // The list must retain remarks on files absent from this comparison, and
     // changing their prose must preserve the original code and provenance.
-    await putComment(repoPath, {
+    const gitDir = execFileSync('git', ['-C', repoPath, 'rev-parse', '--absolute-git-dir'], {
+      encoding: 'utf8',
+    }).trim()
+    const stateFile = join(gitDir, 'ghl/state.json')
+    const state: StoredState = JSON.parse(readFileSync(stateFile, 'utf8'))
+    state.comments.push({
       id: 'panel-outside',
       path: 'removed-file.ts',
       side: 'additions',
@@ -49,6 +56,7 @@ export default {
       anchor: ['original code'],
       createdAt: '2026-09-20T00:00:00Z',
     })
+    writeFileSync(stateFile, JSON.stringify(state))
     await load()
     await page.evaluate(() => {
       Object.defineProperty(navigator, 'clipboard', {

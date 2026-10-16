@@ -7,8 +7,8 @@ identities and state directories remain separate.
 The Go runtime supports text review including optional untracked files, context
 expansion, image previews, comments, Viewed, automatic bases, stacks and revision/commit selection.
 The CLI supports revision targets, summaries, comment exports and a shared
-background daemon. Node remains an explicit reference/fallback during the 0.1.x
-transition; see the [migration guide](../docs/go-migration.md).
+background daemon. Go is the only supported backend and CLI runtime; see the
+[migration guide](../docs/go-migration.md) for legacy Node installations.
 
 ## Build and run
 
@@ -98,8 +98,8 @@ Host/Origin allowlists; CLI control requests bypass proxies and reject redirects
 `test/goDaemon.ts`, included in `task test`, drives relocated binaries with only
 Git in PATH. It covers cold start, reuse, multiple repos/worktrees, terminal exit,
 simultaneous starts/upgrades, handoff/bookmarks, stale shutdowns, idle/heartbeat,
-ephemeral ports, environment overrides, incompatible listeners, real Node
-coexistence, and Chrome hostname/clipboard checks. Go race tests cover concurrent
+ephemeral ports, environment overrides, incompatible listeners, legacy protocol
+rejection, and Chrome hostname/clipboard checks. Go race tests cover concurrent
 registration, conditional shutdown, rejected requests and lock cancellation.
 
 ## CLI and exports
@@ -127,10 +127,9 @@ and previous paths on renamed files. JSON adds `was` only for stale anchors.
 Markdown explains changed or unavailable code and retains original lines.
 The React panel can additionally copy comments on files outside the comparison.
 
-Go, the Node CLI and React use a shared set of export goldens. Their path/line
-order is now stable and independent of the machine's locale (UTF-16 path order,
-then starting line); ties retain input order. This deliberately replaces the
-previous locale-sensitive export sorting, including for Node and React.
+Go and React use a shared set of export goldens. Path/line order is stable
+and independent of the machine's locale (UTF-16 path order, then starting line);
+ties retain input order.
 
 Help (`-h` / `--help`), version, summaries and exports go to stdout and return 0
 on success. Errors return 1 with a `ghl:` diagnostic on stderr. A recovered
@@ -139,7 +138,7 @@ never print startup announcements; plain server startup prints the repository,
 base and URL, while `--json` prints one `{port, repoId, url}` announcement.
 Help and version work without Git, a checkout or a frontend build.
 
-`test/goCLI.ts`, included in `task test`, compares actual Node/Go command output
+`test/goCLI.ts`, included in `task test`, checks actual Go command output
 across checkout and revision scopes, base sources, renamed/context/stale/missing
 code and untracked comments. It checks argument failures, stderr separation,
 short commands with an occupied port, and a relocated binary with only Git in
@@ -176,9 +175,9 @@ existing destination is copied byte-for-byte to `state-import-*.backup` before
 writing a successful merge. The report gives the backup path and added counts.
 Resolve a conflict in a separate copy of the source rather than editing live state.
 
-Production Go and updated Node reads/mutations hold a common worktree-private Git lock
+Production Go reads/mutations hold a worktree-private Git lock
 through the complete disk transaction. This covers multiple foreground servers,
-CLI exports, imports and Node processes. It uses a prepared
+CLI exports and imports. It uses a prepared
 [`git update-ref --stdin` transaction](https://git-scm.com/docs/git-update-ref),
 aborted on stdin closure; no ref is committed and reference hooks are disabled.
 Waiting is bounded to 10 seconds, with cancellation in Go requests. A parent
@@ -191,26 +190,24 @@ unfinished temporary files are ignored. Corrupt files move to unique `.corrupt`
 backups and produce a UI notice or CLI stderr diagnostic. Permission and other
 I/O errors fail instead of being treated as empty state.
 
-Stop older Node processes before switching to this build: older installations
-do not use the common lock and cannot safely write concurrently. Updated Node
-and Go can coexist. To roll back, stop active writers and run the previous Node
-runtime against the same version-1 state; no conversion is needed. To undo an
-import, stop writers and restore the reported backup over `state.json` (or remove
-the destination if it did not exist beforehand). Source snapshots remain available.
+Stop legacy Node daemons before switching; older installations do not use the
+common lock and cannot safely write concurrently. Node is no longer shipped.
+To undo an import, stop writers and restore the reported backup over `state.json`
+(or remove the destination if it did not exist beforehand). Source snapshots remain.
 
-`test/goState.ts`, included in `task test`, creates state through the real Node
-writer, then tests two Node processes and two Go servers concurrently. It checks
-add/edit/delete/Viewed preservation, both anchor sides, original timestamps,
-restart, imports/conflicts, linked worktrees, a killed Node writer, corrupt-state
-recovery and future-schema refusal. Go race tests additionally cover independent
-stores, cancelled waits and a killed Go writer with an interrupted temporary file.
+`test/goState.ts`, included in `task test`, seeds the version-1 schema and tests
+concurrent writers across independent Go servers. It checks add/edit/delete/Viewed
+preservation, both anchor sides, original timestamps, restart, imports/conflicts,
+linked worktrees, corrupt-state recovery and future-schema refusal. Go race tests
+also cover independent stores, cancelled waits and a killed Go writer with an
+interrupted temporary file.
 
 The initial validated platform is macOS ARM64. Unix context-read flags are
 retained from the PoC; Windows is not a supported build target at this stage.
 
 ## Review selection
 
-The production command resolves the base with the same precedence as Node:
+The production command resolves the base in this order:
 an explicit URL choice, a remembered `branch.<name>.ghlBase`, gh-stack metadata,
 the nearest parent heuristic, then the detected trunk. The trunk wins equal
 parent scores. Stack metadata is read from the worktree's Git directory, with
@@ -228,9 +225,9 @@ own diff against its first parent, or the empty tree for a root commit; its
 Viewed state uses that parent/commit pair. An unavailable commit falls back to
 the whole range with a notice. Invalid bases or targets fail explicitly.
 
-`task test` checks Node/Go payloads, context and anchors across these scopes,
+`task test` checks Go payloads, context and anchors against Git across these scopes,
 then runs the existing picker, commit, stack, untracked and image browser checks against Go.
-All fifteen shared browser suites also run against Go through `test/run.ts --go`.
+All fifteen shared browser suites also run against Go through `test/run.ts`.
 The isolated PoC keeps its explicit-base checkout scope and hidden pickers.
 
 The **Untracked** checkbox includes files returned by Git's ignore-aware listing;
@@ -248,7 +245,7 @@ unsafe, oversized or disappeared text source rather than silently omitting it.
 
 Untracked comments follow the same Viewed and stale-line rules as tracked files.
 Excluding or deleting a file leaves its comments and original anchors in the
-panel and in React's Markdown copy. Node/Go contract tests also verify Markdown
+panel and in React's Markdown copy. Go contract tests also verify Markdown
 and JSON export data for included, stale and unavailable untracked code;
 command-line exports consume the same comparison support.
 
@@ -260,7 +257,7 @@ comparison revisions and preserve previous paths for renames. The browser
 decodes images and displays dimensions and sizes; Go serves the original bytes
 with their content type. Committed metadata uses Git object IDs without loading
 blob bytes, while worktree identity hashes a bounded snapshot. Image hashes
-replace patch hashes for Viewed, matching Node's invalidation behavior.
+replace patch hashes for Viewed, invalidating the tick when image bytes change.
 
 `GET /r/<repoId>/api/image` accepts `revision=worktree` or a full 40/64-character
 Git object ID and a canonical repository-relative image path. Reads share the
@@ -272,10 +269,9 @@ resources inactive even when opened directly.
 Unavailable previews retain their file and an explanation. In particular,
 unsafe or oversized untracked images remain in the tree without asking Git to
 read their bytes: their file count is retained, with no patch or text line counts
-invented for that source. This differs from Node's no-index patch for those
-unavailable sources; valid-image patches, metadata, hashes and bytes are checked
-for parity. Invalid image data reports a decoding failure in React. The isolated
-PoC still has no image route or metadata.
+invented for that source. Tests check image patches, metadata, hashes and exact
+bytes against fixture contents. Invalid image data reports a decoding failure in
+React. The isolated PoC still has no image route or metadata.
 
 ## Development
 
@@ -317,7 +313,6 @@ The development command compiles `cmd/ghl-dev`, which uses the live frontend;
 there is no embedded asset build in this loop. It uses the same backend and
 `.git/ghl/state.json` as the production Go command. The initial review
 defaults to the directory where Task was invoked and resolves its base automatically.
-The Node reference workflow (`pnpm dev:node`, proxying to port 7777) remains available.
 The default `pnpm dev` uses the Go workflow above.
 
 The Taskfile defines the production build, `go test -race` and `go vet`

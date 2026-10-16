@@ -15,7 +15,6 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import { fileURLToPath } from 'node:url'
 
 import type { CommentExport } from '../src/export.ts'
 import type { Comment } from '../src/types.ts'
@@ -24,7 +23,6 @@ const directory = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-go-cli-')))
 const repo = join(directory, 'repo é')
 mkdirSync(repo)
 const binary = goBinary()
-const nodeCLI = fileURLToPath(new URL('../bin/ghl.ts', import.meta.url))
 const env = {
   ...process.env,
   GHL_PORT: '',
@@ -38,36 +36,31 @@ const git = (...args: string[]) =>
 const write = (path: string, contents: string) => writeFileSync(join(repo, path), contents)
 let checks = 0
 
-function cli(runtime: 'go' | 'node', args: string[], cwd = repo, overrides = {}) {
-  const result = spawnSync(
-    runtime === 'go' ? binary : process.execPath,
-    runtime === 'go' ? args : [nodeCLI, ...args],
-    {
-      cwd,
-      env: { ...env, ...overrides },
-      encoding: 'utf8',
-      timeout: 20_000,
-    },
-  )
+function cli(args: string[], cwd = repo, overrides = {}) {
+  const result = spawnSync(binary, args, {
+    cwd,
+    env: { ...env, ...overrides },
+    encoding: 'utf8',
+    timeout: 20_000,
+  })
   assert.ifError(result.error)
   assert.equal(result.signal, null, `CLI did not exit: ${result.stderr}`)
   return result
 }
 
-function success(runtime: 'go' | 'node', args: string[]) {
-  const result = cli(runtime, args)
+function success(args: string[]) {
+  const result = cli(args)
   assert.equal(result.status, 0, result.stderr)
   assert.equal(result.stderr, '')
   return result.stdout
 }
 
-function parity(args: string[], json = false) {
-  const go = success('go', args)
-  const node = success('node', args)
-  if (json) assert.deepEqual(JSON.parse(go), JSON.parse(node))
-  else assert.equal(go, node)
+function checkedOutput(args: string[], json = false) {
+  const value = success(args)
+  if (json) JSON.parse(value)
+  else assert.ok(value.trim().length > 0)
   checks++
-  return go
+  return value
 }
 
 try {
@@ -76,8 +69,7 @@ try {
   git('config', 'user.email', 'fixture@example.invalid')
   git('config', 'commit.gpgsign', 'false')
   git('config', 'core.hooksPath', '/dev/null')
-  // Node's existing patch reader needs unquoted Unicode paths. Separately
-  // check Go's quoted-path behavior against the same validated export below.
+  // Exercise both unquoted and Git's default quoted Unicode paths.
   git('config', 'core.quotepath', 'false')
   const lines = Array.from({ length: 100 }, (_, i) => `line ${i + 1}`).join('\n') + '\n'
   write('old name é.txt', lines)
@@ -140,12 +132,14 @@ try {
     write(`.git/${runtime}/state.json`, state)
   }
 
-  parity(['--print', '--base', 'main'])
-  parity(['feature', '--print', '--base', 'main'])
-  parity(['--base', 'main', 'HEAD~1', '--print'])
-  parity(['refs/heads/comments', '--print', '--base', 'main'])
-  parity(['--print'])
-  const exported: CommentExport = JSON.parse(parity(['comments', '--base', 'main', '--json'], true))
+  checkedOutput(['--print', '--base', 'main'])
+  checkedOutput(['feature', '--print', '--base', 'main'])
+  checkedOutput(['--base', 'main', 'HEAD~1', '--print'])
+  checkedOutput(['refs/heads/comments', '--print', '--base', 'main'])
+  checkedOutput(['--print'])
+  const exported: CommentExport = JSON.parse(
+    checkedOutput(['comments', '--base', 'main', '--json'], true),
+  )
   assert.equal(exported.range, 'main..feature')
   assert.equal(exported.repo, repo)
   const byID = new Map(exported.comments.map((comment) => [comment.id, comment]))
@@ -158,23 +152,43 @@ try {
   assert.deepEqual(byID.get('untracked')?.code, ['untracked line'])
   assert.deepEqual(byID.get('unavailable')?.code, [])
   checks += 9
-  const markdown = parity(['comments', '--base', 'main'])
+  const markdown = checkedOutput(['comments', '--base', 'main'])
   assert.ok(markdown.includes('Code is unavailable in the current comparison. Original lines:'))
   assert.ok(markdown.includes('These lines have changed since the remark was written. They read:'))
   checks += 2
-  parity(['comments', '--base', 'main', '--json', '--print'], true)
-  parity(['comments', 'feature', '--base', 'main'])
-  parity(['comments', '--base', 'main', 'feature', '--json'], true)
-  parity(['comments', 'refs/heads/comments', '--base', 'main'])
-  parity(['comments', 'main', '--base', 'main', '--json'], true)
-  parity(['comments', 'main', '--base', 'main'])
+  assert.deepEqual(
+    JSON.parse(checkedOutput(['comments', '--base', 'main', '--json', '--print'], true)),
+    exported,
+  )
+  const committedMarkdown = checkedOutput(['comments', 'feature', '--base', 'main'])
+  assert.ok(!committedMarkdown.includes('untracked é.txt'))
+  assert.ok(!committedMarkdown.includes('working 80'))
+  const committed: CommentExport = JSON.parse(
+    checkedOutput(['comments', '--base', 'main', 'feature', '--json'], true),
+  )
+  assert.equal(committed.range, 'main..feature')
+  assert.deepEqual(
+    committed.comments.map((comment) => comment.id),
+    exported.comments.filter((comment) => comment.id !== 'untracked').map((comment) => comment.id),
+  )
+  assert.deepEqual(committed.comments.find((comment) => comment.id === 'stale')?.code, ['line 80'])
+  assert.equal(committed.comments.find((comment) => comment.id === 'stale')?.was, undefined)
+  checkedOutput(['comments', 'refs/heads/comments', '--base', 'main'])
+  assert.deepEqual(
+    JSON.parse(checkedOutput(['comments', 'main', '--base', 'main', '--json'], true)),
+    { repo, range: 'main..main', comments: [] },
+  )
+  assert.equal(
+    checkedOutput(['comments', 'main', '--base', 'main']),
+    'No comments on main..main.\n',
+  )
 
   // Each base explanation is part of the printable contract.
   git('config', 'branch.feature.ghlBase', 'main')
-  parity(['--print'])
+  checkedOutput(['--print'])
   git('config', '--unset', 'branch.feature.ghlBase')
   git('branch', 'parent', parent)
-  assert.ok(parity(['--print']).includes('guessed (stacked branch, 1 commit(s))'))
+  assert.ok(checkedOutput(['--print']).includes('guessed (stacked branch, 1 commit(s))'))
   write(
     '.git/gh-stack',
     JSON.stringify({
@@ -196,11 +210,11 @@ try {
       ],
     }),
   )
-  assert.ok(parity(['--print']).includes('main → parent #1 → [feature #2]'))
+  assert.ok(checkedOutput(['--print']).includes('main → parent #1 → [feature #2]'))
   rmSync(join(repo, '.git/gh-stack'))
 
   // Reading a repository explicitly also works from outside any checkout.
-  const explicit = cli('go', ['comments', '--repo', repo, '--base', 'main', '--json'], directory)
+  const explicit = cli(['comments', '--repo', repo, '--base', 'main', '--json'], directory)
   assert.equal(explicit.status, 0, explicit.stderr)
   assert.deepEqual(JSON.parse(explicit.stdout), exported)
   checks++
@@ -214,7 +228,7 @@ try {
     ['--idle', '-1'],
     ['--daemon', '--print'],
   ]) {
-    const result = cli('go', args)
+    const result = cli(args)
     assert.equal(result.status, 1)
     assert.equal(result.stdout, '')
     assert.match(result.stderr, /^ghl: /)
@@ -225,7 +239,7 @@ try {
     [['--print'], repo, { PATH: '' }, /Git is required/],
     [['--print'], repo, { GHL_PORT: 'oops' }, /GHL_PORT/],
   ] as const) {
-    const result = cli('go', [...args], cwd, overrides)
+    const result = cli([...args], cwd, overrides)
     assert.equal(result.status, 1)
     assert.equal(result.stdout, '')
     assert.match(result.stderr, message)
@@ -233,12 +247,12 @@ try {
   }
   mkdirSync(join(directory, 'empty'))
   execFileSync('git', ['-C', join(directory, 'empty'), 'init', '-q', '-b', 'main'], { env })
-  const empty = cli('go', ['--print'], join(directory, 'empty'))
+  const empty = cli(['--print'], join(directory, 'empty'))
   assert.equal(empty.status, 1)
   assert.match(empty.stderr, /no commit/)
   checks++
   for (const args of [['--help'], ['comments', '--help'], ['--version', '--json']]) {
-    const result = cli('go', args, directory, { PATH: '' })
+    const result = cli(args, directory, { PATH: '' })
     assert.equal(result.status, 0)
     assert.equal(result.stderr, '')
     assert.ok(result.stdout.length > 0)
@@ -251,14 +265,7 @@ try {
     const address = holder.address()
     assert.ok(address && typeof address !== 'string')
     for (const args of [['--print'], ['comments', '--json']]) {
-      const result = cli('go', [
-        ...args,
-        '--base',
-        'main',
-        '--port',
-        String(address.port),
-        '--no-daemon',
-      ])
+      const result = cli([...args, '--base', 'main', '--port', String(address.port), '--no-daemon'])
       assert.equal(result.status, 0, result.stderr)
       checks++
     }
@@ -353,22 +360,22 @@ try {
   }
 
   git('config', 'core.quotepath', 'true')
-  assert.deepEqual(JSON.parse(success('go', ['comments', '--base', 'main', '--json'])), exported)
+  assert.deepEqual(JSON.parse(success(['comments', '--base', 'main', '--json'])), exported)
   checks++
   git('config', 'core.quotepath', 'false')
 
   write('.git/ghl/state.json', '{broken')
-  const corrupt = cli('go', ['comments', '--base', 'main', '--json'])
+  const corrupt = cli(['comments', '--base', 'main', '--json'])
   assert.equal(corrupt.status, 0)
   assert.deepEqual(JSON.parse(corrupt.stdout), { repo, range: 'main..feature', comments: [] })
   assert.match(corrupt.stderr, /\.corrupt/)
   assert.equal(
-    success('node', ['comments', '--base', 'main', '--json']),
+    success(['comments', '--base', 'main', '--json']),
     JSON.stringify({ repo, range: 'main..feature', comments: [] }, null, 2) + '\n',
   )
   checks++
   console.log(
-    `Go CLI: ${checks} checks passed (Node/Go exports, summaries, failures and standalone binary)`,
+    `Go CLI: ${checks} checks passed (exports, summaries, failures and standalone binary)`,
   )
 } finally {
   rmSync(directory, { recursive: true, force: true })

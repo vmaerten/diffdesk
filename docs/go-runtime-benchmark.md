@@ -1,5 +1,10 @@
 # Runtime Go de production : mesures et décision
 
+> Rapport historique : le runtime Node et le comparateur ont été retirés.
+> Les résultats décrivent les révisions mesurées ; leurs sources restent dans
+> [la révision précédente](https://github.com/vmaerten/ghl/tree/5e301b1e4c2f670da211effb9cc8168d3fbfa2be/scripts/bench-runtime).
+> `task bench` et `task release:bench` mesurent désormais Go seul.
+
 Relevé du 4 octobre 2026 sur macOS 26.6.2 / ARM64, avec Node 24.21.0,
 Go 1.27.1, Git 2.55.0 et Python 3.14.7. Le
 [JSON complet](./go-runtime-benchmark.json) contient les 24 observations,
@@ -84,24 +89,30 @@ de l'état entre processus Node/Go. Les contrats, les scénarios navigateur et
 les remplacements de daemon sont vérifiés dans le
 [contrôle de release](./go-validation.md).
 
-## Protocole et reproduction
+## Benchmark Go actuel
+
+Après le retrait du backend Node, le runner conserve les mêmes fixtures et
+requêtes, avec trois passages sur Go seul :
 
 ```bash
-# Builds de production, puis comparaison locale :
 mise exec -- task bench
-
-# Mesurer le binaire extrait d'un candidat déjà construit :
-pnpm build:node
+# Ou mesurer le binaire extrait d'un candidat déjà construit :
 mise exec -- task release:snapshot
 mise exec -- task release:bench
 ```
 
-Le mode `--go` de `scripts/bench-runtime/run.py` conserve les anciens modes.
-Il utilise uniquement la bibliothèque standard Python et les exécutables
-locaux. `BENCH_NODE`, `BENCH_GO`, `BENCH_GHL_GO` sélectionnent les runtimes ;
-`BENCH_OUTPUT` choisit le fichier JSON. Le relevé local peut être conservé dans
-`.task/go-runtime-benchmark.json`, avec un diagnostic en cas de différence de contrat. Un rapport interrompu
-reste marqué incomplet.
+Il utilise la bibliothèque standard Python, Git et les outils système macOS.
+Aucun runtime Node ou Go n'est nécessaire pendant la mesure du binaire construit.
+`BENCH_GHL_GO` sélectionne l'exécutable ; `BENCH_OUTPUT` choisit le JSON, par
+défaut `.task/go-runtime-benchmark.json`. Le runner lit l'HTML et le chunk JS
+embarqués dans le binaire choisi, y compris pour une archive extraite ailleurs.
+Il vérifie le patch contre Git sur la grande fixture et la stabilité des contrats
+et octets d'image entre les passages. Un rapport interrompu reste incomplet.
+Les mesures historiques ci-dessus restent inchangées.
+
+## Protocole de la comparaison historique
+
+Le comparateur Node/Go de la révision liée en tête utilisait ce protocole :
 
 - Dépôts temporaires avec noms canoniques : les alias macOS `/var` et
   `/private/var` ne doivent pas produire des IDs différents pour la même fixture.

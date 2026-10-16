@@ -36,7 +36,7 @@ try {
     ['test/goPoc.ts', 'go'],
     ['test/goRevisions.ts'],
     ['test/goImages.ts'],
-    ['test/run.ts', '--go'],
+    ['test/run.ts'],
   ]
   const benchmark = process.argv.includes('--bench')
   for (const args of benchmark ? [] : suites) {
@@ -51,7 +51,7 @@ try {
     assert.equal(result.status, 0, `Acceptance failed: ${args.join(' ')}`)
   }
   if (benchmark) {
-    const result = spawnSync('python3', ['scripts/bench-runtime/run.py', '--go'], {
+    const result = spawnSync('python3', ['scripts/bench-runtime/run.py'], {
       cwd: root,
       env: { ...env, BENCH_GHL_GO: env.GHL_TEST_BINARY },
       stdio: 'inherit',

@@ -150,9 +150,8 @@ tasks:
         -o {{printf "../%s" .OUTPUT | shellQuote}} {{printf "./cmd/%s" .COMMAND | shellQuote}}
 
   test:
-    desc: Test the Go runtime, API parity and embedded UI
+    desc: Test the Go runtime, API contracts and embedded UI
     cmds:
-      - pnpm build:node
       - task: build
       - task: test:go
       - node test/goCLI.ts
@@ -161,10 +160,10 @@ tasks:
       - node test/goPoc.ts go
       - node test/goRevisions.ts
       - node test/goImages.ts
-      - node test/run.ts --go
+      - node test/run.ts
 
   test:install:
-    desc: Verify local Go installation and the explicit Node fallback
+    desc: Verify local Go installation, upgrades and state preservation
     cmds:
       - node test/goLocalInstall.ts
 
@@ -224,7 +223,7 @@ tasks:
       - node test/goAcceptance.ts
 
   release:bench:
-    desc: Compare the extracted release executable with Node (three passes)
+    desc: Benchmark the extracted release executable (three passes)
     cmds:
       - node test/goAcceptance.ts --bench
 
@@ -246,11 +245,10 @@ tasks:
       - node scripts/test-browser.ts
 
   bench:
-    desc: Compare production Go and Node on shared fixtures (three passes)
+    desc: Benchmark production Go on shared fixtures (three passes)
     cmds:
-      - pnpm build:node
       - task: build
-      - python3 scripts/bench-runtime/run.py --go
+      - python3 scripts/bench-runtime/run.py
 
   poc:build:
     desc: Build the isolated Go PoC

@@ -14,19 +14,14 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
 
-import { resolveComparison } from '../src/comparison.ts'
-import { gitDirPath } from '../src/git.ts'
-import { putComment, readState, setViewed } from '../src/state.ts'
-import { withStateLock } from '../src/stateLock.ts'
-import type { Comment, DiffPayload } from '../src/types.ts'
+import type { Comment, DiffPayload, StoredState } from '../src/types.ts'
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-go-state-')))
 const repo = join(root, 'repo')
 mkdirSync(repo)
 const binary = goBinary()
-const workerScript = fileURLToPath(new URL('./stateWorker.ts', import.meta.url))
 const git = (...args: string[]) =>
   execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim()
 const stateFile = join(repo, '.git', 'ghl', 'state.json')
@@ -44,10 +39,10 @@ function command(args: string[]) {
   return result
 }
 
-async function start() {
+async function start(repoPath = repo) {
   const child = spawn(
     binary,
-    ['--repo', repo, '--base', 'main', '--json', '--no-open', '--no-daemon', '--port', '0'],
+    ['--repo', repoPath, '--base', 'main', '--json', '--no-open', '--no-daemon', '--port', '0'],
     {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, GHL_PORT: '' },
@@ -85,16 +80,7 @@ async function request<T>(url: string, method = 'GET', body?: unknown): Promise<
   return response.json() as Promise<T>
 }
 
-function worker(name: string) {
-  const child = spawn(process.execPath, [workerScript, repo, name], {
-    stdio: ['ignore', 'ignore', 'pipe'],
-  })
-  let errors = ''
-  child.stderr!.on('data', (chunk) => {
-    errors += String(chunk)
-  })
-  return once(child, 'exit').then(([code]) => assert.equal(code, 0, errors))
-}
+const readStored = (): StoredState => JSON.parse(readFileSync(stateFile, 'utf8'))
 
 try {
   git('init', '-q', '-b', 'main')
@@ -115,25 +101,31 @@ try {
     side: 'additions',
     start: 1,
     end: 1,
-    body: 'Node seed',
+    body: 'Version-1 seed',
     anchor: ['new'],
     range: 'main..feature',
     createdAt: '2020-01-01T00:00:00.000Z',
   }
-  await putComment(repo, seed)
-  await putComment(repo, { ...seed, id: 'before', side: 'deletions', anchor: ['old'] })
-  const comparison = await resolveComparison(repo, { override: 'main' })
-  const { payload } = await comparison.display('fixture')
-  const hash = payload.files.find((file) => file.path === 'context.txt')!.hash
-  await setViewed(repo, { range: 'main..feature', path: 'context.txt', hash, viewed: true })
-  await setViewed(repo, {
-    range: 'historical..range',
-    path: 'binary.bin',
-    hash: null,
-    viewed: true,
+  const patch = execFileSync('git', ['-C', repo, 'diff', '--no-ext-diff', '--no-color', 'main'], {
+    encoding: 'utf8',
   })
-  for (const name of ['node-a', 'node-b', 'go-a', 'go-b'])
-    await putComment(repo, { ...seed, id: `delete-${name}` })
+  const hash = createHash('sha1').update(patch).digest('hex').slice(0, 12)
+  mkdirSync(join(repo, '.git', 'ghl'))
+  writeFileSync(
+    stateFile,
+    JSON.stringify({
+      version: 1,
+      viewed: {
+        'main..feature': { 'context.txt': hash },
+        'historical..range': { 'binary.bin': null },
+      },
+      comments: [
+        seed,
+        { ...seed, id: 'before', side: 'deletions', anchor: ['old'] },
+        ...['go-a', 'go-b', 'go-c', 'go-d'].map((name) => ({ ...seed, id: `delete-${name}` })),
+      ],
+    }),
+  )
   const initial = readFileSync(stateFile, 'utf8')
   // Old prototype data is untouched until explicitly imported.
   for (const name of ['ghl-go', 'ghl-go-poc']) {
@@ -153,7 +145,7 @@ try {
   )
   assert.deepEqual(first.viewed, { 'context.txt': hash })
   assert.deepEqual(first.comments.find((c) => c.id === 'before')?.code, ['old'])
-  assert.equal(readFileSync(stateFile, 'utf8'), initial, 'reading must not rewrite Node state')
+  assert.equal(readFileSync(stateFile, 'utf8'), initial, 'reading must not rewrite version-1 state')
   checks += 4
 
   const goWriter = async (server: typeof a, name: string) => {
@@ -173,8 +165,13 @@ try {
     }
     await request(server.url + `/api/comments?id=delete-${name}`, 'DELETE')
   }
-  await Promise.all([worker('node-a'), worker('node-b'), goWriter(a, 'go-a'), goWriter(b, 'go-b')])
-  const concurrent = (await readState(repo)).state
+  await Promise.all([
+    goWriter(a, 'go-a'),
+    goWriter(b, 'go-b'),
+    goWriter(a, 'go-c'),
+    goWriter(b, 'go-d'),
+  ])
+  const concurrent = readStored()
   assert.equal(concurrent.comments.length, 42)
   assert.equal(new Set(concurrent.comments.map((c) => c.id)).size, 42)
   assert.equal(Object.keys(concurrent.viewed.concurrent!).length, 40)
@@ -186,7 +183,7 @@ try {
     id: 'seed',
     body: 'edited outside diff',
   })
-  const edited = (await readState(repo)).state.comments.find((c) => c.id === 'seed')!
+  const edited = readStored().comments.find((c) => c.id === 'seed')!
   assert.equal(edited.createdAt, seed.createdAt)
   assert.deepEqual(edited.anchor, seed.anchor)
   checks++
@@ -231,11 +228,23 @@ try {
 
   const linked = join(root, 'linked')
   git('worktree', 'add', '-q', '-b', 'linked', linked, 'HEAD')
-  await withStateLock(repo, () =>
-    setViewed(linked, { range: 'main..linked', path: 'context.txt', hash, viewed: true }),
-  )
-  await putComment(linked, { ...seed, id: 'linked-only', range: 'main..linked' })
-  const linkedFile = await gitDirPath(linked, 'ghl/state.json')
+  const linkedServer = await start(linked)
+  await request(linkedServer.url + '/api/viewed', 'POST', {
+    range: 'main..linked',
+    path: 'context.txt',
+    hash,
+    viewed: true,
+  })
+  await request(linkedServer.url + '/api/comments', 'POST', {
+    ...seed,
+    id: 'linked-only',
+    range: 'main..linked',
+  })
+  const linkedFile = execFileSync(
+    'git',
+    ['-C', linked, 'rev-parse', '--git-path', 'ghl/state.json'],
+    { encoding: 'utf8' },
+  ).trim()
   assert.notEqual(linkedFile, stateFile)
   const linkedRead = spawnSync(binary, ['comments', '--repo', linked, '--base', 'main', '--json'], {
     encoding: 'utf8',
@@ -247,46 +256,16 @@ try {
     ['linked-only'],
   )
   assert.equal(
-    (await readState(repo)).state.comments.some((c) => c.id === 'linked-only'),
+    readStored().comments.some((c) => c.id === 'linked-only'),
     false,
   )
   checks += 3
 
-  // Killing a Node writer closes Git's stdin and releases its prepared lock.
-  const crash = spawn(process.execPath, [workerScript, repo, 'crash', 'crash'], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
-  const crashed = once(crash, 'exit')
-  const output = createInterface({ input: crash.stdout! })
-  const timer = setTimeout(() => crash.kill('SIGTERM'), 10_000)
-  try {
-    await Promise.race([
-      once(output, 'line'),
-      crashed.then(() => {
-        throw new Error('Crash worker did not acquire lock')
-      }),
-    ])
-    crash.kill('SIGKILL')
-    await crashed
-  } finally {
-    clearTimeout(timer)
-    output.close()
-    if (crash.exitCode === null && crash.signalCode === null) crash.kill('SIGTERM')
-  }
-  assert.deepEqual(readFileSync(stateFile), beforeConflict)
-  const afterCrash = command(['comments', '--base', 'main', '--json'])
-  assert.equal(afterCrash.status, 0, afterCrash.stderr)
-  assert.deepEqual(
-    await readState(repo).then((r) => r.state),
-    JSON.parse(beforeConflict.toString()),
-  )
-  assert.equal(git('for-each-ref', '--format=%(refname)', 'refs/worktree/ghl-state-lock'), '')
-  checks += 3
-
   const future = '{"version":2,"viewed":{},"comments":[]}'
   writeFileSync(stateFile, future)
-  assert.equal(command(['comments', '--base', 'main', '--json']).status, 1)
-  await assert.rejects(readState(repo), /Unsupported review state version/)
+  const unsupported = command(['comments', '--base', 'main', '--json'])
+  assert.equal(unsupported.status, 1)
+  assert.match(unsupported.stderr, /Unsupported review state version/)
   assert.equal(readFileSync(stateFile, 'utf8'), future)
   checks += 2
   writeFileSync(stateFile, '{corrupt-one')
@@ -295,15 +274,16 @@ try {
   assert.match(corrupt.stderr, /\.corrupt/)
   assert.deepEqual(JSON.parse(corrupt.stdout).comments, [])
   writeFileSync(stateFile, '{corrupt-two')
-  const recovered = await readState(repo)
-  assert.ok(recovered.notice?.includes('.corrupt'))
+  const recovered = command(['comments', '--base', 'main', '--json'])
+  assert.equal(recovered.status, 0, recovered.stderr)
+  assert.match(recovered.stderr, /\.corrupt/)
   const backups = readdirSync(join(repo, '.git', 'ghl'))
     .filter((file) => file.endsWith('.corrupt'))
     .map((file) => readFileSync(join(repo, '.git', 'ghl', file), 'utf8'))
   assert.deepEqual(backups.toSorted(), ['{corrupt-one', '{corrupt-two'])
   checks += 2
   console.log(
-    `Go state: ${checks} checks passed (Node/Go concurrency, imports, worktrees, crashes and rollback schema)`,
+    `Go state: ${checks} checks passed (Go process concurrency, imports, worktrees and schema compatibility)`,
   )
 } finally {
   for (const child of servers) {
