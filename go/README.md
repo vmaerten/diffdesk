@@ -45,7 +45,8 @@ fallback retains the same port and repository ID. Chrome is tested with both
 the advertised URL and `ghl.localhost`, including the secure-context clipboard.
 There is no hosts-file change, proxy, certificate or port-free setup.
 
-`--no-open` skips the browser; automatic opening targets macOS. `--json` prints
+`--no-open` skips the browser. Automatic opening uses `open` on macOS and
+`xdg-open` on Linux; a missing URL handler is reported on stderr. `--json` prints
 one `{port, repoId, url}` announcement. `--no-daemon` stays in the foreground
 and stops cleanly with Ctrl-C. `task dev` uses that foreground mode on a
 separate development backend port (5181 by default), so hot reload does not

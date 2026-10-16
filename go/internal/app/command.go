@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 )
 
 // Set by the build; direct `go build` remains usable for development.
@@ -208,8 +207,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, options O
 	if err != nil {
 		return err
 	}
-	if runtime.GOOS == "darwin" && !cli.noOpen {
-		if err := exec.CommandContext(ctx, "open", address).Run(); err != nil {
+	if !cli.noOpen {
+		if err := openBrowser(ctx, address); err != nil {
 			fmt.Fprintln(stderr, "Could not open browser:", err)
 		}
 	}
