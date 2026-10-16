@@ -169,3 +169,78 @@ func TestRemoteTrunkAndMissingBase(t *testing.T) {
 		t.Fatalf("silently chose a base: %v", err)
 	}
 }
+
+func TestOutdatedLocalTrunk(t *testing.T) {
+	r := fixture(t)
+	ctx := context.Background()
+	gitFixture(t, r.Path, "stash", "push", "-qu")
+	original := gitFixture(t, r.Path, "rev-parse", "main")
+	gitFixture(t, r.Path, "update-ref", "refs/remotes/origin/main", "main")
+	gitFixture(t, r.Path, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+	assertTrunk := func(want string) {
+		t.Helper()
+		got, err := r.trunk(ctx)
+		if err != nil || got == nil || *got != want {
+			t.Fatalf("trunk=%v want=%s err=%v", got, want, err)
+		}
+	}
+	assertTrunk("main")
+	gitFixture(t, r.Path, "checkout", "-q", "main")
+	writeFixture(t, r.Path, "integrated.txt", "already integrated\n")
+	gitFixture(t, r.Path, "add", "integrated.txt")
+	gitFixture(t, r.Path, "commit", "-qm", "already integrated")
+	gitFixture(t, r.Path, "update-ref", "refs/remotes/origin/main", "main")
+	gitFixture(t, r.Path, "checkout", "-q", "feature")
+	gitFixture(t, r.Path, "merge", "-q", "origin/main", "-m", "update feature")
+	gitFixture(t, r.Path, "branch", "-f", "main", original)
+	assertTrunk("origin/main")
+
+	base, err := r.resolveBase(ctx, "", "")
+	if err != nil || base.Ref != "origin/main" || base.Source != "trunk" {
+		t.Fatalf("outdated trunk: %+v %v", base, err)
+	}
+	commits, err := r.commits(ctx, base.Ref, "feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundFeature := false
+	for _, commit := range commits {
+		foundFeature = foundFeature || commit.Subject == "feature"
+		if commit.Subject == "already integrated" {
+			t.Fatal("already integrated commit leaked into the review")
+		}
+	}
+	if !foundFeature {
+		t.Fatal("feature commit missing from the review")
+	}
+	review, err := r.Resolve(ctx, Selection{Target: "feature"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(review.Files) != 4 {
+		t.Fatalf("expected only feature changes, got %+v", review.Files)
+	}
+	for _, file := range review.Files {
+		if file.Path == "integrated.txt" {
+			t.Fatal("already integrated change leaked into the diff")
+		}
+	}
+	base, err = r.resolveBase(ctx, "main", "")
+	if err != nil || base.Ref != "main" || base.Source != "override" {
+		t.Fatalf("explicit local base: %+v %v", base, err)
+	}
+	writeFixture(t, r.GitDir, "gh-stack", `{"schemaVersion":1,"stacks":[{"trunk":{"branch":"main"},"branches":[{"branch":"feature"}]}]}`)
+	base, err = r.resolveBase(ctx, "", "")
+	if err != nil || base.Ref != "origin/main" || base.Source != "stack" || base.Stack == nil || base.Stack.Trunk != "origin/main" || base.Stack.Layers[0].Base != "origin/main" {
+		t.Fatalf("stack with outdated trunk: %+v %v", base, err)
+	}
+	gitFixture(t, r.Path, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+	assertTrunk("origin/main")
+	gitFixture(t, r.Path, "checkout", "-q", "main")
+	gitFixture(t, r.Path, "commit", "-q", "--allow-empty", "-m", "local trunk work")
+	assertTrunk("main")
+	gitFixture(t, r.Path, "merge", "-q", "origin/main", "-m", "bring trunk up to date")
+	assertTrunk("main")
+	gitFixture(t, r.Path, "update-ref", "-d", "refs/remotes/origin/main")
+	assertTrunk("main")
+}
