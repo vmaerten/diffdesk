@@ -1,4 +1,4 @@
-import { findExecutable } from './system.ts'
+import { findExecutable, loopbackURL } from './system.ts'
 import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
@@ -381,7 +381,7 @@ try {
   write('context.txt', modified)
   check('Anchors on both sides, context, edits, deletion, stale comments and Viewed')
 
-  const html = await (await fetch(go.url)).text()
+  const html = await (await fetch(loopbackURL(go.url))).text()
   assert.ok(html.includes('<html'))
   for (const match of html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)) {
     const response: Response = await fetch(`http://127.0.0.1:${go.port}${match[1]}`)

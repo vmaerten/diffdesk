@@ -1,3 +1,4 @@
+import { loopbackURL } from './system.ts'
 import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
@@ -84,7 +85,7 @@ try {
     clearTimeout(startupTimer)
     lines.close()
   }
-  const goURL = announcement.url.split('?')[0]!
+  const goURL = loopbackURL(announcement.url).href.split('?')[0]!
 
   const review = async (query = '') => {
     const payload = await json<DiffPayload>(goURL + '/api/diff' + query)

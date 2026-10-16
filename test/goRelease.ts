@@ -1,3 +1,5 @@
+import { archiveName, releaseTarget, RELEASE_TARGETS } from './releaseTarget.ts'
+import { findExecutable, loopbackURL } from './system.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -39,67 +41,93 @@ if (tag) {
   assert.equal(metadata.tag, tag)
   assert.equal(metadata.version, tag.slice(1))
 }
-const archiveName = `ghl_${metadata.version}_darwin_arm64.tar.gz`
+const selectedTarget = releaseTarget()
+const selectedArchive = archiveName(metadata.version, selectedTarget)
+const names = RELEASE_TARGETS.map((target) => archiveName(metadata.version, target)).toSorted()
 assert.deepEqual(
-  readdirSync(dist).filter((name) => name.endsWith('.tar.gz')),
-  [archiveName],
+  readdirSync(dist)
+    .filter((name) => name.endsWith('.tar.gz'))
+    .toSorted(),
+  names,
 )
-const archive = join(dist, archiveName)
 const checksums = readFileSync(join(dist, 'checksums.txt'), 'utf8').trim().split('\n')
-assert.equal(checksums.length, 1, 'Only the release archive should be checksummed')
-const checksum = checksums[0]?.match(/^([\da-f]{64})  (ghl_[\w.+-]+_darwin_arm64\.tar\.gz)$/)
-assert.ok(checksum, 'Expected a portable SHA-256 checksum line')
-assert.equal(checksum[2], archiveName)
-assert.equal(createHash('sha256').update(readFileSync(archive)).digest('hex'), checksum[1])
-const members = execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' })
-  .trim()
-  .split('\n')
-  .map((name) => name.replace(/^\.\//, ''))
-  .toSorted()
-assert.deepEqual(
-  members,
-  ['LICENSE', 'THIRD_PARTY_NOTICES.txt', 'ghl'],
-  'No toolchains, node_modules, browser, loose assets or extra files may ship',
-)
-const entries = execFileSync('tar', ['-tvzf', archive], { encoding: 'utf8' }).trim().split('\n')
-assert.ok(
-  entries.every((line) => line.startsWith('-')),
-  'Only regular archive files may be extracted',
-)
+assert.equal(checksums.length, names.length, 'Every platform archive must be checksummed')
+const hashes = new Map<string, string>()
+for (const line of checksums) {
+  const match = line.match(
+    /^([\da-f]{64})  (ghl_[\w.+-]+_(?:darwin|linux)_(?:arm64|amd64)\.tar\.gz)$/,
+  )
+  assert.ok(match, 'Expected a portable SHA-256 checksum line')
+  assert.ok(!hashes.has(match[2]!), 'Duplicate checksum filename')
+  hashes.set(match[2]!, match[1]!)
+}
+assert.deepEqual([...hashes.keys()].toSorted(), names)
+for (const name of names) {
+  assert.equal(
+    createHash('sha256')
+      .update(readFileSync(join(dist, name)))
+      .digest('hex'),
+    hashes.get(name),
+    name,
+  )
+}
 
 const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-release-')))
 let server: ReturnType<typeof spawn> | undefined
 try {
-  execFileSync('tar', ['-xzf', archive, '-C', temporary])
-  for (const member of members) assert.ok(lstatSync(join(temporary, member)).isFile())
-  const binary = join(temporary, 'ghl')
-  chmodSync(binary, 0o755)
-  assert.equal(
-    readFileSync(join(temporary, 'LICENSE'), 'utf8'),
-    readFileSync(join(root, 'LICENSE'), 'utf8'),
-  )
-  const notices = readFileSync(join(temporary, 'THIRD_PARTY_NOTICES.txt'), 'utf8')
-  for (const name of [
-    'Go standard library',
-    '@pierre/diffs@',
-    '@pierre/trees@',
-    'react@',
-    'react-dom@',
-    'cmdk@',
-    'Permission is hereby granted',
-    'Apache License',
-    'VS Code Oniguruma Bindings',
-    'oniguruma version 6.9.5_rev1',
-    'tm-grammars-1.32.0.NOTICE',
-    'tm-themes-1.12.3.NOTICE',
-  ])
-    assert.ok(notices.includes(name), `Archive lacks notice: ${name}`)
-  const goMetadata = execFileSync('go', ['version', '-m', binary], { encoding: 'utf8' })
-  for (const setting of ['CGO_ENABLED=0', 'GOOS=darwin', 'GOARCH=arm64', '-trimpath=true'])
-    assert.ok(goMetadata.includes(setting), `Wrong release setting: ${setting}`)
+  for (const target of RELEASE_TARGETS) {
+    const archive = join(dist, archiveName(metadata.version, target))
+    const members = execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' })
+      .trim()
+      .split('\n')
+      .map((name) => name.replace(/^\.\//, ''))
+      .toSorted()
+    assert.deepEqual(
+      members,
+      ['LICENSE', 'THIRD_PARTY_NOTICES.txt', 'ghl'],
+      'No toolchains, node_modules, browser, loose assets or extra files may ship',
+    )
+    const entries = execFileSync('tar', ['-tvzf', archive], { encoding: 'utf8' }).trim().split('\n')
+    assert.ok(
+      entries.every((line) => line.startsWith('-')),
+      'Only regular archive files may be extracted',
+    )
+    const contents = join(temporary, target)
+    mkdirSync(contents)
+    execFileSync('tar', ['-xzf', archive, '-C', contents])
+    for (const member of members) assert.ok(lstatSync(join(contents, member)).isFile())
+    const binary = join(contents, 'ghl')
+    chmodSync(binary, 0o755)
+    assert.equal(
+      readFileSync(join(contents, 'LICENSE'), 'utf8'),
+      readFileSync(join(root, 'LICENSE'), 'utf8'),
+    )
+    const notices = readFileSync(join(contents, 'THIRD_PARTY_NOTICES.txt'), 'utf8')
+    for (const name of [
+      'Go standard library',
+      '@pierre/diffs@',
+      '@pierre/trees@',
+      'react@',
+      'react-dom@',
+      'cmdk@',
+      'Permission is hereby granted',
+      'Apache License',
+      'VS Code Oniguruma Bindings',
+      'oniguruma version 6.9.5_rev1',
+      'tm-grammars-1.32.0.NOTICE',
+      'tm-themes-1.12.3.NOTICE',
+    ])
+      assert.ok(notices.includes(name), `Archive lacks notice: ${name}`)
+    const goMetadata = execFileSync('go', ['version', '-m', binary], { encoding: 'utf8' })
+    const [os, arch] = target.split('_')
+    for (const setting of ['CGO_ENABLED=0', `GOOS=${os}`, `GOARCH=${arch}`, '-trimpath=true']) {
+      assert.ok(goMetadata.includes(setting), `Wrong release setting (${target}): ${setting}`)
+    }
+  }
+  const binary = join(temporary, selectedTarget, 'ghl')
   const onlyGit = join(temporary, 'path')
   mkdirSync(onlyGit)
-  const gitBinary = execFileSync('/usr/bin/which', ['git'], { encoding: 'utf8' }).trim()
+  const gitBinary = findExecutable('git')
   symlinkSync(gitBinary, join(onlyGit, 'git'))
   const env = {
     ...process.env,
@@ -157,7 +185,7 @@ try {
     ])
     const announced: { port: number; repoId: string; url: string } = JSON.parse(line)
     const origin = `http://127.0.0.1:${announced.port}`
-    const page = await fetch(announced.url, { signal: AbortSignal.timeout(3000) })
+    const page = await fetch(loopbackURL(announced.url), { signal: AbortSignal.timeout(3000) })
     assert.equal(page.status, 200)
     assert.ok(page.headers.get('content-type')?.includes('text/html'))
     const html = await page.text()
@@ -190,7 +218,7 @@ try {
     output.close()
   }
   console.log(
-    `Release artifact verified: ${archiveName} (checksum, licenses, metadata, standalone API and embedded HTML/JS/CSS)`,
+    `Release artifact verified: ${selectedArchive} (all four archives checked; standalone API and embedded HTML/JS/CSS executed on ${selectedTarget})`,
   )
 } finally {
   if (server && server.exitCode === null && server.signalCode === null) {
