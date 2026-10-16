@@ -87,7 +87,7 @@ ont été les chemins Git quotés et renommés, les ancres des deux côtés, les
 comparaisons devenues obsolètes, les lectures bornées d'images et le partage
 de l'état entre processus Node/Go. Les contrats, les scénarios navigateur et
 les remplacements de daemon sont vérifiés dans le
-[contrôle de release](./go-validation.md).
+[contrôle de release](./validation.md).
 
 ## Benchmark Go actuel
 

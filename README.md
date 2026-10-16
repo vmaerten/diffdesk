@@ -9,7 +9,7 @@ The runtime is Go with the React interface embedded. Release builds target macOS
 (Apple Silicon and Intel) and Linux (ARM64 and x86-64). Git and a browser are
 runtime prerequisites. The published v0.1.0 contains macOS ARM64 only; the added
 platform archives require a subsequent release and their platform acceptance gate.
-See the [installation guide](./docs/go-installation.md).
+See the [installation guide](./docs/installation.md).
 
 | key       | action                           |
 | --------- | -------------------------------- |
@@ -231,14 +231,14 @@ It preserves existing version-1 `.git/ghl/state.json`, including a cross-process
 lock. Stop legacy Node daemons before switching; prototype and
 PoC data stay separate unless explicitly imported. See the [Go runtime guide](./go/README.md)
 and [industrialization project](https://github.com/vmaerten/ghl/issues/97).
-The [release guide](./docs/go-releases.md) covers verified macOS/Linux archives
+The [release guide](./docs/releases.md) covers verified macOS/Linux archives
 and manual publication from a validated version tag.
 GitHub Actions is disabled; verification runs locally.
-The [acceptance guide](./docs/go-validation.md) covers the full release gate
+The [acceptance guide](./docs/validation.md) covers the full release gate
 and production runtime measurements.
-The [mise installation guide](./docs/go-installation.md) covers PATH activation,
+The [mise installation guide](./docs/installation.md) covers PATH activation,
 version pinning, upgrades and rollback. The
-[migration guide](./docs/go-migration.md) covers existing Node installations.
+[migration guide](./docs/migration.md) covers existing Node installations.
 
 ## Go proof of concept
 

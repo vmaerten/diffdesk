@@ -1,4 +1,4 @@
-# Install the Go runtime with mise
+# Install ghl with mise
 
 Release builds cover macOS Apple Silicon (`darwin_arm64`), macOS Intel
 (`darwin_amd64`), Linux ARM64 (`linux_arm64`) and Linux x86-64 (`linux_amd64`).
@@ -11,7 +11,7 @@ without invoking a desktop handler.
 
 Go is the default runtime. Release installation requires an archive in
 [GitHub Releases](https://github.com/vmaerten/ghl/releases); source installation is
-covered in the [migration guide](./go-migration.md). Private releases require
+covered in the [migration guide](./migration.md). Private releases require
 GitHub authentication with read access; see
 [mise's tokens guide](https://mise.jdx.dev/dev-tools/github-tokens.html).
 

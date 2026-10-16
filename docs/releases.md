@@ -1,9 +1,9 @@
-# Go releases
+# Releases
 
 The release pipeline builds one executable containing the production React UI.
 The configured targets are macOS ARM64/Intel and Linux ARM64/x86-64. Git and
 a browser are runtime prerequisites. The project uses MIT; archives also contain the notices for
-third-party components. The [mise installation guide](./go-installation.md)
+third-party components. The [mise installation guide](./installation.md)
 documents the consumer path and its verification. The first release, v0.1.0,
 was published for macOS ARM64 and passed the real GitHub/mise installation gate.
 The additional targets require a subsequent release and platform acceptance.
@@ -74,8 +74,8 @@ Pull requests, branch pushes and tags do not start hosted jobs. Build, acceptanc
 and publication run locally on the supported native macOS ARM64 target.
 
 After building the checked-out version tag, run the complete
-[local acceptance gate](./go-validation.md), including the extracted archive,
-mise fixture on the primary platform, plus [smoke checks](./go-validation.md#platform-validation)
+[local acceptance gate](./validation.md), including the extracted archive,
+mise fixture on the primary platform, plus [smoke checks](./validation.md#platform-validation)
 on the other targets.
 Publish those exact tested files without
 rebuilding:

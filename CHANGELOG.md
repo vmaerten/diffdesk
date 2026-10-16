@@ -26,6 +26,6 @@ macOS Apple Silicon (ARM64), distributed through GitHub Releases and mise.
   untracked Git repositories/worktrees rather than aborting the entire review.
 
 Stop an old Node daemon before starting Go on the same port. Read the
-[migration guide](./docs/go-migration.md) for PATH precedence, backups and rollback,
-and the [installation guide](./docs/go-installation.md) for mise commands.
+[migration guide](./docs/migration.md) for PATH precedence, backups and rollback,
+and the [installation guide](./docs/installation.md) for mise commands.
 Other platforms and the optional URL without a port remain follow-up work.

@@ -1,4 +1,4 @@
-# Go release acceptance
+# Release acceptance
 
 Release builds target **macOS ARM64/Intel and Linux ARM64/x86-64**. GitHub Actions is disabled;
 there are no automatic CI checks or hosted release jobs. Maintainers run the
@@ -29,7 +29,7 @@ Chrome, Python and the C toolchain used by `-race` are test prerequisites;
 they are excluded from the consumer's release archive.
 
 For a checked-out version tag, substitute `RELEASE_TAG=vX.Y.Z task release:build`
-for the snapshot step. See [Go releases](./go-releases.md) for tag validation.
+for the snapshot step. See [releases](./releases.md) for tag validation.
 Run `task test:dev` or `task test:install` when changing those workflows. Use
 `task release:bench` for runtime/performance changes, after browser tests finish.
 The archive acceptance suite already covers the CLI, API and browser; running
@@ -67,7 +67,7 @@ compatibility and restart are tested separately against seeded version-1 fixture
 
 ## Promotion policy
 
-The [mise distribution checks](./go-installation.md#maintainer-verification)
+The [mise distribution checks](./installation.md#maintainer-verification)
 exercise the real client/backend with a local release API before publication
 and actual GitHub assets afterward. The local published check verifies installed
 bytes, PATH, standalone serving and saved state, then upgrades/rolls back when a
