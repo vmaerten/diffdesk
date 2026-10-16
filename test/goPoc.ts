@@ -1,3 +1,4 @@
+import { findExecutable } from './system.ts'
 import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
@@ -46,10 +47,7 @@ interface Running {
 const binary = join(temporary, name)
 const onlyGit = join(temporary, 'path')
 mkdirSync(onlyGit)
-symlinkSync(
-  execFileSync('/usr/bin/which', ['git'], { encoding: 'utf8' }).trim(),
-  join(onlyGit, 'git'),
-)
+symlinkSync(findExecutable('git'), join(onlyGit, 'git'))
 copyFileSync(
   production ? goBinary() : fileURLToPath(new URL('../poc/go/dist/ghl-go-poc', import.meta.url)),
   binary,

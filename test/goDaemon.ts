@@ -1,3 +1,4 @@
+import { findExecutable } from './system.ts'
 import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFile, execFileSync, spawn } from 'node:child_process'
@@ -30,10 +31,7 @@ copyFileSync(binary, upgraded)
 appendFileSync(upgraded, '\nnew embedded runtime content\n')
 const onlyGit = join(directory, 'path')
 mkdirSync(onlyGit)
-symlinkSync(
-  execFileSync('/usr/bin/which', ['git'], { encoding: 'utf8' }).trim(),
-  join(onlyGit, 'git'),
-)
+symlinkSync(findExecutable('git'), join(onlyGit, 'git'))
 const env = {
   ...process.env,
   PATH: onlyGit,
