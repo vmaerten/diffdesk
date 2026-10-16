@@ -5,7 +5,7 @@ Review the PR you are about to open, without opening it.
 A local git diff viewer with a GitHub-like UI, for the moment when the change is written
 but pushing it just to look at it is not worth the trip.
 
-The default runtime is Go with the React interface embedded. The initial supported
+The runtime is Go with the React interface embedded. The initial supported
 release platform is **macOS on Apple Silicon (ARM64)**. Git and a browser are the
 only runtime prerequisites. See the [installation guide](./docs/go-installation.md).
 
@@ -55,8 +55,8 @@ is unavailable, the original lines are included and explicitly labelled as histo
 A failed clipboard write is reported instead of displaying a successful copy.
 
 `ghl comments` exports the comments belonging to the requested comparison, and `--json`
-provides structured output. The CLI and UI share the Markdown formatter; the UI's overview
-has a wider scope because it also includes comments outside that comparison. Neither adds
+provides structured output. Shared golden fixtures keep Go and React exports aligned.
+The UI overview also includes comments outside that comparison. Neither export adds
 an instruction to apply the remarks: that is the prompt of whoever pastes them.
 
 On narrow screens, **Files** opens the file tree over the diff and closes after selecting
@@ -150,11 +150,6 @@ listens on :5180 and the API on :5181. Use
 `task dev REPO=/path/to/repository BASE=main` to review another checkout. See the
 [development guide](./go/README.md#development) for prerequisites and build/test tasks.
 
-The Node fallback remains maintained during the 0.1.x transition.
-`pnpm install:node` installs it as `ghl-node`, without replacing Go;
-`pnpm uninstall:node` removes that fallback. See the
-[migration guide](./docs/go-migration.md) before switching an older installation.
-
 `ghl` with no argument shows **everything that is not in the base**, committed or not:
 the diff from `merge-base(base, HEAD)` down to the working tree.
 
@@ -221,8 +216,7 @@ Each layer keeps its own viewed ticks, since those are keyed by the revision ran
 The production Go entry point embeds React and provides text review
 with optional untracked files and image previews, comments, Viewed, context expansion, automatic bases,
 stacks, revision/commit selection and a shared background daemon with stable
-repository URLs. The same UI and version-1 state are shared with the explicit
-Node fallback.
+repository URLs. Go is the only supported backend and CLI runtime.
 
 ```bash
 task build
@@ -231,8 +225,8 @@ task build
 task test
 ```
 
-It shares version-1 `.git/ghl/state.json` with the updated Node runtime, including
-a cross-process lock. Stop older Node processes before switching; prototype and
+It preserves existing version-1 `.git/ghl/state.json`, including a cross-process
+lock. Stop legacy Node daemons before switching; prototype and
 PoC data stay separate unless explicitly imported. See the [Go runtime guide](./go/README.md)
 and [industrialization project](https://github.com/vmaerten/ghl/issues/97).
 The [release guide](./docs/go-releases.md) covers verified macOS ARM64 archives
@@ -254,7 +248,6 @@ Node, pnpm and Task v3 are build tools.
 task poc:build
 ./poc/go/dist/ghl-go-poc --repo /path/to/repo --base main
 task poc:test
-pnpm poc:go:bench
 ```
 
 The PoC reviews the checkout, including staged and unstaged work, with comments,
@@ -265,53 +258,41 @@ daemon. See [scope, validation and measurements](./docs/go-poc.md).
 ## Tests
 
 ```bash
-task test                  # Go race, parity, lifecycle and browser checks
-task test:install          # local installation and explicit Node fallback
-pnpm test:node             # complete Node reference suite
-node test/run.ts --go tree  # one Go browser suite after task build
-pnpm test:node lifecycle   # Node shared process, without starting a browser
-pnpm test:node images      # Node image API and previews
+task test                     # Go race, CLI, lifecycle, API and browser checks
+task test:install             # local installation and state preservation
+node test/run.ts tree         # one browser suite after task build
+node test/run.ts export       # formatter goldens, without a browser
+task test:dev                 # React hot reload and Go restart
+task bench                    # three-pass production Go measurements
 ```
 
-`lifecycle` drives real `ghl` processes — cold start, a second repository joining, a newer
-build taking over, two starts racing for the port, the idle stop, the Host allowlist. It
-runs against a copy of `bin/` and `src/` in a temp directory, on a port picked free at the
-last moment, so it never fights the `ghl` you have running on 7777.
+`task test` builds the Go executable with its React assets, then tests it directly.
+CLI, state, daemon, revision and image tests use temporary Git repositories.
+State tests exercise concurrent Go processes, existing version-1 data, imports,
+linked worktrees, corruption and unsupported schemas. Go race tests cover lock
+cancellation and interrupted writes as well as the backend contracts.
 
-`state`, `refs`, `commits` and `worktree` need no browser either, and build their own
-repositories: what they ask has no answer in the shared fixture — a remote, a merge, a root
-commit which no base can bring into range, a checkout dirty in three different ways.
-
-The rest drive a headless Chrome over the real UI — `CHROME_PATH` overrides where it
-is found. Each run builds a throwaway git repository in a temp directory with a
-known diff (one file of each git status, a chain of single-child directories,
-enough rows to force both panes to virtualise) and serves that. Nothing touches
-a real repository, and nothing depends on which branch happens to be checked
-out — an earlier version did both, and broke when the branch moved.
-
-`task test` builds both the Go executable and the Node reference UI before checking
-parity. `pnpm test:node` builds `web-dist/` before running the reference suite;
-testing without rebuilding would silently test the previous interface.
+The browser suites drive headless Chrome over the embedded UI, including context
+expansion, comments, copy, Viewed, revision selection and restart. `CHROME_PATH`
+overrides the pinned Chrome for Testing build. Fixtures and ephemeral ports keep
+these tests separate from real repositories and the daemon on port 7777.
+Node runs the TypeScript test drivers and frontend build tools; it does not serve
+the application. Release acceptance repeats the checks against the executable
+extracted from the archive, with only Git in its runtime PATH.
 
 ## Layout
 
-```
-go/cmd/ghl/     default CLI with embedded React assets
-go/internal/app/ Go backend, CLI, state and daemon
-Taskfile.yml    native build, dev, installation and validation tasks
-bin/ghl.ts       Node reference CLI — reads the current directory,
-                 and the shared process it starts in the background
-src/git.ts       git layer, every call through `git -C <repoPath>`
-src/revision.ts  base resolution and patch construction
-src/server.ts    HTTP server, routes namespaced by repo
-src/state.ts     the viewed state, in .git/ghl/state.json
-src/version.ts   what this runtime is, so a stale instance is replaced
-src/types.ts     the shapes that cross the HTTP boundary
-web/src/*.tsx    the UI, importing those same shapes
-web/src/fileOrder.ts  the tree's file order, which the diff list follows
-scripts/install.ts  installs the explicit ghl-node fallback
+```text
+go/cmd/ghl/          CLI with embedded React assets
+go/cmd/ghl-dev/      development server behind Vite and Air
+go/internal/app/     backend, CLI, state and daemon
+Taskfile.yml         build, dev, installation and validation tasks
+src/types.ts         HTTP/JSON contracts consumed by React and test drivers
+src/export.ts        browser Markdown/JSON formatter, aligned with Go goldens
+web/src/             React interface
+scripts/             build, release and benchmark tooling
+test/                CLI/API and browser acceptance drivers
 ```
 
-The Node reference backend runs TypeScript unbuilt: Node strips the types
-itself, which is why relative imports name the real `.ts` file and why `engines`
-asks for Node 24 — the first LTS with that on by default.
+Node >= 24 and pnpm are development/build prerequisites for React and the
+TypeScript test drivers. Consumers run the Go executable without them.

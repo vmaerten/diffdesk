@@ -1,15 +1,6 @@
 import { createFixture } from './fixture.ts'
 import { withHarness, type Check, type Suite } from './harness.ts'
-import { runCommits } from './commits.ts'
-import { runLifecycle } from './lifecycle.ts'
-import { runRefs } from './refs.ts'
-import { runWorktree } from './worktree.ts'
-import { runState } from './state.ts'
 import { runExport } from './export.ts'
-import { runContext } from './context.ts'
-import { runImages } from './images.ts'
-import { runComparison } from './comparison.ts'
-import { runRepositoryFile } from './repositoryFile.ts'
 import { runReviewSelection } from './reviewSelection.ts'
 import { runCommentPersistence } from './commentPersistence.ts'
 
@@ -48,29 +39,17 @@ const SUITES: Suite[] = [
 ]
 
 /**
- * Suites with their own repositories. Most need no browser; images also checks
- * its dedicated fixture in Chrome after validating the API.
+ * Pure frontend helpers, checked without starting a server or browser.
  */
 const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'review-selection', run: runReviewSelection },
   { name: 'comment-persistence', run: runCommentPersistence },
-  { name: 'repository-file', run: runRepositoryFile },
-  { name: 'comparison', run: runComparison },
-  { name: 'state', run: runState },
   { name: 'export', run: runExport },
-  { name: 'refs', run: runRefs },
-  { name: 'commits', run: runCommits },
-  { name: 'worktree', run: runWorktree },
-  { name: 'lifecycle', run: runLifecycle },
-  { name: 'images', run: runImages },
-  { name: 'context', run: runContext },
 ]
 
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-'))
-const go = process.argv.includes('--go')
-if (go) process.env.GHL_TEST_RUNTIME = 'go'
 const selected = only.length > 0 ? SUITES.filter((s) => only.includes(s.name)) : SUITES
-const plain = go ? [] : only.length > 0 ? PLAIN.filter((s) => only.includes(s.name)) : PLAIN
+const plain = only.length > 0 ? PLAIN.filter((s) => only.includes(s.name)) : PLAIN
 
 if (selected.length === 0 && plain.length === 0) {
   const names = [...PLAIN.map((s) => s.name), ...SUITES.map((s) => s.name)].join(', ')

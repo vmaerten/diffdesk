@@ -3,7 +3,7 @@
 The initial supported platform is **macOS ARM64**. GitHub Actions is disabled;
 there are no automatic CI checks or hosted release jobs. Maintainers run the
 locked toolchain and Chrome for Testing 154.0.8037.92 locally, with static checks,
-Go race tests, hot reload, the Node reference suite, installation tests, archive
+Go race tests, hot reload, installation tests, archive
 validation, production Go acceptance and three-pass runtime measurements.
 
 ## Local gate
@@ -18,7 +18,7 @@ task check
 task test:go
 task test:dev
 task test:install
-pnpm test:node:node
+task test
 task release:check
 task release:snapshot
 task release:acceptance
@@ -45,13 +45,13 @@ rebuild the binary. An outdated archive fails the commit/version checks.
 
 | Suite            | Behavior exercised                                                                                                                                                           |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `goCLI.ts`       | Node/Go summaries and Markdown/JSON exports, scopes, errors, stdout/stderr and relocated executable                                                                          |
-| `goState.ts`     | Existing Node state, concurrent Node/Go writers, original anchors/timestamps, Viewed, restart, worktrees, imports, corruption and schema rollback                            |
+| `goCLI.ts`       | Go summaries and Markdown/JSON exports, scopes, errors, stdout/stderr and relocated executable                                                                               |
+| `goState.ts`     | Existing version-1 state, concurrent Go writers, original anchors/timestamps, Viewed, restart, worktrees, imports, corruption and schema rollback                            |
 | `goDaemon.ts`    | Shared repositories, concurrent starts, instance replacement, bookmark stability, preserved comments/Viewed, idle/heartbeat/shutdown, Host/Origin and actual clipboard reads |
 | `goPoc.ts go`    | Production diff/context/mutation contracts, renamed/Unicode/untracked files, stale/outside comments and browser review actions                                               |
 | `goRevisions.ts` | Automatic and remembered bases, stacks, refs, targets, root/merge/selected commits, fallback and commit anchors                                                              |
-| `goImages.ts`    | Node/Go image metadata and bytes, unsafe/oversized sources, browser previews and unavailable-image behavior                                                                  |
-| `run.ts --go`    | All fifteen shared browser suites: themes, review panel, tree, resize, Viewed, comments, pickers, scroll, renames, order, stacks, commits, worktree, untracked and search    |
+| `goImages.ts`    | Go image metadata and bytes, unsafe/oversized sources, browser previews and unavailable-image behavior                                                                       |
+| `run.ts`         | All fifteen shared browser suites: themes, review panel, tree, resize, Viewed, comments, pickers, scroll, renames, order, stacks, commits, worktree, untracked and search    |
 
 The relocated CLI, standalone HTTP checks, daemon tests and shared Go browser
 harness run the executable with a PATH containing only Git. The Node test
@@ -64,7 +64,7 @@ The daemon upgrade test changes executable identity by appending a payload to
 a copy of the candidate. It checks a new process/revision, transferred repository
 registrations and unchanged comment/Viewed data. This simulates replacement;
 there is no previous published Go release to install yet. Node-to-Go state
-compatibility and restart are tested separately against actual Node writers.
+compatibility and restart are tested separately against seeded version-1 fixtures.
 
 ## Promotion policy
 
@@ -78,8 +78,7 @@ validation remain pending until the corresponding checks pass.
 Run all relevant local checks before publishing. These checks are not enforced
 by a GitHub workflow; publication is manual using the verified archive.
 Measurements check response correctness and record performance; they impose no
-RAM or latency threshold. Go is the default runtime, with an explicit Node
-fallback during the 0.1.x transition.
+RAM or latency threshold. Go is the only supported application runtime.
 
 Support for other platforms must pass native acceptance before adding or
 advertising their release assets:

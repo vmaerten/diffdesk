@@ -8,12 +8,7 @@ export default defineConfig(({ mode }) => ({
   base: '/',
   plugins: [react({ compiler: true })],
   build: {
-    outDir:
-      mode === 'go-poc'
-        ? '../go/cmd/ghl-go-poc/assets'
-        : mode === 'go'
-          ? '../go/cmd/ghl/assets'
-          : '../web-dist',
+    outDir: mode === 'go-poc' ? '../go/cmd/ghl-go-poc/assets' : '../go/cmd/ghl/assets',
     emptyOutDir: true,
   },
   server: {

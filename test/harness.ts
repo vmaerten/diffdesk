@@ -3,7 +3,6 @@ import { platform } from 'node:process'
 
 import { launch, type Browser, type Page } from 'puppeteer-core'
 
-import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
 import { serveGo } from './goBinary.ts'
 import { testBrowserPath } from '../scripts/test-browser.ts'
 
@@ -61,24 +60,13 @@ export { sleep }
 /**
  * Serve `repoPath` and drive it with one browser, reused across suites.
  *
- * The same suites can use Node in-process or the production Go executable.
+ * The suites drive the production Go executable with its embedded frontend.
  */
 export async function withHarness<T>(
   repoPath: string,
   body: (make: (target?: string) => Promise<Harness>, browser: Browser) => Promise<T>,
 ): Promise<T> {
-  const server =
-    process.env.GHL_TEST_RUNTIME === 'go'
-      ? await serveGo(repoPath)
-      : await (async () => {
-          const node = createGhlServer({ repos: [{ repoPath }] })
-          const port = await listen(node, 0)
-          return {
-            origin: `http://127.0.0.1:${port}`,
-            repoId: repoIdFor(repoPath),
-            close: () => new Promise<void>((resolve) => node.close(() => resolve())),
-          }
-        })()
+  const server = await serveGo(repoPath)
   const base = `${server.origin}/r/${server.repoId}`
 
   let browser: Browser | undefined

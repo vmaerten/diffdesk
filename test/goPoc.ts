@@ -18,7 +18,7 @@ import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
-import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
+import { createHash } from 'node:crypto'
 import { asExport, asMarkdown } from '../src/export.ts'
 import type { DiffFiles, DiffPayload, ServedComment } from '../src/types.ts'
 import { clickTreeRow, DIFF_SCROLLER, findChrome, sleep } from './harness.ts'
@@ -112,30 +112,16 @@ async function json<T>(url: string, method = 'GET', body?: unknown): Promise<T> 
   assert.equal(response.status, 200, await response.clone().text())
   return response.json() as Promise<T>
 }
-const diffFilesContract = (files: DiffFiles) => ({
-  oldFile: files.oldFile && {
-    name: files.oldFile.name,
-    contents: files.oldFile.contents,
-    cacheKey: files.oldFile.cacheKey,
-  },
-  newFile: {
-    name: files.newFile.name,
-    contents: files.newFile.contents,
-    cacheKey: files.newFile.cacheKey,
-  },
-})
-
 const check = (message: string) => console.log(`  ok ${message}`)
 
 let go: Running | undefined
-const node = createGhlServer({ repos: [{ repoPath: repo }] })
 try {
   git('init', '-q', '-b', 'main')
   git('config', 'user.name', 'Fixture')
   git('config', 'user.email', 'fixture@example.invalid')
   git('config', 'commit.gpgsign', 'false')
   git('config', 'core.hooksPath', '/dev/null')
-  // Node's patch parser requires unquoted Unicode paths. Go also tests default quoting.
+  // Exercise unquoted Unicode paths before repeating browser checks with quoting.
   git('config', 'core.quotepath', 'false')
   write('context.txt', original)
   write('old name é.txt', 'rename\n')
@@ -198,8 +184,6 @@ try {
   assert.equal(health.ghlGoPoc, production ? undefined : true)
   assert.equal(health.ghl, undefined, 'unfinished daemon protocol is not advertised to Node')
   check(`version and health identify ${name} with matching build metadata`)
-  const port = await listen(node, 0)
-  const nodeBase = `http://127.0.0.1:${port}/r/${repoIdFor(repo)}/api/`
   const goBase = () => `http://127.0.0.1:${go!.port}/r/${go!.repoId}/api/`
   const diff = (suffix = '') => json<DiffPayload>(goBase() + `diff?base=main${suffix}`)
 
@@ -213,23 +197,32 @@ try {
         '&commit=HEAD&untracked',
       ]
     : ['', '&committed=1']) {
-    const [a, b] = await Promise.all([
-      diff(suffix),
-      json<DiffPayload>(nodeBase + `diff?base=main${suffix}`),
-    ])
-    for (const field of [
-      'comparison',
-      'patch',
-      'totals',
-      'files',
-      'range',
-      'head',
-      'target',
-    ] as const)
-      assert.deepEqual(a[field], b[field], field)
-    if (production) {
-      assert.deepEqual(a.untracked, b.untracked)
-      assert.equal(a.untrackedIncluded, b.untrackedIncluded)
+    const a = await diff(suffix)
+    assert.equal(a.totals.files, a.files.length)
+    assert.equal(
+      a.totals.additions,
+      a.files.reduce((sum, f) => sum + f.additions, 0),
+    )
+    assert.equal(
+      a.totals.deletions,
+      a.files.reduce((sum, f) => sum + f.deletions, 0),
+    )
+    if (!suffix.includes('&untracked') || a.comparison.after) {
+      const expected = execFileSync(
+        'git',
+        [
+          '-C',
+          repo,
+          'diff',
+          '--no-ext-diff',
+          '--no-color',
+          '--find-renames',
+          a.comparison.before,
+          ...(a.comparison.after ? [a.comparison.after] : []),
+        ],
+        { env, encoding: 'utf8' },
+      )
+      assert.equal(a.patch, expected)
     }
     for (const file of a.files.filter((f) => !f.binary)) {
       const query = new URLSearchParams({
@@ -239,18 +232,37 @@ try {
         comparison: JSON.stringify(a.comparison),
       })
       for (const [key, value] of new URLSearchParams(suffix.slice(1))) query.set(key, value)
-      const [goFiles, nodeFiles] = await Promise.all([
-        json<DiffFiles>(goBase() + `diff-files?${query}`),
-        json<DiffFiles>(nodeBase + `diff-files?${query}`),
-      ])
-      assert.deepEqual(
-        diffFilesContract(goFiles),
-        diffFilesContract(nodeFiles),
-        `context ${file.path}`,
-      )
+      const context = await json<DiffFiles>(goBase() + `diff-files?${query}`)
+      const oldName = file.path === 'renamed é.txt' ? 'old name é.txt' : file.path
+      const before = ['added', 'untracked'].includes(file.status)
+        ? ''
+        : execFileSync('git', ['-C', repo, 'show', `${a.comparison.before}:${oldName}`], {
+            env,
+            encoding: 'utf8',
+          })
+      const after =
+        file.status === 'deleted'
+          ? ''
+          : a.comparison.after
+            ? execFileSync('git', ['-C', repo, 'show', `${a.comparison.after}:${file.path}`], {
+                env,
+                encoding: 'utf8',
+              })
+            : readFileSync(join(repo, file.path), 'utf8')
+      if (context.oldFile) assert.equal(context.oldFile.contents, before)
+      assert.equal(context.newFile.contents, after)
+      for (const version of [context.oldFile, context.newFile]) {
+        if (!version || version.cacheKey === 'empty') continue
+        const bytes = Buffer.from(version.contents)
+        const expectedKey = createHash('sha256')
+          .update(`blob ${bytes.length}\0`)
+          .update(bytes)
+          .digest('hex')
+        assert.equal(version.cacheKey, expectedKey)
+      }
     }
   }
-  check('Node/Go parity: patch, counts, hashes, versions and cache keys in both scopes')
+  check('Git patch, counts, versions and blob cache keys in both scopes')
 
   if (production) {
     const included = await diff('&untracked')
@@ -264,24 +276,23 @@ try {
       body: 'New file remark',
       range: included.range,
     }
-    const [created, reference] = await Promise.all([
-      json<{ comment: ServedComment }>(goBase() + 'comments?base=main&untracked', 'POST', comment),
-      json<{ comment: ServedComment }>(nodeBase + 'comments?base=main&untracked', 'POST', comment),
-    ])
-    assert.deepEqual(created.comment.anchor, reference.comment.anchor)
+    const created = await json<{ comment: ServedComment }>(
+      goBase() + 'comments?base=main&untracked',
+      'POST',
+      comment,
+    )
+    assert.deepEqual(created.comment.anchor, ['excluded'])
     assert.deepEqual(created.comment.code, ['excluded'])
-    for (const base of [goBase(), nodeBase]) {
-      await json(base + 'viewed', 'POST', {
-        range: included.range,
-        path: file.path,
-        hash: file.hash,
-        viewed: true,
-      })
-      await json(base + 'comments?base=main&untracked', 'PATCH', {
-        id: comment.id,
-        body: 'Edited new file remark',
-      })
-    }
+    await json(goBase() + 'viewed', 'POST', {
+      range: included.range,
+      path: file.path,
+      hash: file.hash,
+      viewed: true,
+    })
+    await json(goBase() + 'comments?base=main&untracked', 'PATCH', {
+      id: comment.id,
+      body: 'Edited new file remark',
+    })
     await stop(go)
     go = await startServer()
     assert.equal((await diff('&untracked')).viewed[file.path], file.hash)
@@ -293,25 +304,13 @@ try {
       path: file.path,
       hash: file.hash!,
     })
-    for (const base of [goBase(), nodeBase])
-      assert.equal((await fetch(base + 'diff-files?' + staleQuery)).status, 409)
+    assert.equal((await fetch(goBase() + 'diff-files?' + staleQuery)).status, 409)
     for (const suffix of ['&untracked', '', '&committed', '&target=HEAD']) {
-      const [a, b] = await Promise.all([
-        diff(suffix),
-        json<DiffPayload>(nodeBase + `diff?base=main${suffix}`),
-      ])
-      assert.deepEqual(a.viewed, b.viewed)
-      assert.deepEqual(
-        a.comments.map(({ createdAt: _time, ...rest }) => rest),
-        b.comments.map(({ createdAt: _time, ...rest }) => rest),
-      )
+      const a = await diff(suffix)
+      assert.deepEqual(a.viewed, {})
       assert.equal(
-        asMarkdown(a.comments, { range: a.range }),
-        asMarkdown(b.comments, { range: b.range }),
-      )
-      assert.deepEqual(
-        asExport(a.comments, { repo, range: a.range }),
-        asExport(b.comments, { repo, range: b.range }),
+        asExport(a.comments, { repo, range: a.range }).comments[0]?.body,
+        'Edited new file remark',
       )
       const markdown = asMarkdown(a.comments, { range: a.range })
       assert.ok(markdown.includes('Edited new file remark'))
@@ -323,16 +322,13 @@ try {
       assert.deepEqual(a.comments[0]?.anchor, ['excluded'])
     }
     rmSync(join(repo, 'untracked.txt'))
-    for (const base of [goBase(), nodeBase])
-      assert.equal((await fetch(base + 'diff-files?' + staleQuery)).status, 409)
+    assert.equal((await fetch(goBase() + 'diff-files?' + staleQuery)).status, 409)
     assert.deepEqual((await diff('&untracked')).comments[0]?.code, [])
     write('untracked.txt', 'excluded\n')
-    for (const base of [goBase(), nodeBase]) {
-      await json(base + 'comments?id=untracked', 'DELETE')
-      await json(base + 'viewed', 'POST', { range: included.range, clear: true })
-    }
+    await json(goBase() + 'comments?id=untracked', 'DELETE')
+    await json(goBase() + 'viewed', 'POST', { range: included.range, clear: true })
     check(
-      'untracked parity: ignored paths, Unicode, empty/binary files, attributes, contexts, anchors, stale/export contracts, Viewed and restart',
+      'untracked: ignored paths, Unicode, empty/binary files, attributes, contexts, anchors, stale/export contracts, Viewed and restart',
     )
   }
 
@@ -352,14 +348,12 @@ try {
       range: data.range,
       body: 'review',
     }
-    const [a, b] = await Promise.all([
-      json<{ comment: ServedComment }>(goBase() + 'comments?base=main', 'POST', c),
-      json<{ comment: ServedComment }>(nodeBase + 'comments?base=main', 'POST', c),
-    ])
-    const { createdAt: goTime, ...goComment } = a.comment
-    const { createdAt: nodeTime, ...nodeComment } = b.comment
-    assert.deepEqual(goComment, nodeComment)
-    assert.ok(goTime && nodeTime)
+    const a = await json<{ comment: ServedComment }>(goBase() + 'comments?base=main', 'POST', c)
+    const expected = (side === 'deletions' ? original : modified).split('\n').slice(start - 1, end)
+    assert.deepEqual(a.comment.anchor, expected)
+    assert.deepEqual(a.comment.code, expected)
+    assert.equal(a.comment.stale, false)
+    assert.ok(Number.isFinite(Date.parse(a.comment.createdAt)))
     saved.push(a.comment)
   }
   const c = saved[0]!
@@ -367,12 +361,7 @@ try {
     id: c.id,
     body: 'edited',
   })
-  const editedNode = await json<{ comment: ServedComment }>(
-    nodeBase + 'comments?base=main',
-    'PATCH',
-    { id: c.id, body: 'edited' },
-  )
-  assert.deepEqual(edited.comment.anchor, editedNode.comment.anchor)
+  assert.deepEqual(edited.comment.anchor, c.anchor)
   assert.equal(edited.comment.createdAt, c.createdAt)
   const viewedBody = {
     range: data.range,
@@ -380,27 +369,19 @@ try {
     hash: data.files.find((f) => f.path === 'context.txt')!.hash,
     viewed: true,
   }
-  const viewed = await json(goBase() + 'viewed', 'POST', viewedBody)
-  assert.deepEqual(viewed, await json(nodeBase + 'viewed', 'POST', viewedBody))
+  await json(goBase() + 'viewed', 'POST', viewedBody)
+  assert.equal((await diff()).viewed['context.txt'], viewedBody.hash)
   write('context.txt', modified.replace('line 90\n', 'updated 90\n'))
-  const [a, b] = await Promise.all([diff(), json<DiffPayload>(nodeBase + 'diff?base=main')])
-  assert.deepEqual(
-    a.comments.map(({ createdAt: _time, ...rest }) => rest),
-    b.comments.map(({ createdAt: _time, ...rest }) => rest),
-  )
-  assert.deepEqual(a.viewed, b.viewed)
+  const a = await diff()
+  assert.deepEqual(a.viewed, {})
   assert.ok(a.comments.find((comment) => comment.start === 90)?.stale)
   for (const comment of saved) {
-    await Promise.all([
-      json(goBase() + `comments?id=${comment.id}`, 'DELETE'),
-      json(nodeBase + `comments?id=${comment.id}`, 'DELETE'),
-    ])
+    await json(goBase() + `comments?id=${comment.id}`, 'DELETE')
   }
+  assert.deepEqual((await diff()).comments, [])
   await json(goBase() + 'viewed', 'POST', { range: data.range, clear: true })
   write('context.txt', modified)
-  check(
-    'Node/Go parity: anchors on both sides, context, edits, deletion, stale comments and Viewed',
-  )
+  check('Anchors on both sides, context, edits, deletion, stale comments and Viewed')
 
   const html = await (await fetch(go.url)).text()
   assert.ok(html.includes('<html'))
@@ -645,6 +626,5 @@ try {
   }
 } finally {
   if (go) await stop(go)
-  if (node.listening) await new Promise<void>((resolve) => node.close(() => resolve()))
   rmSync(temporary, { recursive: true, force: true })
 }

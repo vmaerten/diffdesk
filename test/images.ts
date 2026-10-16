@@ -3,7 +3,6 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync, symlinkSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
 import type { DiffPayload } from '../src/types.ts'
 import { clickTreeRow, sleep, withHarness, type Check } from './harness.ts'
 
@@ -11,7 +10,6 @@ export interface ImageTestServer {
   origin: string
   repoId: string
   close: () => Promise<void>
-  compare?: (query: string, payload: DiffPayload) => Promise<void>
 }
 
 export interface ImageTestRuntime {
@@ -29,7 +27,7 @@ const png = Buffer.from(
   'base64',
 )
 
-export async function runImages(check: Check, runtime?: ImageTestRuntime): Promise<void> {
+export async function runImages(check: Check, runtime: ImageTestRuntime): Promise<void> {
   const path = mkdtempSync(join(tmpdir(), 'ghl-images-'))
   let running: ImageTestServer | undefined
   try {
@@ -68,23 +66,13 @@ export async function runImages(check: Check, runtime?: ImageTestRuntime): Promi
     writeFileSync(join(path, 'changed.svg'), svg('yellow', 200))
     writeFileSync(join(path, 'untracked.png'), png)
 
-    if (runtime) running = await runtime.serve(path)
-    else {
-      const server = createGhlServer({ repos: [{ repoPath: path }] })
-      const port = await listen(server, 0)
-      running = {
-        origin: `http://127.0.0.1:${port}`,
-        repoId: repoIdFor(path),
-        close: () => new Promise<void>((resolve) => server.close(() => resolve())),
-      }
-    }
+    running = await runtime.serve(path)
     const { origin, repoId } = running
     const base = `${origin}/r/${repoId}`
     const diff = async (query: string): Promise<DiffPayload> => {
       const response = await fetch(`${base}/api/diff?base=main&${query}`)
       if (!response.ok) throw new Error(await response.text())
       const payload: DiffPayload = await response.json()
-      await running?.compare?.(query, payload)
       check(
         `image URL revisions match the returned comparison (${query || 'worktree'})`,
         payload.files.every(
@@ -264,7 +252,7 @@ export async function runImages(check: Check, runtime?: ImageTestRuntime): Promi
     rmSync(join(path, 'oversized.png'))
     writeFileSync(join(path, 'broken.png'), 'not an image')
 
-    await (runtime?.withHarness ?? withHarness)(path, async (make) => {
+    await runtime.withHarness(path, async (make) => {
       const harness = await make()
       const { page, load } = harness
       await load('?base=main&target=feature')
@@ -294,7 +282,7 @@ export async function runImages(check: Check, runtime?: ImageTestRuntime): Promi
         JSON.stringify(sizes),
       )
       await page.screenshot({
-        path: runtime ? '/tmp/ghl-go-image-previews.png' : '/tmp/ghl-image-previews.png',
+        path: '/tmp/ghl-go-image-previews.png',
       })
       const zoomTrigger =
         '[data-image-path="changed.svg"] .image-side:last-child .image-zoom-trigger'

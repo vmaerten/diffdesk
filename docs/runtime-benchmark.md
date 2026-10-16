@@ -1,5 +1,10 @@
 # Node, Go et Rust : première mesure locale
 
+> Rapport historique : le runtime Node et le comparateur ont été retirés.
+> Les résultats décrivent les révisions mesurées ; leurs sources restent dans
+> [la révision précédente](https://github.com/vmaerten/ghl/tree/5e301b1e4c2f670da211effb9cc8168d3fbfa2be/scripts/bench-runtime).
+> `task bench` et `task release:bench` mesurent désormais Go seul.
+
 Mesuré le 30 septembre 2026 sur macOS 26.6.2 / ARM64, avec Node 24.21.0,
 Go 1.27.1 et Rust 1.98.0. Sources et runner dans
 [scripts/bench-runtime](../scripts/bench-runtime/), données brutes dans

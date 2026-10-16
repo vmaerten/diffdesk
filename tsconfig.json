@@ -18,5 +18,5 @@
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true
   },
-  "include": ["bin", "scripts", "src", "test", "web/src", "vite.config.js"]
+  "include": ["scripts", "src", "test", "web/src", "vite.config.js"]
 }

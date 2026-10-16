@@ -19,7 +19,6 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { launch } from 'puppeteer-core'
 import { findChrome, sleep } from './harness.ts'
-import { createGhlServer, listen, repoIdFor } from '../src/server.ts'
 
 const directory = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-go-daemon-')))
 const binary = join(directory, 'ghl')
@@ -141,7 +140,8 @@ try {
   assert.equal(original.protocolVersion, 1)
   assert.equal(original.daemon, true)
   assert.equal(original.ghl, undefined) // Node must never adopt the Go runtime.
-  assert.equal(first.repoId, repoIdFor(realpathSync(repo)))
+  assert.equal(original.repos[0].id, first.repoId)
+  assert.equal(original.repos[0].path, realpathSync(repo))
   assert.equal(new URL(first.url).searchParams.get('base'), 'main')
   assert.equal(new URL(first.url).searchParams.get('target'), 'feature')
   assert.equal(
@@ -153,7 +153,7 @@ try {
   assert.equal(bare.target.workingTree, true)
   checks += 10
 
-  await cli(port, secondRepo)
+  const second = await cli(port, secondRepo)
   await cli(port, alias)
   await cli(port, join(repo, 'subdirectory'))
   const linked = await cli(port, worktree)
@@ -163,7 +163,7 @@ try {
   assert.equal(reused.instance, original.instance)
   assert.deepEqual(
     reused.repos.map((r: { id: string }) => r.id).toSorted(),
-    [first.repoId, repoIdFor(realpathSync(secondRepo)), linked.repoId].toSorted(),
+    [first.repoId, second.repoId, linked.repoId].toSorted(),
   )
   assert.deepEqual((await json(port, '/api/repos')).repos, reused.repos)
   checks += 5
@@ -290,15 +290,6 @@ try {
     422,
   )
   checks += 4
-
-  let nodeShutdowns = 0
-  const node = createGhlServer({ repos: [{ repoPath: repo }], onStop: () => nodeShutdowns++ })
-  servers.push(node)
-  const nodePort = await listen(node, 0)
-  await assert.rejects(cli(nodePort), /incompatible runtime/)
-  assert.equal(nodeShutdowns, 0)
-  assert.equal((await json(nodePort, '/api/repos')).repos.length, 1)
-  checks += 3
 
   // A recognizable Node or another protocol is never shut down or adopted.
   for (const health of [

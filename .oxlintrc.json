@@ -9,10 +9,10 @@
     "react/react-in-jsx-scope": "off",
     "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }]
   },
-  "ignorePatterns": ["web-dist", "node_modules"],
+  "ignorePatterns": ["node_modules"],
   "overrides": [
     {
-      "files": ["bin/**", "src/**", "vite.config.js"],
+      "files": ["src/**", "scripts/**", "test/**", "vite.config.js"],
       "env": { "node": true, "es2024": true }
     },
     {
