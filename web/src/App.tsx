@@ -3,6 +3,7 @@ import { useStableCallback } from '@pierre/diffs/react'
 import { useReviewDiff, type LoadedReviewDiff } from './useReviewDiff.tsx'
 import { useReviewSelection } from './reviewSelection.ts'
 import { useCommentPersistence, type CommentSubmission } from './commentPersistence.ts'
+import { useViewedPersistence } from './viewedPersistence.ts'
 
 import { useTheme } from './theme.ts'
 import ThemePicker from './ThemePicker.tsx'
@@ -14,7 +15,7 @@ import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import { GO_POC } from './capabilities.ts'
 import { asMarkdown } from '../../src/export.ts'
-import type { BaseSource, DiffPayload, ServedComment, ViewedMap } from '../../src/types.ts'
+import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -48,8 +49,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>('unified')
   const [refreshing, setRefreshing] = useState(false)
-  /** path -> hash of the diff section that was marked as read. */
-  const [viewed, setViewedState] = useState<ViewedMap>({})
+  const [viewed, viewedPersistence] = useViewedPersistence(repoId)
   const [picking, setPicking] = useState<'base' | 'target' | 'commit' | null>(null)
   const [selection, select] = useReviewSelection(repoId)
   const { target, commit, committed, withUntracked, query } = selection
@@ -95,6 +95,7 @@ export default function App() {
     controllerRef.current = controller
     setRefreshing(true)
     const receiveComments = commentPersistence.refresh()
+    const receiveViewed = viewedPersistence.refresh()
     try {
       const response = await fetch(`/r/${repoId}/api/diff${selection.query}`, {
         signal: controller.signal,
@@ -103,8 +104,7 @@ export default function App() {
       if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
       if (controller.signal.aborted) return
       setData({ ...body, loadId, query: selection.query, signal: controller.signal })
-      // The server already dropped ticks whose file changed since.
-      setViewedState(body.viewed ?? {})
+      receiveViewed(body)
       receiveComments(body.comments ?? [])
       setError(null)
     } catch (cause) {
@@ -114,7 +114,7 @@ export default function App() {
     } finally {
       if (!controller.signal.aborted) setRefreshing(false)
     }
-  }, [repoId, selection, commentPersistence])
+  }, [repoId, selection, commentPersistence, viewedPersistence])
 
   useEffect(() => {
     refresh()
@@ -163,38 +163,24 @@ export default function App() {
 
   const toggleViewed = useCallback(
     async (path: string, next: boolean) => {
-      if (!data) return
-      const hash = data.files.find((f) => f.path === path)?.hash ?? null
-      // Optimistic: the diff pane reacts immediately, the write follows.
-      setViewedState((current) => {
-        const updated = { ...current }
-        if (next) updated[path] = hash
-        else delete updated[path]
-        return updated
-      })
       try {
-        await fetch(`/r/${repoId}/api/viewed`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ range: data.range, path, hash, viewed: next }),
-        })
+        await viewedPersistence.set(path, next)
       } catch (cause) {
         const detail = cause instanceof Error ? cause.message : String(cause)
         setError(`could not save viewed state: ${detail}`)
       }
     },
-    [data, repoId],
+    [viewedPersistence],
   )
 
   const resetViewed = useCallback(async () => {
-    if (!data) return
-    setViewedState({})
-    await fetch(`/r/${repoId}/api/viewed`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ range: data.range, clear: true }),
-    })
-  }, [data, repoId])
+    try {
+      await viewedPersistence.reset()
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause)
+      setError(`could not reset viewed state: ${detail}`)
+    }
+  }, [viewedPersistence])
 
   const submitComment = useStableCallback((draft: CommentSubmission) => {
     if (data) void commentPersistence.submit(draft, data)

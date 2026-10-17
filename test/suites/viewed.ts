@@ -152,5 +152,47 @@ export default {
     await sleep(1200)
     await ready()
     check('reset clears the state for good', (await ticked()).length === 0)
+
+    // Return an actual HTTP failure to exercise the transport's status check.
+    // A synthetic Response avoids logging an expected network error in Chrome.
+    const failNextWrite = () =>
+      page.evaluate(`(() => {
+        const original = window.fetch
+        window.fetch = (input, init) => {
+          if (String(input).includes('/api/viewed') && init?.method === 'POST') {
+            window.fetch = original
+            return Promise.resolve(new Response('{}', { status: 500 }))
+          }
+          return original(input, init)
+        }
+      })()`)
+    await failNextWrite()
+    await page.evaluate(`document.querySelector('.viewed-toggle input').click()`)
+    await page.waitForFunction(() =>
+      document.querySelector('.message')?.textContent?.includes('could not save viewed state'),
+    )
+    check(
+      'failed HTTP writes roll back Viewed',
+      (await ticked()).length === 0 && (await boxes())[0] === false,
+    )
+
+    await ready()
+    const saved = page.waitForResponse((response) => response.url().includes('/api/viewed'))
+    await page.evaluate(`document.querySelector('.viewed-toggle input').click()`)
+    await saved
+    await failNextWrite()
+    await page.evaluate(
+      `[...document.querySelectorAll('.sidebar-head button')].find((b) => b.textContent === 'Reset').click()`,
+    )
+    await page.waitForFunction(() =>
+      document.querySelector('.message')?.textContent?.includes('could not reset viewed state'),
+    )
+    check('failed Reset restores confirmed Viewed', (await ticked()).length === 1)
+    await ready()
+    const cleared = page.waitForResponse((response) => response.url().includes('/api/viewed'))
+    await page.evaluate(
+      `[...document.querySelectorAll('.sidebar-head button')].find((b) => b.textContent === 'Reset').click()`,
+    )
+    await cleared
   },
 } satisfies Suite
