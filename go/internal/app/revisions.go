@@ -21,6 +21,7 @@ type Selection struct {
 	Base, Target, Commit string
 	Committed            bool
 	IncludeUntracked     bool
+	IgnoreWhitespace     bool
 }
 
 func (r Repository) optionalText(ctx context.Context, args ...string) (string, error) {

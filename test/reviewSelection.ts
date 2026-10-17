@@ -110,4 +110,36 @@ export async function runReviewSelection(check: Check): Promise<void> {
   const beforeUnsubscribe = publications
   selection.pickCommit('last')
   check('unsubscribed readers receive no further notifications', publications === beforeUnsubscribe)
+
+  selection.toggleWhitespace()
+  check(
+    'whitespace filtering is an explicit URL and request setting',
+    selection.getSnapshot().ignoreWhitespace &&
+      url.searchParams.get('w') === '1' &&
+      selection.getSnapshot().query.includes('w=1'),
+  )
+  selection.pickTarget('other')
+  selection.pickCommit('next')
+  selection.toggleCommitted()
+  selection.toggleUntracked()
+  await selection.pickBase('main', 'release')
+  check(
+    'changing revision and scope preserves whitespace filtering',
+    selection.getSnapshot().ignoreWhitespace && url.searchParams.get('w') === '1',
+  )
+  const reloaded = createReviewSelection(url, {
+    replaceUrl: () => {},
+    rememberBase: async () => {},
+  })
+  check('a reloaded URL restores the filter', reloaded.getSnapshot().ignoreWhitespace)
+  selection.toggleWhitespace()
+  check(
+    'disabling whitespace filtering removes its URL parameter',
+    !selection.getSnapshot().ignoreWhitespace && !url.searchParams.has('w'),
+  )
+  const disabled = createReviewSelection(new URL('http://localhost/r/test?w=0'), {
+    replaceUrl: () => {},
+    rememberBase: async () => {},
+  })
+  check('w=0 keeps the full diff', !disabled.getSnapshot().ignoreWhitespace)
 }

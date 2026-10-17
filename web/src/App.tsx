@@ -52,7 +52,7 @@ export default function App() {
   const [viewed, setViewedState] = useState<ViewedMap>({})
   const [picking, setPicking] = useState<'base' | 'target' | 'commit' | null>(null)
   const [selection, select] = useReviewSelection(repoId)
-  const { target, commit, committed, withUntracked, query } = selection
+  const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
   const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId)
   /** Momentary, so the button can say the clipboard actually took it. */
   const [copied, setCopied] = useState<string | null>(null)
@@ -173,7 +173,7 @@ export default function App() {
         return updated
       })
       try {
-        await fetch(`/r/${repoId}/api/viewed`, {
+        await fetch(`/r/${repoId}/api/viewed${data.query}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ range: data.range, path, hash, viewed: next }),
@@ -189,7 +189,7 @@ export default function App() {
   const resetViewed = useCallback(async () => {
     if (!data) return
     setViewedState({})
-    await fetch(`/r/${repoId}/api/viewed`, {
+    await fetch(`/r/${repoId}/api/viewed${data.query}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ range: data.range, clear: true }),
@@ -691,6 +691,16 @@ export default function App() {
           )}
         </div>
         <div className="review-tools-actions">
+          {!GO_POC && (
+            <label className="whitespace-toggle">
+              <input
+                type="checkbox"
+                checked={ignoreWhitespace}
+                onChange={select.toggleWhitespace}
+              />
+              Ignore whitespace
+            </label>
+          )}
           <div className="toggle view-toggle" aria-label="Diff layout">
             <button
               type="button"
@@ -783,7 +793,12 @@ export default function App() {
 
       {!error && data && entries.length === 0 && (
         <p className="message">
-          {data.commit ? (
+          {new URLSearchParams(data.query).get('w') === '1' ? (
+            <>
+              Nothing to show with whitespace changes hidden. Turn off Ignore whitespace to see the
+              full diff.
+            </>
+          ) : data.commit ? (
             <>
               Nothing to show — <code>{data.commit.short}</code> changes no file.
             </>

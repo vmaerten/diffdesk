@@ -158,6 +158,12 @@ own state and lock, rather than sharing those of the main checkout. The PoC keep
 `.git/ghl-go-poc/state.json`. Earlier production prototypes' `.git/ghl-go/state.json`
 also stay untouched; neither file is imported automatically.
 
+The production review's `w=1` URL option uses Git `--ignore-all-space` for its patch
+and statistics. Filtered Viewed entries use a range key suffixed with `?w=1`, leaving
+the full diff's ticks independent and preserving the version-1 storage format.
+Comment provenance keeps the ordinary range. Context expansion reads both original
+source versions, and comment anchors use the selected side's actual whitespace.
+
 To merge an existing prototype snapshot, first stop writers of that source and
 run from the repository (or supply `--repo`):
 

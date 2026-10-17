@@ -1428,6 +1428,20 @@ button:disabled {
 .view-toggle {
   margin-right: 8px;
 }
+.whitespace-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+.whitespace-toggle:has(input:checked) {
+  color: var(--text);
+}
+.whitespace-toggle input {
+  accent-color: var(--accent);
+}
 .files-toggle,
 .files-backdrop {
   display: none;
