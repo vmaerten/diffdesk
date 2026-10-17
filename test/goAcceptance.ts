@@ -1,3 +1,5 @@
+import { archiveName, releaseTarget } from './releaseTarget.ts'
+import { findExecutable } from './system.ts'
 import assert from 'node:assert/strict'
 import { spawnSync, execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
@@ -6,21 +8,17 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-assert.equal(process.platform, 'darwin', 'Initial release target is macOS ARM64')
-assert.equal(process.arch, 'arm64', 'Acceptance must run on the supported native target')
+const target = releaseTarget()
 const dist = join(root, 'go/dist/release')
 const { version } = JSON.parse(readFileSync(join(dist, 'metadata.json'), 'utf8'))
 const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-release-acceptance-')))
 try {
   // Verify shape/checksums before extraction or execution, even when invoked alone.
   execFileSync(process.execPath, ['test/goRelease.ts'], { cwd: root, stdio: 'inherit' })
-  execFileSync('tar', ['-xzf', join(dist, `ghl_${version}_darwin_arm64.tar.gz`), '-C', temporary])
+  execFileSync('tar', ['-xzf', join(dist, archiveName(version, target)), '-C', temporary])
   const onlyGit = join(temporary, 'path')
   mkdirSync(onlyGit)
-  symlinkSync(
-    execFileSync('/usr/bin/which', ['git'], { encoding: 'utf8' }).trim(),
-    join(onlyGit, 'git'),
-  )
+  symlinkSync(findExecutable('git'), join(onlyGit, 'git'))
   const env = {
     ...process.env,
     GHL_TEST_BINARY: join(temporary, 'ghl'),
@@ -59,7 +57,8 @@ try {
     })
     assert.ifError(result.error)
     assert.equal(result.status, 0, 'Production runtime benchmark failed')
-  } else console.log('\nRelease acceptance passed against the extracted archive executable')
+  } else
+    console.log(`\nRelease acceptance passed against the extracted ${target} archive executable`)
 } finally {
   rmSync(temporary, { recursive: true, force: true })
 }

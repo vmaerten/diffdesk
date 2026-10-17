@@ -17,8 +17,8 @@ builds:
     env:
       - CGO_ENABLED=0
       - GOTOOLCHAIN=local
-    goos: [darwin]
-    goarch: [arm64]
+    goos: [darwin, linux]
+    goarch: [arm64, amd64]
     flags: [-trimpath]
     mod_timestamp: '{{ .CommitTimestamp }}'
     ldflags:

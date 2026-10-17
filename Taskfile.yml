@@ -232,6 +232,11 @@ tasks:
     cmds:
       - node test/goMise.ts
 
+  release:smoke:
+    desc: Smoke-test the target archive and mise installation without browser or upgrade suites
+    cmds:
+      - node test/goMise.ts --smoke
+
   release:mise:published:
     desc: Verify a published GitHub Release through mise (VERSION=X.Y.Z, optional PREVIOUS=X.Y.Z)
     requires:

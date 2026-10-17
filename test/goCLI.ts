@@ -1,3 +1,4 @@
+import { findExecutable, loopbackURL } from './system.ts'
 import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
@@ -278,10 +279,7 @@ try {
   copyFileSync(binary, standalone)
   const gitOnly = join(directory, 'git-only')
   mkdirSync(gitOnly)
-  symlinkSync(
-    execFileSync('/usr/bin/which', ['git'], { encoding: 'utf8' }).trim(),
-    join(gitOnly, 'git'),
-  )
+  symlinkSync(findExecutable('git'), join(gitOnly, 'git'))
   const autonomous = spawnSync(
     standalone,
     ['comments', '--repo', repo, '--base', 'main', '--json'],
@@ -334,7 +332,7 @@ try {
     ])
     clearTimeout(startupTimeout)
     const announcement = JSON.parse(announcementLine)
-    const opening = new URL(announcement.url)
+    const opening = loopbackURL(announcement.url)
     assert.equal(opening.searchParams.get('target'), 'feature')
     assert.equal(opening.searchParams.get('base'), 'main')
     opening.pathname += '/api/diff'

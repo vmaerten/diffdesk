@@ -15,11 +15,14 @@ function describe(url: URL) {
   for (const key of ['committed', 'untracked']) {
     if (params.has(key)) query.set(key, '1')
   }
+  const ignoreWhitespace = params.get('w') === '1'
+  if (ignoreWhitespace) query.set('w', '1')
   return {
     target: params.get('target'),
     commit: params.get('commit'),
     committed: params.has('committed'),
     withUntracked: params.has('untracked'),
+    ignoreWhitespace,
     query: query.size ? `?${query}` : '',
   }
 }
@@ -68,6 +71,8 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
     pickCommit: (commit: string | null) => update((params) => pick(params, 'commit', commit)),
     toggleCommitted: () => toggle('committed'),
     toggleUntracked: () => toggle('untracked'),
+    toggleWhitespace: () =>
+      update((params) => pick(params, 'w', params.get('w') === '1' ? null : '1')),
     pickBase: async (base: string | null, currentBase: string | undefined) => {
       if (!base || base === currentBase) return
       const request = ++baseRequest

@@ -20,6 +20,7 @@ import commits from './suites/commits.ts'
 import worktree from './suites/worktree.ts'
 import untracked from './suites/untracked.ts'
 import search from './suites/search.ts'
+import whitespace from './suites/whitespace.ts'
 
 const SUITES: Suite[] = [
   themes,
@@ -37,6 +38,7 @@ const SUITES: Suite[] = [
   worktree,
   untracked,
   search,
+  whitespace,
 ]
 
 /**

@@ -1,3 +1,4 @@
+import { archiveName, releaseTarget, RELEASE_TARGETS } from './releaseTarget.ts'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { appendFileSync, copyFileSync, mkdirSync, readFileSync } from 'node:fs'
@@ -38,7 +39,7 @@ export async function miseReleaseFixture(directory: string, archive: string) {
     // Synthetic predecessor, as in goDaemon.ts: distinct executable identity,
     // same production build metadata. This is not a historical release test.
     if (previous) appendFileSync(join(contents, 'ghl'), '\nprevious mise fixture\n')
-    const name = `ghl_${version}_darwin_arm64.tar.gz`
+    const name = archiveName(version)
     const output = join(directory, name)
     execFileSync('tar', [
       '-czf',
@@ -58,10 +59,20 @@ export async function miseReleaseFixture(directory: string, archive: string) {
       created_at: '2026-09-01T00:00:00Z',
       assets: [],
     }
+    // Distinct non-archives make choosing a different architecture fail loudly.
+    const archives = RELEASE_TARGETS.map((target): [string, Buffer] => [
+      archiveName(version, target),
+      target === releaseTarget() ? bytes : Buffer.from(`wrong target ${target}\n`),
+    ])
+    const sums = archives
+      .map(
+        ([filename, payload]) => `${filename === name ? digest : sha256(payload)}  ${filename}\n`,
+      )
+      .join('')
     for (const [filename, payload] of [
-      [name, bytes],
-      ['checksums.txt', Buffer.from(`${digest}  ${name}\n`)],
-    ] as const) {
+      ...archives,
+      ['checksums.txt', Buffer.from(sums)] as [string, Buffer],
+    ]) {
       const download = `/vmaerten/ghl/releases/download/v${version}/${filename}`
       const api = `/repos/vmaerten/ghl/releases/assets/${assets.size + 1}`
       assets.set(download, payload)

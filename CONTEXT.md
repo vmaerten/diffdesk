@@ -4,7 +4,7 @@
 
 **Comparison**: The versions and scope of code being reviewed, such as a branch against its base, a selected commit, or changes including the working tree.
 
-**Viewed**: A record that a file's displayed changes have been read in a particular revision range. It applies to the recorded version of those changes and becomes invalid when they change.
+**Viewed**: A record that a file's displayed changes have been read in a particular revision range and whitespace mode. It applies to the recorded version of those changes and becomes invalid when they change.
 
 **Comment**: A remark on source lines belonging to a repository path. Its original comparison records provenance; the comment remains available when the comparison changes.
 

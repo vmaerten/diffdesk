@@ -1,11 +1,12 @@
-# Go releases
+# Releases
 
 The release pipeline builds one executable containing the production React UI.
-The first supported target is macOS ARM64. Git and a browser are runtime
-prerequisites. The project uses MIT; archives also contain the notices for
-third-party components. The [mise installation guide](./go-installation.md)
-documents the consumer path and its verification; the first published-release
-check is still pending while no Go release exists.
+The configured targets are macOS ARM64/Intel and Linux ARM64/x86-64. Git and
+a browser are runtime prerequisites. The project uses MIT; archives also contain the notices for
+third-party components. The [mise installation guide](./installation.md)
+documents the consumer path and its verification. The first release, v0.1.0,
+was published for macOS ARM64 and passed the real GitHub/mise installation gate.
+The additional targets require a subsequent release and platform acceptance.
 
 ## Local snapshot
 
@@ -27,11 +28,14 @@ The isolated PoC is outside the release configuration.
 
 Outputs live in `go/dist/release/`:
 
-| File                                | Content                                                 |
-| ----------------------------------- | ------------------------------------------------------- |
-| `ghl_<version>_darwin_arm64.tar.gz` | `ghl`, `LICENSE`, `THIRD_PARTY_NOTICES.txt`             |
-| `checksums.txt`                     | SHA-256 of the archive, with its exact filename         |
-| `metadata.json`, `artifacts.json`   | Local GoReleaser build records; retained for validation |
+| File                                | Content                                            |
+| ----------------------------------- | -------------------------------------------------- |
+| `ghl_<version>_darwin_arm64.tar.gz` | macOS Apple Silicon CLI, license and notices       |
+| `ghl_<version>_darwin_amd64.tar.gz` | macOS Intel CLI, license and notices               |
+| `ghl_<version>_linux_arm64.tar.gz`  | Linux ARM64 CLI, license and notices               |
+| `ghl_<version>_linux_amd64.tar.gz`  | Linux x86-64 CLI, license and notices              |
+| `checksums.txt`                     | SHA-256 of all four archives, with exact filenames |
+| `metadata.json`, `artifacts.json`   | Local GoReleaser build records                     |
 
 Snapshot versions use `<latest-version>-next-<short-commit>`, or start at
 `0.0.0` when no version tag exists. The archive naming pattern is predictable
@@ -39,13 +43,16 @@ for download clients and mise. React HTML, JavaScript, CSS and other generated
 assets live inside the executable. Toolchains, node_modules and test browsers
 are excluded from the archive.
 
-`task release:snapshot` finishes by verifying checksums and the exact archive
-contents. It extracts the executable into a temporary directory outside the
+`task release:snapshot` finishes by verifying checksums and the exact contents
+of every archive; wrong-architecture and duplicate-checksum guards are included. It extracts the executable into a temporary directory outside the
 checkout and runs it with only Git in PATH. The checks cover `--version --json`,
 health metadata, a production diff with untracked files, clean shutdown and
 embedded HTML/JavaScript/CSS responses. Guard tests reject corrupt checksums,
 wrong commit metadata, unexpected files, symlinks and invalid/stale version tags.
-The validator runs natively on macOS ARM64; it does not emulate other targets.
+Every archive is checked for contents, checksum, licenses and embedded Go
+OS/architecture settings. The validator then executes the selected host archive.
+`GHL_TEST_TARGET=darwin_amd64` can select Intel execution under Rosetta on Apple
+Silicon; this is reported separately from native hardware coverage.
 
 ## Version tags and publication
 
@@ -67,14 +74,16 @@ Pull requests, branch pushes and tags do not start hosted jobs. Build, acceptanc
 and publication run locally on the supported native macOS ARM64 target.
 
 After building the checked-out version tag, run the complete
-[local acceptance gate](./go-validation.md), including the extracted archive,
-mise fixture and runtime measurements. Publish those exact tested files without
+[local acceptance gate](./validation.md), including the extracted archive,
+mise fixture on the primary platform, plus [smoke checks](./validation.md#platform-validation)
+on the other targets.
+Publish those exact tested files without
 rebuilding:
 
 ```bash
 git push origin refs/tags/v0.1.0
 gh release create v0.1.0 --verify-tag --title v0.1.0 --notes-file CHANGELOG.md \
-  go/dist/release/ghl_0.1.0_darwin_arm64.tar.gz go/dist/release/checksums.txt
+  go/dist/release/ghl_0.1.0_*.tar.gz go/dist/release/checksums.txt
 task release:mise:published VERSION=0.1.0
 ```
 

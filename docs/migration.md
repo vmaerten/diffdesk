@@ -21,7 +21,7 @@ Stopping the process does not delete review state. For a backup, copy each
 checkout's `.git/ghl/state.json` while writers are stopped. In a linked worktree,
 locate it with `git rev-parse --git-path ghl/state.json`.
 
-Install the published release following the [mise guide](./go-installation.md),
+Install the published release following the [mise guide](./installation.md),
 then check which executable your shell selects:
 
 ```bash

@@ -8,7 +8,7 @@ The Go runtime supports text review including optional untracked files, context
 expansion, image previews, comments, Viewed, automatic bases, stacks and revision/commit selection.
 The CLI supports revision targets, summaries, comment exports and a shared
 background daemon. Go is the only supported backend and CLI runtime; see the
-[migration guide](../docs/go-migration.md) for legacy Node installations.
+[migration guide](../docs/migration.md) for legacy Node installations.
 
 ## Build and run
 
@@ -45,7 +45,8 @@ fallback retains the same port and repository ID. Chrome is tested with both
 the advertised URL and `ghl.localhost`, including the secure-context clipboard.
 There is no hosts-file change, proxy, certificate or port-free setup.
 
-`--no-open` skips the browser; automatic opening targets macOS. `--json` prints
+`--no-open` skips the browser. Automatic opening uses `open` on macOS and
+`xdg-open` on Linux; a missing URL handler is reported on stderr. `--json` prints
 one `{port, repoId, url}` announcement. `--no-daemon` stays in the foreground
 and stops cleanly with Ctrl-C. `task dev` uses that foreground mode on a
 separate development backend port (5181 by default), so hot reload does not
@@ -157,6 +158,12 @@ own state and lock, rather than sharing those of the main checkout. The PoC keep
 `.git/ghl-go-poc/state.json`. Earlier production prototypes' `.git/ghl-go/state.json`
 also stay untouched; neither file is imported automatically.
 
+The production review's `w=1` URL option uses Git `--ignore-all-space` for its patch
+and statistics. Filtered Viewed entries use a range key suffixed with `?w=1`, leaving
+the full diff's ticks independent and preserving the version-1 storage format.
+Comment provenance keeps the ordinary range. Context expansion reads both original
+source versions, and comment anchors use the selected side's actual whitespace.
+
 To merge an existing prototype snapshot, first stop writers of that source and
 run from the repository (or supply `--repo`):
 
@@ -202,8 +209,11 @@ linked worktrees, corrupt-state recovery and future-schema refusal. Go race test
 also cover independent stores, cancelled waits and a killed Go writer with an
 interrupted temporary file.
 
-The initial validated platform is macOS ARM64. Unix context-read flags are
-retained from the PoC; Windows is not a supported build target at this stage.
+Release builds include macOS ARM64/Intel and Linux ARM64/x86-64. Filesystem
+reads, Git transaction locks and daemon startup use the same Unix implementation.
+Windows is not a supported build target. See the [platform validation guide](../docs/validation.md#platform-validation)
+for native and translated execution coverage; cross-compilation alone does not
+establish native hardware support.
 
 ## Review selection
 
@@ -328,9 +338,9 @@ conflicts and shutdown in an isolated temporary checkout. It needs Chrome.
 its root, `mise exec -- task release:snapshot` creates and verifies a macOS ARM64
 archive with the executable, MIT license and third-party notices. A version-tag
 publication uses the exact locally validated files on GitHub Releases. See the
-[release guide](../docs/go-releases.md) for tag checks, metadata, credentials and
+[release guide](../docs/releases.md) for tag checks, metadata, credentials and
 local builds. Consumer installation through mise remains tracked separately.
-The [acceptance guide](../docs/go-validation.md) describes the local release gate,
+The [acceptance guide](../docs/validation.md) describes the local release gate,
 archive-based contract/browser/lifecycle suites and production runtime measurements.
 
 ## Layout and build identity

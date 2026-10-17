@@ -24,6 +24,15 @@ func emptyState() StoredState {
 	return StoredState{Version: 1, Viewed: map[string]ViewedMap{}, Comments: []Comment{}}
 }
 
+// Reading a filtered diff must not mark its hidden whitespace changes as read.
+// '?' cannot occur in a Git ref, so this does not collide with a normal range.
+func viewedRange(comparison string, ignoreWhitespace bool) string {
+	if ignoreWhitespace {
+		return comparison + "?w=1"
+	}
+	return comparison
+}
+
 func (s *Store) read() (StoredState, error) {
 	raw, err := os.ReadFile(s.path)
 	if os.IsNotExist(err) {

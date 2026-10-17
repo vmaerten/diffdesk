@@ -132,6 +132,7 @@ type Review struct {
 	Totals            Totals
 	Untracked         []string
 	UntrackedIncluded bool
+	ignoreWhitespace  bool
 	sections          map[string]*section
 	sources           map[string]*TextFile
 }
@@ -198,7 +199,7 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 	if baseSHA == "" {
 		return nil, fmt.Errorf("Invalid base %q: does not resolve to a revision", resolution.Ref)
 	}
-	review := &Review{repo: r, Base: resolution.Ref, Resolution: resolution, Head: head, Branch: branch, Target: target, Files: []FileStat{}, Untracked: []string{}, sections: map[string]*section{}, sources: map[string]*TextFile{}}
+	review := &Review{repo: r, Base: resolution.Ref, Resolution: resolution, Head: head, Branch: branch, Target: target, Files: []FileStat{}, Untracked: []string{}, ignoreWhitespace: selection.IgnoreWhitespace, sections: map[string]*section{}, sources: map[string]*TextFile{}}
 	if selection.Commit != "" {
 		review.Commit, err = r.commitDetail(ctx, selection.Commit)
 		if err != nil {
@@ -233,6 +234,9 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 		review.Comparison.After = &tip
 	}
 	args := []string{"diff", "-M", "--no-ext-diff", before}
+	if selection.IgnoreWhitespace {
+		args = append(args, "--ignore-all-space")
+	}
 	if review.Comparison.After != nil {
 		args = append(args, *review.Comparison.After)
 	}
@@ -290,7 +294,11 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 	for i := range review.Files {
 		file := &review.Files[i]
 		if s := review.sections[file.Path]; s != nil {
-			hash := sha1.Sum([]byte(s.patch))
+			identity := s.patch
+			if selection.IgnoreWhitespace {
+				identity = "ignore-whitespace\n" + identity
+			}
+			hash := sha1.Sum([]byte(identity))
 			value := hex.EncodeToString(hash[:])[:12]
 			file.Hash = &value
 		}
@@ -520,7 +528,7 @@ func (r *Review) source(ctx context.Context, path, side string) (*TextFile, erro
 	}
 	lines := strings.Split(file.Contents, "\n")
 	for n, text := range expected {
-		if n < 1 || n > len(lines) || lines[n-1] != text {
+		if n < 1 || n > len(lines) || (lines[n-1] != text && !(r.ignoreWhitespace && equalIgnoringWhitespace(lines[n-1], text))) {
 			return nil, changed()
 		}
 	}
@@ -553,7 +561,7 @@ func (r *Review) Context(ctx context.Context, path, hash string) (*DiffFiles, er
 		return nil, err
 	}
 	if len(s.oldLines) == 0 && len(s.newLines) == 0 {
-		if old.Contents != now.Contents {
+		if old.Contents != now.Contents && !(r.ignoreWhitespace && equalIgnoringWhitespace(old.Contents, now.Contents)) {
 			return nil, changed()
 		}
 		if stat.Status == "renamed" {
@@ -583,7 +591,9 @@ func (r *Review) Lines(ctx context.Context, c Comment) ([]string, error) {
 		}
 		result = append(result, text)
 	}
-	if result != nil {
+	// A -w patch uses the new side's whitespace for shared context. Anchors
+	// must read the actual selected side rather than that normalized context.
+	if result != nil && !r.ignoreWhitespace {
 		return result, nil
 	}
 	file, err := r.source(ctx, c.Path, c.Side)
@@ -598,6 +608,20 @@ func (r *Review) Lines(ctx context.Context, c Comment) ([]string, error) {
 		return nil, fmt.Errorf("Lines are not available in this comparison")
 	}
 	return lines[c.Start-1 : c.End], nil
+}
+
+// Match Git -w's horizontal whitespace handling without ignoring line breaks.
+func equalIgnoringWhitespace(a, b string) bool {
+	strip := func(s string) string {
+		return strings.Map(func(c rune) rune {
+			switch c {
+			case ' ', '\t', '\r', '\v', '\f':
+				return -1
+			}
+			return c
+		}, s)
+	}
+	return strip(a) == strip(b)
 }
 func (r *Review) Comments(ctx context.Context, stored []Comment) []ServedComment {
 	comments := make([]ServedComment, 0, len(stored))

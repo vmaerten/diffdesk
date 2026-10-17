@@ -1,3 +1,4 @@
+import { archiveName as releaseArchiveName, releaseTarget } from './releaseTarget.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -19,13 +20,20 @@ const temporary = mkdtempSync(join(tmpdir(), 'ghl-release-guards-'))
 const source = join(root, 'go/dist/release')
 const validator = join(root, 'test/goRelease.ts')
 const tagValidator = join(root, 'scripts/release-tag.ts')
-const archiveName = readdirSync(source).find((name) => name.endsWith('.tar.gz'))
-assert.ok(archiveName, 'Build a snapshot before exercising release guards')
+const archiveNames = readdirSync(source).filter((name) => name.endsWith('.tar.gz'))
+const archiveName = releaseArchiveName(
+  JSON.parse(readFileSync(join(source, 'metadata.json'), 'utf8')).version,
+  releaseTarget(),
+)
+assert.ok(
+  archiveNames.includes(archiveName),
+  'Build the host archive before exercising release guards',
+)
 let checks = 0
 function fixture(name: string) {
   const path = join(temporary, name)
   mkdirSync(path)
-  for (const file of [archiveName!, 'metadata.json', 'checksums.txt'])
+  for (const file of [...archiveNames, 'metadata.json', 'checksums.txt'])
     copyFileSync(join(source, file), join(path, file))
   return path
 }
@@ -66,9 +74,34 @@ try {
     const archive = join(path, archiveName!)
     execFileSync('tar', ['-czf', archive, '-C', contents, ...names])
     const hash = createHash('sha256').update(readFileSync(archive)).digest('hex')
-    writeFileSync(join(path, 'checksums.txt'), `${hash}  ${archiveName}\n`)
+    const sums = readFileSync(join(path, 'checksums.txt'), 'utf8')
+      .split('\n')
+      .map((line) => (line.endsWith(`  ${archiveName}`) ? `${hash}  ${archiveName}` : line))
+      .join('\n')
+    writeFileSync(join(path, 'checksums.txt'), sums)
     reject(path, symlink ? /Only regular archive files/ : /No toolchains, node_modules/)
   }
+
+  const duplicate = fixture('duplicate-checksum')
+  const duplicateLines = readFileSync(join(duplicate, 'checksums.txt'), 'utf8').trim().split('\n')
+  duplicateLines[duplicateLines.length - 1] = duplicateLines[0]!
+  writeFileSync(join(duplicate, 'checksums.txt'), duplicateLines.join('\n') + '\n')
+  reject(duplicate, /Duplicate checksum filename/)
+
+  const mislabeled = fixture('wrong-platform')
+  const differentArchive = archiveNames.find((name) => name !== archiveName)!
+  copyFileSync(join(source, differentArchive), join(mislabeled, archiveName))
+  const wrongHash = createHash('sha256')
+    .update(readFileSync(join(mislabeled, archiveName)))
+    .digest('hex')
+  writeFileSync(
+    join(mislabeled, 'checksums.txt'),
+    readFileSync(join(source, 'checksums.txt'), 'utf8')
+      .split('\n')
+      .map((line) => (line.endsWith(`  ${archiveName}`) ? `${wrongHash}  ${archiveName}` : line))
+      .join('\n'),
+  )
+  reject(mislabeled, /Wrong release setting/)
 
   // Tags exist only in this temporary repository, never in the user's checkout.
   const repo = join(temporary, 'tag-fixture')

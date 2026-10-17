@@ -1,3 +1,4 @@
+import { findExecutable, loopbackURL } from './system.ts'
 import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFile, execFileSync, spawn } from 'node:child_process'
@@ -30,10 +31,7 @@ copyFileSync(binary, upgraded)
 appendFileSync(upgraded, '\nnew embedded runtime content\n')
 const onlyGit = join(directory, 'path')
 mkdirSync(onlyGit)
-symlinkSync(
-  execFileSync('/usr/bin/which', ['git'], { encoding: 'utf8' }).trim(),
-  join(onlyGit, 'git'),
-)
+symlinkSync(findExecutable('git'), join(onlyGit, 'git'))
 const env = {
   ...process.env,
   PATH: onlyGit,
@@ -215,7 +213,7 @@ try {
   assert.notEqual(replacement.instance, original.instance)
   assert.notEqual(replacement.revision, original.revision)
   assert.deepEqual(replacement.repos, reused.repos)
-  assert.equal((await fetch(first.url)).status, 200) // Existing bookmark survives upgrade.
+  assert.equal((await fetch(loopbackURL(first.url))).status, 200) // Existing bookmark survives upgrade.
   const stale = await fetch(`http://127.0.0.1:${port}/api/shutdown`, {
     method: 'POST',
     body: JSON.stringify({ instance: original.instance }),
@@ -394,7 +392,11 @@ try {
     range: 'main..feature',
     body: 'hostname clipboard comment',
   })
-  const browser = await launch({ executablePath: findChrome(), headless: true })
+  const browser = await launch({
+    executablePath: findChrome(),
+    headless: true,
+    args: process.platform === 'linux' ? ['--no-sandbox'] : [],
+  })
   try {
     const page = await browser.newPage()
     const session = await page.createCDPSession()

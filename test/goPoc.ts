@@ -1,3 +1,4 @@
+import { findExecutable, loopbackURL } from './system.ts'
 import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
@@ -46,10 +47,7 @@ interface Running {
 const binary = join(temporary, name)
 const onlyGit = join(temporary, 'path')
 mkdirSync(onlyGit)
-symlinkSync(
-  execFileSync('/usr/bin/which', ['git'], { encoding: 'utf8' }).trim(),
-  join(onlyGit, 'git'),
-)
+symlinkSync(findExecutable('git'), join(onlyGit, 'git'))
 copyFileSync(
   production ? goBinary() : fileURLToPath(new URL('../poc/go/dist/ghl-go-poc', import.meta.url)),
   binary,
@@ -383,7 +381,7 @@ try {
   write('context.txt', modified)
   check('Anchors on both sides, context, edits, deletion, stale comments and Viewed')
 
-  const html = await (await fetch(go.url)).text()
+  const html = await (await fetch(loopbackURL(go.url))).text()
   assert.ok(html.includes('<html'))
   for (const match of html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)) {
     const response: Response = await fetch(`http://127.0.0.1:${go.port}${match[1]}`)

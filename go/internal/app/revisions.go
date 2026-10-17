@@ -21,6 +21,7 @@ type Selection struct {
 	Base, Target, Commit string
 	Committed            bool
 	IncludeUntracked     bool
+	IgnoreWhitespace     bool
 }
 
 func (r Repository) optionalText(ctx context.Context, args ...string) (string, error) {
@@ -76,9 +77,28 @@ func (r Repository) trunk(ctx context.Context) (*string, error) {
 		if err != nil {
 			return nil, err
 		}
-		if sha != "" {
-			return &name, nil
+		if sha == "" {
+			continue
 		}
+		// Keep local work ahead of or diverged from origin, but prefer the
+		// fetched remote when the local trunk is strictly behind it.
+		if !strings.HasPrefix(name, "origin/") {
+			remote := "origin/" + name
+			remoteSHA, err := r.resolveRef(ctx, "refs/remotes/"+remote)
+			if err != nil {
+				return nil, err
+			}
+			if remoteSHA != "" && remoteSHA != sha {
+				base, err := r.optionalText(ctx, "merge-base", sha, remoteSHA)
+				if err != nil {
+					return nil, err
+				}
+				if base == sha {
+					return &remote, nil
+				}
+			}
+		}
+		return &name, nil
 	}
 	return nil, nil
 }
@@ -153,6 +173,7 @@ func (r Repository) stack(ctx context.Context, branch, trunk *string) (*StackCha
 			continue
 		}
 		below := recorded.Trunk.Branch
+		// Detection may prefer the remote trunk when the local one is missing or behind.
 		if trunk != nil && strings.HasSuffix(*trunk, "/"+below) {
 			below = *trunk
 		}

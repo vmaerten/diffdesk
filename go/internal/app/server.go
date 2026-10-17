@@ -66,7 +66,7 @@ func (s *Server) selection(r *http.Request) (Selection, error) {
 	q := r.URL.Query()
 	excluded := []string{"includeUntracked"}
 	if s.poc {
-		excluded = append(excluded, "target", "commit", "untracked")
+		excluded = append(excluded, "target", "commit", "untracked", "w")
 	}
 	for _, key := range excluded {
 		if q.Has(key) {
@@ -82,7 +82,7 @@ func (s *Server) selection(r *http.Request) (Selection, error) {
 	if s.poc && !q.Has("base") {
 		base = s.base
 	}
-	return Selection{Base: base, Target: q.Get("target"), Commit: q.Get("commit"), Committed: q.Has("committed"), IncludeUntracked: q.Has("untracked")}, nil
+	return Selection{Base: base, Target: q.Get("target"), Commit: q.Get("commit"), Committed: q.Has("committed"), IncludeUntracked: q.Has("untracked"), IgnoreWhitespace: q.Get("w") == "1"}, nil
 }
 func allowedRequest(w http.ResponseWriter, r *http.Request) bool {
 	if !allowedName("http://" + r.Host) {
@@ -244,7 +244,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		viewed := ViewedMap{}
 		for _, file := range review.Files {
-			hash, ok := state.Viewed[review.Range][file.Path]
+			hash, ok := state.Viewed[viewedRange(review.Range, selection.IgnoreWhitespace)][file.Path]
 			if ok && file.Hash != nil && hash != nil && *file.Hash == *hash {
 				viewed[file.Path] = hash
 			}
@@ -309,6 +309,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400, fmt.Errorf("A range, path and viewed boolean are required"))
 			return
 		}
+		body.Range = viewedRange(body.Range, selection.IgnoreWhitespace)
 		state, err := s.store.Mutate(r.Context(), func(state *StoredState) error {
 			if state.Viewed[body.Range] == nil || body.Clear {
 				state.Viewed[body.Range] = ViewedMap{}

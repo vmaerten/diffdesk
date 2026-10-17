@@ -15,9 +15,11 @@ function deferred() {
 function review(
   viewed: ViewedMap = {},
   range = 'main..feature',
-): Pick<DiffPayload, 'range' | 'files' | 'viewed'> {
+  query = '',
+): Pick<DiffPayload, 'range' | 'files' | 'viewed'> & { query: string } {
   return {
     range,
+    query,
     viewed,
     files: ['a.ts', 'b.ts'].map((path) => ({
       path,
@@ -170,6 +172,49 @@ export async function runViewedPersistence(check: Check): Promise<void> {
     check(
       'returning to a comparison restores its saved ticks',
       store.getSnapshot()['a.ts'] === 'a.ts' && !('b.ts' in store.getSnapshot()),
+    )
+  }
+  {
+    const { store, requests } = setup()
+    const full = store.set('a.ts', true)
+    await Promise.resolve()
+    store.refresh()(review({}, 'main..feature', '?base=main&w=1'))
+    check(
+      'pending full Viewed does not leak into the filtered mode even with identical hashes',
+      Object.keys(store.getSnapshot()).length === 0,
+    )
+    const filtered = store.set('b.ts', true)
+    await Promise.resolve()
+    check('filtered writes do not wait for full-mode writes', requests.length === 2)
+    check(
+      'each write retains its original whitespace mode',
+      requests[0]!.change.query === '' && requests[1]!.change.query === '?base=main&w=1',
+    )
+    requests[0]!.resolve()
+    await full
+    check(
+      'full-mode completion leaves the filtered snapshot alone',
+      !('a.ts' in store.getSnapshot()) && store.getSnapshot()['b.ts'] === 'b.ts',
+    )
+    requests[1]!.resolve()
+    await filtered
+    const reset = store.reset().catch((error: unknown) => error)
+    await Promise.resolve()
+    store.refresh()(review({ 'a.ts': 'a.ts' }))
+    requests[2]!.reject(new Error('filtered reset failed'))
+    await reset
+    check(
+      'failed filtered Reset cannot restore filtered ticks in the full review',
+      store.getSnapshot()['a.ts'] === 'a.ts' && !('b.ts' in store.getSnapshot()),
+    )
+    check(
+      'Reset keeps its original mode after navigation',
+      requests[2]!.change.query.includes('w=1'),
+    )
+    store.refresh()(review({ 'b.ts': 'b.ts' }, 'main..feature', '?w=1'))
+    check(
+      'returning to filtered mode restores its own confirmed tick',
+      store.getSnapshot()['b.ts'] === 'b.ts' && !('a.ts' in store.getSnapshot()),
     )
   }
   {
