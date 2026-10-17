@@ -12,7 +12,7 @@ import (
 func TestStateImportIsRecoverableAndIdempotent(t *testing.T) {
 	s := stateFixture(t)
 	c := Comment{ID: "original", Path: "renamed é.txt", Side: "deletions", Start: 11, End: 12, Body: "original", Anchor: []string{"before", "rename"}, Range: "main..feature", CreatedAt: "2020-01-01T00:00:00.000Z"}
-	_, err := s.Mutate(context.Background(), func(state *StoredState) error { upsert(state, c); return nil })
+	_, err := s.Mutate(context.Background(), func(state *StoredState) error { state.Comments = append(state.Comments, c); return nil })
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Server struct {
@@ -22,8 +21,6 @@ type Server struct {
 	poc      bool
 }
 
-var errCommentMissing = errors.New("Comment no longer exists")
-
 func reply(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
@@ -32,6 +29,16 @@ func reply(w http.ResponseWriter, status int, body any) {
 }
 func fail(w http.ResponseWriter, status int, err error) {
 	reply(w, status, map[string]string{"error": err.Error()})
+}
+func failComment(w http.ResponseWriter, err error) {
+	status := http.StatusInternalServerError
+	var invalid invalidComment
+	if errors.As(err, &invalid) {
+		status = http.StatusBadRequest
+	} else if errors.Is(err, errCommentMissing) {
+		status = http.StatusNotFound
+	}
+	fail(w, status, err)
 }
 func allowedName(raw string) bool {
 	u, err := url.Parse(raw)
@@ -326,28 +333,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400, err)
 			return
 		}
-		if c.ID == "" || !validPath(c.Path) || c.Range == "" || !validLocation(c) {
-			fail(w, 400, fmt.Errorf("A comment ID, path, range and valid line location are required"))
-			return
-		}
-		anchor, err := review.Lines(r.Context(), c)
+		created, err := (repositoryComments{store: s.store}).create(r.Context(), review, c)
 		if err != nil {
-			fail(w, 400, err)
+			failComment(w, err)
 			return
 		}
-		c.Anchor, c.CreatedAt = anchor, time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
-		state, err := s.store.Mutate(r.Context(), func(state *StoredState) error { upsert(state, c); return nil })
-		if err != nil {
-			fail(w, 500, err)
-			return
-		}
-		for _, saved := range state.Comments {
-			if saved.ID == c.ID {
-				c = saved
-				break
-			}
-		}
-		reply(w, 200, map[string]any{"comment": review.Comments(r.Context(), []Comment{c})[0], "comments": state.Comments})
+		reply(w, 200, created)
 	case route == "comments" && r.Method == "PATCH":
 		var body struct {
 			ID   string `json:"id"`
@@ -357,53 +348,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400, err)
 			return
 		}
-		body.Body = strings.TrimSpace(body.Body)
-		if body.ID == "" || body.Body == "" {
-			fail(w, 400, fmt.Errorf("A comment ID and non-empty body are required"))
-			return
-		}
-		var saved *Comment
-		_, err := s.store.Mutate(r.Context(), func(state *StoredState) error {
-			for i := range state.Comments {
-				if state.Comments[i].ID == body.ID {
-					state.Comments[i].Body = body.Body
-					c := state.Comments[i]
-					saved = &c
-					return nil
-				}
-			}
-			return errCommentMissing
-		})
+		saved, err := (repositoryComments{store: s.store}).edit(r.Context(), review, body.ID, body.Body)
 		if err != nil {
-			status := 500
-			if errors.Is(err, errCommentMissing) {
-				status = 404
-			}
-			fail(w, status, err)
+			failComment(w, err)
 			return
 		}
-		reply(w, 200, map[string]any{"comment": review.Comments(r.Context(), []Comment{*saved})[0]})
+		reply(w, 200, map[string]any{"comment": saved})
 	case route == "comments" && r.Method == "DELETE":
-		id := r.URL.Query().Get("id")
-		if id == "" {
-			fail(w, 400, fmt.Errorf("missing id"))
-			return
-		}
-		state, err := s.store.Mutate(r.Context(), func(state *StoredState) error {
-			kept := make([]Comment, 0, len(state.Comments))
-			for _, c := range state.Comments {
-				if c.ID != id {
-					kept = append(kept, c)
-				}
-			}
-			state.Comments = kept
-			return nil
-		})
+		comments, err := (repositoryComments{store: s.store}).remove(r.Context(), r.URL.Query().Get("id"))
 		if err != nil {
-			fail(w, 500, err)
+			failComment(w, err)
 			return
 		}
-		reply(w, 200, map[string]any{"comments": state.Comments})
+		reply(w, 200, map[string]any{"comments": comments})
 	default:
 		fail(w, 404, fmt.Errorf("not found"))
 	}

@@ -33,7 +33,7 @@ func TestIndependentStoresSerializeTransactions(t *testing.T) {
 			defer wg.Done()
 			other := &Store{path: s.path, gitDir: s.gitDir}
 			_, err := other.Mutate(context.Background(), func(state *StoredState) error {
-				upsert(state, Comment{ID: fmt.Sprint(i), Path: "file.txt", Side: "deletions", Start: 1, End: 1, Range: "main..feature", Anchor: []string{"original"}, CreatedAt: "original"})
+				state.Comments = append(state.Comments, Comment{ID: fmt.Sprint(i), Path: "file.txt", Side: "deletions", Start: 1, End: 1, Range: "main..feature", Anchor: []string{"original"}, CreatedAt: "original"})
 				return nil
 			})
 			if err != nil {
@@ -153,7 +153,7 @@ func TestConcurrentStateAndPersistence(t *testing.T) {
 			id := fmt.Sprint(i)
 			hash := "hash-" + id
 			_, err := s.Mutate(context.Background(), func(state *StoredState) error {
-				upsert(state, Comment{ID: id, Path: "file-" + id, Side: "additions", Start: 1, End: 1, Anchor: []string{"code"}, Range: "base..head", CreatedAt: "original"})
+				state.Comments = append(state.Comments, Comment{ID: id, Path: "file-" + id, Side: "additions", Start: 1, End: 1, Anchor: []string{"code"}, Range: "base..head", CreatedAt: "original"})
 				if state.Viewed["base..head"] == nil {
 					state.Viewed["base..head"] = ViewedMap{}
 				}
@@ -179,9 +179,7 @@ func TestConcurrentStateAndPersistence(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			_, err := s.Mutate(context.Background(), func(state *StoredState) error {
-				c := state.Comments[0]
-				c.Body, c.CreatedAt = "edited", "new"
-				upsert(state, c)
+				state.Comments[0].Body = "edited"
 				return nil
 			})
 			if err != nil {
@@ -194,8 +192,8 @@ func TestConcurrentStateAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(state.Comments) != 32 || state.Comments[0].CreatedAt != "original" {
-		t.Fatal("duplicate edit or changed timestamp")
+	if len(state.Comments) != 32 || state.Comments[0].Body != "edited" {
+		t.Fatal("lost or duplicated state mutation")
 	}
 	_, err = s.Mutate(context.Background(), func(state *StoredState) error { state.Comments = state.Comments[1:]; return nil })
 	if err != nil {

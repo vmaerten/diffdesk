@@ -164,14 +164,3 @@ func (s *Store) write(state StoredState) error {
 	err = os.Rename(file.Name(), s.path)
 	return err
 }
-
-func upsert(state *StoredState, comment Comment) {
-	for i, previous := range state.Comments {
-		if previous.ID == comment.ID {
-			comment.CreatedAt = previous.CreatedAt
-			state.Comments[i] = comment
-			return
-		}
-	}
-	state.Comments = append(state.Comments, comment)
-}
