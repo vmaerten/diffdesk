@@ -171,6 +171,18 @@ diff counts and a file you can comment on, like any other.
 `ghl comments` takes them in unconditionally: the page has a scope control and a reader who chose
 what is on screen, the export has neither, and its scope is the review rather than the view.
 
+**Ignore whitespace**, beside Unified/Split, filters the diff with Git's
+`--ignore-all-space` option. It ignores indentation, tabs/spaces and inline or trailing
+spacing changes while keeping line breaks and other text changes. Files whose only
+changes are whitespace disappear from the tree, and file/line counts follow the filtered
+diff. Renames and other file metadata changes remain visible.
+
+The setting is off by default and lives in `w=1` in the URL, so reloading or picking
+another revision keeps it. Viewed ticks are separate for the full and filtered modes;
+returning to either mode restores its own ticks. Comments keep their original source
+line numbers and anchors. Comments on hidden files remain available in **Comments**;
+turn the setting off to see those files in the diff again.
+
 The state lives in the URL and nowhere else. A remembered preference would answer over what
 you last chose in the page, which is the one thing this tool must never do about what a diff
 contains.
