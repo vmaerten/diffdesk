@@ -8,7 +8,9 @@ This guide describes `main`. See the [changelog](../CHANGELOG.md) for changes th
 
 The default review compares the merge-base of the chosen base and HEAD with the working tree. **Working tree** includes staged and unstaged changes; clear it to review only committed work. **Untracked** includes files Git does not track yet and is off by default, with a count of the excluded files.
 
-Press `t` to review another revision without checking it out. Press `l` to pick one commit: its diff is against its first parent, or the empty tree for a root commit. The base determines which commits are offered, but does not affect a selected commit's patch. A commit that no longer resolves falls back to the whole range with a notice.
+Press `t` to choose another branch. If it has an available worktree, the picker opens that worktree’s review with its staged and unstaged changes included. Each worktree keeps its own comments and Viewed state. Switching worktrees clears the previous base and commit selection, preserves whitespace and untracked options, and lets Browser Back restore the previous comparison. A branch without a worktree is reviewed as a committed revision, without checking it out. Passing a revision directly with `ghl origin/branch` or a `target` URL parameter also excludes uncommitted work.
+
+Press `l` to pick one commit: its diff is against its first parent, or the empty tree for a root commit. The base determines which commits are offered, but does not affect a selected commit's patch. A commit that no longer resolves falls back to the whole range with a notice.
 
 Ref and commit views exclude uncommitted and untracked files. Comparison choices live in the URL, so reloading keeps them and another CLI invocation does not override an open tab.
 

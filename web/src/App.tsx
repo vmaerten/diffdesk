@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useStableCallback } from '@pierre/diffs/react'
 import { useReviewDiff, type LoadedReviewDiff } from './useReviewDiff.tsx'
 import { useReviewSelection } from './reviewSelection.ts'
@@ -41,8 +41,29 @@ const BASE_SOURCES: Record<BaseSource, string> = {
 }
 
 export default function App() {
+  const [repoId, setRepoId] = useState(repoIdFromLocation)
+  useEffect(() => {
+    const onPopState = () => setRepoId(repoIdFromLocation())
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+  const navigateRepository = useCallback((url: URL) => {
+    history.pushState(null, '', url)
+    setRepoId(repoIdFromLocation())
+  }, [])
+  // All review caches and optimistic state belong to one worktree. Remounting
+  // leaves pending saves attached to their original repository transports.
+  return <RepositoryReview key={repoId} repoId={repoId} navigateRepository={navigateRepository} />
+}
+
+function RepositoryReview({
+  repoId,
+  navigateRepository,
+}: {
+  repoId: string | null
+  navigateRepository: (url: URL) => void
+}) {
   const { theme, syntaxTheme, chooseTheme } = useTheme()
-  const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
   const loadRef = useRef(0)
   const controllerRef = useRef<AbortController | null>(null)
@@ -51,7 +72,7 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false)
   const [viewed, viewedPersistence] = useViewedPersistence(repoId)
   const [picking, setPicking] = useState<'base' | 'target' | 'commit' | null>(null)
-  const [selection, select] = useReviewSelection(repoId)
+  const [selection, select] = useReviewSelection(repoId, navigateRepository)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
   const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId)
   /** Momentary, so the button can say the clipboard actually took it. */
@@ -145,7 +166,9 @@ export default function App() {
   const pickTarget = useCallback(
     (ref: string | null) => {
       setPicking(null)
-      select.pickTarget(ref)
+      select.pickTarget(ref).catch((cause) => {
+        setError(cause instanceof Error ? cause.message : String(cause))
+      })
     },
     [select],
   )

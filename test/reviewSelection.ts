@@ -17,6 +17,10 @@ export async function runReviewSelection(check: Check): Promise<void> {
       await delay
       if (fail) throw new Error('write failed')
     },
+    worktreeForTarget: async () => null,
+    navigate: () => {
+      throw new Error('unexpected worktree navigation')
+    },
   })
   const initial = selection.getSnapshot()
   check(
@@ -27,7 +31,7 @@ export async function runReviewSelection(check: Check): Promise<void> {
   const unsubscribe = selection.subscribe(() => {
     publications++
   })
-  selection.pickTarget('other/ref')
+  await selection.pickTarget('other/ref')
   const target = selection.getSnapshot()
   check(
     'changing target clears the old commit in state and URL',
@@ -46,7 +50,7 @@ export async function runReviewSelection(check: Check): Promise<void> {
       selection.getSnapshot().query.includes('commit=def'),
   )
   selection.pickCommit(null)
-  selection.pickTarget(null)
+  await selection.pickTarget(null)
   check(
     'whole-range checkout selection removes parameters instead of remembering defaults',
     !url.searchParams.has('target') && !url.searchParams.has('commit'),
@@ -94,7 +98,7 @@ export async function runReviewSelection(check: Check): Promise<void> {
   })
   const pending = selection.pickBase('main', 'release')
   await Promise.resolve()
-  selection.pickTarget('feature')
+  await selection.pickTarget('feature')
   const afterNavigation = selection.getSnapshot()
   release()
   await pending
@@ -118,7 +122,7 @@ export async function runReviewSelection(check: Check): Promise<void> {
       url.searchParams.get('w') === '1' &&
       selection.getSnapshot().query.includes('w=1'),
   )
-  selection.pickTarget('other')
+  await selection.pickTarget('other')
   selection.pickCommit('next')
   selection.toggleCommitted()
   selection.toggleUntracked()
@@ -130,6 +134,8 @@ export async function runReviewSelection(check: Check): Promise<void> {
   const reloaded = createReviewSelection(url, {
     replaceUrl: () => {},
     rememberBase: async () => {},
+    worktreeForTarget: async () => null,
+    navigate: () => {},
   })
   check('a reloaded URL restores the filter', reloaded.getSnapshot().ignoreWhitespace)
   selection.toggleWhitespace()
@@ -140,6 +146,103 @@ export async function runReviewSelection(check: Check): Promise<void> {
   const disabled = createReviewSelection(new URL('http://localhost/r/test?w=0'), {
     replaceUrl: () => {},
     rememberBase: async () => {},
+    worktreeForTarget: async () => null,
+    navigate: () => {},
   })
   check('w=0 keeps the full diff', !disabled.getSnapshot().ignoreWhitespace)
+
+  let worktreeUrl = new URL(
+    'http://localhost/r/original?base=release&target=old&commit=abc&committed&untracked&w=1&extra=keep#file',
+  )
+  const navigations: URL[] = []
+  let worktreeId: string | null = 'linked worktree é'
+  let targetDelay: Promise<void> | undefined
+  let targetFail = false
+  const worktrees = createReviewSelection(worktreeUrl, {
+    replaceUrl: (next) => {
+      worktreeUrl = next
+    },
+    rememberBase: async () => {},
+    worktreeForTarget: async () => {
+      const id = worktreeId
+      await targetDelay
+      if (targetFail) throw new Error('worktree lookup failed')
+      return id
+    },
+    navigate: (next) => {
+      navigations.push(next)
+    },
+  })
+  await worktrees.pickTarget('linked/feature')
+  const opened = navigations.at(-1)!
+  check(
+    'a branch with a worktree opens its repository URL',
+    opened.pathname === '/r/linked%20worktree%20%C3%A9',
+  )
+  check(
+    'worktree navigation resets the previous revision and includes local work',
+    !['base', 'target', 'commit', 'committed'].some((key) => opened.searchParams.has(key)) &&
+      opened.hash === '',
+  )
+  check(
+    'worktree navigation preserves display options and untracked scope',
+    opened.searchParams.get('w') === '1' &&
+      opened.searchParams.has('untracked') &&
+      opened.searchParams.get('extra') === 'keep',
+  )
+
+  worktreeId = 'original'
+  await worktrees.pickTarget('current/branch')
+  check(
+    'picking the current checkout branch enables its working tree without navigating',
+    navigations.length === 1 &&
+      worktrees.getSnapshot().target === null &&
+      worktrees.getSnapshot().commit === null &&
+      !worktrees.getSnapshot().committed &&
+      worktreeUrl.searchParams.get('base') === 'release',
+  )
+
+  targetFail = true
+  const beforeLookupFailure = worktrees.getSnapshot()
+  let rejected = false
+  await worktrees.pickTarget('broken').catch(() => {
+    rejected = true
+  })
+  check(
+    'failed worktree lookup leaves the current selection intact and reports the error',
+    rejected && worktrees.getSnapshot() === beforeLookupFailure && navigations.length === 1,
+  )
+  targetFail = false
+
+  worktreeId = 'another'
+  let releaseTarget!: () => void
+  targetDelay = new Promise<void>((resolve) => {
+    releaseTarget = resolve
+  })
+  const pendingTarget = worktrees.pickTarget('slow')
+  await worktrees.pickTarget(null)
+  releaseTarget()
+  await pendingTarget
+  check('a late worktree lookup cannot undo a newer checkout selection', navigations.length === 1)
+
+  targetDelay = new Promise<void>((resolve) => {
+    releaseTarget = resolve
+  })
+  const beforeCommit = worktrees.pickTarget('slow')
+  worktrees.pickCommit('new-commit')
+  releaseTarget()
+  await beforeCommit
+  check(
+    'a late worktree lookup cannot replace a newer commit selection',
+    navigations.length === 1 && worktrees.getSnapshot().commit === 'new-commit',
+  )
+
+  targetDelay = new Promise<void>((resolve) => {
+    releaseTarget = resolve
+  })
+  const beforeUnmount = worktrees.pickTarget('slow')
+  worktrees.cancelPending()
+  releaseTarget()
+  await beforeUnmount
+  check('leaving a worktree cancels its pending navigation', navigations.length === 1)
 }
