@@ -14,6 +14,7 @@ interface CommentTransport {
 
 interface PendingSave {
   kind: 'save'
+  branch: string
   comment: ServedComment
   query: string
   editing: boolean
@@ -31,6 +32,7 @@ interface PendingDelete {
 /** Own optimistic text, write ordering and refresh reconciliation for one repository. */
 export function createCommentPersistence(transport: CommentTransport) {
   let served: ServedComment[] = []
+  let branch = ''
   let clock = 0
   let readVersion = 0
   let snapshot: { comments: ServedComment[]; saving: Map<string, SaveState> } = {
@@ -47,6 +49,7 @@ export function createCommentPersistence(transport: CommentTransport) {
     const saving = new Map<string, SaveState>()
     for (const [id, entry] of local) {
       if (entry.comment) {
+        if (entry.branch !== branch) continue
         comments.set(id, entry.comment)
         if (entry.status) saving.set(id, entry.status)
       } else comments.delete(id)
@@ -67,9 +70,10 @@ export function createCommentPersistence(transport: CommentTransport) {
     return task
   }
 
-  const save = (comment: ServedComment, query: string, editing = false) => {
+  const save = (comment: ServedComment, query: string, editing = false, commentBranch = branch) => {
     const entry: PendingSave = {
       kind: 'save',
+      branch: commentBranch,
       comment,
       query,
       editing,
@@ -107,17 +111,27 @@ export function createCommentPersistence(transport: CommentTransport) {
     refresh: () => {
       const startedAt = clock
       const version = ++readVersion
-      return (comments: ServedComment[]) => {
+      return (comments: ServedComment[], nextBranch: string) => {
         if (version !== readVersion) return
+        branch = nextBranch
         served = comments
         for (const comment of comments) persisted.add(comment.id)
         for (const [id, entry] of local) {
-          if (entry.status === null && entry.changedAt <= startedAt) local.delete(id)
+          if (
+            entry.status === null &&
+            entry.changedAt <= startedAt &&
+            (entry.kind === 'delete' || entry.branch === branch)
+          ) {
+            local.delete(id)
+          }
         }
         publish()
       }
     },
-    submit: (draft: CommentSubmission, { range, query }: { range: string; query: string }) => {
+    submit: (
+      draft: CommentSubmission,
+      { range, query, commentBranch }: { range: string; query: string; commentBranch: string },
+    ) => {
       const existing = snapshot.comments.find((comment) => comment.id === draft.editing)
       return save(
         {
@@ -128,6 +142,7 @@ export function createCommentPersistence(transport: CommentTransport) {
           end: draft.end,
           body: draft.body,
           range: existing?.range ?? range,
+          branch: existing?.branch ?? commentBranch,
           createdAt: existing?.createdAt ?? new Date().toISOString(),
           anchor: existing?.anchor ?? [],
           code: existing?.code ?? [],
@@ -135,19 +150,21 @@ export function createCommentPersistence(transport: CommentTransport) {
         },
         query,
         draft.editing !== null,
+        commentBranch,
       )
     },
     retry: (id: string) => {
       const entry = local.get(id)
       // Keep the comparison on which the text was written, even after navigation.
       if (entry?.kind === 'save' && entry.status === 'failed')
-        return save(entry.comment, entry.query, entry.editing)
+        return save(entry.comment, entry.query, entry.editing, entry.branch)
       return Promise.resolve()
     },
     remove: (id: string) => {
       const comment = snapshot.comments.find((item) => item.id === id)
       if (!comment) return Promise.resolve()
       const previous = local.get(id)
+      const commentBranch = branch
       const entry: PendingDelete = {
         kind: 'delete',
         comment: null,
@@ -169,6 +186,7 @@ export function createCommentPersistence(transport: CommentTransport) {
                 ? previous
                 : {
                     kind: 'save',
+                    branch: commentBranch,
                     comment,
                     query: '',
                     editing: true,

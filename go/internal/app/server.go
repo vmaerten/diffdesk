@@ -266,7 +266,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"head": map[string]any{"branch": review.Branch, "sha": review.Head}, "target": map[string]any{"ref": review.Target, "workingTree": review.Comparison.After == nil},
 			"commit": review.Commit, "range": review.Range, "state": map[string]any{"operation": nil, "conflicted": []string{}},
 			"untracked": review.Untracked, "untrackedIncluded": review.UntrackedIncluded, "files": review.Files, "totals": review.Totals,
-			"viewed": viewed, "comments": review.Comments(r.Context(), state.Comments), "notice": notice, "patch": review.Patch,
+			"viewed": viewed, "comments": review.Comments(r.Context(), review.branchComments(state.Comments)), "commentBranch": review.CommentBranch, "notice": notice, "patch": review.Patch,
 		})
 	case route == "diff-files" && r.Method == "GET":
 		q := r.URL.Query()

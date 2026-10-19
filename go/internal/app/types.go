@@ -76,6 +76,7 @@ type Comment struct {
 	Body      string   `json:"body"`
 	Anchor    []string `json:"anchor"`
 	Range     string   `json:"range"`
+	Branch    string   `json:"branch,omitempty"`
 	CreatedAt string   `json:"createdAt"`
 }
 type ServedComment struct {

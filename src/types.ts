@@ -151,6 +151,8 @@ export interface Comment {
    * chain that moved — which is the tool erasing written text, not the user.
    */
   range: string
+  /** Reviewed branch at creation; absent in older state files. */
+  branch?: string
   createdAt: string
 }
 
@@ -178,7 +180,7 @@ export interface ServedComment extends Comment {
 export interface StoredState {
   version: number
   viewed: Record<string, ViewedMap>
-  /** Flat: a comment belongs to the code it points at, not to a comparison. */
+  /** Flat storage; readers select the reviewed branch's comments. */
   comments: Comment[]
 }
 
@@ -231,7 +233,9 @@ export interface DiffPayload {
   files: ServedFileStat[]
   totals: Totals
   viewed: ViewedMap
-  /** Only those on a file this diff contains; the rest are for another diff. */
+  /** Stable across base, commit and whitespace selection on the same branch. */
+  commentBranch: string
+  /** All comments on the reviewed branch, including files outside the diff. */
   comments: ServedComment[]
   /**
    * Something about the stored state the reader should know, or null.

@@ -25,7 +25,11 @@ const original: ServedComment = {
   code: ['old code'],
   stale: false,
 }
-const scope = { range: original.range, query: '?base=main&target=feature' }
+const scope = {
+  range: original.range,
+  query: '?base=main&target=feature',
+  commentBranch: 'feature',
+}
 const draft = (body: string, editing: string | null = 'one'): CommentSubmission => ({
   body,
   editing,
@@ -52,11 +56,59 @@ function setup() {
       return request.promise
     },
   })
-  store.refresh()([original])
+  store.refresh()([original], scope.commentBranch)
   return { store, saves, deletes }
 }
 
 export async function runCommentPersistence(check: Check): Promise<void> {
+  {
+    const { store, saves } = setup()
+    const saving = store.submit(draft('feature edit'), scope)
+    await Promise.resolve()
+    store.refresh()([], 'other')
+    check(
+      'pending comments and saving indicators are hidden on another branch',
+      store.getSnapshot().comments.length === 0 && store.getSnapshot().saving.size === 0,
+    )
+    saves[0]!.resolve(saves[0]!.comment)
+    await saving
+    check(
+      'a save completing after branch navigation cannot restore its comment there',
+      store.getSnapshot().comments.length === 0,
+    )
+    store.refresh()([saves[0]!.comment], scope.commentBranch)
+    check(
+      'returning to the original branch restores the saved comment',
+      store.getSnapshot().comments[0]?.body === 'feature edit',
+    )
+  }
+  {
+    const { store, saves } = setup()
+    const saving = store.submit(draft('keep failed feature text', null), scope)
+    await Promise.resolve()
+    const id = saves[0]!.comment.id
+    saves[0]!.reject(new Error('offline'))
+    await saving
+    store.refresh()([], 'other')
+    check('failed comments are hidden on another branch', store.getSnapshot().comments.length === 0)
+    store.refresh()([], scope.commentBranch)
+    check(
+      'returning to a branch restores unsaved text and its retry state',
+      store.getSnapshot().comments[0]?.body === 'keep failed feature text' &&
+        store.getSnapshot().saving.get(id) === 'failed',
+    )
+    const retry = store.retry(id)
+    await Promise.resolve()
+    store.refresh()([], 'other')
+    saves[1]!.resolve(saves[1]!.comment)
+    await retry
+    check(
+      'retry keeps the original branch and stays hidden when completed elsewhere',
+      saves[1]?.comment.branch === scope.commentBranch &&
+        saves[1]?.query === scope.query &&
+        store.getSnapshot().comments.length === 0,
+    )
+  }
   {
     const methods: boolean[] = []
     const store = createCommentPersistence({
@@ -67,6 +119,7 @@ export async function runCommentPersistence(check: Check): Promise<void> {
       },
       remove: async () => {},
     })
+    store.refresh()([], scope.commentBranch)
     await store.submit(draft('new comment', null), scope)
     const id = store.getSnapshot().comments[0]!.id
     await store.submit(draft('revised after failure', id), scope)
@@ -81,7 +134,7 @@ export async function runCommentPersistence(check: Check): Promise<void> {
     const save = store.submit(draft('edited'), scope)
     await Promise.resolve()
     const receive = store.refresh()
-    receive([original])
+    receive([original], scope.commentBranch)
     check(
       'refresh cannot replace an unsaved edit with the served copy of its ID',
       store.getSnapshot().comments[0]?.body === 'edited' &&
@@ -91,7 +144,7 @@ export async function runCommentPersistence(check: Check): Promise<void> {
     const confirmed = { ...saves[0]!.comment, anchor: ['server code'], code: ['server code'] }
     saves[0]!.resolve(confirmed)
     await save
-    staleRead([original])
+    staleRead([original], scope.commentBranch)
     check(
       'a read started before save completion cannot roll the edit back',
       store.getSnapshot().comments[0]?.body === 'edited',
@@ -102,7 +155,7 @@ export async function runCommentPersistence(check: Check): Promise<void> {
         store.getSnapshot().comments[0]?.createdAt === original.createdAt &&
         !store.getSnapshot().saving.has('one'),
     )
-    store.refresh()([{ ...confirmed, code: ['changed again'], stale: true }])
+    store.refresh()([{ ...confirmed, code: ['changed again'], stale: true }], scope.commentBranch)
     check(
       'a fresh read can enrich a confirmed comment again',
       store.getSnapshot().comments[0]?.stale === true &&
@@ -110,8 +163,8 @@ export async function runCommentPersistence(check: Check): Promise<void> {
     )
     const old = store.refresh()
     const newer = store.refresh()
-    newer([])
-    old([original])
+    newer([], scope.commentBranch)
+    old([original], scope.commentBranch)
     check(
       'late refreshes cannot restore another comparison',
       store.getSnapshot().comments.length === 0,
@@ -124,7 +177,7 @@ export async function runCommentPersistence(check: Check): Promise<void> {
     const id = saves[0]!.comment.id
     saves[0]!.reject(new Error('offline'))
     await saving
-    store.refresh()([])
+    store.refresh()([], scope.commentBranch)
     check(
       'failed new comments survive refresh with their text and retry state',
       store.getSnapshot().comments[0]?.body === 'new comment' &&
@@ -182,7 +235,7 @@ export async function runCommentPersistence(check: Check): Promise<void> {
     const saving = store.submit(draft('edited before delete'), scope)
     const removing = store.remove('one')
     await Promise.resolve()
-    store.refresh()([original])
+    store.refresh()([original], scope.commentBranch)
     check(
       'optimistic deletion stays hidden across refresh and waits for the save',
       store.getSnapshot().comments.length === 0 && deletes.length === 0,
@@ -197,12 +250,12 @@ export async function runCommentPersistence(check: Check): Promise<void> {
     )
     deletes[0]!.resolve()
     await removing
-    staleRead([original])
+    staleRead([original], scope.commentBranch)
     check(
       'a late read cannot resurrect a confirmed deletion',
       store.getSnapshot().comments.length === 0,
     )
-    store.refresh()([])
+    store.refresh()([], scope.commentBranch)
     check(
       'a fresh read confirms the deletion',
       store.getSnapshot().comments.length === 0 && store.getSnapshot().saving.size === 0,

@@ -42,6 +42,7 @@ func (c repositoryComments) create(ctx context.Context, review *Review, draft Co
 			return invalidComment(err.Error())
 		}
 		draft.Anchor = anchor
+		draft.Branch = review.CommentBranch
 		draft.CreatedAt = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
 		state.Comments = append(state.Comments, draft)
 		saved = draft
@@ -51,6 +52,23 @@ func (c repositoryComments) create(ctx context.Context, review *Review, draft Co
 		return commentCreation{}, err
 	}
 	return commentCreation{Comment: review.Comments(ctx, []Comment{saved})[0], Comments: state.Comments}, nil
+}
+
+// Older comments only recorded a comparison. Its target recovers their branch
+// without rewriting provenance or assigning them to whichever branch opens first.
+func (r *Review) branchComments(stored []Comment) []Comment {
+	comments := make([]Comment, 0, len(stored))
+	for _, comment := range stored {
+		branch := comment.Branch
+		if branch == "" {
+			_, branch, _ = strings.Cut(comment.Range, "..")
+			branch = strings.TrimPrefix(branch, "refs/heads/")
+		}
+		if branch == r.CommentBranch {
+			comments = append(comments, comment)
+		}
+	}
+	return comments
 }
 
 func (c repositoryComments) edit(ctx context.Context, review *Review, id, body string) (ServedComment, error) {
