@@ -11,14 +11,14 @@ Go executable, embedded React UI. Only Git and a browser are needed to run it.
 With [mise](https://mise.jdx.dev/):
 
 ```bash
-mise use -g github:vmaerten/ghl@0.1.0
+mise use -g github:vmaerten/ghl@0.2.0
 cd /path/to/repository
 ghl
 ```
 
-The published `v0.1.0` archive is for macOS Apple Silicon. See the
-[installation guide](./docs/installation.md) for platform availability, PATH
-setup, upgrades and rollback.
+Release archives cover macOS (Apple Silicon and Intel) and Linux (ARM64 and
+x86-64). See the [installation guide](./docs/installation.md) for PATH setup,
+upgrades and rollback.
 
 To install from source, with Node >= 24, pnpm, Go >= 1.24 and Task v3 installed:
 

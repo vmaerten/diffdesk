@@ -2,11 +2,10 @@
 
 Release builds cover macOS Apple Silicon (`darwin_arm64`), macOS Intel
 (`darwin_amd64`), Linux ARM64 (`linux_arm64`) and Linux x86-64 (`linux_amd64`).
-Choose a published version that contains the matching archive: v0.1.0 ships only
-macOS ARM64, and the additional targets first become available in a later release
-after platform acceptance. Git and a browser are runtime prerequisites. React is
-embedded; consumers do not need Node, pnpm or Go. On Linux, automatic browser
-opening uses `xdg-open` (usually supplied by `xdg-utils`); `--no-open` prints the URL
+Choose a published version that contains the matching archive: v0.2.0 ships all
+four targets; v0.1.0 ships only macOS ARM64. Git and a browser are runtime
+prerequisites. React is embedded; consumers do not need Node, pnpm or Go. On Linux,
+automatic browser opening uses `xdg-open` (usually supplied by `xdg-utils`); `--no-open` prints the URL
 without invoking a desktop handler.
 
 Go is the default runtime. Release installation requires an archive in

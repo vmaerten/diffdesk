@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0
+
 - Keep comments on their original branch across branch switches and restarts,
   including in the comments panel, pending saves and CLI exports.
   ([#148](https://github.com/vmaerten/ghl/pull/148))
@@ -28,6 +30,8 @@
   ([#143](https://github.com/vmaerten/ghl/pull/143))
 - Validate every archive's checksum, layout and Go OS/architecture settings;
   exercise platform-specific CLI, browser and mise installation gates locally.
+- Shorten the README and move detailed usage into a dedicated reviewing guide.
+  ([#150](https://github.com/vmaerten/ghl/pull/150))
 
 ## 0.1.0
 
