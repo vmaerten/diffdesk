@@ -53,6 +53,7 @@ export default {
       end: 1,
       body: 'Keep this migration note.',
       range: 'main..old-branch',
+      branch: 'feature',
       anchor: ['original code'],
       createdAt: '2026-09-20T00:00:00Z',
     })

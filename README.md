@@ -30,9 +30,11 @@ walk an order the eye is not following.
 
 Lines can be commented, from the `+` in the gutter or with `c` on a selection. A comment is a
 remark meant to be handed to an agent, so it is filed against the code rather than against the
-comparison: it lives under the repository, keyed by path and by the text of the lines it was
-written on, and follows its file when the base changes. The tree carries a `✎N` badge even
-when the file is marked viewed.
+comparison: it lives under the repository and reviewed branch, anchored by path and by the
+text of the lines it was written on, and follows its file when the base or displayed commit
+changes. Switching branches shows that branch's comments; returning restores the earlier
+branch's comments, including after a restart or reinstall. The tree carries a `✎N` badge
+even when the file is marked viewed.
 Inline comments use compact cards. Click the chevron beside the line number to fold a comment
 into a one-line preview; click again to expand it. The folded state survives scrolling and
 reloads in the same tab. Copy and edit remain available while folded, and **View in diff**
@@ -44,11 +46,15 @@ three, so a per-file signal would fire every time and mean nothing. The flag is 
 read and never stored, so putting the lines back clears it — and it is never a reason to delete
 the comment on your behalf, since code can change without anyone having done what it asked.
 
-The **Comments** button opens an overview of every comment in the repository, grouped by
+The **Comments** button opens an overview of every comment on the reviewed branch, grouped by
 file. **View in diff** reveals the commented lines, opening a folded file without clearing
 its Viewed tick. Comments outside the current diff remain readable and editable in the
 panel, with their original code available. The `…` menu offers Edit and Delete; editing
 changes the text without replacing its original code anchor or comparison.
+
+Older comments recover their branch from the target in their original comparison. If that
+comparison recorded only commit hashes, the original branch is unknown; those comments stay
+in the state file and are available when reviewing the recorded target revision explicitly.
 
 **Copy all** copies every comment in the overview as Markdown, including comments on viewed
 files and files outside the current diff. Each comment also has its own copy button.

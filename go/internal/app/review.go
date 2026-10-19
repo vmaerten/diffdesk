@@ -122,6 +122,7 @@ type Review struct {
 	repo              Repository
 	Comparison        Comparison
 	Base, Head, Range string
+	CommentBranch     string
 	Branch            *string
 	Resolution        BaseResolution
 	Target            string
@@ -200,6 +201,15 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 		return nil, fmt.Errorf("Invalid base %q: does not resolve to a revision", resolution.Ref)
 	}
 	review := &Review{repo: r, Base: resolution.Ref, Resolution: resolution, Head: head, Branch: branch, Target: target, Files: []FileStat{}, Untracked: []string{}, ignoreWhitespace: selection.IgnoreWhitespace, sections: map[string]*section{}, sources: map[string]*TextFile{}}
+	// Commit selection and base changes keep the reviewed branch's comments.
+	// Detached checkouts use their revision rather than sharing a global HEAD scope.
+	review.CommentBranch = strings.TrimPrefix(target, "refs/heads/")
+	if target == "HEAD" {
+		review.CommentBranch = head
+		if branch != nil {
+			review.CommentBranch = *branch
+		}
+	}
 	if selection.Commit != "" {
 		review.Commit, err = r.commitDetail(ctx, selection.Commit)
 		if err != nil {

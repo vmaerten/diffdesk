@@ -105,7 +105,7 @@ export default function App() {
       if (controller.signal.aborted) return
       setData({ ...body, loadId, query: selection.query, signal: controller.signal })
       receiveViewed({ ...body, query: selection.query })
-      receiveComments(body.comments ?? [])
+      receiveComments(body.comments ?? [], body.commentBranch)
       setError(null)
     } catch (cause) {
       if (controller.signal.aborted) return

@@ -101,14 +101,14 @@ func writeComments(ctx context.Context, review *Review, store *Store, jsonOutput
 			return err
 		}
 	}
-	// Like Node's CLI, include comments on files in this comparison regardless
-	// of their saved range. The UI separately retains comments outside it.
+	// Keep the branch's comments on files in this comparison, even if the base
+	// changed since creation. The UI also retains this branch's outside comments.
 	paths := make(map[string]bool, len(review.Files))
 	for _, file := range review.Files {
 		paths[file.Path] = true
 	}
 	selected := make([]Comment, 0, len(state.Comments))
-	for _, comment := range state.Comments {
+	for _, comment := range review.branchComments(state.Comments) {
 		if paths[comment.Path] {
 			selected = append(selected, comment)
 		}
