@@ -6,7 +6,7 @@ a browser are runtime prerequisites. The project uses MIT; archives also contain
 third-party components. The [mise installation guide](./installation.md)
 documents the consumer path and its verification. The first release, v0.1.0,
 was published for macOS ARM64 and passed the real GitHub/mise installation gate.
-The additional targets require a subsequent release and platform acceptance.
+The v0.2.0 release adds the other three archive targets.
 
 ## Local snapshot
 
@@ -62,7 +62,7 @@ changes. Supported versions are `X.Y.Z` and `X.Y.Z-prerelease`, with a matching
 can be built and verified locally from its clean checkout:
 
 ```bash
-RELEASE_TAG=v0.1.0 mise exec -- task release:build
+RELEASE_TAG=v0.2.0 mise exec -- task release:build
 ```
 
 Replace the example with the checked-out tag. The command checks that it matches
@@ -81,10 +81,10 @@ Publish those exact tested files without
 rebuilding:
 
 ```bash
-git push origin refs/tags/v0.1.0
-gh release create v0.1.0 --verify-tag --title v0.1.0 --notes-file CHANGELOG.md \
-  go/dist/release/ghl_0.1.0_*.tar.gz go/dist/release/checksums.txt
-task release:mise:published VERSION=0.1.0
+git push origin refs/tags/v0.2.0
+gh release create v0.2.0 --verify-tag --title v0.2.0 --notes-file CHANGELOG.md \
+  go/dist/release/ghl_0.2.0_*.tar.gz go/dist/release/checksums.txt
+task release:mise:published VERSION=0.2.0 PREVIOUS=0.1.0
 ```
 
 Replace the version in every command when preparing another release. Add

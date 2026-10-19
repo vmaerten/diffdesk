@@ -62,8 +62,9 @@ their Markdown transport simulations.
 The daemon upgrade test changes executable identity by appending a payload to
 a copy of the candidate. It checks a new process/revision, transferred repository
 registrations and unchanged comment/Viewed data. This simulates replacement;
-there is no previous published Go release to install yet. Node-to-Go state
-compatibility and restart are tested separately against seeded version-1 fixtures.
+the separate published mise check exercises actual upgrades and rollback when a
+compatible earlier release exists. Node-to-Go state compatibility and restart
+are tested separately against seeded version-1 fixtures.
 
 ## Promotion policy
 
@@ -74,6 +75,8 @@ bytes, PATH, standalone serving and saved state, then upgrades/rolls back when a
 previous compatible release exists. The real published-download gate passed for v0.1.0 on macOS ARM64. Other
 platforms need their own first published-download gate; historical upgrades
 require a previous published release with an archive for that same target.
+For v0.2.0, use `PREVIOUS=0.1.0` on macOS ARM64; the other targets have no
+published predecessor.
 
 Run all relevant local checks before publishing. These checks are not enforced
 by a GitHub workflow; publication is manual using the verified archive.
