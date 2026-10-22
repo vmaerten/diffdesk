@@ -5,7 +5,7 @@ import CommentCard, { lineLabel } from './CommentCard.tsx'
 import Icon from './Icon.tsx'
 
 export default function CommentsPanel({
-  session,
+  savedEditor,
   open,
   comments,
   currentRange,
@@ -20,7 +20,7 @@ export default function CommentsPanel({
   onDelete,
   onRetry,
 }: {
-  session?: RefObject<{ editing: string | null; draft: string }>
+  savedEditor?: RefObject<{ editing: string | null; draft: string }>
   open: boolean
   comments: ServedComment[]
   currentRange: string
@@ -36,11 +36,11 @@ export default function CommentsPanel({
   onRetry: (comment: ServedComment) => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
-  const [editing, setEditing] = useState<string | null>(session?.current.editing ?? null)
-  const [draft, setDraft] = useState(session?.current.draft ?? '')
+  const [editing, setEditing] = useState<string | null>(savedEditor?.current.editing ?? null)
+  const [draft, setDraft] = useState(savedEditor?.current.draft ?? '')
   useEffect(() => {
-    if (session) session.current = { editing, draft }
-  }, [session, editing, draft])
+    if (savedEditor) savedEditor.current = { editing, draft }
+  }, [savedEditor, editing, draft])
   const groups = useMemo(() => {
     const result = new Map<string, ServedComment[]>()
     for (const comment of comments.toSorted(

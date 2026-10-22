@@ -3,7 +3,7 @@ import { useStableCallback } from '@pierre/diffs/react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
 import { releaseUrl } from './reviewSelection.ts'
-import type { ReviewSession, ReviewSessionHandle } from './reviewSession.ts'
+import type { SavedView, SavedViewHandle } from './savedView.ts'
 import {
   createRepositoryCommentPersistence,
   type CommentPersistence,
@@ -15,7 +15,7 @@ interface ReviewTab {
   id: string
   name: string
   route: string
-  view?: ReviewSession
+  view?: SavedView
 }
 interface Tabs {
   revision: number
@@ -50,10 +50,10 @@ export default function DesktopApp() {
   const apply = useStableCallback((reply: Promise<Tabs> | undefined) => {
     void reply?.then(accept.current).catch((cause) => setError(String(cause)))
   })
-  const sessions = useRef(new Map<string, ReviewSession>())
+  const views = useRef(new Map<string, SavedView>())
   // Writes and retries outlive the mounted review, and are released when its tab closes.
   const commentStores = useRef(new Map<string, CommentPersistence>())
-  const sessionHandle = useRef<ReviewSessionHandle>(null)
+  const viewHandle = useRef<SavedViewHandle>(null)
   useEffect(() => {
     const api = window.go?.main.desktopApp
     const runtime = window.runtime
@@ -67,11 +67,11 @@ export default function DesktopApp() {
       if (
         !id ||
         document.querySelector('.desktop-review')?.getAttribute('data-active-tab') !== id ||
-        !sessionHandle.current
+        !viewHandle.current
       )
         return
-      const view = sessionHandle.current.capture()
-      sessions.current.set(id, view)
+      const view = viewHandle.current.capture()
+      views.current.set(id, view)
       await api.SaveTabView(id, JSON.stringify(view))
     }
     const update = (next: Tabs) => {
@@ -83,8 +83,8 @@ export default function DesktopApp() {
         next.tabs.some((tab) => tab.id === previous.active)
       )
         void save().catch((cause) => setError(String(cause)))
-      for (const id of sessions.current.keys())
-        if (!next.tabs.some((tab) => tab.id === id)) sessions.current.delete(id)
+      for (const id of views.current.keys())
+        if (!next.tabs.some((tab) => tab.id === id)) views.current.delete(id)
       for (const id of commentStores.current.keys())
         if (!next.tabs.some((tab) => tab.id === id)) commentStores.current.delete(id)
       latest.current = next
@@ -93,8 +93,8 @@ export default function DesktopApp() {
         const repoId = new URL(active.route, location.href).pathname.split('/')[2] ?? null
         commentStores.current.set(active.id, createRepositoryCommentPersistence(repoId))
       }
-      if (active && !sessions.current.has(active.id))
-        sessions.current.set(
+      if (active && !views.current.has(active.id))
+        views.current.set(
           active.id,
           active.view?.version === 1
             ? active.view
@@ -236,8 +236,8 @@ export default function DesktopApp() {
         >
           <Review
             key={active.id}
-            session={sessions.current.get(active.id)}
-            sessionHandle={sessionHandle}
+            savedView={views.current.get(active.id)}
+            viewHandle={viewHandle}
             commentStore={commentStores.current.get(active.id)}
             onRouteChange={routeChanged}
           />

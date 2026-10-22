@@ -2,7 +2,7 @@ import type { SelectedLineRange } from '@pierre/diffs'
 import type { Composer } from './CommentThread.tsx'
 
 /** Only reading/editing coordinates and text; never a patch, DOM or viewer. */
-export interface ReviewSession {
+export interface SavedView {
   version: 1
   diffStyle: 'unified' | 'split'
   commentsOpen: boolean
@@ -20,6 +20,6 @@ export interface ReviewSession {
     count: number
   }[]
 }
-export interface ReviewSessionHandle {
-  capture(): ReviewSession
+export interface SavedViewHandle {
+  capture(): SavedView
 }

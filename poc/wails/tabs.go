@@ -169,6 +169,6 @@ func (t *reviewTabs) saveView(id, raw string) error {
 			return nil
 		}
 	}
-	return nil // A closed tab is never resurrected by a delayed capture.
+	return nil // A closed tab is never resurrected by a delayed save.
 }
 func (d *desktopApp) SaveTabView(id, raw string) error { return d.tabs.saveView(id, raw) }

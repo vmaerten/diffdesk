@@ -29,7 +29,7 @@ import Resizer, { storedWidth } from './Resizer.tsx'
 import { GO_POC } from './capabilities.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
-import type { ReviewSession, ReviewSessionHandle } from './reviewSession.ts'
+import type { SavedView, SavedViewHandle } from './savedView.ts'
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -55,13 +55,13 @@ const BASE_SOURCES: Record<BaseSource, string> = {
 }
 
 export default function App({
-  session,
-  sessionHandle,
+  savedView,
+  viewHandle,
   commentStore,
   onRouteChange,
 }: {
-  session?: ReviewSession
-  sessionHandle?: Ref<ReviewSessionHandle>
+  savedView?: SavedView
+  viewHandle?: Ref<SavedViewHandle>
   commentStore?: CommentPersistence
   /** Receives every selection URL the review writes. */
   onRouteChange?: (route: string) => void
@@ -72,7 +72,7 @@ export default function App({
   const loadRef = useRef(0)
   const controllerRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(session?.diffStyle ?? 'unified')
+  const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(savedView?.diffStyle ?? 'unified')
   const [refreshing, setRefreshing] = useState(false)
   const [viewed, viewedPersistence] = useViewedPersistence(repoId)
   const [picking, setPicking] = useState<'base' | 'target' | 'commit' | null>(null)
@@ -83,8 +83,8 @@ export default function App({
   const [copied, setCopied] = useState<string | null>(null)
   const [copyError, setCopyError] = useState<string | null>(null)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [commentsOpen, setCommentsOpen] = useState(session?.commentsOpen ?? false)
-  const panelSession = useRef(session?.panelEditor ?? { editing: null, draft: '' })
+  const [commentsOpen, setCommentsOpen] = useState(savedView?.commentsOpen ?? false)
+  const panelEditor = useRef(savedView?.panelEditor ?? { editing: null, draft: '' })
   const [filesOpen, setFilesOpen] = useState(false)
   const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
   useEffect(() => {
@@ -268,9 +268,9 @@ export default function App({
     commentSelection,
     openSearch,
     stepSearch,
-    captureSession,
+    captureView,
   } = useReviewDiff({
-    session,
+    savedView,
     repoId,
     data,
     diffStyle: mobile ? 'unified' : diffStyle,
@@ -289,17 +289,17 @@ export default function App({
     onRevealFile: revealFile,
   })
   useImperativeHandle(
-    sessionHandle,
+    viewHandle,
     () => ({
       capture: () => ({
         version: 1,
         diffStyle,
         commentsOpen,
-        panelEditor: { ...panelSession.current },
-        ...captureSession(),
+        panelEditor: { ...panelEditor.current },
+        ...captureView(),
       }),
     }),
-    [diffStyle, commentsOpen, captureSession],
+    [diffStyle, commentsOpen, captureView],
   )
 
   useEffect(() => {
@@ -772,7 +772,7 @@ export default function App({
         {copied ? 'Comments copied to clipboard' : ''}
       </span>
       <CommentsPanel
-        session={panelSession}
+        savedEditor={panelEditor}
         open={commentsOpen}
         comments={comments}
         currentRange={data?.range ?? ''}

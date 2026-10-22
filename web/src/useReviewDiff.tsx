@@ -21,7 +21,7 @@ import type { TreeEntry } from './FileTree.tsx'
 import { diffFilesLoader, type ContextError } from './diffFiles.ts'
 import { searchDiff } from './diffSearch.ts'
 import { treeOrder } from './fileOrder.ts'
-import type { ReviewSession } from './reviewSession.ts'
+import type { SavedView } from './savedView.ts'
 import type {
   Comment,
   DiffPayload,
@@ -39,7 +39,7 @@ export type LoadedReviewDiff = DiffPayload & {
 }
 
 interface ReviewDiffOptions {
-  session?: ReviewSession
+  savedView?: SavedView
   repoId: string | null
   data: LoadedReviewDiff | null
   diffStyle: 'unified' | 'split'
@@ -90,7 +90,7 @@ const threadKey = (path: string, side: DiffSide, line: number) =>
  * The returned view keeps the same React position across review-state updates.
  */
 export function useReviewDiff({
-  session,
+  savedView,
   repoId,
   data,
   diffStyle,
@@ -115,7 +115,7 @@ export function useReviewDiff({
   useEffect(() => {
     setRevealedPath(null)
   }, [viewed, data?.range])
-  const [composer, setComposer] = useState<Composer | null>(session?.composer ?? null)
+  const [composer, setComposer] = useState<Composer | null>(savedView?.composer ?? null)
   const collapseStorageKey = `ghl.collapsed-comments:${repoId}`
   const [collapsedComments, setCollapsedComments] = useState<Set<string>>(() => {
     try {
@@ -150,9 +150,9 @@ export function useReviewDiff({
     }
     return paths
   }, [comments, collapsedComments])
-  const draftsRef = useRef(new Map<string, string>(session?.drafts ?? []))
-  const scrollTopRef = useRef(session?.scrollTop ?? 0)
-  const expansionsRef = useRef<ReviewSession['expansions']>(session?.expansions ?? [])
+  const draftsRef = useRef(new Map<string, string>(savedView?.drafts ?? []))
+  const scrollTopRef = useRef(savedView?.scrollTop ?? 0)
+  const expansionsRef = useRef<SavedView['expansions']>(savedView?.expansions ?? [])
   const replayed = useRef(new Set<string>())
   const restored = useRef(false)
   const gutterRequestRef = useRef<SelectedLineRange | null>(null)
@@ -731,13 +731,13 @@ export function useReviewDiff({
     }
   })
   useEffect(() => {
-    if (!session || !data || items.length === 0 || restored.current) return
+    if (!savedView || !data || items.length === 0 || restored.current) return
     restored.current = true
-    const index = items.findIndex((item) => item.path === session.activePath)
+    const index = items.findIndex((item) => item.path === savedView.activePath)
     if (index >= 0) setActiveIndex(index)
-    const selectedItem = items.find((item) => item.path === session.selected?.path)
-    if (selectedItem && session.selected)
-      viewRef.current?.setSelectedLines({ id: selectedItem.id, range: session.selected.range })
+    const selectedItem = items.find((item) => item.path === savedView.selected?.path)
+    if (selectedItem && savedView.selected)
+      viewRef.current?.setSelectedLines({ id: selectedItem.id, range: savedView.selected.range })
     let frame = 0
     let attempts = 0
     let positioned = false
@@ -754,7 +754,7 @@ export function useReviewDiff({
       if (!positioned) {
         viewRef.current?.scrollTo({
           type: 'position',
-          position: session.scrollTop,
+          position: savedView.scrollTop,
           behavior: 'instant',
         })
         positioned = true
@@ -762,7 +762,7 @@ export function useReviewDiff({
         // scrollTo subtracts the sticky file header. Correct the remaining
         // logical delta through the scroller, including a paged scroll offset.
         const logical = viewRef.current?.getInstance()?.getScrollTop() ?? 0
-        scrollerRef.current.scrollTop += session.scrollTop - logical
+        scrollerRef.current.scrollTop += savedView.scrollTop - logical
       }
       // Context loading and syntax measurement complete over several frames.
       if (++attempts < 30) frame = requestAnimationFrame(restore)
@@ -773,9 +773,9 @@ export function useReviewDiff({
       for (const event of ['wheel', 'pointerdown', 'keydown', 'touchstart'])
         pane?.removeEventListener(event, stop)
     }
-  }, [session, data, items, replayExpansions])
+  }, [savedView, data, items, replayExpansions])
   useEffect(() => {
-    if (!session) return
+    if (!savedView) return
     const pane = paneRef.current
     const expanded = (event: MouseEvent) => {
       const path = event.composedPath()
@@ -818,8 +818,8 @@ export function useReviewDiff({
     }
     pane?.addEventListener('click', expanded, true)
     return () => pane?.removeEventListener('click', expanded, true)
-  }, [session, data])
-  const captureSession = useStableCallback(() => {
+  }, [savedView, data])
+  const captureView = useStableCallback(() => {
     const selected = viewRef.current?.getSelectedLines()
     const selectedItem = items.find((item) => item.id === selected?.id)
     return {
@@ -942,6 +942,6 @@ export function useReviewDiff({
     commentSelection,
     openSearch,
     stepSearch,
-    captureSession,
+    captureView,
   }
 }

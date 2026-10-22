@@ -73,7 +73,7 @@ func TestConcurrentTabOpenDoesNotDuplicate(t *testing.T) {
 	}
 }
 
-func TestVolatileViewCapturesAreIsolatedAndNotResurrected(t *testing.T) {
+func TestSavedViewsAreIsolatedAndNotResurrected(t *testing.T) {
 	var tabs reviewTabs
 	state := tabs.open("/r/first-1234567/")
 	id := state.Active
@@ -88,7 +88,7 @@ func TestVolatileViewCapturesAreIsolatedAndNotResurrected(t *testing.T) {
 	}
 	state.Tabs[0].View[0] = 'x'
 	if string(tabs.snapshot().Tabs[0].View) != view {
-		t.Fatal("capture aliases live view")
+		t.Fatal("snapshot aliases the saved view")
 	}
 	for _, invalid := range []string{"{}", `{"version":2}`, `"string"`, "{"} {
 		if tabs.saveView(id, invalid) == nil {
