@@ -1,4 +1,4 @@
-import { createReviewSelection } from '../web/src/reviewSelection.ts'
+import { createReviewSelection, releaseUrl } from '../web/src/reviewSelection.ts'
 import type { Check } from './harness.ts'
 
 export async function runReviewSelection(check: Check): Promise<void> {
@@ -162,5 +162,20 @@ export async function runReviewSelection(check: Check): Promise<void> {
   check(
     'StrictMode effect reactivation keeps selection controls functional',
     url.href !== beforeClose,
+  )
+
+  delay = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const pendingFromSwitchedTab = selection.pickBase('main', 'release')
+  await Promise.resolve()
+  releaseUrl()
+  url = new URL('http://localhost/r/next?target=other')
+  const beforeSwitch = url.href
+  release()
+  await pendingFromSwitchedTab
+  check(
+    'a review switched away from cannot replace the URL before it unmounts',
+    url.href === beforeSwitch,
   )
 }

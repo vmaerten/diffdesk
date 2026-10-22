@@ -32,16 +32,24 @@ function pick(params: URLSearchParams, key: string, value: string | null) {
   else params.delete(key)
 }
 
+let urlOwner = 0
+
+/** Detaches existing selections from the URL; only selections created afterwards may write it. */
+export function releaseUrl() {
+  urlOwner++
+}
+
 /** URL transitions and request scope have one owner, including remembered bases. */
 export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter) {
   let url = new URL(initialUrl)
   let snapshot = describe(url)
   let baseRequest = 0
   let active = true
+  const owner = urlOwner
   let baseWrite = Promise.resolve()
   const listeners = new Set<() => void>()
   const update = (change: (params: URLSearchParams) => void) => {
-    if (!active) return
+    if (!active || owner !== urlOwner) return
     const next = new URL(url)
     change(next.searchParams)
     adapter.replaceUrl(next)

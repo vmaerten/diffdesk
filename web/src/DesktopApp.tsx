@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
+import { releaseUrl } from './reviewSelection.ts'
 import './desktop.css'
 
 interface ReviewTab {
@@ -53,8 +54,12 @@ export default function DesktopApp() {
       runtime.WindowSetTitle(
         active ? `ghl — ${active.name} (prototype)` : 'ghl — desktop prototype',
       )
-      // Update the URL before mounting App; its selection is seeded at mount.
-      if (previous.active !== next.active) history.replaceState(null, '', active?.route ?? '/')
+      // The outgoing review stays mounted until the next render, so detach it before
+      // seeding the URL that the next App reads at mount.
+      if (previous.active !== next.active) {
+        releaseUrl()
+        history.replaceState(null, '', active?.route ?? '/')
+      }
       setState(next)
     }
     accept.current = update
