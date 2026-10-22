@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { applyTheme, THEMES, type SyntaxTheme, type ThemeId } from './theme.ts'
+import { applyTheme, themeById, type SyntaxTheme, type ThemeId } from './theme.ts'
 
 export type Appearance = 'system' | 'light' | 'dark'
 
@@ -34,5 +34,5 @@ export function useAppearance(settings: AppearanceSettings): SyntaxTheme {
   }, [])
   const theme = activeTheme(settings, dark)
   useEffect(() => applyTheme(theme), [theme])
-  return THEMES.find((entry) => entry.id === theme)!.syntax
+  return themeById(theme).syntax
 }

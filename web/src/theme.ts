@@ -23,6 +23,8 @@ export type SyntaxTheme = (typeof THEMES)[number]['syntax']
 const DEFAULT_THEME: ThemeId = 'github-dimmed'
 const STORAGE_KEY = 'ghl.theme.v1'
 
+export const themeById = (id: ThemeId) => THEMES.find((entry) => entry.id === id)!
+
 function isTheme(value: string | null | undefined): value is ThemeId {
   return THEMES.some((theme) => theme.id === value)
 }
@@ -39,7 +41,7 @@ export function readTheme(): ThemeId {
 /** Apply the saved palette before mounting React. */
 export function applyTheme(theme: ThemeId) {
   document.documentElement.dataset.theme = theme
-  document.documentElement.dataset.colorMode = THEMES.find((entry) => entry.id === theme)!.mode
+  document.documentElement.dataset.colorMode = themeById(theme).mode
 }
 
 export function useTheme() {
@@ -54,6 +56,6 @@ export function useTheme() {
       // The selection still works for this tab when browser storage is unavailable.
     }
   }
-  const syntaxTheme = THEMES.find((entry) => entry.id === theme)!.syntax
+  const syntaxTheme = themeById(theme).syntax
   return { theme, syntaxTheme, chooseTheme }
 }
