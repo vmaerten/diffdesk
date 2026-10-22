@@ -185,6 +185,25 @@ export default {
       ),
     )
     check('revealing a comment preserves Viewed state', first.path in afterReveal.viewed)
+    const clickRevealed = (label: string) =>
+      page.evaluate((text) => {
+        const buttons = document.querySelectorAll<HTMLButtonElement>(
+          '.diff [data-comment-id="panel-first"] header button, .diff .comment-composer footer button',
+        )
+        ;[...buttons].find((button) => button.textContent?.trim() === text)?.click()
+      }, label)
+    await clickRevealed('Edit')
+    await page.waitForSelector('.diff .comment-composer textarea')
+    await clickRevealed('Cancel')
+    await page.waitForSelector('.diff .comment-composer', { hidden: true })
+    await sleep(500)
+    check(
+      'closing an edit keeps the revealed file open',
+      await page.$eval(
+        '.diff [data-comment-id="panel-first"]',
+        (card) => card.getBoundingClientRect().height > 0,
+      ),
+    )
     await page.keyboard.press('v')
     await sleep(250)
     await page.keyboard.press('v')

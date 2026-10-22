@@ -1,8 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type Ref,
+} from 'react'
 import { useStableCallback } from '@pierre/diffs/react'
 import { useReviewDiff, type LoadedReviewDiff } from './useReviewDiff.tsx'
 import { useReviewSelection } from './reviewSelection.ts'
-import { useCommentPersistence, type CommentSubmission } from './commentPersistence.ts'
+import {
+  useCommentPersistence,
+  type CommentPersistence,
+  type CommentSubmission,
+} from './commentPersistence.ts'
 import { useViewedPersistence } from './viewedPersistence.ts'
 
 import { useTheme } from './theme.ts'
@@ -16,6 +29,7 @@ import Resizer, { storedWidth } from './Resizer.tsx'
 import { GO_POC } from './capabilities.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
+import type { SavedView, SavedViewHandle } from './savedView.ts'
 
 /** The repo id lives in the path: /r/<repoId>. */
 function repoIdFromLocation() {
@@ -40,26 +54,37 @@ const BASE_SOURCES: Record<BaseSource, string> = {
   trunk: 'trunk',
 }
 
-/** `onRouteChange` receives every selection URL the review writes. */
-export default function App({ onRouteChange }: { onRouteChange?: (route: string) => void } = {}) {
+export default function App({
+  savedView,
+  viewHandle,
+  commentStore,
+  onRouteChange,
+}: {
+  savedView?: SavedView
+  viewHandle?: Ref<SavedViewHandle>
+  commentStore?: CommentPersistence
+  /** Receives every selection URL the review writes. */
+  onRouteChange?: (route: string) => void
+} = {}) {
   const { theme, syntaxTheme, chooseTheme } = useTheme()
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
   const loadRef = useRef(0)
   const controllerRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>('unified')
+  const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(savedView?.diffStyle ?? 'unified')
   const [refreshing, setRefreshing] = useState(false)
   const [viewed, viewedPersistence] = useViewedPersistence(repoId)
   const [picking, setPicking] = useState<'base' | 'target' | 'commit' | null>(null)
   const [selection, select] = useReviewSelection(repoId, onRouteChange)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
-  const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId)
+  const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId, commentStore)
   /** Momentary, so the button can say the clipboard actually took it. */
   const [copied, setCopied] = useState<string | null>(null)
   const [copyError, setCopyError] = useState<string | null>(null)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [commentsOpen, setCommentsOpen] = useState(savedView?.commentsOpen ?? false)
+  const panelEditor = useRef(savedView?.panelEditor ?? { editing: null, draft: '' })
   const [filesOpen, setFilesOpen] = useState(false)
   const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
   useEffect(() => {
@@ -243,7 +268,9 @@ export default function App({ onRouteChange }: { onRouteChange?: (route: string)
     commentSelection,
     openSearch,
     stepSearch,
+    captureView,
   } = useReviewDiff({
+    savedView,
     repoId,
     data,
     diffStyle: mobile ? 'unified' : diffStyle,
@@ -261,6 +288,19 @@ export default function App({ onRouteChange }: { onRouteChange?: (route: string)
     },
     onRevealFile: revealFile,
   })
+  useImperativeHandle(
+    viewHandle,
+    () => ({
+      capture: () => ({
+        version: 1,
+        diffStyle,
+        commentsOpen,
+        panelEditor: { ...panelEditor.current },
+        ...captureView(),
+      }),
+    }),
+    [diffStyle, commentsOpen, captureView],
+  )
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -732,6 +772,7 @@ export default function App({ onRouteChange }: { onRouteChange?: (route: string)
         {copied ? 'Comments copied to clipboard' : ''}
       </span>
       <CommentsPanel
+        savedEditor={panelEditor}
         open={commentsOpen}
         comments={comments}
         currentRange={data?.range ?? ''}

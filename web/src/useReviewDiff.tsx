@@ -21,6 +21,7 @@ import type { TreeEntry } from './FileTree.tsx'
 import { diffFilesLoader, type ContextError } from './diffFiles.ts'
 import { searchDiff } from './diffSearch.ts'
 import { treeOrder } from './fileOrder.ts'
+import type { SavedView } from './savedView.ts'
 import type {
   Comment,
   DiffPayload,
@@ -38,6 +39,7 @@ export type LoadedReviewDiff = DiffPayload & {
 }
 
 interface ReviewDiffOptions {
+  savedView?: SavedView
   repoId: string | null
   data: LoadedReviewDiff | null
   diffStyle: 'unified' | 'split'
@@ -88,6 +90,7 @@ const threadKey = (path: string, side: DiffSide, line: number) =>
  * The returned view keeps the same React position across review-state updates.
  */
 export function useReviewDiff({
+  savedView,
   repoId,
   data,
   diffStyle,
@@ -105,13 +108,14 @@ export function useReviewDiff({
 }: ReviewDiffOptions) {
   const viewRef = useRef<CodeViewHandle<undefined>>(null)
   const paneRef = useRef<HTMLDivElement>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const [revealedPath, setRevealedPath] = useState<string | null>(null)
   const [commentTarget, setCommentTarget] = useState<ServedComment | null>(null)
   useEffect(() => {
     setRevealedPath(null)
   }, [viewed, data?.range])
-  const [composer, setComposer] = useState<Composer | null>(null)
+  const [composer, setComposer] = useState<Composer | null>(savedView?.composer ?? null)
   const collapseStorageKey = `ghl.collapsed-comments:${repoId}`
   const [collapsedComments, setCollapsedComments] = useState<Set<string>>(() => {
     try {
@@ -146,7 +150,11 @@ export function useReviewDiff({
     }
     return paths
   }, [comments, collapsedComments])
-  const draftsRef = useRef(new Map<string, string>())
+  const draftsRef = useRef(new Map<string, string>(savedView?.drafts ?? []))
+  const scrollTopRef = useRef(savedView?.scrollTop ?? 0)
+  const expansionsRef = useRef<SavedView['expansions']>(savedView?.expansions ?? [])
+  const replayed = useRef(new Set<string>())
+  const restored = useRef(false)
   const gutterRequestRef = useRef<SelectedLineRange | null>(null)
   const [contextErrors, setContextErrors] = useState<Record<string, ContextError>>({})
   const [searchOpen, setSearchOpen] = useState(false)
@@ -299,7 +307,9 @@ export function useReviewDiff({
   const items = useMemo(
     () =>
       allItems.map((item): DiffItem => {
-        const collapsed = item.path in viewed && item.path !== revealedPath
+        // An open composer keeps its file unfolded, so a draft never sits hidden.
+        const collapsed =
+          item.path in viewed && item.path !== revealedPath && item.path !== composer?.path
         // The pane re-reads an item only when its `version` moves; anything
         // reaching it *through* the item — `collapsed`, `annotations` — is
         // otherwise accepted and then ignored, silently, which is how a file
@@ -320,7 +330,7 @@ export function useReviewDiff({
           ? { ...item, collapsed, version, annotations: collapsed ? [] : [{ lineNumber: 0 }] }
           : { ...item, collapsed, version, annotations: annotations.byPath.get(item.path) }
       }),
-    [allItems, viewed, annotations, revealedPath, foldedByPath],
+    [allItems, viewed, annotations, revealedPath, composer?.path, foldedByPath],
   )
 
   const commentCounts = useMemo(() => {
@@ -707,6 +717,123 @@ export function useReviewDiff({
     [viewed, toggleViewed],
   )
 
+  const replayExpansions = useStableCallback(() => {
+    for (const item of viewRef.current?.getInstance()?.getRenderedItems() ?? []) {
+      if (item.type !== 'diff') continue
+      for (const expansion of expansionsRef.current) {
+        const key = `${expansion.path}:${expansion.index}:${expansion.direction}`
+        if (replayed.current.has(key) || item.item.fileDiff.name !== expansion.path) continue
+        if (data?.files.find((file) => file.path === expansion.path)?.hash !== expansion.hash)
+          continue
+        replayed.current.add(key)
+        item.instance.expandHunk(expansion.index, expansion.direction, expansion.count)
+      }
+    }
+  })
+  useEffect(() => {
+    if (!savedView || !data || items.length === 0 || restored.current) return
+    restored.current = true
+    const index = items.findIndex((item) => item.path === savedView.activePath)
+    if (index >= 0) setActiveIndex(index)
+    const selectedItem = items.find((item) => item.path === savedView.selected?.path)
+    if (selectedItem && savedView.selected)
+      viewRef.current?.setSelectedLines({ id: selectedItem.id, range: savedView.selected.range })
+    let frame = 0
+    let attempts = 0
+    let positioned = false
+    let interrupted = false
+    const pane = paneRef.current
+    const stop = () => {
+      interrupted = true
+    }
+    for (const event of ['wheel', 'pointerdown', 'keydown', 'touchstart'])
+      pane?.addEventListener(event, stop, { passive: true })
+    const restore = () => {
+      if (interrupted) return
+      replayExpansions()
+      if (!positioned) {
+        viewRef.current?.scrollTo({
+          type: 'position',
+          position: savedView.scrollTop,
+          behavior: 'instant',
+        })
+        positioned = true
+      } else if (scrollerRef.current) {
+        // scrollTo subtracts the sticky file header. Correct the remaining
+        // logical delta through the scroller, including a paged scroll offset.
+        const logical = viewRef.current?.getInstance()?.getScrollTop() ?? 0
+        scrollerRef.current.scrollTop += savedView.scrollTop - logical
+      }
+      // Context loading and syntax measurement complete over several frames.
+      if (++attempts < 30) frame = requestAnimationFrame(restore)
+    }
+    frame = requestAnimationFrame(restore)
+    return () => {
+      cancelAnimationFrame(frame)
+      for (const event of ['wheel', 'pointerdown', 'keydown', 'touchstart'])
+        pane?.removeEventListener(event, stop)
+    }
+  }, [savedView, data, items, replayExpansions])
+  useEffect(() => {
+    if (!savedView) return
+    const pane = paneRef.current
+    const expanded = (event: MouseEvent) => {
+      const path = event.composedPath()
+      const control = path.find(
+        (node): node is HTMLElement =>
+          node instanceof HTMLElement &&
+          (node.hasAttribute('data-expand-button') || node.hasAttribute('data-unmodified-lines')),
+      )
+      if (!control) return
+      const separator = path.find(
+        (node): node is HTMLElement =>
+          node instanceof HTMLElement && node.hasAttribute('data-expand-index'),
+      )
+      const host = path.find(
+        (node): node is HTMLElement =>
+          node instanceof HTMLElement && node.tagName === 'DIFFS-CONTAINER',
+      )
+      const file = host?.shadowRoot?.querySelector('[data-title]')?.textContent?.trim()
+      if (!separator || !file) return
+      const direction = control.hasAttribute('data-expand-up')
+        ? 'up'
+        : control.hasAttribute('data-expand-down')
+          ? 'down'
+          : 'both'
+      const index = Number(separator.dataset.expandIndex)
+      const count = control.hasAttribute('data-expand-all-button') ? Number.MAX_SAFE_INTEGER : 20
+      const previous = expansionsRef.current.find(
+        (item) => item.path === file && item.index === index && item.direction === direction,
+      )
+      if (previous) previous.count += count
+      else
+        expansionsRef.current.push({
+          path: file,
+          index,
+          direction,
+          count,
+          hash: data?.files.find((item) => item.path === file)?.hash ?? null,
+        })
+      replayed.current.add(`${file}:${index}:${direction}`)
+    }
+    pane?.addEventListener('click', expanded, true)
+    return () => pane?.removeEventListener('click', expanded, true)
+  }, [savedView, data])
+  const captureView = useStableCallback(() => {
+    const selected = viewRef.current?.getSelectedLines()
+    const selectedItem = items.find((item) => item.id === selected?.id)
+    return {
+      activePath: items[activeIndex]?.path,
+      scrollTop: scrollTopRef.current,
+      composer,
+      drafts: [...draftsRef.current.entries()],
+      selected:
+        selected && selectedItem
+          ? { path: selectedItem.path, range: { ...selected.range } }
+          : undefined,
+      expansions: expansionsRef.current.map((item) => ({ ...item })),
+    }
+  })
   // CodeView measures its own scroller, which needs a real height and overflow.
   // Keep it first in .diff: a conditional sibling before it would remount the
   // renderer when appearing or disappearing, losing scroll and expanded context.
@@ -714,6 +841,11 @@ export function useReviewDiff({
     <div className="diff" ref={paneRef} tabIndex={-1} role="region" aria-label="Code changes">
       <CodeView
         ref={viewRef}
+        containerRef={scrollerRef}
+        onScroll={(position) => {
+          scrollTopRef.current = position
+          replayExpansions()
+        }}
         items={items}
         options={options}
         renderHeaderMetadata={renderHeaderMetadata}
@@ -810,5 +942,6 @@ export function useReviewDiff({
     commentSelection,
     openSearch,
     stepSearch,
+    captureView,
   }
 }
