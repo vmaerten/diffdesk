@@ -98,10 +98,10 @@ def log(event, **fields):
             self.assertIn(flag, events[-2]['args'])
         self.assertIn('--draft=false', events[-1]['args'])
 
-    def test_workflow_tag_is_propagated(self):
-        result, events = self.run_release(RELEASE_TAG='v1.2.3')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(events[0]['tag'], 'v1.2.3')
+    def test_workflow_tag_takes_precedence_over_the_head_tag(self):
+        result, events = self.run_release(RELEASE_TAG='v1.2.4')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(events, [])
 
     def test_mismatched_tag_cannot_build_or_publish(self):
         result, events = self.run_release('TAG=v1.2.4')
