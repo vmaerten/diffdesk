@@ -1,4 +1,4 @@
-import { createReviewSelection } from '../web/src/reviewSelection.ts'
+import { createReviewSelection, releaseUrl } from '../web/src/reviewSelection.ts'
 import type { Check } from './harness.ts'
 
 export async function runReviewSelection(check: Check): Promise<void> {
@@ -142,4 +142,40 @@ export async function runReviewSelection(check: Check): Promise<void> {
     rememberBase: async () => {},
   })
   check('w=0 keeps the full diff', !disabled.getSnapshot().ignoreWhitespace)
+
+  delay = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const pendingFromClosedTab = selection.pickBase('main', 'release')
+  await Promise.resolve()
+  selection.setActive(false)
+  url = new URL('http://localhost/r/next?target=other')
+  const beforeClose = url.href
+  release()
+  await pendingFromClosedTab
+  check(
+    'a closed review cannot replace the next tab URL after a late base write',
+    url.href === beforeClose,
+  )
+  selection.setActive(true)
+  selection.toggleCommitted()
+  check(
+    'StrictMode effect reactivation keeps selection controls functional',
+    url.href !== beforeClose,
+  )
+
+  delay = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const pendingFromSwitchedTab = selection.pickBase('main', 'release')
+  await Promise.resolve()
+  releaseUrl()
+  url = new URL('http://localhost/r/next?target=other')
+  const beforeSwitch = url.href
+  release()
+  await pendingFromSwitchedTab
+  check(
+    'a review switched away from cannot replace the URL before it unmounts',
+    url.href === beforeSwitch,
+  )
 }

@@ -1,4 +1,5 @@
-import { useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { useStableCallback } from '@pierre/diffs/react'
 
 interface SelectionAdapter {
   replaceUrl: (url: URL) => void
@@ -32,14 +33,24 @@ function pick(params: URLSearchParams, key: string, value: string | null) {
   else params.delete(key)
 }
 
+let urlOwner = 0
+
+/** Detaches existing selections from the URL; only selections created afterwards may write it. */
+export function releaseUrl() {
+  urlOwner++
+}
+
 /** URL transitions and request scope have one owner, including remembered bases. */
 export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter) {
   let url = new URL(initialUrl)
   let snapshot = describe(url)
   let baseRequest = 0
+  let active = true
+  const owner = urlOwner
   let baseWrite = Promise.resolve()
   const listeners = new Set<() => void>()
   const update = (change: (params: URLSearchParams) => void) => {
+    if (!active || owner !== urlOwner) return
     const next = new URL(url)
     change(next.searchParams)
     adapter.replaceUrl(next)
@@ -54,6 +65,10 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
     })
 
   return {
+    setActive: (value: boolean) => {
+      active = value
+      if (!value) baseRequest++
+    },
     getSnapshot: () => snapshot,
     subscribe: (listener: () => void) => {
       listeners.add(listener)
@@ -87,11 +102,15 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
   }
 }
 
-export function useReviewSelection(repoId: string | null) {
+export function useReviewSelection(repoId: string | null, onRouteChange?: (route: string) => void) {
+  const routeChanged = useStableCallback((route: string) => onRouteChange?.(route))
   const selection = useMemo(
     () =>
       createReviewSelection(new URL(location.href), {
-        replaceUrl: (url) => history.replaceState(null, '', url),
+        replaceUrl: (url) => {
+          history.replaceState(null, '', url)
+          routeChanged(url.pathname + url.search)
+        },
         rememberBase: async (base, target) => {
           const response = await fetch(`/r/${repoId}/api/base`, {
             method: 'POST',
@@ -101,7 +120,11 @@ export function useReviewSelection(repoId: string | null) {
           if (!response.ok) throw new Error(`HTTP ${response.status}`)
         },
       }),
-    [repoId],
+    [repoId, routeChanged],
   )
+  useEffect(() => {
+    selection.setActive(true)
+    return () => selection.setActive(false)
+  }, [selection])
   return [useSyncExternalStore(selection.subscribe, selection.getSnapshot), selection] as const
 }

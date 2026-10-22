@@ -40,7 +40,8 @@ const BASE_SOURCES: Record<BaseSource, string> = {
   trunk: 'trunk',
 }
 
-export default function App() {
+/** `onRouteChange` receives every selection URL the review writes. */
+export default function App({ onRouteChange }: { onRouteChange?: (route: string) => void } = {}) {
   const { theme, syntaxTheme, chooseTheme } = useTheme()
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
@@ -51,7 +52,7 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false)
   const [viewed, viewedPersistence] = useViewedPersistence(repoId)
   const [picking, setPicking] = useState<'base' | 'target' | 'commit' | null>(null)
-  const [selection, select] = useReviewSelection(repoId)
+  const [selection, select] = useReviewSelection(repoId, onRouteChange)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
   const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId)
   /** Momentary, so the button can say the clipboard actually took it. */
