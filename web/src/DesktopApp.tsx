@@ -44,6 +44,7 @@ interface DesktopAPI {
   SaveTabView(id: string, raw: string): Promise<void>
   Settings(): Promise<string>
   SaveSettings(raw: string): Promise<void>
+  RevealInFinder(tabID: string, path: string): Promise<void>
 }
 declare global {
   interface Window {
@@ -63,6 +64,23 @@ export default function DesktopApp() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
+  const [sidebarHidden, setSidebarHidden] = useState(() => {
+    try {
+      return localStorage.getItem('ghl.sidebarHidden') === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggleSidebar = useStableCallback(() => {
+    setSidebarHidden((hidden) => {
+      try {
+        localStorage.setItem('ghl.sidebarHidden', hidden ? '0' : '1')
+      } catch {
+        // The choice still holds for this session.
+      }
+      return !hidden
+    })
+  })
   const syntaxTheme = useAppearance(settings ?? DEFAULT_SETTINGS)
   const latest = useRef(EMPTY)
   const [error, setError] = useState<string | null>(null)
@@ -162,6 +180,7 @@ export default function DesktopApp() {
       else if (command === 'close-tab') closeActive()
       else if (command === 'settings') setSettingsOpen(true)
       else if (command === 'shortcuts') setShortcutsOpen(true)
+      else if (command === 'sidebar') toggleSidebar()
     }
     window.addEventListener('desktop:command', runCommand)
     window.addEventListener('keydown', cycle)
@@ -171,7 +190,7 @@ export default function DesktopApp() {
       window.removeEventListener('desktop:command', runCommand)
       window.removeEventListener('keydown', cycle)
     }
-  }, [apply])
+  }, [apply, toggleSidebar])
   useEffect(() => {
     window.go?.main.desktopApp
       .Settings()
@@ -217,6 +236,9 @@ export default function DesktopApp() {
     document.getElementById(`review-tab-${state.active}`)?.focus()
     focusTab.current = null
   }, [state.active])
+  const reveal = useStableCallback(async (path: string) =>
+    window.go?.main.desktopApp.RevealInFinder(latest.current.active, path),
+  )
   const routeChanged = useStableCallback((route: string) => {
     const active = latest.current.tabs.find((tab) => tab.id === latest.current.active)
     if (active && active.route !== route)
@@ -248,6 +270,16 @@ export default function DesktopApp() {
     >
       <style>{desktopStyles}</style>
       <header className="desktop-titlebar">
+        <button
+          className="titlebar-button"
+          aria-label={sidebarHidden ? 'Show sidebar' : 'Hide sidebar'}
+          title={`${sidebarHidden ? 'Show' : 'Hide'} sidebar (⌃⌘S)`}
+          aria-pressed={!sidebarHidden}
+          disabled={!active}
+          onClick={toggleSidebar}
+        >
+          <Icon name="sidebar" />
+        </button>
         <button
           className="titlebar-button"
           aria-label="Open repository"
@@ -368,6 +400,8 @@ export default function DesktopApp() {
               syntaxTheme={syntaxTheme}
               codeLineHeight={codeLineHeight(settings.codeSize)}
               toolbar={toolbar}
+              sidebarHidden={sidebarHidden}
+              onReveal={reveal}
             />
           )}
         </div>

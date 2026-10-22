@@ -321,9 +321,9 @@ function FileTree(
       minHeight: 0,
       ...themeStyles,
       // Match the app surface to avoid a seam below the sidebar header.
-      backgroundColor: 'var(--bg)',
-      '--trees-theme-sidebar-bg': 'var(--bg)',
-      '--trees-bg-override': 'var(--bg)',
+      backgroundColor: 'var(--sidebar-bg, var(--bg))',
+      '--trees-theme-sidebar-bg': 'var(--sidebar-bg, var(--bg))',
+      '--trees-bg-override': 'var(--sidebar-bg, var(--bg))',
       '--trees-fg-override': 'var(--text)',
       '--trees-fg-muted-override': 'var(--text-dim)',
       '--trees-git-added-color': 'var(--success)',

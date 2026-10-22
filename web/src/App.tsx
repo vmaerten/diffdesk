@@ -30,6 +30,7 @@ import RevisionControls, {
 import { untrackedToggleable, workingTreeToggleable } from './ScopeControls.tsx'
 import DesktopToolbar from './DesktopToolbar.tsx'
 import ReviewFooter from './ReviewFooter.tsx'
+import { DesktopSidebarFoot, DesktopSidebarHead } from './DesktopSidebar.tsx'
 import StackNav from './StackNav.tsx'
 import ReviewTools from './ReviewTools.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
@@ -85,6 +86,8 @@ export default function App({
   syntaxTheme: appearanceSyntax,
   codeLineHeight,
   toolbar,
+  sidebarHidden = false,
+  onReveal,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -97,6 +100,10 @@ export default function App({
   codeLineHeight?: number
   /** The desktop title bar node its review controls render into; the browser has none. */
   toolbar?: HTMLElement | null
+  /** Set by the desktop app, whose title bar shows and hides the file tree. */
+  sidebarHidden?: boolean
+  /** Set by the desktop app: selects a file of the checkout in Finder. */
+  onReveal?: (path: string) => Promise<void>
 } = {}) {
   const { theme, syntaxTheme: pickedSyntax, chooseTheme } = useTheme()
   const syntaxTheme = appearanceSyntax ?? pickedSyntax
@@ -379,6 +386,20 @@ export default function App({
       case 'copy-comments':
         if (comments.length > 0) void copyComments()
         break
+      case 'reset-viewed':
+        void resetViewed()
+        break
+      case 'copy-path':
+        if (activePath) void navigator.clipboard.writeText(activePath)
+        break
+      case 'reveal':
+        if (activePath && onReveal)
+          onReveal(activePath).catch((cause) =>
+            setError(
+              `could not reveal ${activePath}: ${cause instanceof Error ? cause.message : cause}`,
+            ),
+          )
+        break
     }
   })
 
@@ -627,29 +648,39 @@ export default function App({
 
       {entries.length > 0 && (
         <div
-          className={`body${filesOpen ? ' files-open' : ''}`}
+          className={`body${filesOpen ? ' files-open' : ''}${sidebarHidden ? ' sidebar-hidden' : ''}`}
           ref={bodyRef}
           style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
         >
           <aside className="sidebar" id="changed-files" aria-label="Changed files">
             <div className="sidebar-head">
-              <span>
-                {viewedCount > 0
-                  ? `${viewedCount}/${entries.length} viewed`
-                  : `${entries.length} files`}
-              </span>
-              <span className="spacer" />
-              {viewedCount > 0 && (
-                <button type="button" onClick={resetViewed} title="Unmark every file">
-                  Reset
-                </button>
+              {desktop ? (
+                <DesktopSidebarHead
+                  fileCount={entries.length}
+                  onCollapseAll={() => treeRef.current?.collapseAll()}
+                  onExpandAll={() => treeRef.current?.expandAll()}
+                />
+              ) : (
+                <>
+                  <span>
+                    {viewedCount > 0
+                      ? `${viewedCount}/${entries.length} viewed`
+                      : `${entries.length} files`}
+                  </span>
+                  <span className="spacer" />
+                  {viewedCount > 0 && (
+                    <button type="button" onClick={resetViewed} title="Unmark every file">
+                      Reset
+                    </button>
+                  )}
+                  <button type="button" onClick={() => treeRef.current?.collapseAll()}>
+                    Collapse all
+                  </button>
+                  <button type="button" onClick={() => treeRef.current?.expandAll()}>
+                    Expand all
+                  </button>
+                </>
               )}
-              <button type="button" onClick={() => treeRef.current?.collapseAll()}>
-                Collapse all
-              </button>
-              <button type="button" onClick={() => treeRef.current?.expandAll()}>
-                Expand all
-              </button>
             </div>
             <FileTree
               ref={treeRef}
@@ -661,6 +692,13 @@ export default function App({
                 setFilesOpen(false)
               }}
             />
+            {desktop && (
+              <DesktopSidebarFoot
+                fileCount={entries.length}
+                viewedCount={viewedCount}
+                stats={stats}
+              />
+            )}
           </aside>
 
           {filesOpen && (
@@ -681,8 +719,6 @@ export default function App({
           data={data}
           baseSource={baseSource}
           note={revisionNote(data, target)}
-          stats={stats}
-          viewedCount={viewedCount}
           stack={stack}
           onPickTarget={pickTarget}
           nextPath={nextPath}

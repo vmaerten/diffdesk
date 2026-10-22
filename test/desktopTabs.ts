@@ -84,6 +84,7 @@ try {
           SaveTabView: async () => {},
           Settings: async () => '',
           SaveSettings: async () => {},
+          RevealInFinder: async () => {},
         },
       },
     }
