@@ -561,11 +561,18 @@ body,
   background: var(--wash);
   color: var(--text);
 }
-.titlebar-pill {
+/* Text rather than icons: the options and the copy are not obvious as glyphs. */
+.titlebar-text {
   width: auto;
   grid-auto-flow: column;
   gap: 5px;
-  padding: 0 7px;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.titlebar-text .caret {
+  font-size: 10px;
+  opacity: 0.6;
 }
 .titlebar-count {
   min-width: 16px;

@@ -163,13 +163,12 @@ export default function DesktopToolbar({
         <span className="base-anchor">
           <button
             type="button"
-            className="titlebar-button"
+            className="titlebar-button titlebar-text"
             title="Diff options"
-            aria-label="Diff options"
             aria-expanded={optionsOpen}
             onClick={() => setOptionsOpen((open) => !open)}
           >
-            <Icon name="sliders" />
+            Options <span className="caret">▾</span>
           </button>
           {optionsOpen && (
             <>
@@ -194,14 +193,12 @@ export default function DesktopToolbar({
         </span>
         <button
           type="button"
-          className="titlebar-button titlebar-pill copy-all"
+          className="titlebar-button titlebar-text copy-all"
           title="Copy all comments as Markdown (⇧⌘C)"
-          aria-label={copiedAll ? 'Copied' : 'Copy all comments'}
           disabled={commentCount === 0}
           onClick={onCopyAll}
         >
-          <Icon name={copiedAll ? 'check' : 'copy'} />
-          <span className="titlebar-count">{commentCount}</span>
+          {copiedAll ? 'Copied' : 'Copy'} <span className="titlebar-count">{commentCount}</span>
         </button>
         <button
           type="button"
