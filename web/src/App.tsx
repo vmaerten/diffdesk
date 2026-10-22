@@ -60,6 +60,7 @@ export default function App({
   commentStore,
   onRouteChange,
   syntaxTheme: appearanceSyntax,
+  codeLineHeight,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -68,6 +69,8 @@ export default function App({
   onRouteChange?: (route: string) => void
   /** Set by the desktop app, whose appearance replaces the theme picker. */
   syntaxTheme?: SyntaxTheme
+  /** Set by the desktop app when its code size changes the row height. */
+  codeLineHeight?: number
 } = {}) {
   const { theme, syntaxTheme: pickedSyntax, chooseTheme } = useTheme()
   const syntaxTheme = appearanceSyntax ?? pickedSyntax
@@ -279,6 +282,7 @@ export default function App({
     data,
     diffStyle: mobile ? 'unified' : diffStyle,
     syntaxTheme,
+    lineHeight: codeLineHeight,
     viewed,
     comments,
     copied,

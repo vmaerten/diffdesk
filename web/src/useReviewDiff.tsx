@@ -44,6 +44,8 @@ interface ReviewDiffOptions {
   data: LoadedReviewDiff | null
   diffStyle: 'unified' | 'split'
   syntaxTheme: SyntaxTheme
+  /** Row height for a code size other than the default, so virtualization estimates match. */
+  lineHeight?: number
   viewed: ViewedMap
   comments: ServedComment[]
   copied: string | null
@@ -95,6 +97,7 @@ export function useReviewDiff({
   data,
   diffStyle,
   syntaxTheme,
+  lineHeight,
   viewed,
   comments,
   copied,
@@ -610,6 +613,7 @@ export function useReviewDiff({
       expansionLineCount: 20,
       hunkSeparators: 'line-info' as const,
       theme: syntaxTheme,
+      itemMetrics: lineHeight === undefined ? undefined : { lineHeight },
       layout: { paddingTop: 16, paddingBottom: 16, gap: 16 },
       stickyHeaders: true,
       // File items are image previews; only text diff items have source rows.
@@ -625,7 +629,7 @@ export function useReviewDiff({
       enableLineSelection: true,
       onLineSelectionEnd,
     }),
-    [diffStyle, syntaxTheme, loadDiffFiles, onGutterUtilityClick, onLineSelectionEnd],
+    [diffStyle, syntaxTheme, lineHeight, loadDiffFiles, onGutterUtilityClick, onLineSelectionEnd],
   )
 
   /**

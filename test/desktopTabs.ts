@@ -82,6 +82,8 @@ try {
           UpdateTabURL: async () => snapshot(),
           OpenRepository: async () => {},
           SaveTabView: async () => {},
+          Settings: async () => '',
+          SaveSettings: async () => {},
         },
       },
     }

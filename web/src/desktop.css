@@ -1,6 +1,8 @@
 /* One neutral palette per color mode: in the desktop app a theme only colors
-   the code. The extra attribute outranks the editor palettes in themes.css. */
-:root[data-theme][data-color-mode='light'] {
+   the code. The extra attribute outranks the editor palettes in themes.css.
+   Settings previews both modes side by side, whatever the active one. */
+:root[data-theme][data-color-mode='light'],
+.settings-preview.light {
   --bg: #f8f8f6;
   --bg-raised: #ffffff;
   --bg-overlay: #ffffff;
@@ -18,7 +20,8 @@
   --primary-hover: #245ab3;
   --primary-text: #ffffff;
 }
-:root[data-theme][data-color-mode='dark'] {
+:root[data-theme][data-color-mode='dark'],
+.settings-preview.dark {
   --bg: #141414;
   --bg-raised: #1c1c1c;
   --bg-overlay: #262626;
@@ -36,7 +39,8 @@
   --primary-hover: #3d7be0;
   --primary-text: #ffffff;
 }
-:root[data-theme][data-color-mode] {
+:root[data-theme][data-color-mode],
+.settings-preview {
   --diff-addition: color-mix(in srgb, var(--success) 9%, var(--bg));
   --diff-addition-gutter: color-mix(in srgb, var(--success) 16%, var(--bg));
   --diff-deletion: color-mix(in srgb, var(--danger) 9%, var(--bg));
@@ -44,6 +48,17 @@
 }
 body {
   font-size: 13px;
+}
+/* Settings overrides these inline; the defaults hold until they load. */
+:root {
+  --code-font: ui-monospace, 'SF Mono', Menlo, monospace;
+  --code-size: 12px;
+  --code-line-height: 20px;
+}
+.desktop-shell :is(.diff, .settings-preview) diffs-container {
+  --diffs-font-family: var(--code-font);
+  --diffs-font-size: var(--code-size);
+  --diffs-line-height: var(--code-line-height);
 }
 /* macOS controls keep the arrow: the pointing hand is a web convention. */
 .desktop-shell :is(button, summary, select, label, input[type='checkbox'], .picker-item) {
@@ -143,4 +158,197 @@ body {
 .desktop-empty {
   margin: auto;
   text-align: center;
+}
+
+.settings-sheet {
+  width: min(640px, calc(100vw - 48px));
+  max-height: calc(100vh - 80px);
+  margin: 52px auto auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 35%);
+}
+.settings-sheet[open] {
+  display: flex;
+  flex-direction: column;
+}
+.settings-sheet::backdrop {
+  background: rgb(0 0 0 / 18%);
+}
+.settings-sheet h2 {
+  margin: 0;
+  padding: 14px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+.settings-body {
+  overflow: auto;
+  padding: 0 20px 4px;
+}
+.settings-body h3 {
+  margin: 16px 4px 6px;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+.settings-group {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-raised);
+}
+.settings-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 7px 12px;
+}
+.settings-field + .settings-field {
+  border-top: 1px solid var(--border);
+}
+.settings-label {
+  flex: 1;
+  display: grid;
+  gap: 1px;
+}
+.settings-label small {
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+.settings-label small.unavailable {
+  color: var(--warn);
+}
+.settings-field select,
+.settings-field .font-name {
+  width: 200px;
+}
+.appearance-choices {
+  display: flex;
+  gap: 14px;
+}
+.appearance-choices button {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 11.5px;
+}
+.appearance-thumb {
+  position: relative;
+  width: 68px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: 7px;
+  box-shadow: 0 0 0 1px var(--border);
+}
+.appearance-choices button[aria-pressed='true'] .appearance-thumb {
+  box-shadow:
+    0 0 0 2px var(--bg-raised),
+    0 0 0 4px var(--accent);
+}
+.appearance-thumb::before,
+.appearance-thumb::after {
+  content: '';
+  position: absolute;
+}
+.appearance-thumb::before {
+  inset: 0 0 auto;
+  height: 9px;
+}
+.appearance-thumb::after {
+  top: 9px;
+  bottom: 0;
+  left: 0;
+  width: 18px;
+}
+.appearance-thumb.light {
+  background: #ffffff;
+}
+.appearance-thumb.light::before {
+  background: #e6e6e4;
+}
+.appearance-thumb.light::after,
+.appearance-thumb.system::after {
+  background: #f1f1ef;
+}
+.appearance-thumb.dark {
+  background: #1c1c1c;
+}
+.appearance-thumb.dark::before {
+  background: #303030;
+}
+.appearance-thumb.dark::after {
+  background: #262626;
+}
+.appearance-thumb.system {
+  background: linear-gradient(90deg, #ffffff 50%, #1c1c1c 50%);
+}
+.appearance-thumb.system::before {
+  background: linear-gradient(90deg, #e6e6e4 50%, #303030 50%);
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.stepper button {
+  width: 26px;
+  height: 24px;
+  border: 0;
+  background: none;
+  color: var(--text);
+}
+.stepper button:disabled {
+  color: var(--text-dim);
+}
+.stepper output {
+  min-width: 52px;
+  border-inline: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.settings-previews {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.settings-preview {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+}
+.settings-preview diffs-container {
+  --diffs-bg-addition-override: var(--diff-addition);
+  --diffs-bg-addition-number-override: var(--diff-addition-gutter);
+  --diffs-bg-deletion-override: var(--diff-deletion);
+  --diffs-bg-deletion-number-override: var(--diff-deletion-gutter);
+  --diffs-bg-buffer-override: var(--bg);
+  --diffs-bg-context-override: var(--bg);
+  --diffs-fg-number-override: var(--text-dim);
+}
+.settings-preview-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+}
+.settings-sheet footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 20px 16px;
 }

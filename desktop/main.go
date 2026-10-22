@@ -102,7 +102,11 @@ func run() error {
 		// Fixture windows must never join the user's running desktop app.
 		instanceID = fmt.Sprintf("ghl-test-%x", sha256.Sum256([]byte(path)))
 	}
-	desktop := &desktopApp{backend: backend, requests: make(chan launch, 16)}
+	settings, err := newSettingsStore()
+	if err != nil {
+		return err
+	}
+	desktop := &desktopApp{backend: backend, requests: make(chan launch, 16), settings: settings}
 	desktop.requests <- initial
 	appMenu := menu.NewMenuFromItems(menu.AppMenu(), menu.EditMenu())
 	fileMenu := appMenu.AddSubmenu("File")
@@ -112,6 +116,11 @@ func run() error {
 	})
 	fileMenu.AddText("Close tab", keys.CmdOrCtrl("w"), func(*menu.CallbackData) {
 		runtime.WindowExecJS(desktop.runtimeContext(), "window.dispatchEvent(new Event('desktop:close-active'))")
+	})
+	// Wails v2 builds the application menu itself, leaving no room for Settings there.
+	fileMenu.AddSeparator()
+	fileMenu.AddText("Settings…", keys.CmdOrCtrl(","), func(*menu.CallbackData) {
+		runtime.WindowExecJS(desktop.runtimeContext(), "window.dispatchEvent(new Event('desktop:settings'))")
 	})
 	return wails.Run(&options.App{
 		Title: "ghl — Desktop", Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,

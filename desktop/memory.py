@@ -64,7 +64,7 @@ def main():
             probe = folder / 'probe.js'
             collector = f'http://127.0.0.1:{server.server_port}/'
             probe.write_text('window.collector=' + json.dumps(collector) + ';\n' + Path(__file__).with_name('memory-probe.js').read_text())
-            env = {**os.environ, 'GHL_DESKTOP_PROBE': str(probe)}
+            env = {**os.environ, 'GHL_DESKTOP_PROBE': str(probe), 'GHL_DESKTOP_SETTINGS': str(folder / 'settings.json')}
 
             def launch(repo):
                 subprocess.run([str(BINARY), '--repo', str(repo), '--base', 'HEAD'], env=env, check=True, capture_output=True, timeout=10)

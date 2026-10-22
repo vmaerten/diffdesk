@@ -156,6 +156,45 @@
         if (health.repos.length === 1) document.querySelector('.desktop-tab-close').click()
         return
       }
+      // Change the appearance and code size, check both apply and reach Go, then
+      // put them back for the rest of the run.
+      window.dispatchEvent(new Event('desktop:settings'))
+      const sheet = await wait(
+        () => document.querySelector('.settings-sheet[open]'),
+        'Settings did not open',
+      )
+      const appearance = (label) =>
+        [...sheet.querySelectorAll('.appearance-choices button')]
+          .find((button) => button.textContent.trim() === label)
+          .click()
+      const storedSettings = async () =>
+        JSON.parse((await window.go.main.desktopApp.Settings()) || '{}')
+      appearance(dark ? 'Light' : 'Dark')
+      await wait(
+        () => root.dataset.theme === (dark ? 'github-light' : 'github-dimmed'),
+        'Appearance did not apply',
+      )
+      sheet.querySelector('[aria-label="Larger"]').click()
+      await wait(
+        () => root.style.getPropertyValue('--code-size') === '13px',
+        'Code size did not apply',
+      )
+      await wait(async () => {
+        const stored = await storedSettings()
+        return stored.appearance === (dark ? 'light' : 'dark') && stored.codeSize === 13
+      }, 'Settings not saved')
+      appearance('System')
+      sheet.querySelector('[aria-label="Smaller"]').click()
+      sheet.querySelector('footer button').click()
+      await wait(() => !sheet.open, 'Settings did not close')
+      await wait(
+        async () => (await storedSettings()).appearance === 'system',
+        'Settings not restored',
+      )
+      check(
+        root.dataset.theme === (dark ? 'github-dimmed' : 'github-light'),
+        'System appearance did not return',
+      )
       let contextRequests = 0
       const realFetch = window.fetch
       window.fetch = (...args) => {

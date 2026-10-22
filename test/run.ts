@@ -4,6 +4,7 @@ import { runExport } from './export.ts'
 import { runReviewSelection } from './reviewSelection.ts'
 import { runCommentPersistence } from './commentPersistence.ts'
 import { runViewedPersistence } from './viewedPersistence.ts'
+import { runDesktopSettings } from './desktopSettings.ts'
 
 import reviewPanel from './suites/reviewPanel.ts'
 import themes from './suites/themes.ts'
@@ -48,6 +49,7 @@ const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'review-selection', run: runReviewSelection },
   { name: 'comment-persistence', run: runCommentPersistence },
   { name: 'viewed-persistence', run: runViewedPersistence },
+  { name: 'desktop-settings', run: runDesktopSettings },
   { name: 'export', run: runExport },
 ]
 

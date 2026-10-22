@@ -3,7 +3,15 @@ import { useStableCallback } from '@pierre/diffs/react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
 import { releaseUrl } from './reviewSelection.ts'
-import { DEFAULT_APPEARANCE, useAppearance } from './appearance.ts'
+import { useAppearance } from './appearance.ts'
+import SettingsSheet from './SettingsSheet.tsx'
+import {
+  codeFontFamily,
+  codeLineHeight,
+  DEFAULT_SETTINGS,
+  readSettings,
+  type DesktopSettings,
+} from './desktopSettings.ts'
 import type { SavedView, SavedViewHandle } from './savedView.ts'
 import {
   createRepositoryCommentPersistence,
@@ -30,6 +38,8 @@ interface DesktopAPI {
   UpdateTabURL(id: string, route: string): Promise<Tabs>
   OpenRepository(): Promise<void>
   SaveTabView(id: string, raw: string): Promise<void>
+  Settings(): Promise<string>
+  SaveSettings(raw: string): Promise<void>
 }
 declare global {
   interface Window {
@@ -45,7 +55,9 @@ const Review = memo(App)
 
 export default function DesktopApp() {
   const [state, setState] = useState(EMPTY)
-  const syntaxTheme = useAppearance(DEFAULT_APPEARANCE)
+  const [settings, setSettings] = useState<DesktopSettings | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const syntaxTheme = useAppearance(settings ?? DEFAULT_SETTINGS)
   const latest = useRef(EMPTY)
   const [error, setError] = useState<string | null>(null)
   const accept = useRef<(state: Tabs) => void>(() => {})
@@ -148,6 +160,37 @@ export default function DesktopApp() {
       window.removeEventListener('keydown', cycle)
     }
   }, [apply])
+  useEffect(() => {
+    window.go?.main.desktopApp
+      .Settings()
+      .then((raw) => setSettings(readSettings(raw)))
+      .catch((cause) => {
+        setError(String(cause))
+        setSettings(DEFAULT_SETTINGS)
+      })
+    const openSettings = () => setSettingsOpen(true)
+    window.addEventListener('desktop:settings', openSettings)
+    return () => window.removeEventListener('desktop:settings', openSettings)
+  }, [])
+  useEffect(() => {
+    if (!settings) return
+    const style = document.documentElement.style
+    style.setProperty('--code-font', codeFontFamily(settings.codeFont))
+    style.setProperty('--code-size', `${settings.codeSize}px`)
+    style.setProperty('--code-line-height', `${codeLineHeight(settings.codeSize)}px`)
+  }, [settings])
+  // Saved once changes settle: typing a font name would otherwise write, and
+  // race, on every keystroke.
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const changeSettings = (next: DesktopSettings) => {
+    setSettings(next)
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      void window.go?.main.desktopApp
+        .SaveSettings(JSON.stringify(next))
+        .catch((cause) => setError(String(cause)))
+    }, 300)
+  }
   const routeChanged = useStableCallback((route: string) => {
     const active = latest.current.tabs.find((tab) => tab.id === latest.current.active)
     if (active && active.route !== route)
@@ -234,14 +277,17 @@ export default function DesktopApp() {
           aria-labelledby={`review-tab-${active.id}`}
           data-active-tab={active.id}
         >
-          <Review
-            key={active.id}
-            savedView={views.current.get(active.id)}
-            viewHandle={viewHandle}
-            commentStore={commentStores.current.get(active.id)}
-            onRouteChange={routeChanged}
-            syntaxTheme={syntaxTheme}
-          />
+          {settings && (
+            <Review
+              key={active.id}
+              savedView={views.current.get(active.id)}
+              viewHandle={viewHandle}
+              commentStore={commentStores.current.get(active.id)}
+              onRouteChange={routeChanged}
+              syntaxTheme={syntaxTheme}
+              codeLineHeight={codeLineHeight(settings.codeSize)}
+            />
+          )}
         </div>
       ) : (
         <div className="desktop-empty">
@@ -251,6 +297,14 @@ export default function DesktopApp() {
             Open repository…
           </button>
         </div>
+      )}
+      {settings && (
+        <SettingsSheet
+          open={settingsOpen}
+          settings={settings}
+          onChange={changeSettings}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
     </div>
   )

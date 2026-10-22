@@ -71,7 +71,7 @@ def main():
         fixture(second, False)
         script = folder / 'probe.js'
         script.write_text(f'window.smokeCollector = "http://127.0.0.1:{server.server_port}/";\n' + Path(__file__).with_name('native-smoke.js').read_text())
-        env = {**os.environ, 'GHL_DESKTOP_PROBE': str(script)}
+        env = {**os.environ, 'GHL_DESKTOP_PROBE': str(script), 'GHL_DESKTOP_SETTINGS': str(folder / 'settings.json')}
         source_binary = (args.bundle.resolve() / 'Contents/MacOS/ghl-desktop') if args.bundle else BINARY
         binary = source_binary
         if args.standalone:
@@ -118,7 +118,7 @@ def main():
                 app.send_signal(signal.SIGTERM)
                 app.wait(timeout=15)
                 assert app.returncode == 0
-                report = {'complete': True, 'standalone': args.standalone, 'checks': ['native rendering', 'context expansion', 'UI comment create/edit/delete', 'OS Markdown clipboard', 'Viewed', 'relative Unicode path from second caller', 'same process/window reuse', 'unminimise', 'switch back', 'shutdown', 'restart persistence', 'CLI tab deduplication', 'UI close tab', 'one mounted review', 'close last tab keeps window', 'inline context draft restoration', 'scroll restoration', 'lightweight view captures', 'panel draft restoration', 'Ctrl+Tab', 'reload preserves drafts'], 'events': server.events}
+                report = {'complete': True, 'standalone': args.standalone, 'checks': ['native rendering', 'context expansion', 'UI comment create/edit/delete', 'OS Markdown clipboard', 'Viewed', 'relative Unicode path from second caller', 'same process/window reuse', 'unminimise', 'switch back', 'shutdown', 'restart persistence', 'CLI tab deduplication', 'UI close tab', 'one mounted review', 'close last tab keeps window', 'inline context draft restoration', 'scroll restoration', 'lightweight view captures', 'panel draft restoration', 'Ctrl+Tab', 'reload preserves drafts', 'Settings appearance and code size'], 'events': server.events}
                 (ROOT / '.task/desktop/validation.json').write_text(json.dumps(report, indent=2))
                 print(json.dumps({'complete': True, 'checks': report['checks'], 'report': '.task/desktop/validation.json'}))
             finally:
