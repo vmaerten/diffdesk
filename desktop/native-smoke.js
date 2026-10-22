@@ -40,6 +40,17 @@
         'Wrong review rendered',
       )
       await wait(() => document.querySelector('.viewed-toggle input'), 'UI never rendered')
+      const dark = matchMedia('(prefers-color-scheme: dark)').matches
+      const root = document.documentElement
+      check(
+        root.dataset.theme === (dark ? 'github-dimmed' : 'github-light'),
+        'Theme does not follow the macOS appearance',
+      )
+      check(
+        getComputedStyle(root).getPropertyValue('--bg').trim() === (dark ? '#141414' : '#f8f8f6'),
+        'Editor palette overrides the desktop palette',
+      )
+      check(!document.querySelector('.theme-picker'), 'Desktop shows the browser theme picker')
       check(document.querySelectorAll('.app').length === 1, 'Inactive React reviews stay mounted')
       await wait(
         () =>

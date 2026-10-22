@@ -18,7 +18,7 @@ import {
 } from './commentPersistence.ts'
 import { useViewedPersistence } from './viewedPersistence.ts'
 
-import { useTheme } from './theme.ts'
+import { useTheme, type SyntaxTheme } from './theme.ts'
 import CommentsPanel from './CommentsPanel.tsx'
 import RepoBar from './RepoBar.tsx'
 import RevisionControls, { type Picker } from './RevisionControls.tsx'
@@ -59,14 +59,18 @@ export default function App({
   viewHandle,
   commentStore,
   onRouteChange,
+  syntaxTheme: appearanceSyntax,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
   commentStore?: CommentPersistence
   /** Receives every selection URL the review writes. */
   onRouteChange?: (route: string) => void
+  /** Set by the desktop app, whose appearance replaces the theme picker. */
+  syntaxTheme?: SyntaxTheme
 } = {}) {
-  const { theme, syntaxTheme, chooseTheme } = useTheme()
+  const { theme, syntaxTheme: pickedSyntax, chooseTheme } = useTheme()
+  const syntaxTheme = appearanceSyntax ?? pickedSyntax
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
   const loadRef = useRef(0)
@@ -388,7 +392,7 @@ export default function App({
         <RepoBar
           repoName={repoName}
           repoPath={data?.repo.path}
-          theme={theme}
+          theme={appearanceSyntax ? undefined : theme}
           onThemeChange={chooseTheme}
           refreshing={refreshing}
           onRefresh={refresh}

@@ -3,6 +3,7 @@ import { useStableCallback } from '@pierre/diffs/react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
 import { releaseUrl } from './reviewSelection.ts'
+import { DEFAULT_APPEARANCE, useAppearance } from './appearance.ts'
 import type { SavedView, SavedViewHandle } from './savedView.ts'
 import {
   createRepositoryCommentPersistence,
@@ -44,6 +45,7 @@ const Review = memo(App)
 
 export default function DesktopApp() {
   const [state, setState] = useState(EMPTY)
+  const syntaxTheme = useAppearance(DEFAULT_APPEARANCE)
   const latest = useRef(EMPTY)
   const [error, setError] = useState<string | null>(null)
   const accept = useRef<(state: Tabs) => void>(() => {})
@@ -238,6 +240,7 @@ export default function DesktopApp() {
             viewHandle={viewHandle}
             commentStore={commentStores.current.get(active.id)}
             onRouteChange={routeChanged}
+            syntaxTheme={syntaxTheme}
           />
         </div>
       ) : (

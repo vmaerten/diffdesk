@@ -1,3 +1,47 @@
+/* One neutral palette per color mode: in the desktop app a theme only colors
+   the code. The extra attribute outranks the editor palettes in themes.css. */
+:root[data-theme][data-color-mode='light'] {
+  --bg: #f8f8f6;
+  --bg-raised: #ffffff;
+  --bg-overlay: #ffffff;
+  --border: rgb(17 17 17 / 10%);
+  --border-subtle: rgb(17 17 17 / 6%);
+  --text: #111111;
+  --text-dim: rgb(17 17 17 / 60%);
+  --accent: #2a66c9;
+  --accent-strong: #2a66c9;
+  --on-accent: #ffffff;
+  --success: #1f7a44;
+  --danger: #b8312f;
+  --warn: #a85d0b;
+  --primary-bg: #2a66c9;
+  --primary-hover: #245ab3;
+  --primary-text: #ffffff;
+}
+:root[data-theme][data-color-mode='dark'] {
+  --bg: #141414;
+  --bg-raised: #1c1c1c;
+  --bg-overlay: #262626;
+  --border: rgb(230 230 230 / 10%);
+  --border-subtle: rgb(230 230 230 / 6%);
+  --text: #ebebeb;
+  --text-dim: rgb(230 230 230 / 56%);
+  --accent: #3d87f5;
+  --accent-strong: #2f6fd6;
+  --on-accent: #ffffff;
+  --success: #6fd094;
+  --danger: #ee7e7e;
+  --warn: #eb9a3d;
+  --primary-bg: #2f6fd6;
+  --primary-hover: #3d7be0;
+  --primary-text: #ffffff;
+}
+:root[data-theme][data-color-mode] {
+  --diff-addition: color-mix(in srgb, var(--success) 9%, var(--bg));
+  --diff-addition-gutter: color-mix(in srgb, var(--success) 16%, var(--bg));
+  --diff-deletion: color-mix(in srgb, var(--danger) 9%, var(--bg));
+  --diff-deletion-gutter: color-mix(in srgb, var(--danger) 16%, var(--bg));
+}
 .desktop-shell {
   height: 100%;
   display: flex;

@@ -13,7 +13,8 @@ export default function RepoBar({
 }: {
   repoName: string
   repoPath?: string
-  theme: ThemeId
+  /** Omitted when the page does not choose its theme: the desktop app follows its appearance. */
+  theme?: ThemeId
   onThemeChange: (value: string) => void
   refreshing: boolean
   onRefresh: () => void
@@ -33,7 +34,7 @@ export default function RepoBar({
       </div>
 
       <div className="app-actions">
-        <ThemePicker theme={theme} onChange={onThemeChange} />
+        {theme && <ThemePicker theme={theme} onChange={onThemeChange} />}
         <button type="button" className="refresh" onClick={onRefresh} disabled={refreshing}>
           <span className={refreshing ? 'refresh-icon spinning' : 'refresh-icon'} aria-hidden>
             ↻
