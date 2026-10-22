@@ -42,6 +42,23 @@
   --diff-deletion: color-mix(in srgb, var(--danger) 9%, var(--bg));
   --diff-deletion-gutter: color-mix(in srgb, var(--danger) 16%, var(--bg));
 }
+body {
+  font-size: 13px;
+}
+/* macOS controls keep the arrow: the pointing hand is a web convention. */
+.desktop-shell :is(button, summary, select, label, input[type='checkbox'], .picker-item) {
+  cursor: default;
+}
+/* Chrome is not text to select. Fields inside it stay editable, which WebKit
+   would otherwise refuse under an unselectable ancestor. */
+:is(.desktop-tabbar, .topbar, .review-tools, .sidebar-head, .desktop-empty) {
+  -webkit-user-select: none;
+  user-select: none;
+}
+:is(.desktop-tabbar, .topbar, .review-tools, .sidebar-head, .desktop-empty) :is(input, textarea) {
+  -webkit-user-select: text;
+  user-select: text;
+}
 .desktop-shell {
   height: 100%;
   display: flex;
@@ -74,7 +91,6 @@
   border: 0;
   background: none;
   color: var(--text-muted);
-  cursor: pointer;
 }
 .desktop-tab.active > button {
   color: var(--text);
@@ -112,7 +128,6 @@
   background: none;
   color: var(--text);
   font-size: 22px;
-  cursor: pointer;
 }
 .desktop-review {
   flex: 1;
