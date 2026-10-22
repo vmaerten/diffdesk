@@ -1,4 +1,4 @@
-import { archiveName, releaseTarget } from './releaseTarget.ts'
+import { archiveName, desktopArchiveName, releaseTarget } from './releaseTarget.ts'
 import { findExecutable, loopbackURL } from './system.ts'
 import assert from 'node:assert/strict'
 import { execFile, execFileSync } from 'node:child_process'
@@ -218,7 +218,11 @@ try {
     execFileSync(process.execPath, ['test/goRelease.ts'], { cwd: root, stdio: 'inherit' })
     const dist = join(root, 'go/dist/release')
     const metadata = JSON.parse(readFileSync(join(dist, 'metadata.json'), 'utf8'))
-    mirror = await miseReleaseFixture(temporary, join(dist, archiveName(metadata.version, target)))
+    mirror = await miseReleaseFixture(
+      temporary,
+      join(dist, archiveName(metadata.version, target)),
+      join(dist, desktopArchiveName(metadata.version)),
+    )
     env.MISE_URL_REPLACEMENTS = JSON.stringify({
       'https://api.github.com/': `${mirror.origin}/`,
       'https://github.com/': `${mirror.origin}/`,
@@ -422,6 +426,8 @@ try {
     await preserved()
     assert.ok(mirror.requested.some((path) => path.endsWith('/checksums.txt')))
     assert.ok(mirror.requested.some((path) => path.endsWith(suffix)))
+    assert.ok(!mirror.requested.some((path) => path.endsWith('.zip')))
+    record('CLI archive selected alongside desktop ZIP')
     const remote = await mise('ls-remote', tool)
     assert.ok(remote.includes('1.0.1'))
     assert.ok(!remote.includes('rc.1'), 'latest must exclude prereleases by default')
