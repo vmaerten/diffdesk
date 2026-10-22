@@ -1,4 +1,4 @@
-import { archiveName, releaseTarget } from './releaseTarget.ts'
+import { archiveName, desktopArchiveName, releaseTarget } from './releaseTarget.ts'
 import { findExecutable, loopbackURL } from './system.ts'
 import assert from 'node:assert/strict'
 import { execFile, execFileSync } from 'node:child_process'
@@ -221,7 +221,7 @@ try {
     mirror = await miseReleaseFixture(
       temporary,
       join(dist, archiveName(metadata.version, target)),
-      join(dist, `ghl-desktop_${metadata.version}_darwin_arm64.zip`),
+      join(dist, desktopArchiveName(metadata.version)),
     )
     env.MISE_URL_REPLACEMENTS = JSON.stringify({
       'https://api.github.com/': `${mirror.origin}/`,

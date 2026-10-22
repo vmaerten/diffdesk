@@ -1,4 +1,4 @@
-import { archiveName, releaseTarget, RELEASE_TARGETS } from './releaseTarget.ts'
+import { archiveName, desktopArchiveName, releaseTarget, RELEASE_TARGETS } from './releaseTarget.ts'
 import { findExecutable, loopbackURL } from './system.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
@@ -50,7 +50,7 @@ assert.deepEqual(
     .toSorted(),
   names,
 )
-const checksumNames = [...names, `ghl-desktop_${metadata.version}_darwin_arm64.zip`].toSorted()
+const checksumNames = [...names, desktopArchiveName(metadata.version)].toSorted()
 const checksums = readFileSync(join(dist, 'checksums.txt'), 'utf8').trim().split('\n')
 assert.equal(
   checksums.length,

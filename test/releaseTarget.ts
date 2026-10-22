@@ -19,3 +19,8 @@ export function releaseTarget(): ReleaseTarget {
 export function archiveName(version: string, target = releaseTarget()): string {
   return `ghl_${version}_${target}.tar.gz`
 }
+
+/** The desktop app ships for macOS ARM64 only. */
+export function desktopArchiveName(version: string): string {
+  return `ghl-desktop_${version}_darwin_arm64.zip`
+}

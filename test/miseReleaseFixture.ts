@@ -1,4 +1,4 @@
-import { archiveName, releaseTarget, RELEASE_TARGETS } from './releaseTarget.ts'
+import { archiveName, desktopArchiveName, releaseTarget, RELEASE_TARGETS } from './releaseTarget.ts'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { appendFileSync, copyFileSync, mkdirSync, readFileSync } from 'node:fs'
@@ -56,7 +56,7 @@ export async function miseReleaseFixture(
       'THIRD_PARTY_NOTICES.txt',
     ])
     const bytes = readFileSync(output)
-    const desktopName = `ghl-desktop_${version}_darwin_arm64.zip`
+    const desktopName = desktopArchiveName(version)
     const digest = corrupt ? '0'.repeat(64) : sha256(bytes)
     const release: Release = {
       tag_name: `v${version}`,

@@ -68,9 +68,13 @@ def notices():
     print(f'Desktop notices: existing frontend/Go material and {count} linked Go dependencies')
 
 
+def desktop_archive_name(version):
+    return f'ghl-desktop_{version}_darwin_arm64.zip'
+
+
 def verify_checksums(dist, version):
     expected = {f'ghl_{version}_{target}.tar.gz' for target in ('darwin_arm64', 'darwin_amd64', 'linux_arm64', 'linux_amd64')}
-    expected.add(f'ghl-desktop_{version}_darwin_arm64.zip')
+    expected.add(desktop_archive_name(version))
     seen = set()
     for line in (dist / 'checksums.txt').read_text().splitlines():
         match = re.fullmatch(r'([a-f0-9]{64})  ([\w.+-]+)', line)
@@ -80,7 +84,7 @@ def verify_checksums(dist, version):
         seen.add(name)
         require(hashlib.sha256((dist / name).read_bytes()).hexdigest() == digest, f'Checksum mismatch: {name}')
     require(seen == expected, 'All CLI and desktop archives must be checksummed')
-    return dist / f'ghl-desktop_{version}_darwin_arm64.zip'
+    return dist / desktop_archive_name(version)
 
 
 def extract_bundle(archive, destination):
