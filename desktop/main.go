@@ -130,9 +130,13 @@ func run() error {
 		// Transparent until the page paints: launch shows the system material in
 		// either appearance instead of a fixed dark colour.
 		BackgroundColour: options.NewRGBA(0, 0, 0, 0),
-		Mac:              &mac.Options{WebviewIsTransparent: true, WindowIsTranslucent: true},
-		AssetServer:      &assetserver.Options{Handler: backend.handler()},
-		Bind:             []interface{}{desktop},
+		Mac: &mac.Options{
+			TitleBar:             mac.TitleBarHiddenInset(),
+			WebviewIsTransparent: true,
+			WindowIsTranslucent:  true,
+		},
+		AssetServer: &assetserver.Options{Handler: backend.handler()},
+		Bind:        []interface{}{desktop},
 		OnStartup: func(windowCtx context.Context) {
 			desktop.startup(windowCtx)
 			go func() {

@@ -61,8 +61,8 @@ try {
       revision: 1,
       active: '1',
       tabs: [
-        { id: '1', name: 'first', route: `/r/${repoId}/?base=HEAD` },
-        { id: '2', name: 'second', route: `/r/${repoId}/?base=main` },
+        { id: '1', name: 'first', path: '~/first', route: `/r/${repoId}/?base=HEAD` },
+        { id: '2', name: 'second', path: '~/second', route: `/r/${repoId}/?base=main` },
       ],
     }
     type Snapshot = Awaited<ReturnType<NonNullable<Window['go']>['main']['desktopApp']['Tabs']>>
