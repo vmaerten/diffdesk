@@ -1,8 +1,10 @@
-import { useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 
 interface SelectionAdapter {
   replaceUrl: (url: URL) => void
   rememberBase: (base: string, target: string | null) => Promise<void>
+  worktreeForTarget: (target: string) => Promise<string | null>
+  navigate: (url: URL) => void
 }
 
 function describe(url: URL) {
@@ -37,6 +39,7 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
   let url = new URL(initialUrl)
   let snapshot = describe(url)
   let baseRequest = 0
+  let targetRequest = 0
   let baseWrite = Promise.resolve()
   const listeners = new Set<() => void>()
   const update = (change: (params: URLSearchParams) => void) => {
@@ -54,6 +57,10 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
     })
 
   return {
+    cancelPending: () => {
+      baseRequest++
+      targetRequest++
+    },
     getSnapshot: () => snapshot,
     subscribe: (listener: () => void) => {
       listeners.add(listener)
@@ -61,20 +68,50 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
         listeners.delete(listener)
       }
     },
-    pickTarget: (target: string | null) => {
+    pickTarget: async (target: string | null) => {
       baseRequest++
+      const request = ++targetRequest
+      let worktreeId: string | null = null
+      if (target) {
+        try {
+          worktreeId = await adapter.worktreeForTarget(target)
+        } catch (error) {
+          if (request !== targetRequest) return
+          throw error
+        }
+        if (request !== targetRequest) return
+      }
+      if (worktreeId) {
+        const next = new URL(url)
+        const path = `/r/${encodeURIComponent(worktreeId)}`
+        for (const key of ['target', 'commit', 'committed']) next.searchParams.delete(key)
+        if (next.pathname.replace(/\/$/, '') !== path) {
+          next.pathname = path
+          next.searchParams.delete('base')
+          next.hash = ''
+          adapter.navigate(next)
+          return
+        }
+        // Picking the checked-out branch also includes its local changes.
+        target = null
+      }
       update((params) => {
         pick(params, 'target', target)
         params.delete('commit')
+        if (worktreeId) params.delete('committed')
       })
     },
-    pickCommit: (commit: string | null) => update((params) => pick(params, 'commit', commit)),
+    pickCommit: (commit: string | null) => {
+      targetRequest++
+      update((params) => pick(params, 'commit', commit))
+    },
     toggleCommitted: () => toggle('committed'),
     toggleUntracked: () => toggle('untracked'),
     toggleWhitespace: () =>
       update((params) => pick(params, 'w', params.get('w') === '1' ? null : '1')),
     pickBase: async (base: string | null, currentBase: string | undefined) => {
       if (!base || base === currentBase) return
+      targetRequest++
       const request = ++baseRequest
       const target = snapshot.target
       const write = baseWrite.then(() => adapter.rememberBase(base, target))
@@ -87,11 +124,22 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
   }
 }
 
-export function useReviewSelection(repoId: string | null) {
+export function useReviewSelection(repoId: string | null, navigate: (url: URL) => void) {
   const selection = useMemo(
     () =>
       createReviewSelection(new URL(location.href), {
         replaceUrl: (url) => history.replaceState(null, '', url),
+        navigate,
+        worktreeForTarget: async (target) => {
+          const response = await fetch(`/r/${repoId}/api/worktree`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ branch: target }),
+          })
+          const body: { repo?: { id: string } | null; error?: string } = await response.json()
+          if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
+          return body.repo?.id ?? null
+        },
         rememberBase: async (base, target) => {
           const response = await fetch(`/r/${repoId}/api/base`, {
             method: 'POST',
@@ -101,7 +149,8 @@ export function useReviewSelection(repoId: string | null) {
           if (!response.ok) throw new Error(`HTTP ${response.status}`)
         },
       }),
-    [repoId],
+    [repoId, navigate],
   )
+  useEffect(() => () => selection.cancelPending(), [selection])
   return [useSyncExternalStore(selection.subscribe, selection.getSnapshot), selection] as const
 }

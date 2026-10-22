@@ -18,6 +18,7 @@ import order from './suites/order.ts'
 import stack from './suites/stack.ts'
 import commits from './suites/commits.ts'
 import worktree from './suites/worktree.ts'
+import worktreeSelection from './suites/worktreeSelection.ts'
 import untracked from './suites/untracked.ts'
 import search from './suites/search.ts'
 import whitespace from './suites/whitespace.ts'
@@ -36,6 +37,7 @@ const SUITES: Suite[] = [
   stack,
   commits,
   worktree,
+  worktreeSelection,
   untracked,
   search,
   whitespace,

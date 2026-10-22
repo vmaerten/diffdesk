@@ -229,6 +229,13 @@ available in the Go build. Base choices are remembered against the reviewed
 branch. The URL controls each comparison: removing an explicit base re-enables
 resolution, even when the command was started with `--base`.
 
+Picking a target branch with an available worktree registers and opens that worktree
+automatically, including its local changes and using its own review state. The old
+base, target, commit and committed-only settings are cleared; whitespace and untracked
+options are preserved. Browser Back restores the previous comparison. Branches without
+a worktree remain revision-only selections. Missing, detached and prunable worktrees
+are skipped; locked worktrees remain available.
+
 `target` reviews a revision without checking it out. `committed` excludes staged
 and unstaged work from a checkout review. `commit` shows the selected commit's
 own diff against its first parent, or the empty tree for a root commit; its
@@ -237,7 +244,7 @@ the whole range with a notice. Invalid bases or targets fail explicitly.
 
 `task test` checks Go payloads, context and anchors against Git across these scopes,
 then runs the existing picker, commit, stack, untracked and image browser checks against Go.
-All fifteen shared browser suites also run against Go through `test/run.ts`.
+The shared browser suites also run against Go through `test/run.ts`.
 The isolated PoC keeps its explicit-base checkout scope and hidden pickers.
 
 The **Untracked** checkbox includes files returned by Git's ignore-aware listing;

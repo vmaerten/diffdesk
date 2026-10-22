@@ -161,6 +161,10 @@ func (s *reviewRuntime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				fail(w, 404, fmt.Errorf("unknown repo: %s", segments[1]))
 				return
 			}
+			if len(segments) == 4 && segments[2] == "api" && segments[3] == "worktree" && r.Method == "POST" {
+				s.selectWorktree(w, r, server.repo)
+				return
+			}
 			server.ServeHTTP(w, r)
 		} else if r.Method == "GET" && (r.URL.Path == "/" || strings.HasPrefix(r.URL.Path, "/assets/")) {
 			path := strings.TrimPrefix(r.URL.Path, "/")
@@ -172,6 +176,45 @@ func (s *reviewRuntime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(w, 404, fmt.Errorf("not found"))
 		}
 	}
+}
+
+// Resolve again at selection time so a stale picker cannot open a removed or
+// detached worktree. Registering it preserves its own review state and locks.
+func (s *reviewRuntime) selectWorktree(w http.ResponseWriter, r *http.Request, repo Repository) {
+	var body struct {
+		Branch string `json:"branch"`
+	}
+	if err := decode(w, r, &body); err != nil {
+		fail(w, 400, err)
+		return
+	}
+	if !validRef(body.Branch) {
+		fail(w, 400, fmt.Errorf("A valid branch is required"))
+		return
+	}
+	sha, err := repo.resolveRef(r.Context(), body.Branch)
+	if err != nil || sha == "" {
+		if err == nil {
+			err = fmt.Errorf("Invalid target %q", body.Branch)
+		}
+		fail(w, 422, err)
+		return
+	}
+	worktree, err := repo.branchWorktree(r.Context(), body.Branch)
+	if err != nil {
+		fail(w, 422, err)
+		return
+	}
+	var entry *registeredRepo
+	if worktree != nil {
+		registered, err := s.register(*worktree)
+		if err != nil {
+			fail(w, 503, err)
+			return
+		}
+		entry = &registered
+	}
+	reply(w, 200, map[string]any{"repo": entry})
 }
 
 func (s *reviewRuntime) watchIdle(ctx context.Context, idle time.Duration) {
