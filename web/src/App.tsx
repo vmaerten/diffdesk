@@ -11,7 +11,11 @@ import {
 import { useStableCallback } from '@pierre/diffs/react'
 import { useReviewDiff, type LoadedReviewDiff } from './useReviewDiff.tsx'
 import { useReviewSelection } from './reviewSelection.ts'
-import { useCommentPersistence, type CommentSubmission } from './commentPersistence.ts'
+import {
+  useCommentPersistence,
+  type CommentPersistence,
+  type CommentSubmission,
+} from './commentPersistence.ts'
 import { useViewedPersistence } from './viewedPersistence.ts'
 
 import { useTheme } from './theme.ts'
@@ -53,10 +57,12 @@ const BASE_SOURCES: Record<BaseSource, string> = {
 export default function App({
   session,
   sessionHandle,
+  commentStore,
   onRouteChange,
 }: {
   session?: ReviewSession
   sessionHandle?: Ref<ReviewSessionHandle>
+  commentStore?: CommentPersistence
   /** Receives every selection URL the review writes. */
   onRouteChange?: (route: string) => void
 } = {}) {
@@ -72,7 +78,7 @@ export default function App({
   const [picking, setPicking] = useState<'base' | 'target' | 'commit' | null>(null)
   const [selection, select] = useReviewSelection(repoId, onRouteChange)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
-  const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId)
+  const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId, commentStore)
   /** Momentary, so the button can say the clipboard actually took it. */
   const [copied, setCopied] = useState<string | null>(null)
   const [copyError, setCopyError] = useState<string | null>(null)

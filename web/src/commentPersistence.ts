@@ -205,28 +205,33 @@ export function createCommentPersistence(transport: CommentTransport) {
   }
 }
 
-export function useCommentPersistence(repoId: string | null) {
+export type CommentPersistence = ReturnType<typeof createCommentPersistence>
+
+export function createRepositoryCommentPersistence(repoId: string | null): CommentPersistence {
+  return createCommentPersistence({
+    save: async (comment, query, editing) => {
+      const response = await fetch(`/r/${repoId}/api/comments${query}`, {
+        method: editing ? 'PATCH' : 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(comment),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const body: { comment: ServedComment } = await response.json()
+      return body.comment
+    },
+    remove: async (id) => {
+      const response = await fetch(`/r/${repoId}/api/comments?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    },
+  })
+}
+
+export function useCommentPersistence(repoId: string | null, retained?: CommentPersistence) {
   const persistence = useMemo(
-    () =>
-      createCommentPersistence({
-        save: async (comment, query, editing) => {
-          const response = await fetch(`/r/${repoId}/api/comments${query}`, {
-            method: editing ? 'PATCH' : 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(comment),
-          })
-          if (!response.ok) throw new Error(`HTTP ${response.status}`)
-          const body: { comment: ServedComment } = await response.json()
-          return body.comment
-        },
-        remove: async (id) => {
-          const response = await fetch(`/r/${repoId}/api/comments?id=${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-          })
-          if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        },
-      }),
-    [repoId],
+    () => retained ?? createRepositoryCommentPersistence(repoId),
+    [repoId, retained],
   )
   return [
     useSyncExternalStore(persistence.subscribe, persistence.getSnapshot),

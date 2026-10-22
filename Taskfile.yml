@@ -68,6 +68,12 @@ tasks:
       - task: wails:build
       - python3 poc/wails/memory.py
 
+  test:desktop-tabs:
+    desc: Test desktop tab comments and context restoration in an isolated headless browser
+    cmds:
+      - task: build
+      - node test/desktopTabs.ts
+
   default:
     cmds:
       - task --list

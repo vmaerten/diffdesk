@@ -781,9 +781,7 @@ export function useReviewDiff({
       const control = path.find(
         (node): node is HTMLElement =>
           node instanceof HTMLElement &&
-          (node.hasAttribute('data-expand-up') ||
-            node.hasAttribute('data-expand-down') ||
-            node.hasAttribute('data-expand-all')),
+          (node.hasAttribute('data-expand-button') || node.hasAttribute('data-unmodified-lines')),
       )
       if (!control) return
       const separator = path.find(
@@ -802,7 +800,7 @@ export function useReviewDiff({
           ? 'down'
           : 'both'
       const index = Number(separator.dataset.expandIndex)
-      const count = direction === 'both' ? Number.MAX_SAFE_INTEGER : 20
+      const count = control.hasAttribute('data-expand-all-button') ? Number.MAX_SAFE_INTEGER : 20
       const previous = expansionsRef.current.find(
         (item) => item.path === file && item.index === index && item.direction === direction,
       )

@@ -4,6 +4,10 @@ import App from './App.tsx'
 import Icon from './Icon.tsx'
 import { releaseUrl } from './reviewSelection.ts'
 import type { ReviewSession, ReviewSessionHandle } from './reviewSession.ts'
+import {
+  createRepositoryCommentPersistence,
+  type CommentPersistence,
+} from './commentPersistence.ts'
 // Inlined so the browser build, which tree-shakes this module, carries no desktop CSS.
 import desktopStyles from './desktop.css?inline'
 
@@ -47,6 +51,8 @@ export default function DesktopApp() {
     void reply?.then(accept.current).catch((cause) => setError(String(cause)))
   })
   const sessions = useRef(new Map<string, ReviewSession>())
+  // Writes and retries outlive the mounted review, and are released when its tab closes.
+  const commentStores = useRef(new Map<string, CommentPersistence>())
   const sessionHandle = useRef<ReviewSessionHandle>(null)
   useEffect(() => {
     const api = window.go?.main.desktopApp
@@ -79,8 +85,14 @@ export default function DesktopApp() {
         void save().catch((cause) => setError(String(cause)))
       for (const id of sessions.current.keys())
         if (!next.tabs.some((tab) => tab.id === id)) sessions.current.delete(id)
+      for (const id of commentStores.current.keys())
+        if (!next.tabs.some((tab) => tab.id === id)) commentStores.current.delete(id)
       latest.current = next
       const active = next.tabs.find((tab) => tab.id === next.active)
+      if (active && !commentStores.current.has(active.id)) {
+        const repoId = new URL(active.route, location.href).pathname.split('/')[2] ?? null
+        commentStores.current.set(active.id, createRepositoryCommentPersistence(repoId))
+      }
       if (active && !sessions.current.has(active.id))
         sessions.current.set(
           active.id,
@@ -226,6 +238,7 @@ export default function DesktopApp() {
             key={active.id}
             session={sessions.current.get(active.id)}
             sessionHandle={sessionHandle}
+            commentStore={commentStores.current.get(active.id)}
             onRouteChange={routeChanged}
           />
         </div>
