@@ -3,16 +3,35 @@ version: '3'
 vars:
   AIR_VERSION: v1.62.0
 
+# Local build metadata shared by the CLI and desktop builds. Task ignores this
+# key; it only holds the YAML anchors.
+x-build-metadata:
+  version: &build-version
+    sh: node -p 'process.env.GHL_BUILD_VERSION ?? require("./package.json").version'
+  commit: &build-commit
+    sh: |
+      if [ "${GHL_BUILD_COMMIT+x}" ]; then
+        printf '%s' "$GHL_BUILD_COMMIT"
+      else
+        git rev-parse HEAD | tr -d '\n'
+        if [ -n "$(git status --porcelain --untracked-files=no)" ]; then printf '%s' '-dirty'; fi
+      fi
+  date: &build-date
+    sh: |
+      if [ "${SOURCE_DATE_EPOCH+x}" ]; then
+        case "$SOURCE_DATE_EPOCH" in ''|*[!0-9]*) echo 'Invalid SOURCE_DATE_EPOCH' >&2; exit 1;; esac
+        {{if eq OS "darwin"}}date -u -r "$SOURCE_DATE_EPOCH"{{else}}date -u -d "@$SOURCE_DATE_EPOCH"{{end}} +%Y-%m-%dT%H:%M:%S.000Z
+      else
+        date -u +%Y-%m-%dT%H:%M:%S.000Z
+      fi
+
 tasks:
   desktop:build:
     desc: Build the macOS desktop app
     vars:
-      LOCAL_BUILD_VERSION:
-        sh: node -p 'process.env.GHL_BUILD_VERSION ?? require("./package.json").version'
-      LOCAL_BUILD_COMMIT:
-        sh: git rev-parse HEAD
-      LOCAL_BUILD_DATE:
-        sh: git show -s --format=%cI HEAD
+      LOCAL_BUILD_VERSION: *build-version
+      LOCAL_BUILD_COMMIT: *build-commit
+      LOCAL_BUILD_DATE: *build-date
       # Preserve explicit GoReleaser values; task-local constants override CLI vars.
       BUILD_VERSION: '{{.BUILD_VERSION | default .LOCAL_BUILD_VERSION}}'
       BUILD_COMMIT: '{{.BUILD_COMMIT | default .LOCAL_BUILD_COMMIT}}'
@@ -27,7 +46,7 @@ tasks:
         msg: The desktop app currently targets macOS
       - sh: '[ "{{ARCH}}" = arm64 ]'
         msg: The desktop app currently targets Apple Silicon
-      - sh: '{{and (regexMatch `^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$` .BUILD_VERSION) (regexMatch `^[a-f0-9]{40}$` .BUILD_COMMIT) (regexMatch `^[0-9T:+.Z-]+$` .BUILD_DATE)}}'
+      - sh: '{{and (regexMatch `^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$` .BUILD_VERSION) (regexMatch `^[a-f0-9]{40}(-dirty)?$` .BUILD_COMMIT) (regexMatch `^[0-9T:+.Z-]+$` .BUILD_DATE)}}'
         msg: Invalid desktop build metadata
     cmds:
       - pnpm exec vite build --mode go-desktop --outDir ../desktop/assets
@@ -223,24 +242,9 @@ tasks:
   build:binary:
     internal: true
     vars:
-      BUILD_VERSION:
-        sh: node -p 'process.env.GHL_BUILD_VERSION ?? require("./package.json").version'
-      BUILD_COMMIT:
-        sh: |
-          if [ "${GHL_BUILD_COMMIT+x}" ]; then
-            printf '%s' "$GHL_BUILD_COMMIT"
-          else
-            git rev-parse HEAD | tr -d '\n'
-            if [ -n "$(git status --porcelain --untracked-files=no)" ]; then printf '%s' '-dirty'; fi
-          fi
-      BUILD_DATE:
-        sh: |
-          if [ "${SOURCE_DATE_EPOCH+x}" ]; then
-            case "$SOURCE_DATE_EPOCH" in ''|*[!0-9]*) echo 'Invalid SOURCE_DATE_EPOCH' >&2; exit 1;; esac
-            {{if eq OS "darwin"}}date -u -r "$SOURCE_DATE_EPOCH"{{else}}date -u -d "@$SOURCE_DATE_EPOCH"{{end}} +%Y-%m-%dT%H:%M:%S.000Z
-          else
-            date -u +%Y-%m-%dT%H:%M:%S.000Z
-          fi
+      BUILD_VERSION: *build-version
+      BUILD_COMMIT: *build-commit
+      BUILD_DATE: *build-date
       LDFLAGS: >-
         -s -w
         -X github.com/vmaerten/ghl/internal/app.version={{.BUILD_VERSION}}
