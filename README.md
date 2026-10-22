@@ -78,5 +78,5 @@ See the [development guide](./go/README.md#development) for prerequisites, ports
 - [Reviewing code](./docs/reviewing.md)
 - [Installation](./docs/installation.md) and [migration from Node](./docs/migration.md)
 - [Runtime, state and CLI](./go/README.md)
-- [Releases](./docs/releases.md) and [validation](./docs/validation.md)
+- [Releases](./docs/releases.md) and [validation](./docs/validation.md): `task release` builds, verifies and publishes a checked-out version tag. GitHub Actions runs it only for stable release tags; PRs and branch pushes do not run CI.
 - [Go proof of concept](./docs/go-poc.md)
