@@ -19,6 +19,7 @@ export default function CommentsPanel({
   onUpdate,
   onDelete,
   onRetry,
+  inline = false,
 }: {
   savedEditor?: RefObject<{ editing: string | null; draft: string }>
   open: boolean
@@ -34,6 +35,8 @@ export default function CommentsPanel({
   onUpdate: (comment: ServedComment, body: string) => void
   onDelete: (id: string) => void
   onRetry: (comment: ServedComment) => void
+  /** Set by the desktop app: a side panel beside the diff instead of a modal drawer. */
+  inline?: boolean
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [editing, setEditing] = useState<string | null>(savedEditor?.current.editing ?? null)
@@ -54,30 +57,17 @@ export default function CommentsPanel({
     return [...result]
   }, [comments])
   useEffect(() => {
+    if (inline) return
     if (open && !dialog.current?.open) dialog.current?.showModal()
     else if (!open && dialog.current?.open) dialog.current.close()
-  }, [open])
+  }, [inline, open])
   const update = (comment: ServedComment) => {
     if (!draft.trim()) return
     onUpdate(comment, draft.trim())
     setEditing(null)
   }
-  return (
-    <dialog
-      ref={dialog}
-      className="comments-panel"
-      id="comments-panel"
-      aria-labelledby="comments-title"
-      onCancel={onClose}
-      onClose={onClose}
-      onClick={(event) => {
-        if (
-          event.target === event.currentTarget &&
-          event.clientX < event.currentTarget.getBoundingClientRect().left
-        )
-          onClose()
-      }}
-    >
+  const content = (
+    <>
       <div className="comments-panel-head">
         <h2 id="comments-title">
           <Icon name="comment" /> Comments <span className="counter">{comments.length}</span>
@@ -87,7 +77,7 @@ export default function CommentsPanel({
           type="button"
           aria-label="Close comments"
           onClick={onClose}
-          autoFocus
+          autoFocus={!inline}
         >
           <Icon name="close" />
         </button>
@@ -196,6 +186,39 @@ export default function CommentsPanel({
             </section>
           ))}
       </div>
+    </>
+  )
+  if (inline)
+    return (
+      <aside
+        className="comments-panel inline"
+        id="comments-panel"
+        aria-labelledby="comments-title"
+        hidden={!open}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && !(event.target instanceof HTMLTextAreaElement)) onClose()
+        }}
+      >
+        {content}
+      </aside>
+    )
+  return (
+    <dialog
+      ref={dialog}
+      className="comments-panel"
+      id="comments-panel"
+      aria-labelledby="comments-title"
+      onCancel={onClose}
+      onClose={onClose}
+      onClick={(event) => {
+        if (
+          event.target === event.currentTarget &&
+          event.clientX < event.currentTarget.getBoundingClientRect().left
+        )
+          onClose()
+      }}
+    >
+      {content}
     </dialog>
   )
 }

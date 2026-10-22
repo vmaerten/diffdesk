@@ -109,9 +109,21 @@
             'Context anchor not restored',
           )
         }
-        if (!document.querySelector('.comments-panel[open]'))
+        if (!document.querySelector('.comments-panel:not([hidden])'))
           document.querySelector('.comments-trigger').click()
-        await wait(() => document.querySelector('.comments-panel[open]'), 'Panel did not open')
+        await wait(
+          () => document.querySelector('.comments-panel:not([hidden])'),
+          'Panel did not open',
+        )
+        // The panel sits beside the diff: the review's shortcuts still work.
+        if (!document.querySelector('.comment-composer')) {
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', bubbles: true }))
+          await wait(() => document.querySelector('.picker'), 'The comments panel blocks shortcuts')
+          document
+            .querySelector('.picker-backdrop')
+            .dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+          await wait(() => !document.querySelector('.picker'), 'Base picker did not close')
+        }
         check(
           document
             .querySelector('.comments-panel')
@@ -245,7 +257,7 @@
       )
       document.querySelector('.comments-trigger').click()
       await wait(
-        () => document.querySelector('.comments-panel[open] .comment-menu-items button'),
+        () => document.querySelector('.comments-panel:not([hidden]) .comment-menu-items button'),
         'Comment panel not populated',
       )
       document.querySelector('.comments-panel .comment-menu-items button').click()
