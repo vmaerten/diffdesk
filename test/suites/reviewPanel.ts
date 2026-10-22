@@ -186,11 +186,11 @@ export default {
     )
     check('revealing a comment preserves Viewed state', first.path in afterReveal.viewed)
     const clickRevealed = (label: string) =>
-      page.evaluate((label) => {
+      page.evaluate((text) => {
         const buttons = document.querySelectorAll<HTMLButtonElement>(
           '.diff [data-comment-id="panel-first"] header button, .diff .comment-composer footer button',
         )
-        ;[...buttons].find((button) => button.textContent?.trim() === label)?.click()
+        ;[...buttons].find((button) => button.textContent?.trim() === text)?.click()
       }, label)
     await clickRevealed('Edit')
     await page.waitForSelector('.diff .comment-composer textarea')
