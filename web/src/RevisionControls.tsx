@@ -1,10 +1,19 @@
 import type { Dispatch, SetStateAction } from 'react'
 import RefSelector from './RefSelector.tsx'
 import CommitSelector from './CommitSelector.tsx'
+import ScopeControls from './ScopeControls.tsx'
 import { GO_POC } from './capabilities.ts'
 import type { LoadedReviewDiff } from './useReviewDiff.tsx'
 
 export type Picker = 'base' | 'target' | 'commit'
+
+/** Why the diff is not simply the base against the working tree, when it is not. */
+export function revisionNote(data: LoadedReviewDiff | null, target: string | null): string | null {
+  if (data?.commit) return 'one commit — the base is not compared'
+  if (data && !data.target.workingTree)
+    return target ? 'reviewing a ref, working tree excluded' : 'working tree excluded'
+  return null
+}
 
 export default function RevisionControls({
   repoId,
@@ -39,6 +48,7 @@ export default function RevisionControls({
   onToggleCommitted: () => void
   onToggleUntracked: () => void
 }) {
+  const note = revisionNote(data, target)
   return (
     <div className="revision">
       <div className="toolbar-group compare-group">
@@ -153,57 +163,19 @@ export default function RevisionControls({
       <div className="toolbar-group scope-group">
         <span className="toolbar-label">Include</span>
         <div className="scope-controls">
-          {/* A state, not a command: it changes what the diff contains. */}
-          <label className="scope-check" title="Include the uncommitted work, staged or not">
-            <input
-              type="checkbox"
-              className="worktree"
-              // The server's answer, not this button's own state: in a commit or
-              // a ref view the working tree is out whatever the flag says, and a
-              // checked box there would claim the opposite.
-              checked={data?.target.workingTree ?? !committed}
-              onChange={onToggleCommitted}
-              // Already out of the diff there, and both cases say so themselves.
-              disabled={!data || target !== null || commit !== null}
-            />
-            <span>Working tree</span>
-          </label>
-
-          {!GO_POC && (
-            <label className="scope-check" title="Include the files git does not track yet">
-              <input
-                type="checkbox"
-                className="untracked"
-                checked={data?.untrackedIncluded ?? withUntracked}
-                onChange={onToggleUntracked}
-                // One condition for the four cases that leave nothing to include —
-                // a ref, a commit, the working tree out, a checkout with no stray
-                // file — because `buildPatch` empties the list in all of them.
-                disabled={!data || data.untracked.length === 0}
-              />
-              <span>
-                {/* The count is the whole reason the default is off: 2 changed
-                  files against 446 untracked ones is what it protects against,
-                  and it reads both ways — what is being hidden, or what was
-                  taken in. */}
-                Untracked
-                {data && data.untracked.length > 0 ? ` (${data.untracked.length})` : ''}
-              </span>
-            </label>
-          )}
+          <ScopeControls
+            data={data}
+            target={target}
+            commit={commit}
+            committed={committed}
+            withUntracked={withUntracked}
+            onToggleCommitted={onToggleCommitted}
+            onToggleUntracked={onToggleUntracked}
+          />
         </div>
       </div>
 
-      {data?.commit ? (
-        <span className="source revision-note">one commit — the base is not compared</span>
-      ) : (
-        data &&
-        !data.target.workingTree && (
-          <span className="source revision-note">
-            {target ? 'reviewing a ref, working tree excluded' : 'working tree excluded'}
-          </span>
-        )
-      )}
+      {note && <span className="source revision-note">{note}</span>}
     </div>
   )
 }
