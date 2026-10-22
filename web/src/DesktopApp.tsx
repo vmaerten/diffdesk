@@ -2,7 +2,8 @@ import { memo, useEffect, useRef, useState } from 'react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
 import { releaseUrl } from './reviewSelection.ts'
-import './desktop.css'
+// Inlined so the browser build, which tree-shakes this module, carries no desktop CSS.
+import desktopStyles from './desktop.css?inline'
 
 interface ReviewTab {
   id: string
@@ -102,6 +103,7 @@ export default function DesktopApp() {
   const active = state.tabs.find((tab) => tab.id === state.active)
   return (
     <div className="desktop-shell">
+      <style>{desktopStyles}</style>
       <div className="desktop-tabbar">
         <div role="tablist" aria-label="Open reviews" className="desktop-tabs">
           {state.tabs.map((tab, index) => {
