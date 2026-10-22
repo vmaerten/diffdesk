@@ -33,6 +33,12 @@ export function useAppearance(settings: AppearanceSettings): SyntaxTheme {
     return () => media.removeEventListener('change', update)
   }, [])
   const theme = activeTheme(settings, dark)
-  useEffect(() => applyTheme(theme), [theme])
+  // Wails v2 cannot set the window's appearance on macOS, so its material keeps
+  // following the system: translucent surfaces turn opaque when the two differ.
+  const differs = settings.appearance !== 'system' && (settings.appearance === 'dark') !== dark
+  useEffect(() => {
+    applyTheme(theme)
+    document.documentElement.dataset.material = differs ? 'opaque' : 'translucent'
+  }, [theme, differs])
   return themeById(theme).syntax
 }

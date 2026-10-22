@@ -20,6 +20,7 @@
   --primary-hover: #245ab3;
   --primary-text: #ffffff;
   --chrome-bg: rgb(246 246 244 / 72%);
+  --chrome-opaque: #ececea;
   --wash: rgb(127 127 127 / 10%);
   --wash-strong: rgb(127 127 127 / 18%);
 }
@@ -42,6 +43,7 @@
   --primary-hover: #3d7be0;
   --primary-text: #ffffff;
   --chrome-bg: rgb(30 30 30 / 70%);
+  --chrome-opaque: #262626;
   --wash: rgb(127 127 127 / 14%);
   --wash-strong: rgb(127 127 127 / 26%);
 }
@@ -51,6 +53,12 @@
   --diff-addition-gutter: color-mix(in srgb, var(--success) 16%, var(--bg));
   --diff-deletion: color-mix(in srgb, var(--danger) 9%, var(--bg));
   --diff-deletion-gutter: color-mix(in srgb, var(--danger) 16%, var(--bg));
+}
+/* The window material follows macOS whatever Settings forces (see
+   useAppearance): over a material of the other mode, translucency would only
+   muddy the chrome. */
+:root[data-theme][data-material='opaque'] {
+  --chrome-bg: var(--chrome-opaque);
 }
 body {
   font-size: 13px;
