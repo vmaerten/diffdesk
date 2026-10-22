@@ -21,8 +21,6 @@
   --primary-text: #ffffff;
   --chrome-bg: rgb(246 246 244 / 72%);
   --chrome-opaque: #ececea;
-  --sidebar-tint: rgb(255 255 255 / 34%);
-  --sidebar-opaque: #f3f3f1;
   --wash: rgb(127 127 127 / 10%);
   --wash-strong: rgb(127 127 127 / 18%);
 }
@@ -46,8 +44,6 @@
   --primary-text: #ffffff;
   --chrome-bg: rgb(30 30 30 / 70%);
   --chrome-opaque: #262626;
-  --sidebar-tint: rgb(255 255 255 / 6%);
-  --sidebar-opaque: #1e1e1e;
   --wash: rgb(127 127 127 / 14%);
   --wash-strong: rgb(127 127 127 / 26%);
 }
@@ -63,7 +59,6 @@
    muddy the chrome. */
 :root[data-theme][data-material='opaque'] {
   --chrome-bg: var(--chrome-opaque);
-  --sidebar-tint: var(--sidebar-opaque);
 }
 body {
   font-size: 13px;
@@ -249,7 +244,7 @@ body,
 .desktop-review .sidebar {
   --sidebar-bg: transparent;
   padding: 0;
-  background: var(--sidebar-tint);
+  background: var(--chrome-bg);
 }
 .desktop-review .sidebar-hidden :is(.sidebar, .resizer) {
   display: none;
