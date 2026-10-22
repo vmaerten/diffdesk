@@ -275,6 +275,7 @@ tasks:
       - node test/run.ts
       - node test/desktopTabs.ts
       - task: desktop:test
+      - task: test:release
 
   test:install:
     desc: Verify local Go installation, upgrades and state preservation
