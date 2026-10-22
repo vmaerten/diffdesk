@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type Ref,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useStableCallback } from '@pierre/diffs/react'
 import { useReviewDiff, type LoadedReviewDiff } from './useReviewDiff.tsx'
 import { useReviewSelection } from './reviewSelection.ts'
@@ -21,7 +22,10 @@ import { useViewedPersistence } from './viewedPersistence.ts'
 import { useTheme, type SyntaxTheme } from './theme.ts'
 import CommentsPanel from './CommentsPanel.tsx'
 import RepoBar from './RepoBar.tsx'
-import RevisionControls, { type Picker } from './RevisionControls.tsx'
+import RevisionControls, { revisionNote, type Picker } from './RevisionControls.tsx'
+import { untrackedToggleable, workingTreeToggleable } from './ScopeControls.tsx'
+import DesktopToolbar from './DesktopToolbar.tsx'
+import ReviewFooter from './ReviewFooter.tsx'
 import StackNav from './StackNav.tsx'
 import ReviewTools from './ReviewTools.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
@@ -61,6 +65,7 @@ export default function App({
   onRouteChange,
   syntaxTheme: appearanceSyntax,
   codeLineHeight,
+  toolbar,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -71,9 +76,12 @@ export default function App({
   syntaxTheme?: SyntaxTheme
   /** Set by the desktop app when its code size changes the row height. */
   codeLineHeight?: number
+  /** The desktop title bar node its review controls render into; the browser has none. */
+  toolbar?: HTMLElement | null
 } = {}) {
   const { theme, syntaxTheme: pickedSyntax, chooseTheme } = useTheme()
   const syntaxTheme = appearanceSyntax ?? pickedSyntax
+  const desktop = toolbar !== undefined
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
   const loadRef = useRef(0)
@@ -380,6 +388,31 @@ export default function App({
     stepSearch,
   ])
 
+  /** The desktop app's menu commands, which the browser does not have. */
+  const runCommand = useStableCallback((command: string) => {
+    if (command === 'unified' || command === 'split') setDiffStyle(command)
+    else if (command === 'working-tree') {
+      if (workingTreeToggleable(data, target, commit)) toggleCommitted()
+    } else if (command === 'untracked') {
+      if (untrackedToggleable(data)) toggleUntracked()
+    } else if (command === 'whitespace') select.toggleWhitespace()
+    else if (command === 'comments') setCommentsOpen((open) => !open)
+    else if (command === 'copy-comments') {
+      if (comments.length > 0) void copyComments()
+    } else if (command === 'next-file') navigate(1)
+    else if (command === 'previous-file') navigate(-1)
+    else if (command === 'base' || command === 'target' || command === 'commit') setPicking(command)
+    else if (command === 'viewed') {
+      if (activePath) void toggleViewed(activePath, !(activePath in viewed))
+    } else if (command === 'comment') commentSelection()
+  })
+  useEffect(() => {
+    if (!desktop) return
+    const listener = (event: Event) => runCommand((event as CustomEvent<string>).detail)
+    window.addEventListener('desktop:command', listener)
+    return () => window.removeEventListener('desktop:command', listener)
+  }, [desktop, runCommand])
+
   const resizeSidebar = useCallback((width: number) => {
     setSidebarWidth(width)
     localStorage.setItem('ghl.sidebarWidth', String(width))
@@ -389,21 +422,14 @@ export default function App({
 
   const stack = GO_POC ? null : (data?.base.stack ?? null)
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
+  const nextPath =
+    entries[entries.findIndex((entry) => entry.path === activePath) + 1]?.path ?? null
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <RepoBar
-          repoName={repoName}
-          repoPath={data?.repo.path}
-          theme={appearanceSyntax ? undefined : theme}
-          onThemeChange={chooseTheme}
-          refreshing={refreshing}
-          onRefresh={refresh}
-        />
-
-        <div className="reviewbar">
-          <RevisionControls
+    <div className="app" data-repo={repoName}>
+      {toolbar &&
+        createPortal(
+          <DesktopToolbar
             repoId={repoId}
             data={data}
             query={query}
@@ -411,7 +437,7 @@ export default function App({
             commit={commit}
             committed={committed}
             withUntracked={withUntracked}
-            baseSource={baseSource}
+            ignoreWhitespace={ignoreWhitespace}
             picking={picking}
             onPickingChange={setPicking}
             onPickBase={pickBase}
@@ -419,40 +445,82 @@ export default function App({
             onPickCommit={pickCommit}
             onToggleCommitted={toggleCommitted}
             onToggleUntracked={toggleUntracked}
+            onToggleWhitespace={select.toggleWhitespace}
+            diffStyle={diffStyle}
+            onDiffStyleChange={setDiffStyle}
+            commentCount={comments.length}
+            commentsOpen={commentsOpen}
+            onOpenComments={() => setCommentsOpen(true)}
+            copiedAll={copied === 'all'}
+            onCopyAll={() => copyComments()}
+          />,
+          toolbar,
+        )}
+      {!desktop && (
+        <header className="topbar">
+          <RepoBar
+            repoName={repoName}
+            repoPath={data?.repo.path}
+            theme={appearanceSyntax ? undefined : theme}
+            onThemeChange={chooseTheme}
+            refreshing={refreshing}
+            onRefresh={refresh}
           />
 
-          {data && (
-            <span className="stats" aria-label="Diff statistics">
-              <span className="file-count">{stats.files} files</span>
-              <span className="add">+{stats.additions}</span>
-              <span className="del">−{stats.deletions}</span>
-            </span>
-          )}
-        </div>
+          <div className="reviewbar">
+            <RevisionControls
+              repoId={repoId}
+              data={data}
+              query={query}
+              target={target}
+              commit={commit}
+              committed={committed}
+              withUntracked={withUntracked}
+              baseSource={baseSource}
+              picking={picking}
+              onPickingChange={setPicking}
+              onPickBase={pickBase}
+              onPickTarget={pickTarget}
+              onPickCommit={pickCommit}
+              onToggleCommitted={toggleCommitted}
+              onToggleUntracked={toggleUntracked}
+            />
 
-        {/* The stack is a third, conditional level: it tells a different story
+            {data && (
+              <span className="stats" aria-label="Diff statistics">
+                <span className="file-count">{stats.files} files</span>
+                <span className="add">+{stats.additions}</span>
+                <span className="del">−{stats.deletions}</span>
+              </span>
+            )}
+          </div>
+
+          {/* The stack is a third, conditional level: it tells a different story
             than the comparison controls above and should never disrupt them. */}
-        {stack && (
-          <StackNav stack={stack} headBranch={data?.head.branch} onPickTarget={pickTarget} />
-        )}
-      </header>
+          {stack && (
+            <StackNav stack={stack} headBranch={data?.head.branch} onPickTarget={pickTarget} />
+          )}
+        </header>
+      )}
 
-      <ReviewTools
-        filesOpen={filesOpen}
-        onToggleFiles={() => setFilesOpen((value) => !value)}
-        fileCount={stats.files}
-        viewedCount={viewedCount}
-        ignoreWhitespace={ignoreWhitespace}
-        onToggleWhitespace={select.toggleWhitespace}
-        diffStyle={diffStyle}
-        onDiffStyleChange={setDiffStyle}
-        loaded={data !== null}
-        commentCount={comments.length}
-        commentsOpen={commentsOpen}
-        onOpenComments={() => setCommentsOpen(true)}
-        copiedAll={copied === 'all'}
-        onCopyAll={() => copyComments()}
-      />
+      {!desktop && (
+        <ReviewTools
+          filesOpen={filesOpen}
+          onToggleFiles={() => setFilesOpen((value) => !value)}
+          fileCount={stats.files}
+          viewedCount={viewedCount}
+          ignoreWhitespace={ignoreWhitespace}
+          onToggleWhitespace={select.toggleWhitespace}
+          diffStyle={diffStyle}
+          onDiffStyleChange={setDiffStyle}
+          loaded={data !== null}
+          commentCount={comments.length}
+          commentsOpen={commentsOpen}
+          onOpenComments={() => setCommentsOpen(true)}
+          copiedAll={copied === 'all'}
+          onCopyAll={() => copyComments()}
+        />
+      )}
       <span className="visually-hidden" role="status">
         {copied ? 'Comments copied to clipboard' : ''}
       </span>
@@ -588,6 +656,19 @@ export default function App({
 
           {view}
         </div>
+      )}
+      {desktop && (
+        <ReviewFooter
+          data={data}
+          baseSource={baseSource}
+          note={revisionNote(data, target)}
+          stats={stats}
+          viewedCount={viewedCount}
+          stack={stack}
+          onPickTarget={pickTarget}
+          nextPath={nextPath}
+          onNext={() => navigate(1)}
+        />
       )}
     </div>
   )

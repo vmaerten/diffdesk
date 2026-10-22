@@ -1,6 +1,15 @@
 import { GO_POC } from './capabilities.ts'
 import type { LoadedReviewDiff } from './useReviewDiff.tsx'
 
+export const workingTreeToggleable = (
+  data: LoadedReviewDiff | null,
+  target: string | null,
+  commit: string | null,
+) => !!data && target === null && commit === null
+
+export const untrackedToggleable = (data: LoadedReviewDiff | null) =>
+  !!data && data.untracked.length > 0
+
 /** What the diff takes in beyond the commits: uncommitted work and untracked files. */
 export default function ScopeControls({
   data,
@@ -32,7 +41,7 @@ export default function ScopeControls({
           checked={data?.target.workingTree ?? !committed}
           onChange={onToggleCommitted}
           // Already out of the diff there, and both cases say so themselves.
-          disabled={!data || target !== null || commit !== null}
+          disabled={!workingTreeToggleable(data, target, commit)}
         />
         <span>Working tree</span>
       </label>
@@ -47,7 +56,7 @@ export default function ScopeControls({
             // One condition for the four cases that leave nothing to include —
             // a ref, a commit, the working tree out, a checkout with no stray
             // file — because `buildPatch` empties the list in all of them.
-            disabled={!data || data.untracked.length === 0}
+            disabled={!untrackedToggleable(data)}
           />
           <span>
             {/* The count is the whole reason the default is off: 2 changed

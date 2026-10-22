@@ -36,7 +36,7 @@
       const tabState = await window.go.main.desktopApp.Tabs()
       const expected = tabState.tabs.find((tab) => tab.id === tabId)
       await wait(
-        () => document.querySelector('.repo-name')?.textContent === expected.name,
+        () => document.querySelector('.desktop-review .app')?.dataset.repo === expected.name,
         'Wrong review rendered',
       )
       await wait(() => document.querySelector('.viewed-toggle input'), 'UI never rendered')
@@ -198,6 +198,12 @@
         'System appearance did not return',
       )
       check(root.dataset.material === 'translucent', 'Chrome stays opaque under System')
+      // A menu command reaches the review: Go dispatches it as an event.
+      const layout = () => document.querySelector('.segmented [aria-pressed="true"]')?.textContent
+      window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'split' }))
+      await wait(() => layout() === 'Split', 'Split command did not apply')
+      window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'unified' }))
+      await wait(() => layout() === 'Unified', 'Unified command did not apply')
       let contextRequests = 0
       const realFetch = window.fetch
       window.fetch = (...args) => {

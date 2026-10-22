@@ -6,6 +6,7 @@ import { releaseUrl } from './reviewSelection.ts'
 import { sameCapacity, splitTabs, tabSizes } from './tabOverflow.ts'
 import { useAppearance } from './appearance.ts'
 import SettingsSheet from './SettingsSheet.tsx'
+import ShortcutsSheet from './ShortcutsSheet.tsx'
 import {
   codeFontFamily,
   codeLineHeight,
@@ -60,6 +61,8 @@ export default function DesktopApp() {
   const [state, setState] = useState(EMPTY)
   const [settings, setSettings] = useState<DesktopSettings | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
   const syntaxTheme = useAppearance(settings ?? DEFAULT_SETTINGS)
   const latest = useRef(EMPTY)
   const [error, setError] = useState<string | null>(null)
@@ -172,8 +175,15 @@ export default function DesktopApp() {
         setSettings(DEFAULT_SETTINGS)
       })
     const openSettings = () => setSettingsOpen(true)
+    const openShortcuts = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === 'shortcuts') setShortcutsOpen(true)
+    }
     window.addEventListener('desktop:settings', openSettings)
-    return () => window.removeEventListener('desktop:settings', openSettings)
+    window.addEventListener('desktop:command', openShortcuts)
+    return () => {
+      window.removeEventListener('desktop:settings', openSettings)
+      window.removeEventListener('desktop:command', openShortcuts)
+    }
   }, [])
   // Each change applies to the latest settings: two controls used before a
   // render must not undo each other.
@@ -336,6 +346,7 @@ export default function DesktopApp() {
             </label>
           )}
         </div>
+        <div className="titlebar-review" ref={setToolbar} />
       </header>
       {error ? (
         <p role="alert" className="desktop-error">
@@ -360,6 +371,7 @@ export default function DesktopApp() {
               onRouteChange={routeChanged}
               syntaxTheme={syntaxTheme}
               codeLineHeight={codeLineHeight(settings.codeSize)}
+              toolbar={toolbar}
             />
           )}
         </div>
@@ -372,6 +384,7 @@ export default function DesktopApp() {
           </button>
         </div>
       )}
+      <ShortcutsSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       {settings && (
         <SettingsSheet
           open={settingsOpen}
