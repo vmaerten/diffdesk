@@ -60,8 +60,8 @@ bundle need no Node, pnpm, Task or Go. No Caddy, DNS or proxy setup is required.
 ## Release archive
 
 `task release:snapshot` invokes GoReleaser OSS to build the CLI and desktop,
-package `ghl-desktop_<version>_darwin_arm64.zip` beside the CLI tarball and
-checksum both in `go/dist/release/checksums.txt`. The ZIP contains the complete
+package `ghl-desktop_<version>_darwin_arm64.zip` beside the four CLI tarballs and
+checksum all five in `go/dist/release/checksums.txt`. The ZIP contains the complete
 `ghl Desktop.app`, the project MIT license and notices for the embedded frontend,
 Go standard library and linked Go dependencies. Version and commit metadata
 are checked against the release in both the bundle and native runtime.
@@ -69,7 +69,7 @@ are checked against the release in both the bundle and native runtime.
 Extract the ZIP and move `ghl Desktop.app` to `/Applications`. The archive has
 free ad hoc signing, with no Apple notarisation. macOS may require a first-launch
 exception after download. No automatic quarantine removal or desktop mise
-installer is included in this layer. See the [release guide](../docs/releases.md)
+installer is included. See the [release guide](../docs/releases.md)
 for local verification and manual publication. Nothing is published by the build.
 
 ## What is preserved

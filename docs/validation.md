@@ -48,7 +48,7 @@ Run all relevant local checks before publishing. These checks are not enforced b
 
 ## Platform validation
 
-Build all four archives with `task release:snapshot`. `release:verify` checks all four checksums, archive layouts, licenses and Go build settings. Run the full `release:acceptance` and `release:mise` suites once on macOS ARM64.
+Build the four CLI archives and the desktop ZIP with `task release:snapshot`. `release:verify` checks all five checksums, archive layouts, licenses and build settings. Run the full `release:acceptance` and `release:mise` suites once on macOS ARM64.
 
 For each additional target, copy the built archives and metadata into the same checkout on that OS/architecture and run:
 
