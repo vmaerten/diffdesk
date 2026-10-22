@@ -70,18 +70,16 @@ export default function DesktopApp() {
     accept.current = update
     const unsubscribe = runtime.EventsOn('desktop:tabs', update)
     apply(api.Tabs())
-    const selectionChanged = () => {
-      const active = latest.current.tabs.find((tab) => tab.id === latest.current.active)
-      const route = location.pathname + location.search
-      if (active && active.route !== route) apply(api.UpdateTabURL(active.id, route))
-    }
-    window.addEventListener('desktop:selection', selectionChanged)
     return () => {
       disposed = true
       unsubscribe()
-      window.removeEventListener('desktop:selection', selectionChanged)
     }
   }, [apply])
+  const routeChanged = useStableCallback((route: string) => {
+    const active = latest.current.tabs.find((tab) => tab.id === latest.current.active)
+    if (active && active.route !== route)
+      apply(window.go?.main.desktopApp.UpdateTabURL(active.id, route))
+  })
   const activate = (id: string) => apply(window.go?.main.desktopApp.ActivateTab(id))
   const close = (id: string) => apply(window.go?.main.desktopApp.CloseTab(id))
   const open = () => {
@@ -163,7 +161,7 @@ export default function DesktopApp() {
           aria-labelledby={`review-tab-${active.id}`}
           data-active-tab={active.id}
         >
-          <Review key={active.id} />
+          <Review key={active.id} onRouteChange={routeChanged} />
         </div>
       ) : (
         <div className="desktop-empty">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { useStableCallback } from '@pierre/diffs/react'
 
 interface SelectionAdapter {
   replaceUrl: (url: URL) => void
@@ -101,11 +102,15 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
   }
 }
 
-export function useReviewSelection(repoId: string | null) {
+export function useReviewSelection(repoId: string | null, onRouteChange?: (route: string) => void) {
+  const routeChanged = useStableCallback((route: string) => onRouteChange?.(route))
   const selection = useMemo(
     () =>
       createReviewSelection(new URL(location.href), {
-        replaceUrl: (url) => history.replaceState(null, '', url),
+        replaceUrl: (url) => {
+          history.replaceState(null, '', url)
+          routeChanged(url.pathname + url.search)
+        },
         rememberBase: async (base, target) => {
           const response = await fetch(`/r/${repoId}/api/base`, {
             method: 'POST',
@@ -115,7 +120,7 @@ export function useReviewSelection(repoId: string | null) {
           if (!response.ok) throw new Error(`HTTP ${response.status}`)
         },
       }),
-    [repoId],
+    [repoId, routeChanged],
   )
   useEffect(() => {
     selection.setActive(true)
