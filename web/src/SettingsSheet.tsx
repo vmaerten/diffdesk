@@ -45,7 +45,7 @@ export default function SettingsSheet({
 }: {
   open: boolean
   settings: DesktopSettings
-  onChange: (settings: DesktopSettings) => void
+  onChange: (patch: Partial<DesktopSettings>) => void
   onClose: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
@@ -57,7 +57,6 @@ export default function SettingsSheet({
   const [other, setOther] = useState(!listed)
   const [draftFont, setDraftFont] = useState(listed ? '' : settings.codeFont)
   const available = useMemo(() => installed(settings.codeFont), [settings.codeFont])
-  const change = (patch: Partial<DesktopSettings>) => onChange({ ...settings, ...patch })
 
   return (
     <dialog
@@ -82,7 +81,7 @@ export default function SettingsSheet({
                   key={value}
                   type="button"
                   aria-pressed={settings.appearance === value}
-                  onClick={() => change({ appearance: value })}
+                  onClick={() => onChange({ appearance: value })}
                 >
                   <span className={`appearance-thumb ${value}`} aria-hidden="true" />
                   {label}
@@ -99,7 +98,7 @@ export default function SettingsSheet({
                 value={settings[mode]}
                 onChange={(event) => {
                   const theme = event.target.value as ThemeId
-                  change(mode === 'light' ? { light: theme } : { dark: theme })
+                  onChange(mode === 'light' ? { light: theme } : { dark: theme })
                 }}
               >
                 {THEMES.filter((theme) => theme.mode === mode).map((theme) => (
@@ -128,7 +127,7 @@ export default function SettingsSheet({
               onChange={(event) => {
                 const font = event.target.value
                 setOther(font === 'other')
-                if (font !== 'other') change({ codeFont: font })
+                if (font !== 'other') onChange({ codeFont: font })
               }}
             >
               {CODE_FONTS.map((font) => (
@@ -150,7 +149,7 @@ export default function SettingsSheet({
                 onChange={(event) => {
                   setDraftFont(event.target.value)
                   const font = event.target.value.trim()
-                  if (isFontName(font)) change({ codeFont: font })
+                  if (isFontName(font)) onChange({ codeFont: font })
                 }}
               />
             </label>
@@ -162,7 +161,7 @@ export default function SettingsSheet({
                 type="button"
                 aria-label="Smaller"
                 disabled={settings.codeSize <= CODE_SIZE.min}
-                onClick={() => change({ codeSize: settings.codeSize - 1 })}
+                onClick={() => onChange({ codeSize: settings.codeSize - 1 })}
               >
                 −
               </button>
@@ -171,7 +170,7 @@ export default function SettingsSheet({
                 type="button"
                 aria-label="Larger"
                 disabled={settings.codeSize >= CODE_SIZE.max}
-                onClick={() => change({ codeSize: settings.codeSize + 1 })}
+                onClick={() => onChange({ codeSize: settings.codeSize + 1 })}
               >
                 +
               </button>

@@ -179,18 +179,24 @@ export default function DesktopApp() {
     style.setProperty('--code-size', `${settings.codeSize}px`)
     style.setProperty('--code-line-height', `${codeLineHeight(settings.codeSize)}px`)
   }, [settings])
+  // Each change applies to the latest settings: two controls used before a
+  // render must not undo each other.
+  const settingsChanged = useRef(false)
+  const changeSettings = (patch: Partial<DesktopSettings>) => {
+    settingsChanged.current = true
+    setSettings((current) => current && { ...current, ...patch })
+  }
   // Saved once changes settle: typing a font name would otherwise write, and
-  // race, on every keystroke.
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const changeSettings = (next: DesktopSettings) => {
-    setSettings(next)
-    clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => {
+  // race, on every keystroke. Loading them is not a change.
+  useEffect(() => {
+    if (!settings || !settingsChanged.current) return
+    const timer = setTimeout(() => {
       void window.go?.main.desktopApp
-        .SaveSettings(JSON.stringify(next))
+        .SaveSettings(JSON.stringify(settings))
         .catch((cause) => setError(String(cause)))
     }, 300)
-  }
+    return () => clearTimeout(timer)
+  }, [settings])
   const routeChanged = useStableCallback((route: string) => {
     const active = latest.current.tabs.find((tab) => tab.id === latest.current.active)
     if (active && active.route !== route)
