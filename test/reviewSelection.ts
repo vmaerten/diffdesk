@@ -149,6 +149,7 @@ export async function runReviewSelection(check: Check): Promise<void> {
   const pendingFromClosedTab = selection.pickBase('main', 'release')
   await Promise.resolve()
   selection.setActive(false)
+  url = new URL('http://localhost/r/next?target=other')
   const beforeClose = url.href
   release()
   await pendingFromClosedTab
