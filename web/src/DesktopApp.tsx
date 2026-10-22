@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react'
+import { useStableCallback } from '@pierre/diffs/react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
 import { releaseUrl } from './reviewSelection.ts'
@@ -39,6 +40,9 @@ export default function DesktopApp() {
   const latest = useRef(EMPTY)
   const [error, setError] = useState<string | null>(null)
   const accept = useRef<(state: Tabs) => void>(() => {})
+  const apply = useStableCallback((reply: Promise<Tabs> | undefined) => {
+    void reply?.then(accept.current).catch((cause) => setError(String(cause)))
+  })
   useEffect(() => {
     const api = window.go?.main.desktopApp
     const runtime = window.runtime
@@ -65,18 +69,11 @@ export default function DesktopApp() {
     }
     accept.current = update
     const unsubscribe = runtime.EventsOn('desktop:tabs', update)
-    void api
-      .Tabs()
-      .then(update)
-      .catch((cause) => setError(String(cause)))
+    apply(api.Tabs())
     const selectionChanged = () => {
       const active = latest.current.tabs.find((tab) => tab.id === latest.current.active)
       const route = location.pathname + location.search
-      if (active && active.route !== route)
-        void api
-          .UpdateTabURL(active.id, route)
-          .then(update)
-          .catch((cause) => setError(String(cause)))
+      if (active && active.route !== route) apply(api.UpdateTabURL(active.id, route))
     }
     window.addEventListener('desktop:selection', selectionChanged)
     return () => {
@@ -84,19 +81,9 @@ export default function DesktopApp() {
       unsubscribe()
       window.removeEventListener('desktop:selection', selectionChanged)
     }
-  }, [])
-  const activate = (id: string) => {
-    void window.go?.main.desktopApp
-      .ActivateTab(id)
-      .then(accept.current)
-      .catch((cause) => setError(String(cause)))
-  }
-  const close = (id: string) => {
-    void window.go?.main.desktopApp
-      .CloseTab(id)
-      .then(accept.current)
-      .catch((cause) => setError(String(cause)))
-  }
+  }, [apply])
+  const activate = (id: string) => apply(window.go?.main.desktopApp.ActivateTab(id))
+  const close = (id: string) => apply(window.go?.main.desktopApp.CloseTab(id))
   const open = () => {
     void window.go?.main.desktopApp.OpenRepository().catch((cause) => setError(String(cause)))
   }
