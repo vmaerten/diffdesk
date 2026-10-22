@@ -64,7 +64,7 @@ The target defaults to the current host. To exercise the Intel archive under Ros
 GHL_TEST_TARGET=darwin_amd64 GHL_TEST_MISE=/path/to/intel/mise task release:smoke
 ```
 
-Reports retain the target and `scope: "smoke"` so a smoke check cannot be confused with full acceptance. Translated execution establishes executable coverage, not native hardware or performance coverage. Re-run OS-specific tests when changing filesystem handling, process lifecycle or browser opening on that OS. No hosted CI or dedicated platform tool installers are added.
+Reports retain the target and `scope: "smoke"` so a smoke check cannot be confused with full acceptance. Translated execution establishes executable coverage, not native hardware or performance coverage. Re-run OS-specific tests when changing filesystem handling, process lifecycle or browser opening on that OS. Apart from the macOS ARM64 release job, no hosted CI or dedicated platform tool installers are added.
 
 Platform follow-ups: [macOS Intel #121](https://github.com/vmaerten/ghl/issues/121), [Linux #122](https://github.com/vmaerten/ghl/issues/122). [Windows #123](https://github.com/vmaerten/ghl/issues/123) remains outside the release matrix. The existing benchmark is macOS ARM64-specific.
 
