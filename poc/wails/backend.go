@@ -76,20 +76,11 @@ func (b *reviewBackend) open(ctx context.Context, request launch) (string, error
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	defer client.CloseIdleConnections()
 	payload, _ := json.Marshal(map[string]string{"repoPath": request.repo})
-	req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("http://127.0.0.1:%d/api/repos", b.port), bytes.NewReader(payload))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	response, err := client.Do(req)
+	response, err := b.call(ctx, client, "POST", "/api/repos", bytes.NewReader(payload))
 	if err != nil {
 		return "", err
 	}
 	defer response.Body.Close()
-	if response.StatusCode != 200 {
-		body, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
-		return "", fmt.Errorf("%s", strings.TrimSpace(string(body)))
-	}
 	var registered struct{ ID string }
 	if err := json.NewDecoder(response.Body).Decode(&registered); err != nil {
 		return "", err
@@ -108,23 +99,36 @@ func (b *reviewBackend) open(ctx context.Context, request launch) (string, error
 	selection := optionalQuery(query.Encode())
 	// Validate with the runtime's existing comparison rules before replacing the
 	// current review. No daemon/client launcher and no executable-hash race on rebuild.
-	req, err = http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://127.0.0.1:%d%s/api/diff%s", b.port, prefix, selection), nil)
-	if err != nil {
-		return "", err
-	}
-	response, err = client.Do(req)
+	response, err = b.call(ctx, client, "GET", prefix+"/api/diff"+selection, nil)
 	if err != nil {
 		return "", err
 	}
 	defer response.Body.Close()
-	if response.StatusCode != 200 {
-		body, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
-		return "", fmt.Errorf("%s", strings.TrimSpace(string(body)))
-	}
 	if _, err := io.Copy(io.Discard, response.Body); err != nil {
 		return "", err
 	}
 	return prefix + "/" + selection, nil
+}
+
+// call returns the runtime's error text as the error for any non-200 reply.
+func (b *reviewBackend) call(ctx context.Context, client *http.Client, method, path string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("http://127.0.0.1:%d%s", b.port, path), body)
+	if err != nil {
+		return nil, err
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	response, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode != 200 {
+		defer response.Body.Close()
+		text, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
+		return nil, fmt.Errorf("%s", strings.TrimSpace(string(text)))
+	}
+	return response, nil
 }
 
 func optionalQuery(query string) string {

@@ -119,6 +119,10 @@ func (d *desktopApp) secondLaunch(data options.SecondInstanceData) {
 		d.showError(err)
 		return
 	}
+	d.enqueue(request)
+}
+
+func (d *desktopApp) enqueue(request launch) {
 	select {
 	case d.requests <- request:
 	default:
@@ -157,11 +161,7 @@ func (d *desktopApp) chooseRepository() {
 		return
 	}
 	if path != "" {
-		select {
-		case d.requests <- launch{repo: path}:
-		default:
-			d.showError(fmt.Errorf("too many pending openings; retry"))
-		}
+		d.enqueue(launch{repo: path})
 	}
 }
 
