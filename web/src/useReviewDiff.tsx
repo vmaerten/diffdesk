@@ -112,10 +112,10 @@ export function useReviewDiff({
   const [activeIndex, setActiveIndex] = useState(0)
   const [revealedPath, setRevealedPath] = useState<string | null>(null)
   const [commentTarget, setCommentTarget] = useState<ServedComment | null>(null)
-  const [composer, setComposer] = useState<Composer | null>(session?.composer ?? null)
   useEffect(() => {
-    setRevealedPath(composer?.path ?? null)
-  }, [viewed, data?.range, composer?.path])
+    setRevealedPath(null)
+  }, [viewed, data?.range])
+  const [composer, setComposer] = useState<Composer | null>(session?.composer ?? null)
   const collapseStorageKey = `ghl.collapsed-comments:${repoId}`
   const [collapsedComments, setCollapsedComments] = useState<Set<string>>(() => {
     try {
@@ -307,7 +307,9 @@ export function useReviewDiff({
   const items = useMemo(
     () =>
       allItems.map((item): DiffItem => {
-        const collapsed = item.path in viewed && item.path !== revealedPath
+        // An open composer keeps its file unfolded, so a draft never sits hidden.
+        const collapsed =
+          item.path in viewed && item.path !== revealedPath && item.path !== composer?.path
         // The pane re-reads an item only when its `version` moves; anything
         // reaching it *through* the item — `collapsed`, `annotations` — is
         // otherwise accepted and then ignored, silently, which is how a file
@@ -328,7 +330,7 @@ export function useReviewDiff({
           ? { ...item, collapsed, version, annotations: collapsed ? [] : [{ lineNumber: 0 }] }
           : { ...item, collapsed, version, annotations: annotations.byPath.get(item.path) }
       }),
-    [allItems, viewed, annotations, revealedPath, foldedByPath],
+    [allItems, viewed, annotations, revealedPath, composer?.path, foldedByPath],
   )
 
   const commentCounts = useMemo(() => {
