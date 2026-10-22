@@ -53,8 +53,15 @@ tasks:
 
   desktop:test:
     desc: Test desktop argument handling, shared backend and origin boundary
+    platforms: [darwin]
     cmds:
       - CGO_ENABLED=1 CGO_LDFLAGS='-framework UniformTypeIdentifiers' go -C desktop test -race ./...
+
+  desktop:vet:
+    desc: Run Go vet on the desktop module
+    platforms: [darwin]
+    cmds:
+      - CGO_ENABLED=1 CGO_LDFLAGS='-framework UniformTypeIdentifiers' go -C desktop vet ./...
 
   desktop:smoke:
     desc: Exercise the real native window, clipboard and instance reuse on fixtures
@@ -231,6 +238,8 @@ tasks:
       - node test/goRevisions.ts
       - node test/goImages.ts
       - node test/run.ts
+      - node test/desktopTabs.ts
+      - task: desktop:test
 
   test:install:
     desc: Verify local Go installation, upgrades and state preservation
@@ -262,6 +271,7 @@ tasks:
       - pnpm lint
       - pnpm format:check
       - task: vet
+      - task: desktop:vet
 
   release:check:
     desc: Validate the GoReleaser configuration
