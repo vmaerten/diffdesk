@@ -62,7 +62,7 @@ bundle need no Node, pnpm, Task or Go. No Caddy, DNS or proxy setup is required.
 The editable icon is `icon/AppIcon.svg`; `icon/AppIcon.png` is its transparent
 1024px export. It extends the browser favicon's green/red diff language into a
 macOS document mark. Export an updated SVG as a transparent 1024×1024 PNG when
-changing the design. `task desktop:icon` uses only macOS `sips` and `iconutil` to
+changing the design. The desktop build uses only macOS `sips` and `iconutil` to
 create the 16–1024px normal/Retina icon sizes. The desktop build copies the ICNS
 into `Contents/Resources` before signing; the release ZIP retains that resource
 and checks its bundle declaration and container.

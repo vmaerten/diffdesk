@@ -72,7 +72,9 @@ tasks:
       - codesign --force --deep --sign - '.task/desktop/ghl Desktop.app'
 
   desktop:icon:
-    desc: Generate the macOS icon from the committed 1024px PNG
+    internal: true
+    sources: [desktop/icon/AppIcon.png]
+    generates: [.task/desktop/AppIcon.icns]
     cmds:
       - mkdir -p .task/desktop/AppIcon.iconset
       - |
