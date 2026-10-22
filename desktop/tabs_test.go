@@ -7,21 +7,21 @@ import (
 
 func TestTabsComparisonIdentityAndClosing(t *testing.T) {
 	var tabs reviewTabs
-	first := tabs.open("/r/repo-1234567/?base=main")
+	first := tabs.open("/r/repo-1234567/?base=main", "")
 	id := first.Active
 	changed, err := tabs.update(id, "/r/repo-1234567/?base=main&committed=1&commit=abcd")
 	if err != nil {
 		t.Fatal(err)
 	}
-	duplicate := tabs.open("/r/repo-1234567/?base=main")
+	duplicate := tabs.open("/r/repo-1234567/?base=main", "")
 	if len(duplicate.Tabs) != 1 || duplicate.Active != id || duplicate.Tabs[0].Route != changed.Tabs[0].Route {
 		t.Fatalf("duplicate reset the existing review: %+v", duplicate)
 	}
-	other := tabs.open("/r/repo-1234567/?base=other")
+	other := tabs.open("/r/repo-1234567/?base=other", "")
 	if len(other.Tabs) != 2 || other.Active == id {
 		t.Fatal(other)
 	}
-	last := tabs.open("/r/another-7654321/")
+	last := tabs.open("/r/another-7654321/", "")
 	middle := tabs.close(other.Active)
 	if middle.Active != last.Active || len(middle.Tabs) != 2 {
 		t.Fatal(middle)
@@ -34,7 +34,7 @@ func TestTabsComparisonIdentityAndClosing(t *testing.T) {
 	if empty.Active != "" || len(empty.Tabs) != 0 {
 		t.Fatal(empty)
 	}
-	reopened := tabs.open("/r/repo-1234567/?base=main")
+	reopened := tabs.open("/r/repo-1234567/?base=main", "")
 	if reopened.Active == id {
 		t.Fatal("closed IDs must not be reused by delayed events")
 	}
@@ -47,8 +47,8 @@ func TestTabsComparisonIdentityAndClosing(t *testing.T) {
 
 func TestTabsRejectCrossRepositoryAndStaleUpdates(t *testing.T) {
 	var tabs reviewTabs
-	first := tabs.open("/r/first-1234567/?base=main")
-	second := tabs.open("/r/second-1234567/?base=main")
+	first := tabs.open("/r/first-1234567/?base=main", "")
+	second := tabs.open("/r/second-1234567/?base=main", "")
 	state, err := tabs.update(first.Active, "/r/first-1234567/?target=late")
 	if err != nil || state.Revision != second.Revision {
 		t.Fatalf("stale update changed tabs: %+v %v", state, err)
@@ -65,7 +65,7 @@ func TestConcurrentTabOpenDoesNotDuplicate(t *testing.T) {
 	var group sync.WaitGroup
 	for i := 0; i < 50; i++ {
 		group.Add(1)
-		go func() { defer group.Done(); tabs.open("/r/shared-1234567/?base=main") }()
+		go func() { defer group.Done(); tabs.open("/r/shared-1234567/?base=main", "") }()
 	}
 	group.Wait()
 	if len(tabs.snapshot().Tabs) != 1 {
@@ -75,13 +75,13 @@ func TestConcurrentTabOpenDoesNotDuplicate(t *testing.T) {
 
 func TestSavedViewsAreIsolatedAndNotResurrected(t *testing.T) {
 	var tabs reviewTabs
-	state := tabs.open("/r/first-1234567/")
+	state := tabs.open("/r/first-1234567/", "")
 	id := state.Active
 	view := `{"version":1,"drafts":[["line","unsaved text"]],"scrollTop":350}`
 	if err := tabs.saveView(id, view); err != nil {
 		t.Fatal(err)
 	}
-	tabs.open("/r/second-1234567/")
+	tabs.open("/r/second-1234567/", "")
 	state = tabs.activate(id)
 	if string(state.Tabs[0].View) != view {
 		t.Fatal("draft was lost")

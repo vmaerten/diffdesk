@@ -71,22 +71,23 @@ func (b *reviewBackend) close() {
 	})
 }
 
-func (b *reviewBackend) open(ctx context.Context, request launch) (string, error) {
+// open registers the repository and returns its review route and top-level path.
+func (b *reviewBackend) open(ctx context.Context, request launch) (route, path string, err error) {
 	client := &http.Client{Transport: &http.Transport{Proxy: nil},
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	defer client.CloseIdleConnections()
 	payload, _ := json.Marshal(map[string]string{"repoPath": request.repo})
 	response, err := b.call(ctx, client, "POST", "/api/repos", bytes.NewReader(payload))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer response.Body.Close()
-	var registered struct{ ID string }
+	var registered struct{ ID, Path string }
 	if err := json.NewDecoder(response.Body).Decode(&registered); err != nil {
-		return "", err
+		return "", "", err
 	}
 	if registered.ID == "" {
-		return "", fmt.Errorf("missing repository identity")
+		return "", "", fmt.Errorf("missing repository identity")
 	}
 	query := url.Values{}
 	if request.base != "" {
@@ -101,13 +102,13 @@ func (b *reviewBackend) open(ctx context.Context, request launch) (string, error
 	// current review. No daemon/client launcher and no executable-hash race on rebuild.
 	response, err = b.call(ctx, client, "GET", prefix+"/api/diff"+selection, nil)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer response.Body.Close()
 	if _, err := io.Copy(io.Discard, response.Body); err != nil {
-		return "", err
+		return "", "", err
 	}
-	return prefix + "/" + selection, nil
+	return prefix + "/" + selection, registered.Path, nil
 }
 
 // call returns the runtime's error text as the error for any non-200 reply.

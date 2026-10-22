@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -11,6 +13,7 @@ import (
 type reviewTab struct {
 	ID    string          `json:"id"`
 	Name  string          `json:"name"`
+	Path  string          `json:"path"`
 	Route string          `json:"route"`
 	View  json.RawMessage `json:"view,omitempty"`
 }
@@ -48,7 +51,7 @@ func (t *reviewTabs) snapshot() tabSnapshot {
 	defer t.mu.Unlock()
 	return t.snapshotLocked()
 }
-func (t *reviewTabs) open(route string) tabSnapshot {
+func (t *reviewTabs) open(route, path string) tabSnapshot {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	key := comparisonKey(route)
@@ -73,7 +76,7 @@ func (t *reviewTabs) open(route string) tabSnapshot {
 	if len(name) > 8 {
 		name = name[:len(name)-8]
 	}
-	t.state.Tabs = append(t.state.Tabs, reviewTab{ID: id, Name: name, Route: route})
+	t.state.Tabs = append(t.state.Tabs, reviewTab{ID: id, Name: name, Path: path, Route: route})
 	t.state.Active = id
 	t.state.Revision++
 	return t.snapshotLocked()
@@ -166,3 +169,12 @@ func (t *reviewTabs) saveView(id, raw string) error {
 	return nil // A closed tab is never resurrected by a delayed save.
 }
 func (d *desktopApp) SaveTabView(id, raw string) error { return d.tabs.saveView(id, raw) }
+
+// homeRelative shortens a path under the home directory to the familiar ~/… form.
+func homeRelative(path string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || !strings.HasPrefix(path, home+string(filepath.Separator)) {
+		return path
+	}
+	return "~" + strings.TrimPrefix(path, home)
+}

@@ -138,13 +138,13 @@ func (d *desktopApp) process(ctx context.Context) {
 			return
 		case request := <-d.requests:
 			work, cancel := context.WithTimeout(ctx, 30*time.Second)
-			route, err := d.backend.open(work, request)
+			route, path, err := d.backend.open(work, request)
 			cancel()
 			if err != nil {
 				d.showError(err)
 				continue
 			}
-			d.publish(d.tabs.open(route))
+			d.publish(d.tabs.open(route, homeRelative(path)))
 			runtime.WindowUnminimise(ctx)
 			runtime.Show(ctx)
 		}
