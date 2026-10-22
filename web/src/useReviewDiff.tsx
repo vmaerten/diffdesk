@@ -617,9 +617,16 @@ export function useReviewDiff({
       layout: { paddingTop: 16, paddingBottom: 16, gap: 16 },
       stickyHeaders: true,
       // File items are image previews; only text diff items have source rows.
+      // The --file-header-* variables let the desktop app turn files into cards;
+      // without them the browser keeps its header.
       unsafeCSS: `
         [data-file] [data-line], [data-file] [data-gutter] { display: none; }
-        [data-diffs-header] { border-radius: 6px 6px 0 0; background: var(--bg-raised); }
+        [data-diffs-header] {
+          border-radius: var(--file-header-radius, 6px 6px 0 0);
+          background: var(--file-header-bg, var(--bg-raised));
+          border-bottom: var(--file-header-border, 0);
+        }
+        [data-diffs-header][data-sticky] { background-color: var(--file-header-bg, var(--diffs-bg)); }
       `,
       // Both gutter APIs are declared mutually exclusive and the library throws
       // on the pair, so this is the native "+" button, not a rendered one.
