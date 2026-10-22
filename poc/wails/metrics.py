@@ -44,7 +44,7 @@ def processes():
 def sample(root):
     table = processes()
     owned = {root}
-    # Descendants cover Electron/TinyJS; responsibility covers XPC WebKit tasks
+    # Descendants cover child processes; responsibility covers XPC WebKit tasks
     # whose parent is launchd rather than the application process.
     for _ in range(len(table)):
         extra = {pid for pid, row in table.items() if row['parent'] in owned}

@@ -717,7 +717,6 @@ export function useReviewDiff({
     [viewed, toggleViewed],
   )
 
-  // CodeView measures its own scroller, which needs a real height and overflow.
   const replayExpansions = useStableCallback(() => {
     for (const item of viewRef.current?.getInstance()?.getRenderedItems() ?? []) {
       if (item.type !== 'diff') continue
@@ -835,6 +834,7 @@ export function useReviewDiff({
       expansions: expansionsRef.current.map((item) => ({ ...item })),
     }
   })
+  // CodeView measures its own scroller, which needs a real height and overflow.
   // Keep it first in .diff: a conditional sibling before it would remount the
   // renderer when appearing or disappearing, losing scroll and expanded context.
   const view = (
