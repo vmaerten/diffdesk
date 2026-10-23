@@ -144,7 +144,7 @@ func (d *desktopApp) process(ctx context.Context) {
 				d.showError(err)
 				continue
 			}
-			d.publish(d.tabs.open(route, homeRelative(path)))
+			d.publish(d.tabs.open(route, path))
 			runtime.WindowUnminimise(ctx)
 			runtime.Show(ctx)
 		}

@@ -16,6 +16,8 @@ type reviewTab struct {
 	Path  string          `json:"path"`
 	Route string          `json:"route"`
 	View  json.RawMessage `json:"view,omitempty"`
+	// The checkout itself, for actions on its files; the page only sees Path.
+	root string
 }
 type tabSnapshot struct {
 	Revision uint64      `json:"revision"`
@@ -51,7 +53,7 @@ func (t *reviewTabs) snapshot() tabSnapshot {
 	defer t.mu.Unlock()
 	return t.snapshotLocked()
 }
-func (t *reviewTabs) open(route, path string) tabSnapshot {
+func (t *reviewTabs) open(route, root string) tabSnapshot {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	key := comparisonKey(route)
@@ -76,7 +78,7 @@ func (t *reviewTabs) open(route, path string) tabSnapshot {
 	if len(name) > 8 {
 		name = name[:len(name)-8]
 	}
-	t.state.Tabs = append(t.state.Tabs, reviewTab{ID: id, Name: name, Path: path, Route: route})
+	t.state.Tabs = append(t.state.Tabs, reviewTab{ID: id, Name: name, Path: homeRelative(root), Route: route, root: root})
 	t.state.Active = id
 	t.state.Revision++
 	return t.snapshotLocked()
@@ -177,4 +179,15 @@ func homeRelative(path string) string {
 		return path
 	}
 	return "~" + strings.TrimPrefix(path, home)
+}
+
+func (t *reviewTabs) checkout(id string) (string, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for _, tab := range t.state.Tabs {
+		if tab.ID == id {
+			return tab.root, tab.root != ""
+		}
+	}
+	return "", false
 }
