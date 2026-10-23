@@ -106,7 +106,7 @@ Après la PR 02, plus rien ne sert l'interface navigateur : c'est du code mort. 
 
 Examiner aussi les quatre suites que `goRevisions.ts` rejoue sur son propre fixture (56 s) : les garder seulement si ce fixture couvre un cas que `run.ts` ne couvre pas. Objectif : `test/run.ts` sous la minute. Cette PR vient après la PR 03, pour ne pas réécrire deux fois les mêmes attentes.
 
-### 05 · `desktop-release/05-ghl-command` — L'app devient `ghl`
+### 05 · `desktop-release/05-ghl-command` — L'app devient `ghl` — [#171](https://github.com/vmaerten/ghl/pull/171)
 
 Renommer le bundle en `ghl.app` et l'exécutable en `ghl` (`Info.plist`, Taskfile, `desktop/release.py`, smoke). Traiter `comments`, `--version` et `--help` avant le relancement via LaunchServices, sans fenêtre. Reprendre les réglages de l'ancien dossier `ghl Desktop`. `task install` remplace `desktop:install`.
 
@@ -122,9 +122,13 @@ Template du cask, tâche `release:tap` appelée par `task release` après la pub
 
 README centré sur l'app ; `installation.md` couvre mise et Homebrew ; `releases.md` et `desktop/README.md` fusionnés là où ils se répètent. Supprimer `migration.md`, `go-poc.md` et les benchmarks du runtime navigateur. Entrée CHANGELOG v0.3.0 : app seule, Linux et Intel abandonnés, réglages repris, un daemon 0.2.0 encore en marche s'arrête seul après 30 minutes d'inactivité.
 
+### 09 · `desktop-release/09-cold-launches` — Lancements à froid concurrents
+
+Corriger [#136](https://github.com/vmaerten/ghl/issues/136) : deux `ghl` lancés pendant que la première fenêtre démarre ne doivent perdre aucun onglet. Diagnostiquer la livraison des demandes au démarrage avant de choisir la correction ; un test natif isolé couvre le cas.
+
 ### Release v0.3.0
 
-Prérequis : correction de [#136](https://github.com/vmaerten/ghl/issues/136). Puis `package.json` à 0.3.0, tag `v0.3.0`, workflow. Ensuite : `task release:mise:published VERSION=0.3.0 PREVIOUS=0.2.0`, et `brew install --cask vmaerten/tap/ghl` sur une session macOS sans outils de dev.
+Prérequis : la PR 09. Puis `package.json` à 0.3.0, tag `v0.3.0`, workflow. Ensuite : `task release:mise:published VERSION=0.3.0 PREVIOUS=0.2.0`, et `brew install --cask vmaerten/tap/ghl` sur une session macOS sans outils de dev.
 
 ## Risques
 
@@ -164,3 +168,6 @@ Prérequis : correction de [#136](https://github.com/vmaerten/ghl/issues/136). P
 | 04 | `waitForNetworkIdle` compte encore les requêtes du document précédent après une navigation : `settled` attendait toute sa limite. | La page compte elle-même ses requêtes en vol ; `settled` attend qu'elle soit calme depuis 300 ms. |
 | 04 | Le compteur Viewed bouge avant que l'écriture n'arrive au serveur ; le `sleep(1200)` laissait le `POST` finir avant un rechargement. | Attendre le compteur, puis que la page n'ait plus de requête en vol. |
 | 04 | L'objectif visait 4 suites à la fois. | La moitié des cœurs, au plus 8 : 7 ici, 28 s au lieu de 39 s, stable sur cinq passes. `GHL_TEST_JOBS` force une autre valeur. |
+| 05 | `desktop/release.py` vérifie encore `ghl Desktop.app` dans l'archive. | Laissé à la PR 06, qui réécrit l'archive. |
+| 05 | `task install` refuse de remplacer un `~/.local/bin/ghl` qui n'est pas un lien, comme l'ancien CLI navigateur. | Gardé : on ne supprime pas un fichier inconnu ; à retirer à la main une fois. |
+| 05 | #136 demande un diagnostic à part, avec ses propres critères d'acceptation. | PR 09, juste avant la release, plutôt qu'au milieu de la PR 05. |
