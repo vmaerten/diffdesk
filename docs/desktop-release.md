@@ -69,7 +69,7 @@ Homebrew 5 a déprécié `--no-quarantine` et désactive depuis septembre 2026 l
 - avec elle, la quarantaine disparaît, même dans `/Applications`, et l'app se lance sans dialogue ;
 - `postflight do … end` est déprécié au profit de `postflight_steps`, qui tourne dans un bac à sable avec `{{appdir}}` accessible en écriture ;
 - Homebrew 7 refuse de charger un cask d'un tap non approuvé. `brew install --cask vmaerten/tap/ghl`, avec le nom complet, approuve le cask automatiquement ; un `brew install --cask ghl` après `brew tap` demande d'abord `brew trust`. La doc donne donc toujours le nom complet ;
-- `brew audit --cask --strict --online` exige un `depends_on macos` cohérent avec le binaire (voir PR 05).
+- `brew audit --cask --strict --online` exige un `depends_on macos` cohérent avec le binaire (voir PR 06).
 
 Le cask est généré à chaque release : un template dans le dépôt, rendu avec la version et le SHA-256 lu dans `checksums.txt`, puis poussé sur le tap par `gh api`. Le `GITHUB_TOKEN` du workflow ne peut pas écrire dans un autre dépôt : il faut un token fin `HOMEBREW_TAP_TOKEN` (contents: write sur le tap seul) en secret du dépôt. Le cask n'est poussé qu'après la publication de la release, puisqu'il pointe vers son URL publique. Si la poussée échoue, la release reste publiée et `task release:tap TAG=vX.Y.Z` la rejoue.
 
@@ -83,33 +83,42 @@ La release v0.2.0 ne contient pas de zip desktop. Le spike a donc reconditionné
 
 - **mise 2026.8.10** : détection automatique du zip, `ghl.app/Contents/MacOS` dans le PATH, signature valide, aucune quarantaine. `ghl --help` répond via `mise exec` et via le shim, et la fenêtre s'ouvre depuis le dossier d'installation de mise.
 - **Homebrew 7.0.10** : sans étape de post-installation, quarantaine présente et `spctl` qui rejette l'app. Avec `postflight_steps`, l'app installée dans `/Applications` et lancée par le lien de `bin` s'ouvre sans dialogue. Audit strict hors ligne propre ; l'audit en ligne relève le `minos 26.0` ci-dessous.
-- **Version minimale de macOS** : le binaire desktop déclare `minos 26.0`, car cgo compile pour la version du SDK installé (27.0). En l'état, l'app ne se lancerait pas avant macOS 26. Corrigé dans la PR 05.
+- **Version minimale de macOS** : le binaire desktop déclare `minos 26.0`, car cgo compile pour la version du SDK installé (27.0). En l'état, l'app ne se lancerait pas avant macOS 26. Corrigé dans la PR 06.
 
-### 01 · `desktop-release/01-ui-harness` — Tests UI sur l'app desktop
+### 01 · `desktop-release/01-ui-harness` — Tests UI sur l'app desktop — [#166](https://github.com/vmaerten/ghl/pull/166)
 
-Généraliser le harnais de `test/desktopTabs.ts` (Vite en mode `go-desktop`, bindings Wails simulés, Chrome headless) et y faire tourner `test/run.ts` et `test/suites/*`, qui testent aujourd'hui l'interface navigateur. Adapter les sélecteurs aux zones desktop (barre de titre, sidebar, panneau de commentaires). `task dev` sert `DesktopApp` dans le navigateur. Cette PR doit précéder toute suppression, pour garder la couverture des commentaires, de l'arbre, de la recherche et du Viewed.
+Les suites de `test/run.ts`, celles que rejoue `goRevisions.ts`, les tests d'images et `desktopTabs.ts` chargent l'UI desktop de production (`task desktop:assets`), servie par `vite preview` avec les appels d'API relayés au serveur Go, dans Chrome headless. Les bindings Wails sont simulés par `desktop/simulator.ts` et le vrai `bridge.js` est injecté. Les sélecteurs suivent les zones desktop (barre de titre, popover Options, barre d'état, panneau de commentaires). `task dev` sert la même UI avec le hot reload, sur la même simulation. Cette PR précède toute suppression, pour garder la couverture des commentaires, de l'arbre, de la recherche et du Viewed.
 
 ### 02 · `desktop-release/02-remove-web-ui` — Supprimer l'interface navigateur
 
 Supprimer le rendu `App` hors desktop dans `main.tsx`, les branches `GO_DESKTOP` et `GO_POC`, les composants réservés au navigateur (`RepoBar`, `ThemePicker`, contrôles d'en-tête GitHub, mise en page mobile), le thème lu dans le `localStorage` et le CSS GitHub de `styles.css`. Les modes Vite `go` et `go-poc` disparaissent ; `go-desktop` devient le seul build.
 
-### 03 · `desktop-release/03-go-runtime` — Serveur intégré seulement
+### 03 · `desktop-release/03-fast-ui-tests` — Tests UI plus rapides
 
-Supprimer `go/cmd/ghl`, `go/cmd/ghl-go-poc`, l'ouverture du navigateur, le daemon partagé (port 7777, inactivité, découverte et remplacement du runtime) et l'hôte `ghl.localhost`. Exposer une entrée de bibliothèque, par exemple `app.Serve(ctx, listener, assets)`, que `desktop/backend.go` appelle à la place de `app.Main(--daemon --port 0 --idle 0)`. Garder l'API, l'état, les révisions, les images et l'export. Retirer les tests et tâches devenus sans objet : `goCLI`, `goDaemon`, `goLocalInstall`, `goPoc`, `goDev` et `poc:*`.
+`test/run.ts` prend 294 s, autant sur `main` qu'avec la PR 01, et `task test` environ 7 minutes. Le temps part dans des attentes fixes : environ 95 s de `sleep` dans les suites, 2,5 s après chacun des quelque 36 chargements de page, et les helpers de défilement qui parcourent tout l'arbre ou tout le diff par pas de 150 à 200 ms. Deux leviers :
 
-### 04 · `desktop-release/04-ghl-command` — L'app devient `ghl`
+- un fixture, un serveur Go et une page par suite, quatre suites à la fois ;
+- des attentes sur l'état attendu (`waitForFunction`) à la place des `sleep`, en commençant par `comments` (58 s), `viewed` (56 s) et `pickers` (30 s).
+
+Examiner aussi les quatre suites que `goRevisions.ts` rejoue sur son propre fixture (56 s) : les garder seulement si ce fixture couvre un cas que `run.ts` ne couvre pas. Objectif : `test/run.ts` sous la minute. Cette PR vient après la PR 02, pour ne pas réécrire deux fois les mêmes attentes.
+
+### 04 · `desktop-release/04-go-runtime` — Serveur intégré seulement
+
+Supprimer `go/cmd/ghl`, `go/cmd/ghl-go-poc`, l'ouverture du navigateur, le daemon partagé (port 7777, inactivité, découverte et remplacement du runtime) et l'hôte `ghl.localhost`. Exposer une entrée de bibliothèque, par exemple `app.Serve(ctx, listener, assets)`, que `desktop/backend.go` appelle à la place de `app.Main(--daemon --port 0 --idle 0)`. Garder l'API, l'état, les révisions, les images et l'export. Retirer les tests et tâches devenus sans objet : `goCLI`, `goDaemon`, `goLocalInstall`, `goPoc` et `poc:*`. `goDev` reste et suit le serveur de dev.
+
+### 05 · `desktop-release/05-ghl-command` — L'app devient `ghl`
 
 Renommer le bundle en `ghl.app` et l'exécutable en `ghl` (`Info.plist`, Taskfile, `desktop/release.py`, smoke). Traiter `comments`, `--version` et `--help` avant le relancement via LaunchServices, sans fenêtre. Reprendre les réglages de l'ancien dossier `ghl Desktop`. `task install` remplace `desktop:install`.
 
-### 05 · `desktop-release/05-release-archive` — Archive unique
+### 06 · `desktop-release/06-release-archive` — Archive unique
 
 GoReleaser : retirer les builds et archives CLI, produire `ghl_<version>_darwin_arm64.zip`. Compiler avec `MACOSX_DEPLOYMENT_TARGET=13.0`, écrire `LSMinimumSystemVersion` 13.0 dans `Info.plist`, et faire vérifier par `release:verify` le `minos` du binaire (`otool -l`, `LC_BUILD_VERSION`). Adapter `release:verify`, `releaseGuards.ts`, `release:publish` et la fixture mise (`test/goMise.ts`) : installation de l'app, PATH, mise à jour depuis une archive 0.2.0 synthétique, retour arrière, désinstallation. Réduire `release:acceptance` et `release:bench` à ce qui a encore un sens sans daemon.
 
-### 06 · `desktop-release/06-homebrew-tap` — Tap Homebrew
+### 07 · `desktop-release/07-homebrew-tap` — Tap Homebrew
 
 Template du cask, tâche `release:tap` appelée par `task release` après la publication, secret `HOMEBREW_TAP_TOKEN` dans `release.yml`, tests de l'ordre et des échecs dans `test/releaseTask.py` sans écriture réelle. `brew audit --cask --strict --online` sur le cask rendu fait partie de la vérification. Création du dépôt du tap et du secret à la main.
 
-### 07 · `desktop-release/07-docs` — Documentation
+### 08 · `desktop-release/08-docs` — Documentation
 
 README centré sur l'app ; `installation.md` couvre mise et Homebrew ; `releases.md` et `desktop/README.md` fusionnés là où ils se répètent. Supprimer `migration.md`, `go-poc.md` et les benchmarks du runtime navigateur. Entrée CHANGELOG v0.3.0 : app seule, Linux et Intel abandonnés, réglages repris, un daemon 0.2.0 encore en marche s'arrête seul après 30 minutes d'inactivité.
 
@@ -138,7 +147,7 @@ Prérequis : correction de [#136](https://github.com/vmaerten/ghl/issues/136). P
 | 00 | La release v0.2.0 ne contient pas de zip desktop : le packaging (#138) est arrivé après le tag. | Spike sur un build local de `main` reconditionné, servi par une fausse API GitHub. |
 | 00 | Homebrew 7 déprécie `postflight do … end`. | Cask réécrit avec `postflight_steps` et `run`, `{{appdir}}` dans les arguments. |
 | 00 | Homebrew 7 n'installe un cask tiers qu'une fois approuvé ; le nom complet l'approuve automatiquement. | La doc donne toujours `brew install --cask vmaerten/tap/ghl`. |
-| 00 | Le binaire desktop déclare `minos 26.0` (SDK 27.0, cgo sans cible de déploiement). | Cible macOS 13 et vérification du `minos` ajoutées à la PR 05 ; `depends_on macos` dans le cask. |
+| 00 | Le binaire desktop déclare `minos 26.0` (SDK 27.0, cgo sans cible de déploiement). | Cible macOS 13 et vérification du `minos` ajoutées à la PR 06 ; `depends_on macos` dans le cask. |
 | 01 | `themes`, `review-panel`, `comments` et `whitespace` testaient aussi le sélecteur de thème, le `localStorage` et la mise en page mobile du navigateur, absents du desktop. | `themes` réécrite autour de la feuille Settings (10 thèmes, choix transmis au côté natif, rechargement) ; checks mobiles retirés. |
 | 01 | Le desktop n'affiche pas le nombre de fichiers des `totals` à côté de celui de l'arbre. | Dans `untracked`, « les deux compteurs concordent » devient « la sidebar le compte » ; le `+3` des `totals` reste vérifié dans le pied de la sidebar. |
 | 01 | `test/goDev.ts` cherchait dans `App.tsx` un texte parti dans `RepoBar.tsx` avec #155 : `task test:dev` échouait déjà sur `main`. | Pointé sur le titre « Changes » de la sidebar desktop, qui reste après la PR 02. |
