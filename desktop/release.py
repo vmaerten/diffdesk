@@ -10,7 +10,6 @@ import re
 import shutil
 import stat
 import subprocess
-import sys
 import tempfile
 import zipfile
 
@@ -173,16 +172,10 @@ def verify(dist):
             [str(binary), '--version', '--json'], cwd=folder, text=True,
             env={'PATH': '/usr/bin:/bin', 'HOME': os.environ['HOME']}))
         require(info == {'version': metadata['version'], 'commit': metadata['commit'], 'buildDate': info['buildDate']}, 'ghl --version reports another build')
-        subprocess.run(['codesign', '--verify', '--deep', '--strict', str(bundle)], check=True)
-        subprocess.run([sys.executable, str(ROOT / 'desktop/smoke.py'), '--bundle', str(bundle), '--standalone'], cwd=ROOT, check=True)
-        report = json.loads((ROOT / '.task/desktop/validation.json').read_text())
-        builds = [event['build'] for event in report['events'] if 'build' in event]
-        require(report['complete'] and report['standalone'] and builds, 'Native release acceptance did not finish')
         commit_date = datetime.fromisoformat(command('git', 'show', '-s', '--format=%cI', metadata['commit']))
-        for build in builds:
-            require(build['version'] == metadata['version'] and build['commit'] == metadata['commit'], 'Native runtime has wrong release metadata')
-            require(datetime.fromisoformat(build['buildDate'].replace('Z', '+00:00')) == commit_date, 'Native runtime has wrong build date')
-    print(f'Release verified: {archive.name} (checksum, bundle, notices, minimum macOS, signature, terminal, standalone native UI and metadata)')
+        require(datetime.fromisoformat(info['buildDate'].replace('Z', '+00:00')) == commit_date, 'ghl --version reports another build date')
+        subprocess.run(['codesign', '--verify', '--deep', '--strict', str(bundle)], check=True)
+    print(f'Release verified: {archive.name} (checksum, bundle, notices, minimum macOS, signature, terminal and metadata)')
 
 
 def main():

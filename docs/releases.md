@@ -24,13 +24,14 @@ Outputs live in `go/dist/release/`:
 
 Snapshot versions use `<latest-version>-next-<short-commit>`. The date is the commit's UTC timestamp, which keeps the version stamp and the archive's file times stable across builds.
 
-`task release:snapshot` ends with `task release:verify`, which runs `desktop/release.py verify`. Before extracting anything, it checks the checksum and rejects unexpected or duplicate ZIP members, links and an executable without its executable mode. It then verifies the bundle metadata, including `LSMinimumSystemVersion`, the executable's `minos` of 13.0, the license and notices, the Go build settings and the ad hoc signature. It runs `ghl --version` from the extracted app with only system tools on PATH, and the native smoke test on a copy of the bundle outside the checkout. With `RELEASE_TAG` set, the archive must also match the tag. `task desktop:test` includes the ZIP and checksum guard tests.
+`task release:snapshot` ends with `task release:verify`, which runs `desktop/release.py verify`. Before extracting anything, it checks the checksum and rejects unexpected or duplicate ZIP members, links and an executable without its executable mode. It then verifies the bundle metadata, including `LSMinimumSystemVersion`, the executable's `minos` of 13.0, the license and notices, the Go build settings and the ad hoc signature. It runs `ghl --version` from the extracted app with only system tools on PATH and checks its build date against the commit. With `RELEASE_TAG` set, the archive must also match the tag. `task desktop:test` includes the ZIP and checksum guard tests.
 
 ## Version tags and publication
 
-Set `package.json` to the intended version and commit it with the release's changes and notes in `CHANGELOG.md`. Supported versions are `X.Y.Z` and `X.Y.Z-prerelease`, with a matching `v`-prefixed tag on that commit. Before pushing the tag, build and verify the same archive from its clean checkout:
+Set `package.json` to the intended version and commit it with the release's changes and notes in `CHANGELOG.md`. Supported versions are `X.Y.Z` and `X.Y.Z-prerelease`, with a matching `v`-prefixed tag on that commit. Before pushing the tag, run the native smoke test, then build and verify the same archive from its clean checkout:
 
 ```bash
+mise exec -- task desktop:smoke
 RELEASE_TAG=v0.3.0 mise exec -- task release:build
 git tag v0.3.0
 git push origin refs/tags/v0.3.0
