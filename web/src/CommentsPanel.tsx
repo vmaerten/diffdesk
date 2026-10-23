@@ -66,6 +66,21 @@ export default function CommentsPanel({
     onUpdate(comment, draft.trim())
     setEditing(null)
   }
+  const toolbar = (
+    <div className="comments-panel-toolbar">
+      {!inline && <span>All comments in this repository</span>}
+      <button
+        type="button"
+        className="button primary"
+        disabled={comments.length === 0}
+        onClick={() => onCopy()}
+      >
+        <Icon name="copy" />
+        {copied === 'all' ? 'Copied' : inline ? 'Copy all as Markdown' : 'Copy all'}
+        {inline && <kbd>⇧⌘C</kbd>}
+      </button>
+    </div>
+  )
   const content = (
     <>
       <div className="comments-panel-head">
@@ -82,18 +97,7 @@ export default function CommentsPanel({
           <Icon name="close" />
         </button>
       </div>
-      <div className="comments-panel-toolbar">
-        <span>All comments in this repository</span>
-        <button
-          type="button"
-          className="button primary"
-          disabled={comments.length === 0}
-          onClick={() => onCopy()}
-        >
-          <Icon name="copy" />
-          {copied === 'all' ? 'Copied' : 'Copy all'}
-        </button>
-      </div>
+      {!inline && toolbar}
       {copyError && (
         <p className="warning" role="alert">
           {copyError}
@@ -186,6 +190,7 @@ export default function CommentsPanel({
             </section>
           ))}
       </div>
+      {inline && toolbar}
     </>
   )
   if (inline)
