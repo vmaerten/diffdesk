@@ -140,10 +140,11 @@ tasks:
       - CGO_ENABLED=1 CGO_LDFLAGS='-framework UniformTypeIdentifiers' go -C desktop vet ./...
 
   desktop:smoke:
-    desc: Exercise the real native window, clipboard and instance reuse on fixtures
+    desc: Exercise the real native window, clipboard, instance reuse and concurrent cold launches on fixtures
     cmds:
       - task: desktop:build
       - python3 desktop/smoke.py
+      - python3 desktop/cold.py
 
   desktop:memory:
     desc: Measure three local passes of ten warm tab switches (macOS)
