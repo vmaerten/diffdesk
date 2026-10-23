@@ -139,3 +139,7 @@ Prérequis : correction de [#136](https://github.com/vmaerten/ghl/issues/136). P
 | 00 | Homebrew 7 déprécie `postflight do … end`. | Cask réécrit avec `postflight_steps` et `run`, `{{appdir}}` dans les arguments. |
 | 00 | Homebrew 7 n'installe un cask tiers qu'une fois approuvé ; le nom complet l'approuve automatiquement. | La doc donne toujours `brew install --cask vmaerten/tap/ghl`. |
 | 00 | Le binaire desktop déclare `minos 26.0` (SDK 27.0, cgo sans cible de déploiement). | Cible macOS 13 et vérification du `minos` ajoutées à la PR 05 ; `depends_on macos` dans le cask. |
+| 01 | `themes`, `review-panel`, `comments` et `whitespace` testaient aussi le sélecteur de thème, le `localStorage` et la mise en page mobile du navigateur, absents du desktop. | `themes` réécrite autour de la feuille Settings (10 thèmes, choix transmis au côté natif, rechargement) ; checks mobiles retirés. |
+| 01 | Le desktop n'affiche pas le nombre de fichiers des `totals` à côté de celui de l'arbre. | Dans `untracked`, « les deux compteurs concordent » devient « la sidebar le compte » ; le `+3` des `totals` reste vérifié dans le pied de la sidebar. |
+| 01 | `test/goDev.ts` cherchait dans `App.tsx` un texte parti dans `RepoBar.tsx` avec #155 : `task test:dev` échouait déjà sur `main`. | Pointé sur le titre « Changes » de la sidebar desktop, qui reste après la PR 02. |
+| 01 | Le serveur de dev a besoin de la simulation des bindings Wails, pas seulement les tests. | Elle vit dans `desktop/simulator.ts`, à côté de `bridge.js`, plutôt que dans `test/`. |
