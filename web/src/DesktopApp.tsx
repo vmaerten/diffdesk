@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useStableCallback } from '@pierre/diffs/react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
@@ -172,20 +172,13 @@ export default function DesktopApp() {
     window.addEventListener('desktop:settings', openSettings)
     return () => window.removeEventListener('desktop:settings', openSettings)
   }, [])
-  useEffect(() => {
-    if (!settings) return
-    const style = document.documentElement.style
-    style.setProperty('--code-font', codeFontFamily(settings.codeFont))
-    style.setProperty('--code-size', `${settings.codeSize}px`)
-    style.setProperty('--code-line-height', `${codeLineHeight(settings.codeSize)}px`)
-  }, [settings])
   // Each change applies to the latest settings: two controls used before a
   // render must not undo each other.
   const settingsChanged = useRef(false)
-  const changeSettings = (patch: Partial<DesktopSettings>) => {
+  const changeSettings = useStableCallback((patch: Partial<DesktopSettings>) => {
     settingsChanged.current = true
     setSettings((current) => current && { ...current, ...patch })
-  }
+  })
   // Saved once changes settle: typing a font name would otherwise write, and
   // race, on every keystroke. Loading them is not a change.
   useEffect(() => {
@@ -209,7 +202,18 @@ export default function DesktopApp() {
   }
   const active = state.tabs.find((tab) => tab.id === state.active)
   return (
-    <div className="desktop-shell">
+    <div
+      className="desktop-shell"
+      style={
+        settings
+          ? ({
+              '--code-font': codeFontFamily(settings.codeFont),
+              '--code-size': `${settings.codeSize}px`,
+              '--code-line-height': `${codeLineHeight(settings.codeSize)}px`,
+            } as CSSProperties)
+          : undefined
+      }
+    >
       <style>{desktopStyles}</style>
       <div className="desktop-tabbar">
         <div role="tablist" aria-label="Open reviews" className="desktop-tabs">

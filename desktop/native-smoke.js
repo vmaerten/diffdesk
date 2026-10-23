@@ -176,7 +176,8 @@
       )
       sheet.querySelector('[aria-label="Larger"]').click()
       await wait(
-        () => root.style.getPropertyValue('--code-size') === '13px',
+        () =>
+          document.querySelector('.desktop-shell').style.getPropertyValue('--code-size') === '13px',
         'Code size did not apply',
       )
       await wait(async () => {

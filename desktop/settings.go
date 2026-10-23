@@ -29,15 +29,16 @@ func newSettingsStore() (*settingsStore, error) {
 	return &settingsStore{path: filepath.Join(dir, "ghl Desktop", "settings.json")}, nil
 }
 
-func validSettings(raw []byte) bool {
-	if len(raw) > 64*1024 || !json.Valid(raw) {
-		return false
-	}
+// isVersionOne accepts a bounded JSON document at version 1, the shape of every
+// document the page hands Go to keep.
+func isVersionOne(raw []byte, limit int) bool {
 	var header struct {
 		Version int `json:"version"`
 	}
-	return json.Unmarshal(raw, &header) == nil && header.Version == 1
+	return len(raw) <= limit && json.Unmarshal(raw, &header) == nil && header.Version == 1
 }
+
+const settingsLimit = 64 * 1024
 
 // load returns "" when nothing usable is stored, and the UI then keeps its defaults.
 func (s *settingsStore) load() (string, error) {
@@ -50,14 +51,14 @@ func (s *settingsStore) load() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !validSettings(raw) {
+	if !isVersionOne(raw, settingsLimit) {
 		return "", nil
 	}
 	return string(raw), nil
 }
 
 func (s *settingsStore) save(raw string) error {
-	if !validSettings([]byte(raw)) {
+	if !isVersionOne([]byte(raw), settingsLimit) {
 		return errors.New("settings must be version-1 JSON under 64 KiB")
 	}
 	s.mu.Lock()

@@ -152,14 +152,8 @@ func (d *desktopApp) UpdateTabURL(id, route string) (tabSnapshot, error) {
 func (d *desktopApp) OpenRepository() { d.chooseRepository() }
 
 func (t *reviewTabs) saveView(id, raw string) error {
-	if len(raw) > 2*1024*1024 || !json.Valid([]byte(raw)) {
-		return fmt.Errorf("invalid or oversized tab view")
-	}
-	var header struct {
-		Version int `json:"version"`
-	}
-	if err := json.Unmarshal([]byte(raw), &header); err != nil || header.Version != 1 {
-		return fmt.Errorf("unsupported tab view")
+	if !isVersionOne([]byte(raw), 2*1024*1024) {
+		return fmt.Errorf("invalid, oversized or unsupported tab view")
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()

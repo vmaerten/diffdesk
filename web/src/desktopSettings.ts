@@ -57,10 +57,9 @@ export function readSettings(raw: string): DesktopSettings {
   }
 }
 
-/** SF Mono is reached through the system keyword; any other family falls back to it. */
+/** SF Mono is the system stack (--mono in desktop.css); any other family falls back to it. */
 export function codeFontFamily(font: string): string {
-  const system = 'ui-monospace, "SF Mono", Menlo, monospace'
-  return font === 'SF Mono' ? system : `"${font}", ${system}`
+  return font === 'SF Mono' ? 'var(--mono)' : `"${font}", var(--mono)`
 }
 
 export function codeLineHeight(size: number): number {

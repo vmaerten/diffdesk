@@ -49,16 +49,22 @@
 body {
   font-size: 13px;
 }
-/* Settings overrides these inline; the defaults hold until they load. */
 :root {
-  --code-font: ui-monospace, 'SF Mono', Menlo, monospace;
-  --code-size: 12px;
-  --code-line-height: 20px;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
 }
+/* The --code-* values come from Settings, set on .desktop-shell. The preview
+   is not a .diff, so it needs the colours styles.css gives the review too. */
 .desktop-shell :is(.diff, .settings-preview) diffs-container {
   --diffs-font-family: var(--code-font);
   --diffs-font-size: var(--code-size);
   --diffs-line-height: var(--code-line-height);
+  --diffs-bg-addition-override: var(--diff-addition);
+  --diffs-bg-addition-number-override: var(--diff-addition-gutter);
+  --diffs-bg-deletion-override: var(--diff-deletion);
+  --diffs-bg-deletion-number-override: var(--diff-deletion-gutter);
+  --diffs-bg-buffer-override: var(--bg);
+  --diffs-bg-context-override: var(--bg);
+  --diffs-fg-number-override: var(--text-dim);
 }
 /* macOS controls keep the arrow: the pointing hand is a web convention. */
 .desktop-shell :is(button, summary, select, label, input[type='checkbox'], .picker-item) {
@@ -160,7 +166,7 @@ body {
   text-align: center;
 }
 
-.settings-sheet {
+.desktop-sheet {
   width: min(640px, calc(100vw - 48px));
   max-height: calc(100vh - 80px);
   margin: 52px auto auto;
@@ -172,25 +178,25 @@ body {
   color: var(--text);
   box-shadow: 0 24px 60px rgb(0 0 0 / 35%);
 }
-.settings-sheet[open] {
+.desktop-sheet[open] {
   display: flex;
   flex-direction: column;
 }
-.settings-sheet::backdrop {
+.desktop-sheet::backdrop {
   background: rgb(0 0 0 / 18%);
 }
-.settings-sheet h2 {
+.desktop-sheet h2 {
   margin: 0;
   padding: 14px 0 0;
   font-size: 13px;
   font-weight: 600;
   text-align: center;
 }
-.settings-body {
+.desktop-sheet-body {
   overflow: auto;
   padding: 0 20px 4px;
 }
-.settings-body h3 {
+.desktop-sheet-body h3 {
   margin: 16px 4px 6px;
   color: var(--text-dim);
   font-size: 12px;
@@ -329,15 +335,6 @@ body {
   background: var(--bg);
   color: var(--text);
 }
-.settings-preview diffs-container {
-  --diffs-bg-addition-override: var(--diff-addition);
-  --diffs-bg-addition-number-override: var(--diff-addition-gutter);
-  --diffs-bg-deletion-override: var(--diff-deletion);
-  --diffs-bg-deletion-number-override: var(--diff-deletion-gutter);
-  --diffs-bg-buffer-override: var(--bg);
-  --diffs-bg-context-override: var(--bg);
-  --diffs-fg-number-override: var(--text-dim);
-}
 .settings-preview-head {
   display: flex;
   justify-content: space-between;
@@ -347,7 +344,7 @@ body {
   font-size: 11px;
   font-weight: 600;
 }
-.settings-sheet footer {
+.desktop-sheet footer {
   display: flex;
   justify-content: flex-end;
   padding: 14px 20px 16px;
