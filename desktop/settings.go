@@ -14,6 +14,8 @@ import (
 type settingsStore struct {
 	mu   sync.Mutex
 	path string
+	// Read while path does not exist yet: where the app kept them as "ghl Desktop".
+	legacy string
 }
 
 // newSettingsStore uses GHL_DESKTOP_SETTINGS when set, so tests never touch
@@ -26,7 +28,10 @@ func newSettingsStore() (*settingsStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &settingsStore{path: filepath.Join(dir, "ghl Desktop", "settings.json")}, nil
+	return &settingsStore{
+		path:   filepath.Join(dir, "ghl", "settings.json"),
+		legacy: filepath.Join(dir, "ghl Desktop", "settings.json"),
+	}, nil
 }
 
 // isVersionOne accepts a bounded JSON document at version 1, the shape of every
@@ -45,6 +50,9 @@ func (s *settingsStore) load() (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	raw, err := os.ReadFile(s.path)
+	if errors.Is(err, fs.ErrNotExist) && s.legacy != "" {
+		raw, err = os.ReadFile(s.legacy)
+	}
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", nil
 	}
