@@ -1,7 +1,7 @@
 import { sleep, TREE_ROWS, type Suite } from '../harness.ts'
 
 const MIN = 180
-const DEFAULT = 300
+const DEFAULT = 272
 const MAX = 700
 
 export default {

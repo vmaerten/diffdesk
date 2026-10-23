@@ -71,8 +71,8 @@ func (b *reviewBackend) close() {
 	})
 }
 
-// open registers the repository and returns its review route and top-level path.
-func (b *reviewBackend) open(ctx context.Context, request launch) (route, path string, err error) {
+// open registers the repository and returns its review route and checkout.
+func (b *reviewBackend) open(ctx context.Context, request launch) (route, checkout string, err error) {
 	client := &http.Client{Transport: &http.Transport{Proxy: nil},
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	defer client.CloseIdleConnections()

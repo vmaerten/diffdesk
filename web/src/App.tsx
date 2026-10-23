@@ -22,11 +22,11 @@ import { useViewedPersistence } from './viewedPersistence.ts'
 import { useTheme, type SyntaxTheme } from './theme.ts'
 import CommentsPanel from './CommentsPanel.tsx'
 import RepoBar from './RepoBar.tsx'
-import RevisionControls, {
-  revisionNote,
+import ComparisonControls, {
+  comparisonNote,
   type Picker,
-  type RevisionProps,
-} from './RevisionControls.tsx'
+  type ComparisonProps,
+} from './ComparisonControls.tsx'
 import { untrackedToggleable, workingTreeToggleable } from './ScopeControls.tsx'
 import DesktopToolbar from './DesktopToolbar.tsx'
 import ReviewFooter from './ReviewFooter.tsx'
@@ -36,6 +36,7 @@ import ReviewTools from './ReviewTools.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import { GO_POC } from './capabilities.ts'
+import { commandOf, PICKERS, type ReviewCommand, type WindowCommand } from './commands.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
 import type { SavedView, SavedViewHandle } from './savedView.ts'
@@ -54,8 +55,8 @@ const NOT_LISTENING = GO_POC
   ? 'ghl-go-poc is no longer listening — restart it in that repository'
   : 'ghl is no longer listening — run `ghl` again in that repository'
 
-/** The single-letter shortcuts, by review command. */
-const KEY_COMMANDS: Record<string, string> = {
+/** Review commands, by their single-letter key. */
+const KEY_COMMANDS: Record<string, ReviewCommand> = {
   b: 'base',
   t: 'target',
   // `l` for log, which is what the list is. `c` is the comment key.
@@ -67,7 +68,6 @@ const KEY_COMMANDS: Record<string, string> = {
   c: 'comment',
   v: 'viewed',
 }
-const PICKERS = ['base', 'target', 'commit']
 
 /** Shorter than the CLI's wording: this is a badge in a topbar, not a report. */
 const BASE_SOURCES: Record<BaseSource, string> = {
@@ -345,7 +345,7 @@ export default function App({
   )
 
   /** Every review command by name: the single-letter keys and the desktop menus. */
-  const runCommand = useStableCallback((command: string) => {
+  const runCommand = useStableCallback((command: ReviewCommand | WindowCommand) => {
     switch (command) {
       case 'base':
       case 'target':
@@ -390,7 +390,14 @@ export default function App({
         void resetViewed()
         break
       case 'copy-path':
-        if (activePath) void navigator.clipboard.writeText(activePath)
+        if (activePath)
+          navigator.clipboard
+            .writeText(activePath)
+            .catch((cause) =>
+              setCopyError(
+                `Could not copy ${activePath}. ${cause instanceof Error ? cause.message : ''}`,
+              ),
+            )
         break
       case 'reveal':
         if (activePath && onReveal)
@@ -442,7 +449,7 @@ export default function App({
       if (isComposing) return
 
       const name = KEY_COMMANDS[event.key]
-      if (!name || (GO_POC && PICKERS.includes(name))) return
+      if (!name || (GO_POC && (PICKERS as readonly string[]).includes(name))) return
       runCommand(name)
       event.preventDefault()
     }
@@ -462,7 +469,7 @@ export default function App({
 
   useEffect(() => {
     if (!desktop) return
-    const listener = (event: Event) => runCommand((event as CustomEvent<string>).detail)
+    const listener = (event: Event) => runCommand(commandOf(event))
     window.addEventListener('desktop:command', listener)
     return () => window.removeEventListener('desktop:command', listener)
   }, [desktop, runCommand])
@@ -476,7 +483,7 @@ export default function App({
 
   const stack = GO_POC ? null : (data?.base.stack ?? null)
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
-  const revision: RevisionProps = {
+  const comparison: ComparisonProps = {
     repoId,
     data,
     query,
@@ -495,6 +502,17 @@ export default function App({
   const nextPath =
     entries[entries.findIndex((entry) => entry.path === activePath) + 1]?.path ?? null
 
+  const footer = (
+    <ReviewFooter
+      data={data}
+      baseSource={baseSource}
+      note={comparisonNote(data, target)}
+      stack={stack}
+      onPickTarget={pickTarget}
+      nextPath={nextPath}
+      onNext={() => navigate(1)}
+    />
+  )
   const commentsPanel = (
     <CommentsPanel
       savedEditor={panelEditor}
@@ -535,7 +553,7 @@ export default function App({
       {toolbar &&
         createPortal(
           <DesktopToolbar
-            {...revision}
+            {...comparison}
             ignoreWhitespace={ignoreWhitespace}
             onToggleWhitespace={select.toggleWhitespace}
             diffStyle={diffStyle}
@@ -560,7 +578,7 @@ export default function App({
           />
 
           <div className="reviewbar">
-            <RevisionControls {...revision} baseSource={baseSource} />
+            <ComparisonControls {...comparison} baseSource={baseSource} />
 
             {data && (
               <span className="stats" aria-label="Diff statistics">
@@ -717,21 +735,20 @@ export default function App({
           )}
           <Resizer containerRef={bodyRef} onCommit={resizeSidebar} />
 
-          {view}
+          {desktop ? (
+            // The status bar belongs to the code: the sidebar and the comments
+            // panel run the full height beside it.
+            <div className="review-main">
+              {view}
+              {footer}
+            </div>
+          ) : (
+            view
+          )}
           {desktop && commentsPanel}
         </div>
       )}
-      {desktop && (
-        <ReviewFooter
-          data={data}
-          baseSource={baseSource}
-          note={revisionNote(data, target)}
-          stack={stack}
-          onPickTarget={pickTarget}
-          nextPath={nextPath}
-          onNext={() => navigate(1)}
-        />
-      )}
+      {desktop && entries.length === 0 && footer}
     </div>
   )
 }

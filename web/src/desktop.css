@@ -83,6 +83,11 @@ body {
   --diffs-bg-separator-override: var(--diff-separator);
   --diffs-fg-number-override: var(--text-dim);
 }
+/* The macOS focus ring: a soft accent halo rather than the browser outline. */
+.desktop-shell :is(button, summary, select, input, textarea, a):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+}
 /* macOS controls keep the arrow: the pointing hand is a web convention. */
 .desktop-shell :is(button, summary, select, label, input[type='checkbox'], .picker-item) {
   cursor: default;
@@ -328,6 +333,11 @@ body,
 .desktop-empty h1 {
   margin: 0;
   font-size: 22px;
+}
+.desktop-empty kbd {
+  margin-left: 6px;
+  font: inherit;
+  opacity: 0.7;
 }
 .desktop-empty p {
   margin: 0 0 8px;
@@ -652,12 +662,22 @@ body,
   background: var(--wash);
 }
 
+.review-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.review-main > .diff {
+  min-height: 0;
+}
 .review-footer {
   display: flex;
   flex-shrink: 0;
   align-items: center;
   gap: 14px;
-  min-height: 30px;
+  min-height: 32px;
   margin-top: auto;
   padding: 0 14px;
   overflow: hidden;
@@ -733,6 +753,15 @@ body,
 .desktop-review .comments-panel.inline .comments-panel-list {
   flex: 1;
   padding: 8px;
+}
+.desktop-review .comments-panel.inline .comments-panel-toolbar {
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+}
+.desktop-review .comments-panel.inline .comments-panel-toolbar .button {
+  flex: 1;
+  justify-content: center;
 }
 .desktop-review .comments-panel.inline .comment {
   background: var(--bg-raised);

@@ -3,15 +3,15 @@ import Icon from './Icon.tsx'
 import ScopeControls from './ScopeControls.tsx'
 import {
   commitLabel,
-  RevisionSelector,
+  ComparisonSelector,
   togglePicker,
-  type RevisionProps,
-} from './RevisionControls.tsx'
+  type ComparisonProps,
+} from './ComparisonControls.tsx'
 import type { SavedView } from './savedView.ts'
 
 /** The review controls the desktop app shows in its title bar. */
 export default function DesktopToolbar(
-  props: RevisionProps & {
+  props: ComparisonProps & {
     ignoreWhitespace: boolean
     onToggleWhitespace: () => void
     diffStyle: SavedView['diffStyle']
@@ -59,7 +59,7 @@ export default function DesktopToolbar(
           >
             {data?.base.ref ?? '…'} <span className="caret">▾</span>
           </button>
-          <RevisionSelector picker="base" {...props} />
+          <ComparisonSelector picker="base" {...props} />
         </span>
         <span className="capsule-arrow" aria-hidden="true">
           →
@@ -76,7 +76,7 @@ export default function DesktopToolbar(
           >
             {data?.target.ref ?? 'HEAD'} <span className="caret">▾</span>
           </button>
-          <RevisionSelector picker="target" {...props} />
+          <ComparisonSelector picker="target" {...props} />
         </span>
         <span className="capsule-separator" aria-hidden="true" />
         <span className="base-anchor">
@@ -90,7 +90,7 @@ export default function DesktopToolbar(
           >
             {commitLabel(data)} <span className="caret">▾</span>
           </button>
-          <RevisionSelector picker="commit" {...props} />
+          <ComparisonSelector picker="commit" {...props} />
         </span>
       </div>
 

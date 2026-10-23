@@ -1,7 +1,7 @@
 import { useCallback, useRef, type KeyboardEvent, type PointerEvent, type RefObject } from 'react'
 
 const MIN = 180
-const DEFAULT = 300
+const DEFAULT = 272
 /** Always leave room for the diff, whatever the window is. */
 const max = () => Math.max(MIN, Math.min(700, window.innerWidth - 420))
 const clamp = (value: number) => Math.max(MIN, Math.min(value, max()))

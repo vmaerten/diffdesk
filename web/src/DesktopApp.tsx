@@ -5,6 +5,7 @@ import Icon from './Icon.tsx'
 import { releaseUrl } from './reviewSelection.ts'
 import { sameCapacity, splitTabs, tabSizes } from './tabOverflow.ts'
 import { useAppearance } from './appearance.ts'
+import { commandOf } from './commands.ts'
 import SettingsSheet from './SettingsSheet.tsx'
 import ShortcutsSheet from './ShortcutsSheet.tsx'
 import {
@@ -175,7 +176,7 @@ export default function DesktopApp() {
     }
     // The window's menu commands; App takes the review's from the same event.
     const runCommand = (event: Event) => {
-      const command = (event as CustomEvent<string>).detail
+      const command = commandOf(event)
       if (command === 'reload') reload()
       else if (command === 'close-tab') closeActive()
       else if (command === 'settings') setSettingsOpen(true)
@@ -410,7 +411,7 @@ export default function DesktopApp() {
           <h1>ghl</h1>
           <p>Open a repository to start a review.</p>
           <button className="button primary" onClick={open}>
-            Open repository…
+            Open Repository… <kbd>⌘O</kbd>
           </button>
         </div>
       )}

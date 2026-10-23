@@ -1,3 +1,4 @@
+import { activeTheme } from '../web/src/appearance.ts'
 import { DEFAULT_SETTINGS, readSettings } from '../web/src/desktopSettings.ts'
 import type { Check } from './harness.ts'
 
@@ -38,6 +39,16 @@ export async function runDesktopSettings(check: Check): Promise<void> {
   )
   // The light slot holds a dark theme: each slot only takes its own mode.
   check('each invalid value falls back on its own default', sameAs(invalid, DEFAULT_SETTINGS))
+
+  const themes = { light: 'github-light', dark: 'github-dimmed' } as const
+  check(
+    'System takes the dark theme under a dark macOS',
+    activeTheme({ ...themes, appearance: 'system' }, true) === 'github-dimmed',
+  )
+  check(
+    'a forced appearance ignores macOS',
+    activeTheme({ ...themes, appearance: 'light' }, true) === 'github-light',
+  )
 }
 
 function sameAs(a: object, b: object): boolean {
