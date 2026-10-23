@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ghl Desktop mockup</title>
+<style>
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --font-code: var(--font-mono); --code-size: 12px; --code-lh: 20px;
+}
+[hidden] { display: none !important; }
+[data-theme="light"] {
+  color-scheme: light;
+  --wallpaper: radial-gradient(at 15% 15%, #9ec5ff, transparent 50%), radial-gradient(at 85% 25%, #ffc3a0, transparent 50%), radial-gradient(at 50% 95%, #b8a6ff, transparent 55%), #dfe6f2;
+  --app-bg: #f8f8f6; --code-bg: #fff;
+  --chrome-bg: rgb(246 246 244 / .72); --sidebar-bg: rgb(255 255 255 / .5);
+  --border: rgb(17 17 17 / .1); --file-border: rgb(17 17 17 / .09);
+  --wash: rgb(127 127 127 / .1); --wash-strong: rgb(127 127 127 / .18);
+  --text: #111; --text-2: rgb(17 17 17 / .76); --muted: rgb(17 17 17 / .48);
+  --selection: #c2e8ff90; --accent: #3d87f5; --warn: #c56e0e;
+  --add: rgb(31 122 68); --del: rgb(184 49 47);
+  --add-bg: rgb(31 122 68 / .08); --add-gutter: rgb(31 122 68 / .15);
+  --del-bg: rgb(184 49 47 / .07); --del-gutter: rgb(184 49 47 / .14);
+  --hunk-bg: rgb(127 127 127 / .07);
+  --sk: #9b2393; --ss: #c41a16; --st: #0b4f79; --sf: #326d74; --sc: #5d6c79; --sn: #1c00cf;
+  --shadow: 0 30px 80px rgb(0 0 0 / .25), 0 0 0 .5px rgb(0 0 0 / .25);
+  --popover-bg: rgb(250 250 250 / .88);
+  --page-text: rgb(17 17 17 / .8);
+  --sheet-bg: #f6f6f4; --group-bg: #fff; --control-bg: #fff; --control-border: rgb(0 0 0 / .18);
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --wallpaper: radial-gradient(at 15% 15%, #1d3b73, transparent 50%), radial-gradient(at 85% 25%, #5a2d4f, transparent 50%), radial-gradient(at 50% 95%, #2b2366, transparent 55%), #0d1018;
+  --app-bg: #141414; --code-bg: #1c1c1c;
+  --chrome-bg: rgb(30 30 30 / .7); --sidebar-bg: rgb(38 38 38 / .55);
+  --border: rgb(230 230 230 / .1); --file-border: rgb(230 230 230 / .1);
+  --wash: rgb(127 127 127 / .14); --wash-strong: rgb(127 127 127 / .26);
+  --text: rgb(235 235 235); --text-2: rgb(230 230 230 / .78); --muted: rgb(230 230 230 / .48);
+  --selection: #a5a5a540; --accent: #3d87f5; --warn: #eb9a3d;
+  --add: rgb(111 208 148); --del: rgb(238 126 126);
+  --add-bg: rgb(111 208 148 / .09); --add-gutter: rgb(111 208 148 / .17);
+  --del-bg: rgb(238 126 126 / .09); --del-gutter: rgb(238 126 126 / .17);
+  --hunk-bg: rgb(127 127 127 / .08);
+  --sk: #ff7ab2; --ss: #ff8170; --st: #5dd8ff; --sf: #67b7a4; --sc: #7f8c98; --sn: #d9c97c;
+  --shadow: 0 30px 80px rgb(0 0 0 / .55), 0 0 0 .5px rgb(255 255 255 / .18);
+  --popover-bg: rgb(40 40 40 / .88);
+  --page-text: rgb(255 255 255 / .85);
+  --sheet-bg: #262626; --group-bg: rgb(255 255 255 / .04); --control-bg: rgb(255 255 255 / .1); --control-border: rgb(255 255 255 / .12);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  min-height: 100vh; display: grid; place-items: center; padding: 64px 24px 24px;
+  background: var(--wallpaper); font: 13px/1.4 var(--font-sans); color: var(--text);
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
+svg { width: 16px; height: 16px; flex: none; }
+.caret { width: 12px; height: 12px; opacity: .65; }
+
+/* Mockup-only controls, outside the window */
+.mock-controls {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 50;
+  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 12px;
+  background: var(--popover-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--file-border); box-shadow: 0 8px 24px rgb(0 0 0 / .2);
+  font: 600 12px var(--font-sans); color: var(--text-2);
+}
+.mock-controls span { padding: 0 8px; color: var(--muted); }
+.mock-controls button { height: 26px; padding: 0 10px; border-radius: 8px; }
+.mock-controls button:hover { background: var(--wash); }
+
+/* Window */
+.window {
+  position: relative; width: min(1280px, 100%); height: min(800px, calc(100vh - 88px));
+  border-radius: 12px; overflow: hidden; box-shadow: var(--shadow);
+  display: grid; grid-template-columns: 272px minmax(0, 1fr) auto; grid-template-rows: 40px minmax(0, 1fr);
+  user-select: none; -webkit-user-select: none; cursor: default;
+}
+.window.no-sidebar { grid-template-columns: 0 minmax(0, 1fr) auto; }
+.window.no-sidebar .sidebar { visibility: hidden; }
+
+/* Unified title bar */
+.titlebar {
+  grid-column: 1 / -1; position: relative; z-index: 5;
+  display: flex; align-items: center; gap: 4px; padding: 0 10px 0 14px;
+  background: var(--chrome-bg); border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(40px) saturate(1.6); -webkit-backdrop-filter: blur(40px) saturate(1.6);
+}
+.lights { display: flex; gap: 8px; margin-right: 12px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .2); }
+.lights i:nth-child(1) { background: #ff5f57; }
+.lights i:nth-child(2) { background: #febc2e; }
+.lights i:nth-child(3) { background: #28c840; }
+.icon-btn {
+  width: 28px; height: 28px; border-radius: 8px; display: inline-grid; place-items: center;
+  color: var(--muted); transition: background .12s, color .12s;
+}
+.icon-btn:hover, .icon-btn[aria-expanded="true"] { background: var(--wash); color: var(--text-2); }
+.tabs { display: flex; gap: 2px; min-width: 0; flex: 0 1 auto; overflow: hidden; margin-left: 4px; }
+.tab {
+  display: flex; align-items: center; gap: 2px; height: 26px; min-width: 0; max-width: 240px;
+  padding: 0 4px 0 10px; border-radius: 8px; font: 600 12px/1 var(--font-mono); color: var(--muted);
+}
+.tab .head { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab .tail { color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab .x { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; opacity: 0; margin-left: 4px; }
+.tab .x svg { width: 12px; height: 12px; }
+.tab .x:hover { background: var(--wash-strong); }
+.tabs.multi .tab:hover { background: var(--wash); color: var(--text-2); }
+.tabs.multi .tab:hover .x, .tabs.multi .tab.active .x { opacity: 1; }
+.tabs.multi .tab.active { background: var(--wash-strong); color: var(--text); }
+.tabs.multi .head { display: none; }
+.tabs:not(.multi) .tab { color: var(--text-2); padding-right: 10px; }
+.tabs:not(.multi) .x { display: none; }
+.compare {
+  flex: none; margin: 0 auto; display: flex; align-items: center; gap: 2px; height: 30px; padding: 2px;
+  border-radius: 15px; background: rgb(127 127 127 / .08); border: 1px solid rgb(127 127 127 / .14);
+}
+.compare button {
+  height: 24px; padding: 0 6px 0 9px; border-radius: 12px; display: flex; align-items: center; gap: 4px;
+  font: 600 12px/1 var(--font-mono); color: var(--text-2);
+}
+.compare button:hover { background: var(--wash); }
+.compare .arrow { color: var(--muted); font-size: 12px; }
+.compare .sep { width: 1px; height: 14px; background: var(--border); margin: 0 3px; }
+.compare .commit { font-family: var(--font-sans); color: var(--muted); }
+.actions { flex: none; display: flex; align-items: center; gap: 4px; margin-left: 12px; position: relative; }
+.seg {
+  display: flex; height: 28px; padding: 2px; gap: 2px; border-radius: 9px; margin-right: 4px;
+  background: rgb(127 127 127 / .08); border: 1px solid rgb(127 127 127 / .14);
+}
+.seg button { width: 30px; border-radius: 7px; display: grid; place-items: center; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--wash-strong); color: var(--text); }
+.pill-btn {
+  display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 7px; border-radius: 8px; color: var(--muted);
+}
+.pill-btn:hover { background: var(--wash); color: var(--text-2); }
+.count {
+  font: 700 10px/1 var(--font-mono); background: rgb(127 127 127 / .2); color: var(--text-2);
+  border-radius: 999px; padding: 3px 5px; min-width: 16px; text-align: center;
+}
+
+/* Popover */
+.popover {
+  position: absolute; top: 36px; right: 60px; width: 250px; padding: 6px; border-radius: 12px;
+  background: var(--popover-bg); border: 1px solid var(--file-border);
+  box-shadow: 0 16px 40px -12px rgb(0 0 0 / .45), 0 4px 12px -6px rgb(0 0 0 / .3);
+  backdrop-filter: blur(30px) saturate(1.5); -webkit-backdrop-filter: blur(30px) saturate(1.5);
+}
+.popover[hidden] { display: none; }
+.pop-label { padding: 6px 8px 4px; font: 700 10.5px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.popover label { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-radius: 7px; color: var(--text-2); }
+.popover label:hover { background: var(--wash); }
+.popover .hint { margin-left: auto; color: var(--muted); font: 11px var(--font-mono); }
+.popover hr { border: 0; height: 1px; background: var(--file-border); margin: 4px 6px; }
+.box {
+  width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--muted);
+  display: grid; place-items: center; color: #fff; flex: none;
+}
+.box svg { width: 10px; height: 10px; opacity: 0; }
+.box.on { background: var(--accent); border-color: var(--accent); }
+.box.on svg { opacity: 1; }
+
+/* Sidebar with vibrancy */
+.sidebar, .inspector {
+  grid-row: 2; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  background: var(--sidebar-bg);
+  backdrop-filter: blur(40px) saturate(1.6); -webkit-backdrop-filter: blur(40px) saturate(1.6);
+}
+.sidebar { grid-column: 1; border-right: 1px solid var(--border); }
+.side-head {
+  display: flex; align-items: center; gap: 6px; padding: 10px 8px 6px 14px;
+  font: 700 10.5px/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+}
+.side-head .spacer { flex: 1; }
+.side-head .icon-btn { width: 24px; height: 24px; border-radius: 6px; }
+.side-head .icon-btn svg { width: 14px; height: 14px; }
+.tree { flex: 1; overflow: auto; padding: 0 6px 8px; }
+.row {
+  display: flex; align-items: center; gap: 6px; height: 24px; border-radius: 6px; white-space: nowrap;
+  padding: 0 8px 0 calc(6px + var(--d) * 14px); color: var(--text-2);
+}
+.row:hover { background: var(--wash); }
+.row.sel { background: var(--selection); color: var(--text); }
+.row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.row.dir .name { font-weight: 500; }
+.row.dir svg { width: 12px; height: 12px; color: var(--muted); }
+.row .file-icon { width: 14px; height: 14px; }
+.row .st { font: 600 11px var(--font-mono); width: 10px; text-align: center; }
+.st.A { color: var(--add); } .st.M { color: var(--warn); } .st.D { color: var(--del); }
+.row.viewed .name, .row.viewed .file-icon { opacity: .5; }
+.row .seen { width: 12px; height: 12px; color: var(--add); }
+.side-foot { border-top: 1px solid var(--border); padding: 10px 14px 12px; display: grid; gap: 8px; color: var(--muted); font: 600 12px var(--font-sans); }
+.side-foot .line { display: flex; justify-content: space-between; }
+.mono { font-family: var(--font-mono); }
+.a { color: var(--add); } .d { color: var(--del); }
+.progress { height: 4px; border-radius: 2px; background: var(--wash); overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--add); border-radius: 2px; }
+
+/* Main review */
+.main { grid-row: 2; grid-column: 2; background: var(--app-bg); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.scroll { flex: 1; overflow: auto; padding: 14px 16px 24px; }
+.card { border: 1px solid var(--file-border); border-radius: 12px; background: var(--code-bg); margin-bottom: 12px; overflow: clip; }
+.card-head {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; height: 44px;
+  padding: 0 8px 0 6px; background: var(--code-bg); border-bottom: 1px solid var(--file-border);
+}
+.card.collapsed .card-head { border-bottom: 0; }
+.card.collapsed .card-body { display: none; }
+.card.collapsed .chev { transform: rotate(-90deg); }
+.chev { transition: transform .12s; }
+.path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 13px/1 var(--font-mono); }
+.path .dir { color: var(--muted); }
+.card.viewed .path { opacity: .55; }
+.delta { font: 600 12px/1 var(--font-mono); padding: 6px 7px; border-radius: 7px; background: rgb(127 127 127 / .08); }
+.badge { font: 600 11px/1 var(--font-sans); padding: 6px 7px; border-radius: 7px; color: var(--muted); background: rgb(127 127 127 / .08); }
+.ghost {
+  display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px; border-radius: 8px;
+  border: 1px solid var(--file-border); color: var(--text-2); font: 600 12px var(--font-sans);
+}
+.ghost:hover { background: var(--wash); }
+.ghost .box.on { background: var(--add); border-color: var(--add); }
+.diff { font: var(--code-size)/var(--code-lh) var(--font-code); tab-size: 4; }
+.ln { display: grid; grid-template-columns: 46px 46px 18px minmax(0, 1fr); }
+.ln .n { text-align: right; padding-right: 10px; color: var(--muted); font-size: 11px; }
+.ln .s { color: var(--muted); text-align: center; }
+.ln .c { white-space: pre; overflow: hidden; user-select: text; -webkit-user-select: text; cursor: text; }
+.ln.add { background: var(--add-bg); } .ln.add .n { background: var(--add-gutter); color: var(--add); } .ln.add .s { color: var(--add); }
+.ln.del { background: var(--del-bg); } .ln.del .n { background: var(--del-gutter); color: var(--del); } .ln.del .s { color: var(--del); }
+.ln.sel { box-shadow: inset 3px 0 0 var(--accent); }
+.sk { color: var(--sk); font-style: normal; } .ss { color: var(--ss); font-style: normal; } .st2 { color: var(--st); font-style: normal; }
+.sf { color: var(--sf); font-style: normal; } .sc { color: var(--sc); font-style: italic; } .sn { color: var(--sn); font-style: normal; }
+.hunk { display: flex; align-items: center; gap: 8px; height: 28px; padding-left: 14px; background: var(--hunk-bg); color: var(--muted); font: 12px var(--font-sans); }
+.hunk svg { width: 14px; height: 14px; }
+.thread {
+  margin: 6px 16px 10px 110px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--file-border);
+  background: var(--app-bg); font: 13px/1.5 var(--font-sans); user-select: text; -webkit-user-select: text;
+}
+.thread .meta { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.thread .meta b { color: var(--text-2); }
+.thread .meta .spacer { flex: 1; }
+.thread .meta .icon-btn { width: 24px; height: 24px; }
+.thread .meta .icon-btn svg { width: 14px; height: 14px; }
+.thread p { margin: 4px 0 0; color: var(--text-2); }
+code { font: .92em var(--font-code); background: var(--wash); padding: 1px 4px; border-radius: 4px; }
+.footer {
+  flex: none; height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  border-top: 1px solid var(--border); color: var(--muted); font: 12px var(--font-sans);
+}
+.footer .dot { color: var(--border); }
+.footer .next { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.footer b { color: var(--text-2); font-weight: 600; }
+kbd { font: 600 11px var(--font-mono); padding: 1px 5px; border-radius: 4px; background: var(--wash); color: var(--text-2); }
+
+/* Comments inspector: a pane that pushes the diff, never a modal */
+.inspector { grid-column: 3; width: 320px; border-left: 1px solid var(--border); }
+.window:not(.inspector-open) .inspector { display: none; }
+.insp-list { flex: 1; overflow: auto; padding: 0 8px 8px; }
+.ccard { padding: 10px 12px; border-radius: 10px; background: var(--code-bg); border: 1px solid var(--file-border); margin-bottom: 8px; }
+.ccard .loc { font: 600 11.5px var(--font-mono); color: var(--muted); }
+.ccard p { margin: 4px 0 0; color: var(--text-2); user-select: text; -webkit-user-select: text; }
+.ccard:hover { border-color: rgb(127 127 127 / .3); }
+.insp-foot { border-top: 1px solid var(--border); padding: 8px; display: flex; }
+.insp-foot .ghost { flex: 1; justify-content: center; }
+
+/* Settings: Wails v2 has a single window, so Settings is a sheet over it */
+.sheet-backdrop {
+  position: absolute; inset: 0; z-index: 20; display: flex; justify-content: center; align-items: flex-start;
+  padding-top: 52px; background: rgb(0 0 0 / .18);
+}
+.sheet {
+  width: 640px; max-height: calc(100% - 68px); display: flex; flex-direction: column;
+  border-radius: 12px; background: var(--sheet-bg); border: .5px solid var(--file-border);
+  box-shadow: 0 24px 60px rgb(0 0 0 / .35), 0 0 0 .5px rgb(0 0 0 / .2);
+  animation: sheet-in .18s ease-out;
+}
+@keyframes sheet-in { from { transform: translateY(-8px); opacity: 0; } }
+.sheet-title { text-align: center; font-weight: 600; padding: 14px 0 0; }
+.sheet-body { overflow: auto; padding: 0 20px 4px; }
+.group-label { font: 600 12px var(--font-sans); color: var(--muted); margin: 16px 4px 6px; }
+.group { border-radius: 10px; background: var(--group-bg); border: 1px solid var(--file-border); }
+.field { display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 7px 12px; }
+.field + .field { border-top: 1px solid var(--file-border); }
+.field > .label { flex: 1; }
+.field .sub { display: block; font-size: 11.5px; color: var(--muted); }
+.field .sub.warn { color: var(--warn); }
+.appearance { display: flex; gap: 14px; }
+.appearance button { display: grid; justify-items: center; gap: 5px; font-size: 11.5px; color: var(--text-2); }
+.thumb { position: relative; width: 68px; height: 44px; border-radius: 7px; overflow: hidden; box-shadow: 0 0 0 1px var(--file-border); }
+.appearance button[aria-pressed="true"] .thumb { box-shadow: 0 0 0 2px var(--sheet-bg), 0 0 0 4px var(--accent); }
+.thumb::before { content: ''; position: absolute; inset: 0 0 auto; height: 9px; }
+.thumb::after { content: ''; position: absolute; left: 0; top: 9px; bottom: 0; width: 18px; }
+.thumb.light { background: #fff; } .thumb.light::before { background: #e6e6e4; } .thumb.light::after { background: #f1f1ef; }
+.thumb.dark { background: #1c1c1c; } .thumb.dark::before { background: #303030; } .thumb.dark::after { background: #262626; }
+.thumb.system { background: linear-gradient(90deg, #fff 50%, #1c1c1c 50%); }
+.thumb.system::before { background: linear-gradient(90deg, #e6e6e4 50%, #303030 50%); }
+.thumb.system::after { background: #f1f1ef; }
+.popup-wrap { position: relative; display: inline-flex; }
+.popup-wrap svg { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; pointer-events: none; color: var(--muted); }
+.popup, .text {
+  appearance: none; -webkit-appearance: none; height: 24px; width: 200px; border: 0; border-radius: 6px;
+  font: 13px var(--font-sans); color: var(--text); background: var(--control-bg);
+  box-shadow: 0 0 0 .5px var(--control-border), 0 1px 1px rgb(0 0 0 / .06);
+}
+.popup { padding: 0 26px 0 9px; }
+.text { padding: 0 8px; font-family: var(--font-mono); font-size: 12px; user-select: text; -webkit-user-select: text; }
+.popup:focus-visible, .text:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent); }
+.stepper { display: inline-flex; align-items: center; height: 24px; border-radius: 6px; background: var(--control-bg); box-shadow: 0 0 0 .5px var(--control-border); }
+.stepper button { width: 26px; height: 24px; color: var(--text-2); font-size: 14px; }
+.stepper button:active { background: var(--wash); }
+.stepper output { min-width: 52px; text-align: center; font-variant-numeric: tabular-nums; border-inline: 1px solid var(--file-border); }
+.previews { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pv { border-radius: 10px; overflow: hidden; border: 1px solid var(--file-border); background: var(--code-bg); color: var(--text); }
+.pv-head { display: flex; justify-content: space-between; padding: 6px 10px; font: 600 11px var(--font-sans); color: var(--muted); border-bottom: 1px solid var(--file-border); }
+.pv .diff { padding: 4px 0; tab-size: 2; }
+.pv .ln { grid-template-columns: 30px 16px minmax(0, 1fr); }
+.pv-light {
+  --code-bg: #fff; --text: #111; --muted: rgb(17 17 17 / .48); --file-border: rgb(17 17 17 / .09);
+  --add: rgb(31 122 68); --del: rgb(184 49 47); --add-bg: rgb(31 122 68 / .08); --add-gutter: rgb(31 122 68 / .15);
+  --del-bg: rgb(184 49 47 / .07); --del-gutter: rgb(184 49 47 / .14);
+}
+.pv-dark {
+  --code-bg: #1c1c1c; --text: rgb(235 235 235); --muted: rgb(230 230 230 / .48); --file-border: rgb(230 230 230 / .1);
+  --add: rgb(111 208 148); --del: rgb(238 126 126); --add-bg: rgb(111 208 148 / .09); --add-gutter: rgb(111 208 148 / .17);
+  --del-bg: rgb(238 126 126 / .09); --del-gutter: rgb(238 126 126 / .17);
+}
+.sheet-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px 16px; }
+.sheet-foot .note { font-size: 11.5px; color: var(--muted); }
+.btn-default { height: 24px; padding: 0 18px; border-radius: 6px; background: var(--accent); color: #fff; font-weight: 500; box-shadow: 0 1px 1px rgb(0 0 0 / .15); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sidebar" viewBox="0 0 16 16"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2.25" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 3v10" stroke="currentColor" stroke-width="1.3"/></symbol>
+  <symbol id="i-inspector" viewBox="0 0 16 16"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2.25" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10 3v10" stroke="currentColor" stroke-width="1.3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-caret" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-unified" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 6h6M5 8h6M5 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  <symbol id="i-split" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 3v10M4.5 6h2M4.5 8.5h2M9.5 6h2M9.5 8.5h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 16 16"><path d="M2.5 5h6M11.5 5h2M2.5 11h2M7.5 11h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="10" cy="5" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="6" cy="11" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.25" y="5.25" width="8" height="8" rx="1.75" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 3.5v-.25c0-.97-.78-1.75-1.75-1.75h-4.5c-.97 0-1.75.78-1.75 1.75v4.5c0 .97.78 1.75 1.75 1.75h.25" fill="none" stroke="currentColor" stroke-width="1.3"/></symbol>
+  <symbol id="i-close" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-file" viewBox="0 0 16 16"><path d="M4 1.75h5.25L12.5 5v8.25c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1V2.75c0-.55.45-1 1-1Z" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="1.2"/></symbol>
+  <symbol id="i-fold" viewBox="0 0 16 16"><path d="M5 3.5 8 6l3-2.5M5 12.5 8 10l3 2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-unfold" viewBox="0 0 16 16"><path d="M5 6 8 3.5 11 6M5 10l3 2.5 3-2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 16 16"><path d="M10.5 2.5l3 3-8 8H2.5v-3l8-8Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5c.05.55.5 1 1.05 1h3.7c.55 0 1-.45 1.05-1l.6-8.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="mock-controls">
+  <span>Mockup</span>
+  <button data-act="settings">Settings… ⌘,</button>
+  <button data-act="tabs" id="tabs-btn"></button>
+  <button data-act="inspector" id="insp-btn"></button>
+</div>
+
+<div class="window" id="win">
+  <header class="titlebar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <button class="icon-btn" data-act="sidebar" title="Toggle sidebar (⌃⌘S)"><svg><use href="#i-sidebar"/></svg></button>
+    <button class="icon-btn" title="Open repository… (⌘O)"><svg><use href="#i-plus"/></svg></button>
+    <div class="tabs" id="tabs" role="tablist" aria-label="Open reviews"></div>
+    <div class="compare" aria-label="Comparison">
+      <button title="Base — given on the command line (b)">HEAD~3<svg class="caret"><use href="#i-caret"/></svg></button>
+      <span class="arrow">→</span>
+      <button title="Target (t)">working tree<svg class="caret"><use href="#i-caret"/></svg></button>
+      <span class="sep"></span>
+      <button class="commit" title="Show one commit (l)">All commits<svg class="caret"><use href="#i-caret"/></svg></button>
+    </div>
+    <div class="actions">
+      <div class="seg" role="group" aria-label="Diff layout">
+        <button aria-pressed="true" title="Unified (⌘1)"><svg><use href="#i-unified"/></svg></button>
+        <button aria-pressed="false" title="Split (⌘2)"><svg><use href="#i-split"/></svg></button>
+      </div>
+      <button class="icon-btn" data-act="options" id="options-btn" aria-expanded="false" title="Diff options"><svg><use href="#i-sliders"/></svg></button>
+      <button class="pill-btn" title="Copy 3 comments as Markdown (⇧⌘C)"><svg><use href="#i-copy"/></svg><span class="count">3</span></button>
+      <button class="icon-btn" data-act="inspector" title="Comments (⌥⌘0)"><svg><use href="#i-inspector"/></svg></button>
+      <div class="popover" id="options" hidden>
+        <div class="pop-label">Include</div>
+        <label data-toggle><span class="box on"><svg><use href="#i-check"/></svg></span>Working tree<span class="hint">uncommitted</span></label>
+        <label data-toggle><span class="box"><svg><use href="#i-check"/></svg></span>Untracked files<span class="hint">12</span></label>
+        <hr>
+        <label data-toggle><span class="box"><svg><use href="#i-check"/></svg></span>Ignore whitespace<span class="hint">⌥⌘W</span></label>
+      </div>
+    </div>
+  </header>
+
+  <aside class="sidebar" aria-label="Changed files">
+    <div class="side-head">
+      Changes <span class="count">21</span>
+      <span class="spacer"></span>
+      <button class="icon-btn" title="Collapse all"><svg><use href="#i-fold"/></svg></button>
+      <button class="icon-btn" title="Expand all"><svg><use href="#i-unfold"/></svg></button>
+    </div>
+    <div class="tree" id="tree"></div>
+    <div class="side-foot">
+      <div class="line"><span>3 of 21 viewed</span><span class="mono"><span class="a">+778</span> <span class="d">−165</span></span></div>
+      <div class="progress"><i style="width:14.3%"></i></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="scroll" id="cards"></div>
+    <div class="footer">
+      <span>Base from the command line</span><span class="dot">·</span>
+      <span>Working tree included</span><span class="dot">·</span>
+      <span>12 untracked hidden</span>
+      <span class="next">Next <b>desktop/native-smoke.js</b> <kbd>j</kbd></span>
+    </div>
+  </main>
+
+  <aside class="inspector" aria-label="Comments">
+    <div class="side-head">
+      Comments <span class="count">3</span>
+      <span class="spacer"></span>
+      <button class="icon-btn" data-act="inspector" title="Close (⌥⌘0)"><svg><use href="#i-close"/></svg></button>
+    </div>
+    <div class="insp-list">
+      <div class="ccard"><div class="loc">desktop/main.go:118–121</div><p>Does <code>WindowIsTranslucent</code> cost GPU time on a 40k-line diff? Measure with <code>task desktop:memory</code> before shipping.</p></div>
+      <div class="ccard"><div class="loc">.github/workflows/release.yml:13</div><p>Pin <code>macos-26</code> explicitly, or will the runner image drift?</p></div>
+      <div class="ccard"><div class="loc">desktop/smoke.py:86</div><p>Also assert the title bar is translucent here.</p></div>
+    </div>
+    <div class="insp-foot"><button class="ghost"><svg><use href="#i-copy"/></svg>Copy all as Markdown <kbd>⇧⌘C</kbd></button></div>
+  </aside>
+
+  <div class="sheet-backdrop" id="settings" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="sheet-title" id="settings-title">Settings</div>
+      <div class="sheet-body">
+        <div class="group-label">Appearance</div>
+        <div class="group">
+          <div class="field">
+            <span class="label">Appearance<span class="sub">System follows macOS.</span></span>
+            <div class="appearance">
+              <button data-appearance="system"><span class="thumb system"></span>System</button>
+              <button data-appearance="light"><span class="thumb light"></span>Light</button>
+              <button data-appearance="dark"><span class="thumb dark"></span>Dark</button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="label">Light syntax theme</span>
+            <span class="popup-wrap"><select class="popup" id="light-theme"></select><svg><use href="#i-unfold"/></svg></span>
+          </div>
+          <div class="field">
+            <span class="label">Dark syntax theme</span>
+            <span class="popup-wrap"><select class="popup" id="dark-theme"></select><svg><use href="#i-unfold"/></svg></span>
+          </div>
+        </div>
+
+        <div class="group-label">Code</div>
+        <div class="group">
+          <div class="field">
+            <span class="label">Font<span class="sub" id="font-hint"></span></span>
+            <span class="popup-wrap">
+              <select class="popup" id="code-font">
+                <option>SF Mono</option><option>Menlo</option><option>JetBrains Mono</option><option>Fira Code</option>
+                <option value="other">Other…</option>
+              </select><svg><use href="#i-unfold"/></svg>
+            </span>
+          </div>
+          <div class="field" id="custom-font-row" hidden>
+            <span class="label">Font name</span>
+            <input class="text" id="custom-font" placeholder="Berkeley Mono" spellcheck="false" autocomplete="off">
+          </div>
+          <div class="field">
+            <span class="label">Size</span>
+            <span class="stepper"><button data-step="-1" aria-label="Smaller">−</button><output id="code-size"></output><button data-step="1" aria-label="Larger">+</button></span>
+          </div>
+        </div>
+
+        <div class="group-label">Preview</div>
+        <div class="previews">
+          <div class="pv pv-light" id="pv-light"><div class="pv-head"><span>Light</span><span class="pv-name"></span></div><div class="diff"></div></div>
+          <div class="pv pv-dark" id="pv-dark"><div class="pv-head"><span>Dark</span><span class="pv-name"></span></div><div class="diff"></div></div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <span class="note">Applies immediately · stored in ~/Library/Application Support/ghl Desktop</span>
+        <button class="btn-default" data-act="close-settings">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const COLORS = { go: '#00add8', yml: '#cb7cf2', md: '#6aa6ff', img: '#f278b6', svg: '#f5a524', py: '#e8c547', ts: '#3b82f6', js: '#e8c547', xml: '#9aa0a6' };
+const TREE = [
+  ['dir', 0, '.github/workflows'], ['file', 1, 'release.yml', 'A', 'yml'],
+  ['dir', 0, 'desktop'], ['dir', 1, 'icon'],
+  ['file', 2, 'AppIcon.png', 'A', 'img'], ['file', 2, 'AppIcon.svg', 'A', 'svg'],
+  ['file', 1, 'Info.plist', 'M', 'xml', 'viewed'], ['file', 1, 'launch.go', 'M', 'go'],
+  ['file', 1, 'main.go', 'M', 'go', 'sel'], ['file', 1, 'native-smoke.js', 'M', 'js'],
+  ['file', 1, 'README.md', 'M', 'md', 'viewed'], ['file', 1, 'release.py', 'A', 'py'],
+  ['file', 1, 'smoke.py', 'M', 'py'], ['file', 1, 'test_release.py', 'A', 'py'],
+  ['dir', 0, 'docs'], ['file', 1, 'releases.md', 'M', 'md', 'viewed'], ['file', 1, 'validation.md', 'M', 'md'],
+  ['dir', 0, 'test'], ['file', 1, 'goMise.ts', 'M', 'ts'], ['file', 1, 'goRelease.ts', 'M', 'ts'],
+  ['file', 1, 'miseReleaseFixture.ts', 'M', 'ts'], ['file', 1, 'releaseGuards.ts', 'M', 'ts'], ['file', 1, 'releaseTarget.ts', 'M', 'ts'],
+  ['file', 0, '.goreleaser.yaml', 'A', 'yml'], ['file', 0, 'CHANGELOG.md', 'M', 'md'], ['file', 0, 'Taskfile.yml', 'M', 'yml'],
+];
+document.getElementById('tree').innerHTML = TREE.map(([kind, d, name, st, type, flag]) => kind === 'dir'
+  ? `<div class="row dir" style="--d:${d}"><svg><use href="#i-caret"/></svg><span class="name">${name}</span></div>`
+  : `<div class="row ${flag || ''}" style="--d:${d + 0.9}"><svg class="file-icon" style="color:${COLORS[type]}"><use href="#i-file"/></svg><span class="name">${name}</span>${flag === 'viewed' ? '<svg class="seen"><use href="#i-check"/></svg>' : ''}<span class="st ${st}">${st}</span></div>`
+).join('');
+
+const k = (s) => `<i class="sk">${s}</i>`, s = (x) => `<i class="ss">${x}</i>`, t = (x) => `<i class="st2">${x}</i>`;
+const f = (x) => `<i class="sf">${x}</i>`, n = (x) => `<i class="sn">${x}</i>`, c = (x) => `<i class="sc">${x}</i>`;
+const L = (type, o, nw, code) => `<div class="ln ${type}"><span class="n">${o ?? ''}</span><span class="n">${nw ?? ''}</span><span class="s">${type.startsWith('add') ? '+' : type.startsWith('del') ? '−' : ''}</span><span class="c">${code}</span></div>`;
+const hunk = (text) => `<div class="hunk"><svg><use href="#i-unfold"/></svg>${text}</div>`;
+const thread = (where, body) => `<div class="thread"><div class="meta"><b>You</b><span>${where}</span><span class="spacer"></span><button class="icon-btn" title="Edit"><svg><use href="#i-edit"/></svg></button><button class="icon-btn" title="Delete"><svg><use href="#i-trash"/></svg></button></div><p>${body}</p></div>`;
+const card = ({ dir, file, add, del, status, viewed, collapsed, body }) => `
+  <section class="card${viewed ? ' viewed' : ''}${collapsed ? ' collapsed' : ''}">
+    <div class="card-head">
+      <button class="icon-btn chev" data-act="collapse"><svg><use href="#i-caret"/></svg></button>
+      <span class="path"><span class="dir">${dir}</span>${file}</span>
+      <span class="delta"><span class="a">+${add}</span> <span class="d">−${del}</span></span>
+      <span class="badge">${status}</span>
+      <button class="icon-btn" title="Copy file name"><svg><use href="#i-copy"/></svg></button>
+      <button class="ghost" data-act="viewed"><span class="box${viewed ? ' on' : ''}"><svg><use href="#i-check"/></svg></span>Viewed</button>
+    </div>
+    <div class="card-body diff">${body || ''}</div>
+  </section>`;
+
+document.getElementById('cards').innerHTML = [
+  card({ dir: 'desktop/', file: 'main.go', add: 7, del: 2, status: 'Modified', body: [
+    hunk('113 unmodified lines'),
+    L('ctx', 114, 114, `\t${k('return')} wails.${f('Run')}(&amp;options.${t('App')}{`),
+    L('ctx', 115, 115, `\t\tTitle: ${s('"ghl — Desktop"')}, Width: ${n(1280)}, Height: ${n(800)}, MinWidth: ${n(800)}, MinHeight: ${n(500)},`),
+    L('del', 116, null, `\t\tMenu: appMenu, EnableDefaultContextMenu: ${k('true')},`),
+    L('del', 117, null, `\t\tBackgroundColour: options.${f('NewRGBA')}(${n(34)}, ${n(39)}, ${n(46)}, ${n(255)}),`),
+    L('add', null, 116, `\t\tMenu: appMenu,`),
+    L('add', null, 117, `\t\tBackgroundColour: options.${f('NewRGBA')}(${n(0)}, ${n(0)}, ${n(0)}, ${n(0)}),`),
+    L('add sel', null, 118, `\t\tMac: &amp;mac.${t('Options')}{`),
+    L('add sel', null, 119, `\t\t\tTitleBar:             mac.${f('TitleBarHiddenInset')}(),`),
+    L('add sel', null, 120, `\t\t\tWebviewIsTransparent: ${k('true')},`),
+    L('add sel', null, 121, `\t\t\tWindowIsTranslucent:  ${k('true')},`),
+    thread('lines 118–121', 'Does <code>WindowIsTranslucent</code> cost GPU time on a 40k-line diff? Measure with <code>task desktop:memory</code> before shipping.'),
+    L('add', null, 122, `\t\t},`),
+    L('ctx', 118, 123, `\t\tAssetServer:      &amp;assetserver.${t('Options')}{Handler: backend.${f('handler')}()},`),
+    L('ctx', 119, 124, `\t\tBind:             []${k('interface')}{}{desktop},`),
+    hunk('24 unmodified lines'),
+  ].join('') }),
+  card({ dir: 'desktop/', file: 'native-smoke.js', add: 2, del: 1, status: 'Modified', body: [
+    hunk('83 unmodified lines'),
+    L('ctx', 84, 84, `  ${k('await')} ${f('waitFor')}(() =&gt; document.${f('querySelector')}(${s("'.desktop-review'")}))`),
+    L('del', 85, null, `  ${k('const')} tabbar = document.${f('querySelector')}(${s("'.desktop-tabbar'")})`),
+    L('add', null, 85, `  ${k('const')} titlebar = document.${f('querySelector')}(${s("'.titlebar'")})`),
+    L('add', null, 86, `  ${f('assert')}(${f('getComputedStyle')}(titlebar).backdropFilter !== ${s("'none'")}, ${s("'title bar is translucent'")})`),
+    L('ctx', 86, 87, `  ${f('report')}(${s("'native rendering'")})`),
+    hunk('238 unmodified lines'),
+  ].join('') }),
+  card({ dir: 'desktop/', file: 'README.md', add: 14, del: 6, status: 'Modified', viewed: true, collapsed: true }),
+  card({ dir: 'desktop/', file: 'release.py', add: 96, del: 0, status: 'Added', body: [
+    L('add', null, 1, c('#!/usr/bin/env python3')),
+    L('add', null, 2, s('"""Check the desktop ZIP before a release publishes it."""')),
+    L('add', null, 3, ''),
+    L('add', null, 4, `${k('import')} json`),
+    L('add', null, 5, `${k('import')} subprocess`),
+    L('add', null, 6, `${k('from')} pathlib ${k('import')} ${t('Path')}`),
+    L('add', null, 7, ''),
+    L('add', null, 8, ''),
+    L('add', null, 9, `${k('def')} ${f('bundle_version')}(app: ${t('Path')}) -&gt; ${t('str')}:`),
+    L('add', null, 10, `    plist = app / ${s("'Contents'")} / ${s("'Info.plist'")}`),
+    hunk('Show 86 more lines'),
+  ].join('') }),
+].join('');
+
+const win = document.getElementById('win');
+const root = document.documentElement;
+const TABS = [
+  { head: '~/dev/perso/', name: 'github-like', active: true },
+  { head: '~/dev/', name: 'dotfiles' },
+  { head: '~/dev/oss/', name: 'task' },
+];
+let multi = false;
+const renderTabs = () => {
+  const el = document.getElementById('tabs');
+  el.className = 'tabs' + (multi ? ' multi' : '');
+  el.innerHTML = (multi ? TABS : TABS.filter((tab) => tab.active)).map((tab, i) =>
+    `<div class="tab${tab.active ? ' active' : ''}" role="tab" aria-selected="${!!tab.active}" data-tab="${TABS.indexOf(tab)}" title="${tab.head}${tab.name} · HEAD~3 → working tree"><span class="head">${tab.head}</span><span class="tail">${tab.name}</span><button class="x" aria-label="Close ${tab.name}"><svg><use href="#i-close"/></svg></button></div>`
+  ).join('');
+};
+const sync = () => {
+  document.getElementById('tabs-btn').textContent = multi ? '3 tabs' : '1 tab';
+  document.getElementById('insp-btn').textContent = 'Comments panel: ' + (win.classList.contains('inspector-open') ? 'on' : 'off');
+};
+// The ten themes ghl already ships, split by mode. Colours: keyword, string, type, function, comment, number.
+const SYNTAX = {
+  light: {
+    'github-light': ['GitHub Light', '#cf222e', '#0a3069', '#0550ae', '#8250df', '#6e7781', '#0550ae'],
+    'vscode-light': ['VS Code Light+', '#0000ff', '#a31515', '#267f99', '#795e26', '#008000', '#098658'],
+    'catppuccin-latte': ['Catppuccin Latte', '#8839ef', '#40a02b', '#df8e1d', '#1e66f5', '#9ca0b0', '#fe640b'],
+    'solarized-light': ['Solarized Light', '#859900', '#2aa198', '#b58900', '#268bd2', '#93a1a1', '#d33682'],
+  },
+  dark: {
+    'github-dimmed': ['GitHub Dark dimmed', '#f47067', '#96d0ff', '#6cb6ff', '#dcbdfb', '#768390', '#6cb6ff'],
+    'github-dark': ['GitHub Dark', '#ff7b72', '#a5d6ff', '#79c0ff', '#d2a8ff', '#8b949e', '#79c0ff'],
+    'vscode-dark': ['VS Code Dark+', '#569cd6', '#ce9178', '#4ec9b0', '#dcdcaa', '#6a9955', '#b5cea8'],
+    'darcula': ['JetBrains Darcula', '#cc7832', '#6a8759', '#a9b7c6', '#ffc66d', '#808080', '#6897bb'],
+    'catppuccin-frappe': ['Catppuccin Frappé', '#ca9ee6', '#a6d189', '#e5c890', '#8caaee', '#737994', '#ef9f76'],
+    'catppuccin-mocha': ['Catppuccin Mocha', '#cba6f7', '#a6e3a1', '#f9e2af', '#89b4fa', '#7f849c', '#fab387'],
+  },
+};
+const FONTS = {
+  'SF Mono': 'ui-monospace, "SF Mono", Menlo, monospace',
+  Menlo: 'Menlo, monospace',
+  'JetBrains Mono': '"JetBrains Mono", ui-monospace, monospace',
+  'Fira Code': '"Fira Code", ui-monospace, monospace',
+};
+const settings = { appearance: 'system', light: 'github-light', dark: 'github-dimmed', font: 'SF Mono', customFont: '', size: 12 };
+const media = matchMedia('(prefers-color-scheme: dark)');
+const $ = (id) => document.getElementById(id);
+
+// A family that is not installed renders in the fallback, so its glyph widths match the fallback's.
+const installed = (family) => {
+  if (family === 'SF Mono' || family === 'Menlo') return true;
+  const ctx = document.createElement('canvas').getContext('2d');
+  const sample = 'mmmmmmmmmmlli0O{}=>';
+  return ['monospace', 'serif', 'sans-serif'].some((base) => {
+    ctx.font = `72px ${base}`;
+    const width = ctx.measureText(sample).width;
+    ctx.font = `72px "${family}", ${base}`;
+    return ctx.measureText(sample).width !== width;
+  });
+};
+const setSyntax = (el, colors) =>
+  ['--sk', '--ss', '--st', '--sf', '--sc', '--sn'].forEach((name, i) => el.style.setProperty(name, colors[i + 1]));
+
+for (const mode of ['light', 'dark'])
+  $(`${mode}-theme`).innerHTML = Object.entries(SYNTAX[mode]).map(([id, [label]]) => `<option value="${id}">${label}</option>`).join('');
+
+const PV = (type, num, code) => `<div class="ln ${type}"><span class="n">${num}</span><span class="s">${type === 'add' ? '+' : type === 'del' ? '−' : ''}</span><span class="c">${code}</span></div>`;
+const previewLines = [
+  PV('ctx', 12, `${k('func')} ${f('open')}(repo ${t('string')}) ${t('error')} {`),
+  PV('del', 13, `\t${k('return')} ${f('run')}(repo, ${s('"HEAD"')}, ${n(1)})`),
+  PV('add', 13, `\t${c('// Resolve the base once.')}`),
+  PV('add', 14, `\t${k('return')} ${f('run')}(repo, ${f('base')}(repo), ${n(2)})`),
+  PV('ctx', 15, '}'),
+].join('');
+document.querySelectorAll('.pv .diff').forEach((el) => (el.innerHTML = previewLines));
+
+const applySettings = () => {
+  const mode = settings.appearance === 'system' ? (media.matches ? 'dark' : 'light') : settings.appearance;
+  root.dataset.theme = mode;
+  setSyntax(root, SYNTAX[mode][settings[mode]]);
+  for (const pvMode of ['light', 'dark']) {
+    setSyntax($(`pv-${pvMode}`), SYNTAX[pvMode][settings[pvMode]]);
+    $(`pv-${pvMode}`).querySelector('.pv-name').textContent = SYNTAX[pvMode][settings[pvMode]][0];
+    $(`${pvMode}-theme`).value = settings[pvMode];
+  }
+  document.querySelectorAll('[data-appearance]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.appearance === settings.appearance)));
+
+  const custom = settings.font === 'other';
+  const family = custom ? settings.customFont.trim() : settings.font;
+  const available = family !== '' && installed(family);
+  root.style.setProperty('--font-code', available ? FONTS[family] ?? `"${family}", ui-monospace, monospace` : FONTS['SF Mono']);
+  root.style.setProperty('--code-size', `${settings.size}px`);
+  root.style.setProperty('--code-lh', `${Math.round(settings.size * 1.65)}px`);
+  $('code-font').value = settings.font;
+  $('custom-font-row').hidden = !custom;
+  $('code-size').textContent = `${settings.size} pt`;
+  const hint = $('font-hint');
+  hint.textContent = available || (custom && family === '')
+    ? 'Any monospaced font installed on this Mac.'
+    : `${family} is not installed — using SF Mono.`;
+  hint.classList.toggle('warn', !available && family !== '');
+};
+media.addEventListener('change', applySettings);
+$('light-theme').addEventListener('change', (e) => { settings.light = e.target.value; applySettings(); });
+$('dark-theme').addEventListener('change', (e) => { settings.dark = e.target.value; applySettings(); });
+$('code-font').addEventListener('change', (e) => {
+  settings.font = e.target.value;
+  applySettings();
+  if (settings.font === 'other') $('custom-font').focus();
+});
+$('custom-font').addEventListener('input', (e) => { settings.customFont = e.target.value; applySettings(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') $('settings').hidden = true;
+  if (e.key === ',' && e.metaKey) { e.preventDefault(); $('settings').hidden = false; }
+});
+
+renderTabs();
+applySettings();
+sync();
+if (location.hash === '#settings') $('settings').hidden = false;
+
+const popover = document.getElementById('options');
+const optionsBtn = document.getElementById('options-btn');
+document.addEventListener('click', (event) => {
+  const tab = event.target.closest('[data-tab]');
+  if (tab && !event.target.closest('.x')) {
+    TABS.forEach((item, i) => (item.active = String(i) === tab.dataset.tab));
+    renderTabs();
+  }
+  const toggle = event.target.closest('[data-toggle]');
+  if (toggle) { event.preventDefault(); toggle.querySelector('.box').classList.toggle('on'); return; }
+  const seg = event.target.closest('.seg button');
+  if (seg) seg.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === seg)));
+  const act = event.target.closest('[data-act]')?.dataset.act;
+  if (act !== 'options' && !event.target.closest('#options')) { popover.hidden = true; optionsBtn.setAttribute('aria-expanded', 'false'); }
+  if (act === 'settings') $('settings').hidden = false;
+  if (act === 'close-settings') $('settings').hidden = true;
+  const appearance = event.target.closest('[data-appearance]');
+  if (appearance) { settings.appearance = appearance.dataset.appearance; applySettings(); }
+  const step = event.target.closest('[data-step]');
+  if (step) { settings.size = Math.min(18, Math.max(10, settings.size + Number(step.dataset.step))); applySettings(); }
+  if (act === 'tabs') { multi = !multi; renderTabs(); }
+  if (act === 'inspector') win.classList.toggle('inspector-open');
+  if (act === 'sidebar') win.classList.toggle('no-sidebar');
+  if (act === 'options') { popover.hidden = !popover.hidden; optionsBtn.setAttribute('aria-expanded', String(!popover.hidden)); }
+  if (act === 'collapse') event.target.closest('.card').classList.toggle('collapsed');
+  if (act === 'viewed') {
+    const cardEl = event.target.closest('.card');
+    const on = event.target.closest('.ghost').querySelector('.box').classList.toggle('on');
+    cardEl.classList.toggle('viewed', on);
+    cardEl.classList.toggle('collapsed', on);
+  }
+  sync();
+});
+</script>
+</body>
+</html>
