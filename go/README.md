@@ -237,7 +237,8 @@ the whole range with a notice. Invalid bases or targets fail explicitly.
 
 `task test` checks Go payloads, context and anchors against Git across these scopes,
 then runs the existing picker, commit, stack, untracked and image browser checks against Go.
-All fifteen shared browser suites also run against Go through `test/run.ts`.
+The shared UI suites in `test/run.ts` drive the built desktop UI against Go in headless Chrome,
+with the Wails bindings simulated by `desktop/simulator.ts`.
 The isolated PoC keeps its explicit-base checkout scope and hidden pickers.
 
 The **Untracked** checkbox includes files returned by Git's ignore-aware listing;
@@ -305,7 +306,8 @@ That download needs network access; subsequent runs reuse it. Air is a
 development tool only and adds no dependency to the runtime Go module.
 
 Task starts Air and the Vite CLI in parallel, without a TypeScript launcher.
-Vite serves React on `127.0.0.1:5180` with Fast Refresh and CSS hot reload,
+Vite serves the desktop UI on `127.0.0.1:5180`, on the Wails bindings simulated by
+`desktop/simulator.ts`, with Fast Refresh and CSS hot reload,
 proxying API requests to Go on `127.0.0.1:5181`. `BACKEND_PORT` chooses another
 fixed backend port; `PORT=0` chooses a free frontend port instead of 5180.
 Vite waits up to 30 seconds for the backend, then opens the review unless
