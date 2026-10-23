@@ -78,18 +78,18 @@ func TestSharedBackendNativeOriginAndShutdown(t *testing.T) {
 	t.Cleanup(b.close)
 	first := fixtureRepo(t, "repo space é")
 	second := fixtureRepo(t, "another")
-	firstRoute, err := b.open(ctx, launch{repo: first, base: "HEAD"})
+	firstRoute, _, err := b.open(ctx, launch{repo: first, base: "HEAD"})
 	if err != nil || !strings.HasSuffix(firstRoute, "/?base=HEAD") {
 		t.Fatalf("%q (%v)", firstRoute, err)
 	}
-	secondRoute, err := b.open(ctx, launch{repo: second, base: "HEAD"})
+	secondRoute, _, err := b.open(ctx, launch{repo: second, base: "HEAD"})
 	if err != nil || secondRoute == firstRoute {
 		t.Fatalf("%q (%v)", secondRoute, err)
 	}
-	if _, err := b.open(ctx, launch{repo: first, base: "does-not-exist"}); err == nil {
+	if _, _, err := b.open(ctx, launch{repo: first, base: "does-not-exist"}); err == nil {
 		t.Fatal("invalid base accepted")
 	}
-	if _, err := b.open(ctx, launch{repo: t.TempDir(), base: "HEAD"}); err == nil {
+	if _, _, err := b.open(ctx, launch{repo: t.TempDir(), base: "HEAD"}); err == nil {
 		t.Fatal("invalid repo accepted")
 	}
 	handler := b.handler()

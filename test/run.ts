@@ -5,6 +5,7 @@ import { runReviewSelection } from './reviewSelection.ts'
 import { runCommentPersistence } from './commentPersistence.ts'
 import { runViewedPersistence } from './viewedPersistence.ts'
 import { runDesktopSettings } from './desktopSettings.ts'
+import { runTabOverflow } from './tabOverflow.ts'
 
 import reviewPanel from './suites/reviewPanel.ts'
 import themes from './suites/themes.ts'
@@ -50,6 +51,7 @@ const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'comment-persistence', run: runCommentPersistence },
   { name: 'viewed-persistence', run: runViewedPersistence },
   { name: 'desktop-settings', run: runDesktopSettings },
+  { name: 'tab-overflow', run: runTabOverflow },
   { name: 'export', run: runExport },
 ]
 

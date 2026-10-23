@@ -174,6 +174,7 @@
         () => root.dataset.theme === (dark ? 'github-light' : 'github-dimmed'),
         'Appearance did not apply',
       )
+      check(root.dataset.material === 'opaque', 'Chrome stays translucent over the other mode')
       sheet.querySelector('[aria-label="Larger"]').click()
       await wait(
         () =>
@@ -196,6 +197,7 @@
         root.dataset.theme === (dark ? 'github-dimmed' : 'github-light'),
         'System appearance did not return',
       )
+      check(root.dataset.material === 'translucent', 'Chrome stays opaque under System')
       let contextRequests = 0
       const realFetch = window.fetch
       window.fetch = (...args) => {

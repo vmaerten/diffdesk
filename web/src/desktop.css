@@ -19,6 +19,10 @@
   --primary-bg: #2a66c9;
   --primary-hover: #245ab3;
   --primary-text: #ffffff;
+  --chrome-bg: rgb(246 246 244 / 72%);
+  --chrome-opaque: #ececea;
+  --wash: rgb(127 127 127 / 10%);
+  --wash-strong: rgb(127 127 127 / 18%);
 }
 :root[data-theme][data-color-mode='dark'],
 .settings-preview.dark {
@@ -38,6 +42,10 @@
   --primary-bg: #2f6fd6;
   --primary-hover: #3d7be0;
   --primary-text: #ffffff;
+  --chrome-bg: rgb(30 30 30 / 70%);
+  --chrome-opaque: #262626;
+  --wash: rgb(127 127 127 / 14%);
+  --wash-strong: rgb(127 127 127 / 26%);
 }
 :root[data-theme][data-color-mode],
 .settings-preview {
@@ -45,6 +53,12 @@
   --diff-addition-gutter: color-mix(in srgb, var(--success) 16%, var(--bg));
   --diff-deletion: color-mix(in srgb, var(--danger) 9%, var(--bg));
   --diff-deletion-gutter: color-mix(in srgb, var(--danger) 16%, var(--bg));
+}
+/* The window material follows macOS whatever Settings forces (see
+   useAppearance): over a material of the other mode, translucency would only
+   muddy the chrome. */
+:root[data-theme][data-material='opaque'] {
+  --chrome-bg: var(--chrome-opaque);
 }
 body {
   font-size: 13px;
@@ -72,11 +86,11 @@ body {
 }
 /* Chrome is not text to select. Fields inside it stay editable, which WebKit
    would otherwise refuse under an unselectable ancestor. */
-:is(.desktop-tabbar, .topbar, .review-tools, .sidebar-head, .desktop-empty) {
+:is(.desktop-titlebar, .topbar, .review-tools, .sidebar-head, .desktop-empty) {
   -webkit-user-select: none;
   user-select: none;
 }
-:is(.desktop-tabbar, .topbar, .review-tools, .sidebar-head, .desktop-empty) :is(input, textarea) {
+:is(.desktop-titlebar, .topbar, .review-tools, .sidebar-head, .desktop-empty) :is(input, textarea) {
   -webkit-user-select: text;
   user-select: text;
 }
@@ -85,85 +99,161 @@ body {
   display: flex;
   flex-direction: column;
 }
-.desktop-tabbar {
+/* The window shows the system material wherever the page is transparent: the
+   title bar lets it through, the content stays opaque. */
+body,
+.desktop-shell {
+  background: transparent;
+}
+.desktop-titlebar {
+  --wails-draggable: drag;
   display: flex;
-  align-items: stretch;
-  min-height: 44px;
-  background: var(--bg);
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  /* The unified toolbar height, where macOS centers the window buttons. */
+  height: 52px;
+  padding: 0 12px 0 84px;
+  background: var(--chrome-bg);
   border-bottom: 1px solid var(--border);
+}
+.desktop-titlebar :is(button, select) {
+  --wails-draggable: no-drag;
+}
+.titlebar-button,
+.titlebar-more {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-dim);
+}
+.titlebar-button:hover,
+.titlebar-more:hover {
+  background: var(--wash);
+  color: var(--text);
+}
+/* The native menu opens from an invisible select laid over the icon. */
+.titlebar-more select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+/* Tab sizes come from tabOverflow.ts, which splits the tabs by them. */
+.desktop-tabs-area {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--tab-gap);
+  min-width: 0;
 }
 .desktop-tabs {
   display: flex;
-  flex: 1;
+  gap: var(--tab-gap);
   min-width: 0;
-  overflow-x: auto;
+  overflow: hidden;
 }
 .desktop-tab {
   display: flex;
-  flex-shrink: 0;
-  border-right: 1px solid var(--border);
-  border-top: 2px solid transparent;
+  align-items: center;
+  min-width: var(--tab-min-width);
+  max-width: 240px;
+  height: 28px;
+  padding-right: 4px;
+  border-radius: 8px;
+  color: var(--text-dim);
 }
-.desktop-tab.active {
-  background: var(--bg-raised);
-  border-top-color: var(--accent);
+.desktop-tabs:not(.multi) .desktop-tab {
+  max-width: none;
+  color: var(--text);
 }
-.desktop-tab > button {
-  border: 0;
-  background: none;
-  color: var(--text-muted);
+.desktop-tabs.multi .desktop-tab:hover {
+  background: var(--wash);
 }
-.desktop-tab.active > button {
+.desktop-tabs.multi .desktop-tab.active {
+  background: var(--wash-strong);
   color: var(--text);
 }
 .desktop-tab > [role='tab'] {
   display: flex;
+  flex: 1;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  max-width: 360px;
-}
-.desktop-tab > [role='tab'] span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.desktop-tab small {
-  font-size: 11px;
-  white-space: nowrap;
-  color: var(--text-muted);
-}
-.desktop-tab-close {
-  padding: 6px;
-  align-self: center;
-  margin-right: 4px;
-}
-.desktop-tab-close:hover,
-.desktop-open:hover {
-  background: var(--bg-raised);
-}
-.desktop-open {
-  flex-shrink: 0;
-  width: 44px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px 0 10px;
   border: 0;
   background: none;
-  color: var(--text);
-  font-size: 22px;
+  color: inherit;
+  font: 600 12px/1 var(--mono);
+  white-space: nowrap;
+}
+.desktop-tab :is(.tab-dir, .tab-name) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.desktop-tab .tab-dir {
+  color: var(--text-dim);
+}
+.desktop-tab-close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  opacity: 0;
+}
+.desktop-tab:hover .desktop-tab-close,
+.desktop-tabs.multi .desktop-tab.active .desktop-tab-close,
+.desktop-tab-close:focus-visible {
+  opacity: 1;
+}
+.desktop-tab-close:hover {
+  background: var(--wash-strong);
+}
+.desktop-tab-close .icon {
+  width: 12px;
+  height: 12px;
 }
 .desktop-review {
   flex: 1;
   min-height: 0;
+  background: var(--bg);
 }
 .desktop-error {
   margin: 0;
   padding: 8px 16px;
+  background: var(--bg);
 }
 .desktop-error button {
   margin-left: 12px;
 }
 .desktop-empty {
-  margin: auto;
+  flex: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  background: var(--bg);
   text-align: center;
+}
+.desktop-empty h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.desktop-empty p {
+  margin: 0 0 8px;
+  color: var(--text-dim);
 }
 
 .desktop-sheet {
