@@ -155,14 +155,20 @@ export default function DesktopApp() {
       const next = tabs[(index + tabs.length + (event.shiftKey ? -1 : 1)) % tabs.length]
       if (next) apply(api.ActivateTab(next.id))
     }
-    window.addEventListener('desktop:reload', reload)
-    window.addEventListener('desktop:close-active', closeActive)
+    // The window's menu commands; App takes the review's from the same event.
+    const runCommand = (event: Event) => {
+      const command = (event as CustomEvent<string>).detail
+      if (command === 'reload') reload()
+      else if (command === 'close-tab') closeActive()
+      else if (command === 'settings') setSettingsOpen(true)
+      else if (command === 'shortcuts') setShortcutsOpen(true)
+    }
+    window.addEventListener('desktop:command', runCommand)
     window.addEventListener('keydown', cycle)
     return () => {
       disposed = true
       unsubscribe()
-      window.removeEventListener('desktop:reload', reload)
-      window.removeEventListener('desktop:close-active', closeActive)
+      window.removeEventListener('desktop:command', runCommand)
       window.removeEventListener('keydown', cycle)
     }
   }, [apply])
@@ -174,16 +180,6 @@ export default function DesktopApp() {
         setError(String(cause))
         setSettings(DEFAULT_SETTINGS)
       })
-    const openSettings = () => setSettingsOpen(true)
-    const openShortcuts = (event: Event) => {
-      if ((event as CustomEvent<string>).detail === 'shortcuts') setShortcutsOpen(true)
-    }
-    window.addEventListener('desktop:settings', openSettings)
-    window.addEventListener('desktop:command', openShortcuts)
-    return () => {
-      window.removeEventListener('desktop:settings', openSettings)
-      window.removeEventListener('desktop:command', openShortcuts)
-    }
   }, [])
   // Each change applies to the latest settings: two controls used before a
   // render must not undo each other.

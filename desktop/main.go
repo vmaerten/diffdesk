@@ -108,13 +108,9 @@ func run() error {
 	}
 	desktop := &desktopApp{backend: backend, requests: make(chan launch, 16), settings: settings}
 	desktop.requests <- initial
-	event := func(name string) func(*menu.CallbackData) {
-		return func(*menu.CallbackData) {
-			runtime.WindowExecJS(desktop.runtimeContext(), fmt.Sprintf("window.dispatchEvent(new Event(%q))", name))
-		}
-	}
-	// Review commands go to the mounted review; the single-letter shortcuts stay
-	// in the page, since a key without a modifier would also capture typing.
+	// Every menu item reaches the page as one named command: the shell takes the
+	// window's, the mounted review the rest. Single-letter shortcuts stay in the
+	// page, since a key without a modifier would also capture typing.
 	command := func(name string) func(*menu.CallbackData) {
 		return func(*menu.CallbackData) {
 			runtime.WindowExecJS(desktop.runtimeContext(),
@@ -128,13 +124,13 @@ func run() error {
 	appMenu.Append(menu.AppMenu())
 	fileMenu := appMenu.AddSubmenu("File")
 	fileMenu.AddText("Open Repository…", keys.CmdOrCtrl("o"), func(*menu.CallbackData) { desktop.chooseRepository() })
-	fileMenu.AddText("Close Tab", keys.CmdOrCtrl("w"), event("desktop:close-active"))
+	fileMenu.AddText("Close Tab", keys.CmdOrCtrl("w"), command("close-tab"))
 	// Wails v2 builds the application menu itself, leaving no room for Settings there.
 	fileMenu.AddSeparator()
-	fileMenu.AddText("Settings…", keys.CmdOrCtrl(","), event("desktop:settings"))
+	fileMenu.AddText("Settings…", keys.CmdOrCtrl(","), command("settings"))
 	appMenu.Append(menu.EditMenu())
 	viewMenu := appMenu.AddSubmenu("View")
-	viewMenu.AddText("Refresh", keys.CmdOrCtrl("r"), event("desktop:reload"))
+	viewMenu.AddText("Refresh", keys.CmdOrCtrl("r"), command("reload"))
 	viewMenu.AddSeparator()
 	viewMenu.AddText("Unified", keys.CmdOrCtrl("1"), command("unified"))
 	viewMenu.AddText("Split", keys.CmdOrCtrl("2"), command("split"))

@@ -2,7 +2,7 @@ import { GO_POC } from './capabilities.ts'
 
 export default function KeyboardShortcuts() {
   return (
-    <dl>
+    <dl className="shortcut-list">
       {!GO_POC && (
         <div>
           <dt>

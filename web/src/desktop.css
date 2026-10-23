@@ -86,11 +86,11 @@ body {
 }
 /* Chrome is not text to select. Fields inside it stay editable, which WebKit
    would otherwise refuse under an unselectable ancestor. */
-:is(.desktop-titlebar, .topbar, .review-tools, .sidebar-head, .desktop-empty) {
+:is(.desktop-titlebar, .sidebar-head, .desktop-empty) {
   -webkit-user-select: none;
   user-select: none;
 }
-:is(.desktop-titlebar, .topbar, .review-tools, .sidebar-head, .desktop-empty) :is(input, textarea) {
+:is(.desktop-titlebar, .sidebar-head, .desktop-empty) :is(input, textarea) {
   -webkit-user-select: text;
   user-select: text;
 }
@@ -445,20 +445,6 @@ body,
 .shortcuts-sheet {
   width: min(420px, calc(100vw - 48px));
 }
-.shortcuts-sheet dl {
-  display: grid;
-  gap: 6px;
-  margin: 12px 0 0;
-}
-.shortcuts-sheet dl > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-}
-.shortcuts-sheet dd {
-  margin: 0;
-  color: var(--text-dim);
-}
 
 /* The review renders its controls here, through a portal. */
 .titlebar-review {
@@ -489,11 +475,7 @@ body,
   border-radius: 12px;
   background: none;
   color: var(--text);
-  font:
-    600 12px/24px ui-monospace,
-    'SF Mono',
-    Menlo,
-    monospace;
+  font: 600 12px/24px var(--mono);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -507,7 +489,7 @@ body,
 .compare-capsule button[aria-expanded='true'] {
   background: var(--wash-strong);
 }
-.compare-capsule .caret {
+:is(.compare-capsule, .titlebar-text) .caret {
   font-size: 10px;
   opacity: 0.6;
 }
@@ -570,23 +552,6 @@ body,
   font-size: 12px;
   font-weight: 500;
 }
-.titlebar-text .caret {
-  font-size: 10px;
-  opacity: 0.6;
-}
-.titlebar-count {
-  min-width: 16px;
-  padding: 3px 5px;
-  border-radius: 999px;
-  background: var(--wash-strong);
-  color: var(--text);
-  font:
-    700 10px/1 ui-monospace,
-    'SF Mono',
-    Menlo,
-    monospace;
-  text-align: center;
-}
 .options-popover {
   position: absolute;
   top: calc(100% + 6px);
@@ -626,12 +591,6 @@ body,
   white-space: nowrap;
   -webkit-user-select: none;
   user-select: none;
-}
-.footer-stats .add {
-  color: var(--success);
-}
-.footer-stats .del {
-  color: var(--danger);
 }
 .review-footer .stack {
   flex-wrap: nowrap;

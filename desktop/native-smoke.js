@@ -129,7 +129,7 @@
           if (!sessionStorage.getItem(flag)) {
             sessionStorage.setItem(flag, '1')
             await report({ ...baseReport, phase: 'restored-editor', panelDraft: true })
-            window.dispatchEvent(new Event('desktop:reload'))
+            window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'reload' }))
             return
           }
           sessionStorage.removeItem(flag)
@@ -158,7 +158,7 @@
       }
       // Change the appearance and code size, check both apply and reach Go, then
       // put them back for the rest of the run.
-      window.dispatchEvent(new Event('desktop:settings'))
+      window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'settings' }))
       const sheet = await wait(
         () => document.querySelector('.settings-sheet[open]'),
         'Settings did not open',

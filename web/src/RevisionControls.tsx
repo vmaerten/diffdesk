@@ -15,23 +15,8 @@ export function revisionNote(data: LoadedReviewDiff | null, target: string | nul
   return null
 }
 
-export default function RevisionControls({
-  repoId,
-  data,
-  query,
-  target,
-  commit,
-  committed,
-  withUntracked,
-  baseSource,
-  picking,
-  onPickingChange,
-  onPickBase,
-  onPickTarget,
-  onPickCommit,
-  onToggleCommitted,
-  onToggleUntracked,
-}: {
+/** The revision state and actions that both the browser header and the desktop title bar render. */
+export interface RevisionProps {
   repoId: string | null
   data: LoadedReviewDiff | null
   query: string
@@ -39,7 +24,6 @@ export default function RevisionControls({
   commit: string | null
   committed: boolean
   withUntracked: boolean
-  baseSource: string | null
   picking: Picker | null
   onPickingChange: Dispatch<SetStateAction<Picker | null>>
   onPickBase: (base: string | null) => void
@@ -47,7 +31,79 @@ export default function RevisionControls({
   onPickCommit: (sha: string | null) => void
   onToggleCommitted: () => void
   onToggleUntracked: () => void
-}) {
+}
+
+/** Opens a picker, or closes it when it is the one already open. */
+export const togglePicker = (set: RevisionProps['onPickingChange'], picker: Picker) =>
+  set((current) => (current === picker ? null : picker))
+
+export const commitLabel = (data: LoadedReviewDiff | null) =>
+  data?.commit ? `${data.commit.short} ${data.commit.subject}` : 'All commits'
+
+/** The ref or commit list a revision button opens, while it is the open one. */
+export function RevisionSelector({
+  picker,
+  repoId,
+  data,
+  query,
+  picking,
+  onPickingChange,
+  onPickBase,
+  onPickTarget,
+  onPickCommit,
+}: RevisionProps & { picker: Picker }) {
+  if (picking !== picker || !data) return null
+  const close = () => onPickingChange(null)
+  if (picker === 'commit')
+    return (
+      <CommitSelector
+        repoId={repoId}
+        query={query}
+        current={data.commit}
+        onPick={onPickCommit}
+        onClose={close}
+      />
+    )
+  if (picker === 'base')
+    return (
+      <RefSelector
+        repoId={repoId}
+        current={data.base.ref}
+        source={data.base.source}
+        onPick={onPickBase}
+        onClose={close}
+      />
+    )
+  return (
+    <RefSelector
+      repoId={repoId}
+      current={data.target.ref}
+      source={data.target.workingTree ? 'working tree' : 'ref'}
+      extra={{
+        value: '__working_tree__ this checkout working tree',
+        label: 'This checkout (working tree)',
+        hint: 'uncommitted work included',
+        pick: null,
+      }}
+      onPick={onPickTarget}
+      onClose={close}
+    />
+  )
+}
+
+export default function RevisionControls(props: RevisionProps & { baseSource: string | null }) {
+  const {
+    data,
+    target,
+    commit,
+    committed,
+    withUntracked,
+    baseSource,
+    picking,
+    onPickingChange,
+    onToggleCommitted,
+    onToggleUntracked,
+  } = props
   const note = revisionNote(data, target)
   return (
     <div className="revision">
@@ -64,7 +120,7 @@ export default function RevisionControls({
               <button
                 type="button"
                 className="ref base"
-                onClick={() => onPickingChange((current) => (current === 'base' ? null : 'base'))}
+                onClick={() => togglePicker(onPickingChange, 'base')}
                 title="Change the base (b)"
                 aria-label={`Base: ${data?.base?.ref ?? 'loading'}`}
                 aria-expanded={picking === 'base'}
@@ -74,15 +130,7 @@ export default function RevisionControls({
               </button>
             )}
 
-            {!GO_POC && picking === 'base' && data && (
-              <RefSelector
-                repoId={repoId}
-                current={data.base.ref}
-                source={data.base.source}
-                onPick={onPickBase}
-                onClose={() => onPickingChange(null)}
-              />
-            )}
+            {!GO_POC && <RevisionSelector picker="base" {...props} />}
           </span>
 
           <span className="arrow" aria-hidden="true">
@@ -97,9 +145,7 @@ export default function RevisionControls({
               <button
                 type="button"
                 className="ref target"
-                onClick={() =>
-                  onPickingChange((current) => (current === 'target' ? null : 'target'))
-                }
+                onClick={() => togglePicker(onPickingChange, 'target')}
                 title="Review another revision (t)"
                 aria-label={`Target: ${data?.target?.ref ?? 'HEAD'}`}
                 aria-expanded={picking === 'target'}
@@ -109,21 +155,7 @@ export default function RevisionControls({
               </button>
             )}
 
-            {!GO_POC && picking === 'target' && data && (
-              <RefSelector
-                repoId={repoId}
-                current={data.target.ref}
-                source={data.target.workingTree ? 'working tree' : 'ref'}
-                extra={{
-                  value: '__working_tree__ this checkout working tree',
-                  label: 'This checkout (working tree)',
-                  hint: 'uncommitted work included',
-                  pick: null,
-                }}
-                onPick={onPickTarget}
-                onClose={() => onPickingChange(null)}
-              />
-            )}
+            {!GO_POC && <RevisionSelector picker="target" {...props} />}
           </span>
         </div>
       </div>
@@ -138,24 +170,15 @@ export default function RevisionControls({
             <button
               type="button"
               className="ref commit"
-              onClick={() => onPickingChange((current) => (current === 'commit' ? null : 'commit'))}
+              onClick={() => togglePicker(onPickingChange, 'commit')}
               title="Show one commit (l)"
               aria-expanded={picking === 'commit'}
               disabled={!data}
             >
-              {data?.commit ? `${data.commit.short} ${data.commit.subject}` : 'All commits'}{' '}
-              <span className="caret">▾</span>
+              {commitLabel(data)} <span className="caret">▾</span>
             </button>
 
-            {picking === 'commit' && data && (
-              <CommitSelector
-                repoId={repoId}
-                query={query}
-                current={data.commit}
-                onPick={onPickCommit}
-                onClose={() => onPickingChange(null)}
-              />
-            )}
+            <RevisionSelector picker="commit" {...props} />
           </span>
         </div>
       )}

@@ -22,7 +22,11 @@ import { useViewedPersistence } from './viewedPersistence.ts'
 import { useTheme, type SyntaxTheme } from './theme.ts'
 import CommentsPanel from './CommentsPanel.tsx'
 import RepoBar from './RepoBar.tsx'
-import RevisionControls, { revisionNote, type Picker } from './RevisionControls.tsx'
+import RevisionControls, {
+  revisionNote,
+  type Picker,
+  type RevisionProps,
+} from './RevisionControls.tsx'
 import { untrackedToggleable, workingTreeToggleable } from './ScopeControls.tsx'
 import DesktopToolbar from './DesktopToolbar.tsx'
 import ReviewFooter from './ReviewFooter.tsx'
@@ -48,6 +52,21 @@ const HEARTBEAT_MS = 5 * 60_000
 const NOT_LISTENING = GO_POC
   ? 'ghl-go-poc is no longer listening — restart it in that repository'
   : 'ghl is no longer listening — run `ghl` again in that repository'
+
+/** The single-letter shortcuts, by review command. */
+const KEY_COMMANDS: Record<string, string> = {
+  b: 'base',
+  t: 'target',
+  // `l` for log, which is what the list is. `c` is the comment key.
+  l: 'commit',
+  j: 'next-file',
+  k: 'previous-file',
+  r: 'refresh',
+  R: 'refresh',
+  c: 'comment',
+  v: 'viewed',
+}
+const PICKERS = ['base', 'target', 'commit']
 
 /** Shorter than the CLI's wording: this is a badge in a topbar, not a report. */
 const BASE_SOURCES: Record<BaseSource, string> = {
@@ -318,6 +337,51 @@ export default function App({
     [diffStyle, commentsOpen, captureView],
   )
 
+  /** Every review command by name: the single-letter keys and the desktop menus. */
+  const runCommand = useStableCallback((command: string) => {
+    switch (command) {
+      case 'base':
+      case 'target':
+      case 'commit':
+        setPicking(command)
+        break
+      case 'next-file':
+        navigate(1)
+        break
+      case 'previous-file':
+        navigate(-1)
+        break
+      case 'refresh':
+        void refresh()
+        break
+      case 'comment':
+        commentSelection()
+        break
+      case 'viewed':
+        if (activePath) void toggleViewed(activePath, !(activePath in viewed))
+        break
+      case 'unified':
+      case 'split':
+        setDiffStyle(command)
+        break
+      case 'working-tree':
+        if (workingTreeToggleable(data, target, commit)) toggleCommitted()
+        break
+      case 'untracked':
+        if (untrackedToggleable(data)) toggleUntracked()
+        break
+      case 'whitespace':
+        select.toggleWhitespace()
+        break
+      case 'comments':
+        setCommentsOpen((open) => !open)
+        break
+      case 'copy-comments':
+        if (comments.length > 0) void copyComments()
+        break
+    }
+  })
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (commentsOpen) return
@@ -354,18 +418,9 @@ export default function App({
       // item — so a composer can be open with the focus nowhere near it.
       if (isComposing) return
 
-      if (!GO_POC && event.key === 'b') setPicking('base')
-      else if (!GO_POC && event.key === 't') setPicking('target')
-      // `l` for log, which is what the list is. `c` is the comment key.
-      else if (!GO_POC && event.key === 'l') setPicking('commit')
-      else if (event.key === 'j') navigate(1)
-      else if (event.key === 'k') navigate(-1)
-      else if (event.key === 'r' || event.key === 'R') refresh()
-      else if (event.key === 'c') commentSelection()
-      else if (event.key === 'v') {
-        if (activePath) toggleViewed(activePath, !(activePath in viewed))
-      } else return
-
+      const name = KEY_COMMANDS[event.key]
+      if (!name || (GO_POC && PICKERS.includes(name))) return
+      runCommand(name)
       event.preventDefault()
     }
 
@@ -374,38 +429,15 @@ export default function App({
   }, [
     commentsOpen,
     filesOpen,
-    activePath,
-    navigate,
-    refresh,
     entries.length,
-    viewed,
-    toggleViewed,
     picking,
     isComposing,
-    commentSelection,
     searchOpen,
     openSearch,
     stepSearch,
+    runCommand,
   ])
 
-  /** The desktop app's menu commands, which the browser does not have. */
-  const runCommand = useStableCallback((command: string) => {
-    if (command === 'unified' || command === 'split') setDiffStyle(command)
-    else if (command === 'working-tree') {
-      if (workingTreeToggleable(data, target, commit)) toggleCommitted()
-    } else if (command === 'untracked') {
-      if (untrackedToggleable(data)) toggleUntracked()
-    } else if (command === 'whitespace') select.toggleWhitespace()
-    else if (command === 'comments') setCommentsOpen((open) => !open)
-    else if (command === 'copy-comments') {
-      if (comments.length > 0) void copyComments()
-    } else if (command === 'next-file') navigate(1)
-    else if (command === 'previous-file') navigate(-1)
-    else if (command === 'base' || command === 'target' || command === 'commit') setPicking(command)
-    else if (command === 'viewed') {
-      if (activePath) void toggleViewed(activePath, !(activePath in viewed))
-    } else if (command === 'comment') commentSelection()
-  })
   useEffect(() => {
     if (!desktop) return
     const listener = (event: Event) => runCommand((event as CustomEvent<string>).detail)
@@ -422,6 +454,22 @@ export default function App({
 
   const stack = GO_POC ? null : (data?.base.stack ?? null)
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
+  const revision: RevisionProps = {
+    repoId,
+    data,
+    query,
+    target,
+    commit,
+    committed,
+    withUntracked,
+    picking,
+    onPickingChange: setPicking,
+    onPickBase: pickBase,
+    onPickTarget: pickTarget,
+    onPickCommit: pickCommit,
+    onToggleCommitted: toggleCommitted,
+    onToggleUntracked: toggleUntracked,
+  }
   const nextPath =
     entries[entries.findIndex((entry) => entry.path === activePath) + 1]?.path ?? null
 
@@ -430,21 +478,8 @@ export default function App({
       {toolbar &&
         createPortal(
           <DesktopToolbar
-            repoId={repoId}
-            data={data}
-            query={query}
-            target={target}
-            commit={commit}
-            committed={committed}
-            withUntracked={withUntracked}
+            {...revision}
             ignoreWhitespace={ignoreWhitespace}
-            picking={picking}
-            onPickingChange={setPicking}
-            onPickBase={pickBase}
-            onPickTarget={pickTarget}
-            onPickCommit={pickCommit}
-            onToggleCommitted={toggleCommitted}
-            onToggleUntracked={toggleUntracked}
             onToggleWhitespace={select.toggleWhitespace}
             diffStyle={diffStyle}
             onDiffStyleChange={setDiffStyle}
@@ -461,30 +496,14 @@ export default function App({
           <RepoBar
             repoName={repoName}
             repoPath={data?.repo.path}
-            theme={appearanceSyntax ? undefined : theme}
+            theme={theme}
             onThemeChange={chooseTheme}
             refreshing={refreshing}
             onRefresh={refresh}
           />
 
           <div className="reviewbar">
-            <RevisionControls
-              repoId={repoId}
-              data={data}
-              query={query}
-              target={target}
-              commit={commit}
-              committed={committed}
-              withUntracked={withUntracked}
-              baseSource={baseSource}
-              picking={picking}
-              onPickingChange={setPicking}
-              onPickBase={pickBase}
-              onPickTarget={pickTarget}
-              onPickCommit={pickCommit}
-              onToggleCommitted={toggleCommitted}
-              onToggleUntracked={toggleUntracked}
-            />
+            <RevisionControls {...revision} baseSource={baseSource} />
 
             {data && (
               <span className="stats" aria-label="Diff statistics">
