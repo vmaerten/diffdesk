@@ -1,6 +1,6 @@
 # Reviewing code
 
-Run `ghl` in a Git repository to open its review. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, expand unchanged context, and search the whole diff with `Ctrl+f` / `Cmd+f`, including files outside the current viewport.
+Run `ghl` in a Git repository to open its review in the ghl window; running it in another checkout opens a second tab. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, expand unchanged context, and search the whole diff with `Cmd+f`, including files outside the current viewport.
 
 This guide describes `main`. See the [changelog](../CHANGELOG.md) for changes that have not reached a published release.
 
@@ -10,7 +10,7 @@ The default review compares the merge-base of the chosen base and HEAD with the 
 
 Press `t` to review another revision without checking it out. Press `l` to pick one commit: its diff is against its first parent, or the empty tree for a root commit. The base determines which commits are offered, but does not affect a selected commit's patch. A commit that no longer resolves falls back to the whole range with a notice.
 
-Ref and commit views exclude uncommitted and untracked files. Comparison choices live in the URL, so reloading keeps them and another CLI invocation does not override an open tab.
+Ref and commit views exclude uncommitted and untracked files. Comparison choices belong to each tab, so reloading keeps them; running `ghl` again with the same comparison activates the matching tab.
 
 **Ignore whitespace** uses Git's `--ignore-all-space`: spacing-only changes leave the diff, tree and totals, while line breaks and file metadata changes remain. The choice is preserved as `w=1` in the URL. Turn it off to reveal hidden changes.
 
@@ -20,11 +20,11 @@ Click the gutter's `+`, or select lines and press `c`. Comments belong to the re
 
 Each comment saves its original code. When those lines change, the comment shows the previous text; restoring the lines clears the stale marker. Comments are never deleted automatically. Editing changes the prose while preserving the original anchor and comparison.
 
-**Comments** lists the branch's comments by file, including files outside the current diff. **View in diff** reveals available lines without clearing Viewed. Inline cards can be collapsed; their folded state survives reloads in the same tab. On mobile, the panel fills the screen.
+**Comments** opens a side panel listing the branch's comments by file, including files outside the current diff. **View in diff** reveals available lines without clearing Viewed, and the panel stays open beside the diff. Inline cards can be collapsed; their folded state survives reloads in the same tab.
 
-**Copy all** copies the panel's comments as Markdown, including viewed files and files outside the diff. Individual cards have their own copy button. Exports include paths, line numbers and current code, with original code labelled when current code is unavailable.
+**Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments as Markdown, including viewed files and files outside the diff. Individual cards have their own copy button. Exports include paths, line numbers and current code, with original code labelled when current code is unavailable.
 
-`ghl comments` exports the reviewed branch's comments on files in the selected comparison, including untracked files in working-tree reviews. Add `--json` for structured output or a revision argument to review another target. The CLI needs no running server; its file scope can be narrower than the panel's.
+`ghl comments` exports the reviewed branch's comments on files in the selected comparison, including untracked files in working-tree reviews. Add `--json` for structured output or a revision argument to review another target. It prints without opening the window; its file scope can be narrower than the panel's.
 
 Older comments recover their branch from the target in their saved comparison. If only commit hashes were recorded, the branch is unknown. Those comments stay in the state file and can be read by explicitly reviewing the recorded target.
 
@@ -32,7 +32,7 @@ Older comments recover their branch from the target in their saved comparison. I
 
 Press `v` or tick a file to mark it Viewed. It folds in place and remains in the tree; clicking its row reveals it again. Changing its displayed diff clears the tick. Viewed is independent across revision ranges, individual commits and whitespace modes, so returning to a scope restores its own ticks.
 
-Comments and Viewed are stored in `.git/ghl/state.json`, relative to the checkout's Git directory. Linked worktrees have their own state. See [state compatibility](../go/README.md#state-compatibility-and-transition) for backups, prototype imports and corruption recovery.
+Comments and Viewed are stored in `.git/ghl/state.json`, relative to the checkout's Git directory. Linked worktrees have their own state. See the [server guide](../go/README.md#state) for locking, atomic writes and corruption recovery.
 
 ## Bases and stacks
 
@@ -44,7 +44,7 @@ Comments and Viewed are stored in `.git/ghl/state.json`, relative to the checkou
 4. The nearest-parent heuristic, with the trunk winning ties.
 5. The detected trunk, using `origin/HEAD` and conventional branch names.
 
-The base and its source are shown in the header. Press `b` to pick a local branch and remember that choice. The target picker also lists local branches; remote refs remain available through `ghl origin/branch` or a `target` URL parameter.
+The base is shown in the title bar and its source in the status bar. Press `b` to pick a local branch and remember that choice. The target picker also lists local branches; remote refs remain available through `ghl origin/branch` or a `target` URL parameter.
 
 When the local trunk is strictly behind its fetched `origin` counterpart, the remote ref is preferred. Local trunks that are ahead or diverged are retained. `ghl` does not fetch or change your checkout.
 
@@ -54,6 +54,6 @@ Stack metadata is read from `.git/gh-stack`, including worktree-specific metadat
 
 Image changes show before/after previews; click to enlarge and Escape to close. PNG, JPEG, GIF, WebP, AVIF, SVG, ICO and BMP are supported. Unavailable or oversized previews show an explanation; the image limit is 20 MiB.
 
-The theme picker updates the interface and syntax highlighting together and remembers the choice in this browser. On narrow screens, **Files** opens the tree over the diff and closes after selection; the diff uses unified mode.
+**Settings** (`Cmd+,`) chooses the appearance (System follows macOS, or Light or Dark), a syntax theme for each mode, and the code font and size. The interface keeps neutral colours; only the code takes the theme's.
 
-For daemon lifetime, ports and stable URLs, see the [runtime guide](../go/README.md#shared-runtime-lifecycle). For setup and upgrades, see [installation](./installation.md).
+For setup and upgrades, see [installation](./installation.md).

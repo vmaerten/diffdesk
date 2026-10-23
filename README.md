@@ -2,30 +2,32 @@
 
 Review the PR you are about to open, without opening it.
 
-A local Git diff viewer with a GitHub-like interface. Review branches, commits and working-tree changes in your browser, then copy your comments to an agent. Go executable, embedded React UI. Only Git and a browser are needed to run it.
-
-A [desktop app](./desktop/README.md) opens the same review UI in a single reusable native window: `task desktop:run -- --repo .`. It is optional and keeps the installed browser CLI separate.
+A local Git diff viewer for macOS with a GitHub-like review flow. Review branches, commits and working-tree changes in one native window, comment on lines, then copy the comments to an agent. It needs macOS 13 or later on Apple Silicon, and Git.
 
 ## Install
+
+With [Homebrew](https://brew.sh/):
+
+```bash
+brew install --cask vmaerten/tap/ghl
+```
 
 With [mise](https://mise.jdx.dev/):
 
 ```bash
-mise use -g github:vmaerten/ghl@0.2.0
-cd /path/to/repository
-ghl
+mise use -g github:vmaerten/ghl@latest
 ```
 
-Release archives cover macOS (Apple Silicon and Intel) and Linux (ARM64 and x86-64). See the [installation guide](./docs/installation.md) for PATH setup, upgrades and rollback.
+Both put the `ghl` command on PATH. Homebrew installs `ghl.app` in `/Applications`; mise keeps it in its own install directory. See the [installation guide](./docs/installation.md) for upgrades, rollback and moving from the 0.2.0 browser CLI.
 
-To install from source, with Node >= 24, pnpm, Go >= 1.24 and Task v3 installed:
+To install from source, with Node >= 24, pnpm, Go >= 1.25, Task v3 and the Xcode Command Line Tools:
 
 ```bash
 pnpm install
 task install
 ```
 
-This installs `ghl` in `~/.local/bin`; add that directory to PATH.
+This links `~/.local/bin/ghl` to the built app; add that directory to PATH.
 
 ## Use
 
@@ -33,18 +35,18 @@ This installs `ghl` in `~/.local/bin`; add that directory to PATH.
 ghl                    # review the current branch, including uncommitted work
 ghl feature            # review another revision without checking it out
 ghl --base main        # choose the comparison base
-ghl --print            # print a summary without opening a browser
-ghl comments           # export comments with code as Markdown
-ghl comments --json    # export structured comments
+ghl --repo ../other    # review another checkout
+ghl comments           # print this comparison's comments with their code, as Markdown
+ghl comments --json    # the same, as JSON
 ```
 
-The browser opens a stable `http://ghl.localhost:7777/r/<repoId>` URL. One background process serves your repositories; closing the terminal keeps the review open. Comments and Viewed state live in each checkout's Git directory. Run `ghl --help` for other options.
+`ghl` opens the review in the ghl window and returns to the terminal; later invocations open or activate a tab in the same window. `ghl comments` and `ghl --version` print without opening it. Comments and Viewed live in each checkout's `.git/ghl/state.json`. Run `ghl --help` for every option.
 
 - Unified or split diffs, file tree, full-diff search and expandable context.
 - Branch, base and commit pickers, with `gh stack` navigation.
-- Persistent comments per branch, code anchors, a comments panel and Markdown copy.
+- Persistent comments per branch, code anchors, a comments side panel and Markdown copy.
 - Viewed files, working-tree/untracked controls and whitespace filtering.
-- Image previews with zoom, dark/light themes and a mobile layout.
+- Review tabs, image previews, native menus, and light and dark appearance with a syntax theme for each.
 
 See the [reviewing guide](./docs/reviewing.md) for comparisons, comments and state. Features on `main` may be newer than the published release; see the [changelog](./CHANGELOG.md).
 
@@ -58,25 +60,29 @@ See the [reviewing guide](./docs/reviewing.md) for comparisons, comments and sta
 | `b` / `t` | Pick a base / target revision |
 | `l` | Pick a commit |
 | `r` | Refresh |
-| `Ctrl+f` / `Cmd+f` | Search the diff |
+| `Cmd+f` | Search the diff |
+| `Cmd+1` / `Cmd+2` | Unified / split diff |
+| `Cmd+O` / `Cmd+W` | Open a repository / close the tab |
+| `Ctrl+Tab` | Next tab |
+| `Shift+Cmd+C` | Copy all comments |
+| `Cmd+,` | Settings |
 
 ## Development
 
 After `pnpm install`:
 
 ```bash
-task dev      # desktop UI in a browser, React hot reload and Go restart
-task build    # build go/dist/ghl with the UI embedded
-task check    # types, lint, formatting and Go vet
-task test     # Go, CLI, API and desktop UI tests
+task dev           # the UI in a browser with hot reload, against a Go dev server
+task desktop:run   # build and open the app (arguments after --)
+task test          # Go, API and UI tests
+task check         # types, lint, formatting and Go vet
 ```
 
-See the [development guide](./go/README.md#development) for prerequisites, ports and reviewing another checkout.
+See the [app guide](./desktop/README.md) for the window and its native tests, and the [server guide](./go/README.md) for the review API, state and the development loop.
 
 ## Documentation
 
 - [Reviewing code](./docs/reviewing.md)
-- [Installation](./docs/installation.md) and [migration from Node](./docs/migration.md)
-- [Runtime, state and CLI](./go/README.md)
-- [Releases](./docs/releases.md) and [validation](./docs/validation.md): `task release` builds, verifies and publishes a checked-out version tag. GitHub Actions runs it only for stable release tags; PRs and branch pushes do not run CI.
-- [Go proof of concept](./docs/go-poc.md)
+- [Installation](./docs/installation.md)
+- [The app](./desktop/README.md) and [its review server](./go/README.md)
+- [Releases](./docs/releases.md) and [release acceptance](./docs/validation.md)

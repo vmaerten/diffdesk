@@ -1,6 +1,6 @@
 # Releases
 
-The release pipeline builds the browser CLI and the desktop application, both containing the production React UI. The desktop app targets macOS ARM64 and requires Git and system WebKit. The configured targets are macOS ARM64/Intel and Linux ARM64/x86-64. Git and a browser are runtime prerequisites. The project uses MIT; archives also contain the notices for third-party components. The [mise installation guide](./installation.md) documents the consumer path and its verification. The first release, v0.1.0, was published for macOS ARM64 and passed the real GitHub/mise installation gate. The v0.2.0 release adds the other three archive targets.
+A release is one archive, `ghl_<version>_darwin_arm64.zip`, with its SHA-256 in `checksums.txt`. It holds `ghl.app`, the project's MIT license and the notices of every third-party component it ships. The app runs on macOS 13 or later on Apple Silicon and needs Git. Consumers install it through [Homebrew or mise](./installation.md).
 
 ## Local snapshot
 
@@ -12,81 +12,66 @@ mise exec -- task release:check
 mise exec -- task release:snapshot
 ```
 
-This invokes GoReleaser OSS 2.18.2. Its before hooks install the frozen pnpm lockfile, build Vite in `go` mode and generate dependency notices. GoReleaser then compiles `go/cmd/ghl` with `CGO_ENABLED=0`, `-trimpath`, `-s -w`, and version, full commit and date metadata. The date is the commit's UTC timestamp, which keeps the version stamp and archive file times stable for repeated builds. The before hooks also invoke `task desktop:build` with the release version, commit and commit date. Task builds the Wails application natively with `CGO_ENABLED=1`, embeds the `go-desktop` frontend, stamps bundle/runtime metadata and applies free ad hoc signing. GoReleaser OSS packages the complete current bundle as a `meta: true` ZIP; explicit destinations retain its `Contents/MacOS` and `_CodeSignature` structure. Python collects notices from the actual linked Go modules. The isolated Go PoC remains outside the release configuration.
+This invokes GoReleaser OSS 2.18.2. Its before hooks install the frozen pnpm lockfile, generate the frontend and Go standard library notices, build the app with `task desktop:build`, then extend the notices with the Go modules actually linked into it. Task builds the app natively with cgo for Wails, targeting macOS 13: without a deployment target, cgo would target the installed SDK's release. It embeds the production UI, stamps the release version, full commit and commit date into the executable and the bundle, and signs the bundle ad hoc. GoReleaser has no Go build of its own; it packages the bundle as a `meta: true` ZIP whose explicit destinations keep `Contents/MacOS` and `_CodeSignature`, and writes the checksum.
 
 Outputs live in `go/dist/release/`:
 
-| File                                | Content                                            |
-| ----------------------------------- | -------------------------------------------------- |
-| `ghl_<version>_darwin_arm64.tar.gz` | macOS Apple Silicon CLI, license and notices       |
-| `ghl_<version>_darwin_amd64.tar.gz` | macOS Intel CLI, license and notices               |
-| `ghl_<version>_linux_arm64.tar.gz`  | Linux ARM64 CLI, license and notices               |
-| `ghl_<version>_linux_amd64.tar.gz`  | Linux x86-64 CLI, license and notices              |
-| `ghl-desktop_<version>_darwin_arm64.zip` | `ghl Desktop.app`, license and desktop notices |
-| `checksums.txt`                     | SHA-256 of all five archives, with exact filenames |
-| `metadata.json`, `artifacts.json`   | Local GoReleaser build records                     |
+| File | Content |
+| --- | --- |
+| `ghl_<version>_darwin_arm64.zip` | `ghl.app`, `LICENSE` and `THIRD_PARTY_NOTICES.txt` |
+| `checksums.txt` | SHA-256 of the archive, with its exact filename |
+| `metadata.json`, `artifacts.json` | Local GoReleaser build records |
 
-Snapshot versions use `<latest-version>-next-<short-commit>`, or start at `0.0.0` when no version tag exists. The archive naming pattern is predictable for download clients and mise. React HTML, JavaScript, CSS and other generated assets live inside the executable. Toolchains, node_modules and test browsers are excluded from the archive.
+Snapshot versions use `<latest-version>-next-<short-commit>`. The date is the commit's UTC timestamp, which keeps the version stamp and the archive's file times stable across builds.
 
-`task release:snapshot` finishes by verifying checksums and the exact contents of every archive; wrong-architecture and duplicate-checksum guards are included. It extracts the executable into a temporary directory outside the checkout and runs it with only Git in PATH. The checks cover `--version --json`, health metadata, a production diff with untracked files, clean shutdown and embedded HTML/JavaScript/CSS responses. Guard tests reject corrupt checksums, wrong commit metadata, unexpected files, symlinks and invalid/stale version tags. Every archive is checked for contents, checksum, licenses and embedded Go OS/architecture settings. The validator then executes the selected host archive. `GHL_TEST_TARGET=darwin_amd64` can select Intel execution under Rosetta on Apple Silicon; this is reported separately from native hardware coverage.
-
-Desktop verification checks all five archive checksums, rejects unexpected ZIP members, links and missing executable permissions before extraction, and verifies bundle metadata, licenses and the preserved ad hoc signature. It then tests the app from the extracted ZIP outside the checkout, without Node/pnpm/Go in PATH, using the 21 native fixture checks and verifying runtime release metadata. These tests use an isolated instance and temporary repositories. Reports live in `.task/desktop/validation.json`; the clipboard receives fixture Markdown. `task desktop:test` includes the ZIP/checksum guard tests.
+`task release:snapshot` ends with `task release:verify`, which runs `desktop/release.py verify`. Before extracting anything, it checks the checksum and rejects unexpected or duplicate ZIP members, links and an executable without its executable mode. It then verifies the bundle metadata, including `LSMinimumSystemVersion`, the executable's `minos` of 13.0, the license and notices, the Go build settings and the ad hoc signature. It runs `ghl --version` from the extracted app with only system tools on PATH, and the native smoke test on a copy of the bundle outside the checkout. With `RELEASE_TAG` set, the archive must also match the tag. `task desktop:test` includes the ZIP and checksum guard tests.
 
 ## Version tags and publication
 
-Set `package.json` to the intended version and commit it with the release's changes. Supported versions are `X.Y.Z` and `X.Y.Z-prerelease`, with a matching `v`-prefixed tag on that commit. Before pushing a release tag, the same archives can be built and verified locally from its clean checkout:
+Set `package.json` to the intended version and commit it with the release's changes and notes in `CHANGELOG.md`. Supported versions are `X.Y.Z` and `X.Y.Z-prerelease`, with a matching `v`-prefixed tag on that commit. Before pushing the tag, build and verify the same archive from its clean checkout:
 
 ```bash
-RELEASE_TAG=v0.2.0 mise exec -- task release:build
+RELEASE_TAG=v0.3.0 mise exec -- task release:build
+git tag v0.3.0
+git push origin refs/tags/v0.3.0
 ```
 
-Replace the example with the checked-out tag. The command checks that it matches `package.json` and points at HEAD. GoReleaser's non-snapshot mode requires a clean checkout. Both local tasks leave publication disabled in the configuration.
+The `Release` GitHub workflow runs only when a stable `vX.Y.Z` tag is pushed. A single `macos-26` ARM64 job checks out the tag's commit, installs the locked tools through mise 2026.10.2 and runs `task release`. Actions are pinned by commit, only the release job receives `contents: write`, and reruns of the same tag cannot cancel an ongoing release. On this repository, the hosted job consumes the account's included minutes.
 
-The `Release` GitHub workflow runs only when a stable `vX.Y.Z` tag is pushed. It has no branch, pull-request or manual-dispatch trigger. A single `macos-26` ARM64 job checks out the event commit with all tags, installs the locked tools through mise 2026.10.2 and invokes `task release`. Actions are pinned by commit; only the release job receives `contents: write`. Its timeout is 20 minutes and reruns of the same tag cannot cancel an ongoing release. On this private repository, the hosted job consumes the account's included minutes and may incur charges beyond that allowance.
+`task release` resolves the tag from `RELEASE_TAG`, an explicit `TAG` or the exact tag on HEAD, then:
 
-`task release` resolves `RELEASE_TAG` from the workflow, an explicit `TAG`, or the exact tag on HEAD. It first runs the existing checked-tag build and complete archive verification. It then checks the version/commit/tag and checksums again, creates a draft with the five archives and checksum file, and publishes that draft only after uploads succeed. An existing release is not overwritten; a failed upload leaves a draft for inspection. GoReleaser's own publishing remains disabled. There is no paid signing or notarisation service.
+1. builds and verifies the archive, as above;
+2. checks that the Homebrew tap is reachable, so a missing token fails before anything is published;
+3. creates a draft release with the archive and `checksums.txt`, and publishes it only once both uploads succeed;
+4. renders `desktop/cask.rb` from the published `checksums.txt` and pushes it to `Casks/ghl.rb` in [vmaerten/homebrew-tap](https://github.com/vmaerten/homebrew-tap).
 
-Test publication ordering and failures without GitHub writes:
+An existing release is never overwritten; a failed upload leaves a draft to inspect. Prereleases are published by running `task release TAG=vX.Y.Z-rc.N` locally; they are marked as such and leave the cask on the last stable release.
+
+The workflow's own token reaches only this repository. The cask push uses the `HOMEBREW_TAP_TOKEN` secret: a fine-grained token with `contents: write` on `vmaerten/homebrew-tap` alone. If the push fails after publication, rerun it on its own:
+
+```bash
+task release:tap TAG=v0.3.0
+```
+
+From a clean checkout whose tag already exists on GitHub, an authenticated maintainer can also run `task release TAG=v0.3.0`; do not run it concurrently with the workflow. Test the ordering and failure paths without any GitHub write:
 
 ```bash
 task test:release
 ```
 
-Before pushing a release tag, run the relevant [local acceptance checks](./validation.md), including the extracted archive, mise fixture and runtime measurements. Commit the intended `package.json` version and release notes, then create and push its tag:
+After publication, check the real download through mise, then through Homebrew on a session without development tools:
 
 ```bash
-git tag v0.2.0
-git push origin refs/tags/v0.2.0
+task release:mise:published VERSION=0.3.0 PREVIOUS=0.2.0
+brew install --cask vmaerten/tap/ghl
 ```
 
-The workflow builds and publishes that tag's exact commit. It does not create or push tags. Replace the example with the release version. The automatic trigger accepts stable tags only; prereleases are available through the local Task path, which marks them as prereleases.
-
-As an alternative to the hosted workflow, from a clean checkout whose tag already exists on GitHub, an authenticated maintainer can run:
-
-```bash
-task release TAG=v0.2.0
-```
-
-Do not run the local publisher concurrently with the tag workflow. For a build without publication, retain `RELEASE_TAG=v0.2.0 task release:build` or `task release:snapshot`. To verify the published CLI installation afterward:
-
-```bash
-task release:mise:published VERSION=0.2.0 PREVIOUS=0.1.0
-```
-
-GitHub Releases and mise remain the consumer distribution channels. The hosted workflow itself still needs its first real release-tag run; local validation does not establish that the runner's native UI environment works identically.
-
-The desktop ZIP can be downloaded and extracted manually; move `ghl Desktop.app` to `/Applications` and launch it there. It has ad hoc signing only, with no paid Apple certificate or notarisation. macOS may require an explicit first-launch exception in Privacy & Security after a browser download. This packaging does not remove download quarantine, supply an installer hook, or implement automatic updates. A separate desktop mise installation remains to be implemented; the current mise path installs the browser CLI. Its local fixture includes both assets and checks that the existing CLI selector still chooses its tarball.
-
-The last task downloads the actual published assets through mise and exercises the installed executable, state and lifecycle. Node is a local test driver outside the consumer PATH; no Go/pnpm build is used to install the release. It never deletes or replaces release assets. See the installation guide for the first-release limitations on historical upgrades.
-
-Go, Node, pnpm, Task and GoReleaser remain pinned in `.mise.toml`, with download checksums in `mise.lock`.
+There is no paid signing, notarisation or automatic update. Go, Node, pnpm, Task and GoReleaser stay pinned in `.mise.toml`, with download checksums in `mise.lock`.
 
 ## License material
 
-`scripts/release-notices.ts` collects the installed production JavaScript package closure, preserving complete LICENSE and NOTICE files, and the Go standard-library license. It fails on missing material. Two npm packages need special handling: `lru_map` puts its MIT text in its packaged README, while `react-remove-scroll-bar@2.3.8` uses the reviewed immutable upstream license in `scripts/licenses/`. Shiki's vendored Oniguruma, grammar and theme notices are also preserved from their exact upstream versions. Their sources and version guards are documented in `scripts/licenses/README.md`. An upgrade with missing notices requires reviewing its license source before proceeding. Generated notices stay in `.task/release/`.
+`scripts/release-notices.ts` collects the installed production JavaScript package closure, preserving complete LICENSE and NOTICE files, and the Go standard library license. It fails on missing material. Two npm packages need special handling: `lru_map` puts its MIT text in its packaged README, while `react-remove-scroll-bar@2.3.8` uses the reviewed immutable upstream license in `scripts/licenses/`. Shiki's vendored Oniguruma, grammar and theme notices are also preserved from their exact upstream versions; their sources and version guards are documented in `scripts/licenses/README.md`. An upgrade with missing notices requires reviewing its license source before proceeding. Generated notices stay in `.task/release/`.
 
-`desktop/release.py notices` extends that material with LICENSE/NOTICE files from the Go modules actually linked into the production desktop executable, including Wails. Missing material or a linked version mismatch stops the build. Its output is `.task/desktop/THIRD_PARTY_NOTICES.txt`, shipped only in the desktop ZIP; the CLI archive retains its existing notices.
+`desktop/release.py notices` extends that material with the LICENSE and NOTICE files of the Go modules actually linked into the app, including Wails. Missing material or a linked version mismatch stops the build. Its output, `.task/desktop/THIRD_PARTY_NOTICES.txt`, is the archive's notice file.
 
-The generator handles license material for the embedded frontend. The Taskfile and GoReleaser call Go directly; there is no TypeScript build wrapper for Go.
-
-References: [Archives](https://goreleaser.com/customization/package/archives/), [Go builds](https://goreleaser.com/customization/builds/builders/go/), [GoReleaser templates](https://goreleaser.com/customization/general/templates/).
+References: [Archives](https://goreleaser.com/customization/package/archives/), [GoReleaser templates](https://goreleaser.com/customization/general/templates/).

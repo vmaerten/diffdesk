@@ -1,10 +1,27 @@
-# Install ghl with mise
+# Install ghl
 
-Release builds cover macOS Apple Silicon (`darwin_arm64`), macOS Intel (`darwin_amd64`), Linux ARM64 (`linux_arm64`) and Linux x86-64 (`linux_amd64`). Choose a published version that contains the matching archive: v0.2.0 ships all four targets; v0.1.0 ships only macOS ARM64. Git and a browser are runtime prerequisites. React is embedded; consumers do not need Node, pnpm or Go. On Linux, automatic browser opening uses `xdg-open` (usually supplied by `xdg-utils`); `--no-open` prints the URL without invoking a desktop handler.
+ghl is a macOS app for Apple Silicon (ARM64), from macOS 13. Git is its only runtime prerequisite. Each release on [GitHub Releases](https://github.com/vmaerten/ghl/releases) publishes `ghl_<version>_darwin_arm64.zip`, which holds `ghl.app`, the MIT license and third-party notices, with its SHA-256 in `checksums.txt`. Homebrew and mise both install that archive and put `ghl`, the app's executable, on PATH.
 
-Go is the default runtime. Release installation requires an archive in [GitHub Releases](https://github.com/vmaerten/ghl/releases); source installation is covered in the [migration guide](./migration.md). Private releases require GitHub authentication with read access; see [mise's tokens guide](https://mise.jdx.dev/dev-tools/github-tokens.html).
+Releases up to 0.2.0 shipped a browser CLI instead; see [moving from 0.2.0](#moving-from-the-020-browser-cli).
 
-## Install and put ghl on PATH
+## Homebrew
+
+```bash
+brew install --cask vmaerten/tap/ghl
+ghl --version
+```
+
+The cask installs `ghl.app` in `/Applications` and links `ghl` into Homebrew's `bin`. Name it in full: Homebrew 7 loads casks from a third-party tap only once trusted, and installing by full name trusts this one. After `brew tap vmaerten/tap`, a bare `brew install --cask ghl` first needs `brew trust --cask vmaerten/tap/ghl`.
+
+The app is signed ad hoc, without Apple notarisation. Homebrew quarantines what it downloads, and Gatekeeper would then block the first launch; the cask removes that quarantine attribute after installing.
+
+```bash
+brew upgrade --cask ghl              # follow stable releases
+brew uninstall --cask ghl            # remove the app, keep its settings
+brew uninstall --cask --zap ghl      # also remove its settings
+```
+
+## mise
 
 Install [mise](https://mise.jdx.dev/installing-mise.html). If `mise` itself is on PATH, add this once to `~/.zshrc`:
 
@@ -12,73 +29,65 @@ Install [mise](https://mise.jdx.dev/installing-mise.html). If `mise` itself is o
 eval "$(mise activate zsh)"
 ```
 
-Open a new terminal, replace `X.Y.Z` with a published version containing your platform archive, and install globally:
+Open a new terminal and install globally:
 
 ```bash
-mise use -g github:vmaerten/ghl@X.Y.Z
+mise use -g github:vmaerten/ghl@latest
 ghl --version
-cd /path/to/repository
-ghl
 ```
 
-The built-in backend selects `ghl_<version>_<os>_<arch>.tar.gz`, verifies its digest from GitHub or `checksums.txt`, extracts it and exposes `ghl`. No plugin is needed; a short `mise use ghl` registry name is not registered.
+The built-in GitHub backend selects `ghl_<version>_darwin_arm64.zip`, verifies its digest from GitHub or `checksums.txt`, extracts it and puts `ghl.app/Contents/MacOS` on PATH. No plugin or option is needed. mise downloads without the quarantine attribute, so the app opens without a Gatekeeper prompt. The app stays in mise's install directory rather than `/Applications`, so it is opened with `ghl`, not from Spotlight or the Dock.
 
-`mise use` installs/selects a version; shell activation updates PATH. Without activation, run `mise exec -- ghl` to use the configured version. An explicit one-off alternative is `mise exec github:vmaerten/ghl@latest -- ghl --version`. [Shims](https://mise.jdx.dev/dev-tools/shims.html) are another option for scripts and IDEs: `mise activate zsh --shims` exposes the generated shims.
+`mise use` installs and selects a version; shell activation updates PATH. Without activation, `mise exec -- ghl` runs the configured version. [Shims](https://mise.jdx.dev/dev-tools/shims.html) are another option for scripts and IDEs: `mise activate zsh --shims` exposes them. Project configuration can override the global selection; check `mise which ghl` and `type -a ghl` if another `ghl` wins in PATH. Current mise defaults delay `latest` by 24 hours after publication; an exact version bypasses that delay, and `latest` excludes prereleases. `mise ls-remote github:vmaerten/ghl` lists published versions.
 
-Project configuration can override the global selection. Check `mise which ghl` and `type -a ghl` if an older Node installation wins in PATH. Current mise defaults delay `latest` by 24 hours after publication; an exact version bypasses this delay. After that delay, `mise use -g github:vmaerten/ghl@latest` follows stable releases. `latest` excludes prereleases. Use `mise ls-remote github:vmaerten/ghl` to list published versions.
-
-## Pin, upgrade and roll back
+### Pin, upgrade and roll back
 
 Replace `X.Y.Z` with a published version, without the tag's `v` prefix:
 
 ```bash
 mise use -g github:vmaerten/ghl@X.Y.Z
-mise exec -- ghl --version
-```
-
-An exact selection stays pinned during `mise upgrade`. To follow stable releases, select `latest` again. For an existing `latest` selection, retain the old install when upgrading:
-
-```bash
 mise upgrade --no-prune github:vmaerten/ghl
-ghl --version
-ghl
 ```
 
-Run outside projects that override the tool. `--no-prune` matters: mise may otherwise remove the old installation. Roll back with `mise use -g github:vmaerten/ghl@X.Y.Z`, then launch `ghl` again.
+An exact selection stays pinned during `mise upgrade`; select `latest` again to follow stable releases. `--no-prune` keeps the previous install, so rolling back is another `mise use -g github:vmaerten/ghl@X.Y.Z`.
 
-Installing/selecting a version does not restart a running daemon. `ghl --version` reports the selected executable; the next normal launch replaces a Go daemon with a different executable identity. On the same port it retains registered repositories and bookmark URLs. Comments, anchors, timestamps and Viewed stay in each checkout's version-1 `.git/ghl/state.json`. Rollback requires releases that can read that schema; consult release notes before future schema changes.
-
-The default URL is `http://ghl.localhost:7777/r/<repoId>`, with a `127.0.0.1` fallback. `--port` overrides the port. Stop an older Node daemon on 7777 first or use another port; Go never silently replaces it. See the [runtime lifecycle](../go/README.md#shared-runtime-lifecycle).
-
-## Uninstall
+### Uninstall
 
 ```bash
 mise unuse -g --no-prune github:vmaerten/ghl
 mise uninstall --all github:vmaerten/ghl
 ```
 
-Remove any project selection too. Repository comments and Viewed are preserved. A running daemon continues until its idle timeout or explicit shutdown. Close review tabs to allow the normal 30-minute idle stop, or follow the immediate shutdown procedure in the runtime lifecycle guide before uninstalling.
+Remove any project selection too.
+
+## After installing, upgrading or rolling back
+
+A running window keeps the version it started with: quit ghl (`Cmd+Q`) to use the new one. Comments and Viewed stay in each checkout's version-1 `.git/ghl/state.json` across upgrades, rollbacks and uninstalls; rollback requires releases that read that schema. Settings live in `~/Library/Application Support/ghl/settings.json`.
+
+## Moving from the 0.2.0 browser CLI
+
+- `mise upgrade` or `mise use -g github:vmaerten/ghl@latest` moves from the CLI to the app: same tool, new archive. Linux and macOS Intel are not served after 0.2.0; stay on `github:vmaerten/ghl@0.2.0` there.
+- A 0.2.0 daemon still running on port 7777 stops on its own after 30 minutes without an open tab. Open its reviews in the app with `ghl` in each checkout.
+- Comments and Viewed carry over unchanged: the app uses the same `.git/ghl/state.json`.
+- `--port`, `--no-open`, `--no-daemon`, `--idle`, `--print`, `--import-state` and `GHL_PORT` are gone.
+- A CLI installed from source with `task install` is a plain file in `~/.local/bin/ghl`, which `task install` now refuses to replace: remove it once.
+- Settings saved by the earlier `ghl Desktop` app are read until the first change, then saved under `ghl`.
 
 ## Maintainer verification
 
-Use mise **2026.10.2**, selecting a binary for the architecture being tested (`GHL_TEST_MISE` can select it explicitly). Node is a test driver; the installed executable runs with only Git in PATH. All mise configuration, data, cache and state live in temporary directories outside the checkout. Tests do not change your mise configuration or install a global `ghl`.
+Use mise **2026.10.2**; `GHL_TEST_MISE` can point at that binary. All mise configuration, data, cache and state live in temporary directories outside the checkout: the tests change neither your mise configuration nor a global `ghl`.
 
 ```bash
 task release:snapshot
 task release:mise
-
-# Other target platforms: install/startup check without the upgrade suite
-task release:smoke
 
 # Once releases exist; PREVIOUS is optional:
 task release:mise:published VERSION=X.Y.Z
 task release:mise:published VERSION=X.Y.Z PREVIOUS=A.B.C
 ```
 
-`GHL_TEST_MISE=/absolute/path/to/mise` selects a separate test installation. `GITHUB_TOKEN` or `GH_TOKEN` can authenticate private release reads, without write access. Published mode downloads actual GitHub assets and compares the installed executable with the checksummed archive. Run it locally after manual publication. It does not delete or replace the release. Rerun after diagnosing a failure.
+Before publication, `release:mise` routes the real mise GitHub client to a loopback API with mise's URL replacement setting. It serves the candidate archive, a predecessor (the candidate with another bundle marker, signed again), a prerelease and a corrupt download. It checks autodetection, the checksum fallback, activation and shims, `ghl --version` and `ghl comments` with only Git on PATH, the absence of quarantine and a valid signature, the window opened from the mise install, exact pins, `mise upgrade`, rollback, the corrupt download and uninstall. It creates no tag or release; it is fixture coverage, not evidence of a published download.
 
-Before publication, `release:mise` routes the real mise GitHub client to a loopback API with the supported URL replacement setting. It serves the candidate and a synthetic predecessor with different bytes and the same build metadata. It checks autodetection, checksum fallback, corrupt downloads, activation/shims, exact pins, actual `mise upgrade`, rollback, daemon replacement, embedded assets, state preservation and uninstall. It creates no tag or GitHub release. This is fixture coverage, not evidence of a published download or historical upgrade. `release:smoke` reuses the same fixture for one install and startup check; it skips upgrade/rollback and corruption scenarios. Run the full suite on the primary platform and smoke checks on the other targets.
-
-Target-suffixed reports such as `.task/go-mise-acceptance-linux_arm64.json` and `.task/go-mise-published-darwin_amd64.json` are local validation artifacts. Native host runs also retain the existing unsuffixed report names for compatibility. They start with `complete: false`; only a finished run sets it to true. `scope` distinguishes `full` acceptance from `smoke` checks. `upgrade` records whether two versions were exercised and `latest` whether stable resolution was checked. The first release has no historical upgrade to test; that remains pending until a second compatible version exists. Prereleases are tested with exact pins, without claiming that default `latest` selected them.
+Published mode downloads the actual GitHub assets, compares the installed executable with the checksummed archive, and upgrades from `PREVIOUS` when given; that version may be a 0.2.0-era CLI tarball. `GITHUB_TOKEN` or `GH_TOKEN` can authenticate the reads, without write access. The tests set `GHL_PORT=0`, so an old CLI can never start or replace a daemon on your own port. Reports land in `.task/mise-acceptance.json` and `.task/mise-published.json`, starting with `complete: false`.
 
 References: [GitHub backend](https://mise.jdx.dev/dev-tools/backends/github.html), [release age](https://mise.jdx.dev/configuration/settings.html#minimum_release_age), [URL replacements](https://mise.jdx.dev/url-replacements.html).
