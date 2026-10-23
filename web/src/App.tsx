@@ -36,6 +36,7 @@ import ReviewTools from './ReviewTools.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import { GO_POC } from './capabilities.ts'
+import { commandOf, PICKERS, type ReviewCommand, type WindowCommand } from './commands.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
 import type { SavedView, SavedViewHandle } from './savedView.ts'
@@ -55,7 +56,7 @@ const NOT_LISTENING = GO_POC
   : 'ghl is no longer listening — run `ghl` again in that repository'
 
 /** Review commands, by their single-letter key. */
-const KEY_COMMANDS: Record<string, string> = {
+const KEY_COMMANDS: Record<string, ReviewCommand> = {
   b: 'base',
   t: 'target',
   // `l` for log, which is what the list is. `c` is the comment key.
@@ -67,7 +68,6 @@ const KEY_COMMANDS: Record<string, string> = {
   c: 'comment',
   v: 'viewed',
 }
-const PICKERS = ['base', 'target', 'commit']
 
 /** Shorter than the CLI's wording: this is a badge in a topbar, not a report. */
 const BASE_SOURCES: Record<BaseSource, string> = {
@@ -345,7 +345,7 @@ export default function App({
   )
 
   /** Every review command by name: the single-letter keys and the desktop menus. */
-  const runCommand = useStableCallback((command: string) => {
+  const runCommand = useStableCallback((command: ReviewCommand | WindowCommand) => {
     switch (command) {
       case 'base':
       case 'target':
@@ -442,7 +442,7 @@ export default function App({
       if (isComposing) return
 
       const name = KEY_COMMANDS[event.key]
-      if (!name || (GO_POC && PICKERS.includes(name))) return
+      if (!name || (GO_POC && (PICKERS as readonly string[]).includes(name))) return
       runCommand(name)
       event.preventDefault()
     }
@@ -462,7 +462,7 @@ export default function App({
 
   useEffect(() => {
     if (!desktop) return
-    const listener = (event: Event) => runCommand((event as CustomEvent<string>).detail)
+    const listener = (event: Event) => runCommand(commandOf(event))
     window.addEventListener('desktop:command', listener)
     return () => window.removeEventListener('desktop:command', listener)
   }, [desktop, runCommand])
