@@ -97,6 +97,7 @@ type desktopApp struct {
 	requests chan launch
 	ready    sync.Once
 	tabs     reviewTabs
+	settings *settingsStore
 }
 
 func (d *desktopApp) startup(ctx context.Context) {

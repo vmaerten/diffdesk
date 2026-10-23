@@ -27,7 +27,9 @@ ghl-desktop --help
 
 Installation creates a symlink in `~/.local/bin` pointing to the local bundle; that directory must be on PATH. `BIN_DIR` overrides the command directory. Keep the bundle at its build location while using that link. The normal `ghl` installation remains the browser version. `task desktop:uninstall` removes only the desktop symlink.
 
-The application menu supplies **File → Open repository** (`Cmd+O`), native Edit commands, close tab (`Cmd+W`), reload (`Cmd+R`) and quit (`Cmd+Q`). Closing the window quits the app. Git and macOS system WebKit are the runtime requirements; consumers of a copied bundle need no Node, pnpm, Task or Go. No Caddy, DNS or proxy setup is required.
+The application menu supplies **File → Open repository** (`Cmd+O`), **File → Settings…** (`Cmd+,`), native Edit commands, close tab (`Cmd+W`), reload (`Cmd+R`) and quit (`Cmd+Q`). Settings sits under File because Wails v2 builds the application menu itself. Closing the window quits the app.
+
+The desktop app uses its own neutral light and dark palettes and ignores the browser's theme choice. Settings chooses the appearance (System follows macOS, or Light or Dark), one syntax theme for each mode, and the code font and size. Changes apply immediately and persist in `~/Library/Application Support/ghl Desktop/settings.json`. A font that is not installed falls back to SF Mono, and Settings says so. Git and macOS system WebKit are the runtime requirements; consumers of a copied bundle need no Node, pnpm, Task or Go. No Caddy, DNS or proxy setup is required.
 
 ## App icon
 
@@ -41,7 +43,7 @@ Extract the ZIP and move `ghl Desktop.app` to `/Applications`. The archive has f
 
 ## What is preserved
 
-The current React interface keeps its files/tree, unified/split diffs, context expansion, comments, Viewed, themes, search, revision selectors and shortcuts. Markdown/file-name copy uses the native macOS clipboard through Wails instead of browser permission prompts. Comments and Viewed use the existing version-1 `.git/ghl/state.json`, including worktree-specific Git directories. The desktop app does not import or create another review-state schema.
+The current React interface keeps its files/tree, unified/split diffs, context expansion, comments, Viewed, syntax themes, search, revision selectors and shortcuts. Markdown/file-name copy uses the native macOS clipboard through Wails instead of browser permission prompts. Comments and Viewed use the existing version-1 `.git/ghl/state.json`, including worktree-specific Git directories. The desktop app does not import or create another review-state schema.
 
 One Go process owns the native window and the review server. It binds a private ephemeral loopback port, independently of the browser daemon on 7777, and stops on window close, quit or a termination signal. Reopening another repository registers it in that same runtime; there is no companion executable or separate server process. A bad repository/ref reports an error while keeping the current review. Selection failures occur in the window after the launcher has returned.
 
@@ -59,7 +61,7 @@ task desktop:memory
 python3 desktop/smoke.py --standalone
 ```
 
-Race tests exercise argument handling, caller-directory preservation, invalid repos/refs, the shared in-process backend, comment persistence, shutdown and the native/public origin boundary, tab identity/closing, stale route updates and concurrent opens. The smoke test opens the real WebKit window on two temporary repositories. It exercises context expansion, UI comment creation/edit/deletion, Markdown copy checked against the OS clipboard, Viewed, relative Unicode paths from another caller, reuse of the same process/window, unminimising, CLI deduplication, UI tab closing, one mounted review, the empty welcome screen, shutdown and state restoration after restarting. It writes `.task/desktop/validation.json` and `.task/desktop/smoke.log`. The standalone mode copies the complete bundle outside the checkout and reruns the same native checks with only the system tools/Git in PATH.
+Race tests exercise argument handling, caller-directory preservation, invalid repos/refs, the shared in-process backend, comment persistence, shutdown and the native/public origin boundary, tab identity/closing, stale route updates and concurrent opens. The smoke test opens the real WebKit window on two temporary repositories. It exercises context expansion, UI comment creation/edit/deletion, Markdown copy checked against the OS clipboard, Viewed, relative Unicode paths from another caller, reuse of the same process/window, unminimising, CLI deduplication, UI tab closing, one mounted review, the empty welcome screen, the appearance and code size applied from Settings, shutdown and state restoration after restarting. It writes `.task/desktop/validation.json` and `.task/desktop/smoke.log`. The standalone mode copies the complete bundle outside the checkout and reruns the same native checks with only the system tools/Git in PATH.
 
 The native suite also checks restoration of an inline draft on expanded context, scroll, panel editing, `Ctrl+Tab` and reload with drafts. Go tests check view-copy isolation, version/size validation and late saves for closed tabs.
 
@@ -71,7 +73,7 @@ The median physical footprint is **116.6 MiB after warming both tabs**, then **1
 
 `desktop:memory` measures app descendants plus attributed WebKit/network/GPU tasks with the same macOS footprint/Mach-time sampler as the envelope benchmark. WindowServer and the driver are excluded. Run it without concurrent tests or other benchmark loads; no forced garbage collection is requested.
 
-The optional `GHL_DESKTOP_PROBE` path is a local acceptance-test script injected into the native document; it is unused in normal launches. Its unique path also isolates the test's instance lock, so fixture opens cannot join a user's running desktop app. Tests do not open your personal Chrome or mutate a real repository. The clipboard check writes fixture Markdown to the system clipboard.
+The optional `GHL_DESKTOP_PROBE` path is a local acceptance-test script injected into the native document; it is unused in normal launches. Its unique path also isolates the test's instance lock, so fixture opens cannot join a user's running desktop app. Smoke and memory runs point `GHL_DESKTOP_SETTINGS` at a temporary file, so they never read or change your settings. Tests do not open your personal Chrome or mutate a real repository. The clipboard check writes fixture Markdown to the system clipboard.
 
 During the local demonstration, a second invocation sent while the first window was still bootstrapping was not registered; retrying after the window was ready worked. Concurrent cold launches are not yet guaranteed by the Wails notification path. Wait for the first window before sending another review. This is tracked as a non-blocking follow-up in [#136](https://github.com/vmaerten/ghl/issues/136).
 
