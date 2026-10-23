@@ -59,6 +59,47 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 export { sleep }
 
 /**
+ * Wait until `expression` is truthy in the page.
+ *
+ * Resolves false after `timeoutMs` instead of throwing, so the check that
+ * follows reports what the page shows rather than a timeout.
+ */
+export async function until(page: Page, expression: string, timeoutMs = 10_000) {
+  try {
+    await page.waitForFunction(expression, { timeout: timeoutMs, polling: 50 })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Let the page lay out and paint what the last gesture changed. */
+export const frames = (page: Page) =>
+  page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  )
+
+/**
+ * Let any request the last gesture started finish, for up to five seconds.
+ *
+ * For checks that something did *not* happen: there is no state to wait for,
+ * only the absence of a write. A page that never goes quiet is not a failure here.
+ */
+export const settled = (page: Page) =>
+  until(
+    page,
+    `(({ inflight, last }) => inflight === 0 && performance.now() - last >= 300)(window.requestActivity)`,
+    5_000,
+  )
+
+/** Some mounted file shows its lines, or every one is folded as viewed. */
+const DIFF_RENDERED = `(() => {
+  const roots = [...document.querySelectorAll('.diff diffs-container')].map((host) => host.shadowRoot)
+  return roots.some((root) => root?.querySelector('[data-line]')) ||
+    (roots.length > 0 && roots.every((root) => root?.querySelector('[data-title]')))
+})()`
+
+/**
  * Serve `repoPath` and drive it with one browser, reused across suites.
  *
  * The suites drive the built desktop UI against the Go API. `make` opens a page
@@ -125,8 +166,10 @@ export async function withHarness<T>(
       const load = async (query?: string) => {
         await page.goto(url(query), { waitUntil: 'networkidle0' })
         await page.waitForSelector('file-tree-container', { timeout: 30_000 })
-        // The tree mounts before Shiki has finished with the diff pane.
-        await sleep(2500)
+        // The tree mounts before the diff pane, and the pane before its syntax
+        // grammars and themes have loaded.
+        await until(page, DIFF_RENDERED, 30_000)
+        await settled(page)
       }
 
       return { page, repoPath: repo, url, errors, load }
@@ -215,6 +258,45 @@ export function titlebar(page: Page): Promise<TitlebarState> {
     })),
     search: location.search,
   }))()`) as Promise<TitlebarState>
+}
+
+/**
+ * Read until `ready` holds, or `timeoutMs` runs out.
+ *
+ * Returns the last reading either way, so the check that follows reports what
+ * the page actually showed rather than a timeout.
+ */
+export async function poll<T>(
+  read: () => Promise<T>,
+  ready: (value: T) => boolean,
+  timeoutMs = 10_000,
+) {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const value = await read()
+    if (ready(value) || Date.now() > deadline) return value
+    await sleep(100)
+  }
+}
+
+/** Read the title bar once `ready` holds; see `poll`. */
+export const titlebarWhen = (
+  page: Page,
+  ready: (state: TitlebarState) => boolean,
+  timeoutMs = 15_000,
+) => poll(() => titlebar(page), ready, timeoutMs)
+
+/** Wait until the open picker's first entry matches what was typed. */
+export function pickerShows(page: Page, text: string): Promise<unknown> {
+  return page.waitForFunction(
+    (wanted) =>
+      document
+        .querySelector('.picker-item .picker-name')
+        ?.textContent?.toLowerCase()
+        .includes(wanted.toLowerCase()),
+    { timeout: 10_000 },
+    text,
+  )
 }
 
 /** Open the title bar's Options popover, which holds the scope and whitespace checkboxes. */
@@ -376,6 +458,17 @@ const DIFF_FILES = `(() => {
     spans: host.shadowRoot?.querySelectorAll('span[style]').length ?? 0,
   }))
 })()`
+
+/**
+ * One file of the diff pane, read where it is mounted, or found by walking the
+ * scroll when it is not.
+ */
+export async function diffFile(page: Page, name: string): Promise<DiffFile | undefined> {
+  const mounted = ((await page.evaluate(DIFF_FILES)) as DiffFile[]).find((file) =>
+    file.name.includes(name),
+  )
+  return mounted ?? (await allDiffFiles(page)).find((file) => file.name.includes(name))
+}
 
 export interface DiffFile {
   name: string

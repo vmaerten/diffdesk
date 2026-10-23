@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 
 import { asMarkdown } from '../../src/export.ts'
 import type { DiffPayload } from '../../src/types.ts'
-import { allTreeRows, DIFF_SCROLLER, sleep, type Suite } from '../harness.ts'
+import { allTreeRows, DIFF_SCROLLER, frames, poll, settled, until, type Suite } from '../harness.ts'
 
 /**
  * The gutter cell of the first mounted file, and the "+" the library puts in it
@@ -96,6 +96,10 @@ export default {
       page.evaluate(
         `[...document.querySelectorAll('.comment p')].map((p) => p.textContent)`,
       ) as Promise<string[]>
+    const composers = (n: number) =>
+      until(page, `document.querySelectorAll('.comment-composer').length === ${n}`)
+    const comments = (n: number) =>
+      until(page, `document.querySelectorAll('.comment').length === ${n}`)
     const pencilled = async () =>
       (await allTreeRows(page)).filter((row) => row.decoration.includes('✎'))
 
@@ -108,13 +112,13 @@ export default {
     if (!cell) return
 
     await page.mouse.move(cell.x, cell.y)
-    await sleep(500)
+    await until(page, PLUS_BUTTON, 5_000)
     const plus = (await page.evaluate(PLUS_BUTTON)) as { x: number; y: number } | null
     check('hovering the gutter offers a "+"', plus !== null, JSON.stringify(plus))
     if (!plus) return
 
     await page.mouse.click(plus.x, plus.y)
-    await sleep(1000)
+    await until(page, `document.querySelectorAll('.comment-composer').length === 1`)
     check('clicking it opens a composer', (await count('.comment-composer')) === 1)
     // The library reports the range but not the file it is in, and it does so
     // before the selection is committed — so an annotation appearing on the right
@@ -132,7 +136,6 @@ export default {
     // With the field focused, `v` is a character: that is the INPUT/TEXTAREA
     // guard, and it was already there.
     await page.type('.comment-composer textarea', 'v')
-    await sleep(400)
     const typed = await page.evaluate(
       `(document.querySelector('.comment-composer textarea') || {}).value`,
     )
@@ -144,7 +147,7 @@ export default {
     // carry the composer, draft included, off screen.
     await page.evaluate(`document.activeElement && document.activeElement.blur()`)
     await page.keyboard.press('v')
-    await sleep(900)
+    await settled(page)
     check(
       '  and an unfocused one still blocks it',
       (await count('.comment-composer')) === 1 && (await pencilled()).length === 0,
@@ -158,7 +161,11 @@ export default {
     )
     await page.type('.comment-composer textarea', 'extract this expression')
     await page.evaluate(clickButton('Comment'))
-    await sleep(1500)
+    await until(
+      page,
+      `document.querySelectorAll('.comment').length === 1 && !document.querySelector('.comment-composer')`,
+    )
+    await settled(page)
     check('saving turns the composer into a comment', (await count('.comment')) === 1)
     check(
       '  carrying what was typed',
@@ -198,7 +205,11 @@ export default {
         return text
       })()`)
       check(name, copied === asMarkdown(payload.comments, { range: payload.range }), String(copied))
-      await sleep(100)
+      await until(
+        page,
+        `document.querySelector('.titlebar-actions .copy-all').textContent.startsWith('Copied')`,
+        2_000,
+      )
       check(
         '  and confirms the copy',
         (await page.evaluate(
@@ -210,7 +221,7 @@ export default {
 
     // The decisive one: the comment lives in .git/ghl/state.json, not in memory.
     await ready()
-    await sleep(1200)
+    await until(page, `document.querySelectorAll('.comment').length === 1`)
     check(
       'a comment survives a reload',
       (await count('.comment')) === 1,
@@ -243,7 +254,11 @@ export default {
     }
     await page.click('.comment-collapse')
     await page.waitForSelector('.comment-collapse[aria-expanded="false"]')
-    await sleep(400)
+    await until(
+      page,
+      `document.querySelector('.diff .comment').getBoundingClientRect().height <= 38`,
+      3_000,
+    )
     const collapsed = await commentSize()
     check(
       'folding leaves a single-line preview and reclaims diff height',
@@ -283,12 +298,19 @@ export default {
         .find((button) => button.textContent?.trim() === 'Split')
         ?.click(),
     )
-    await sleep(500)
+    await until(
+      page,
+      `document.querySelector('.segmented button[title^="Split"]')?.ariaPressed === 'true'`,
+    )
+    await frames(page)
     const splitExpanded = await commentSize()
     await page.click('.comment-collapse')
     await page.waitForSelector('.comment-collapse[aria-expanded="false"]')
-    await sleep(400)
-    const splitCollapsed = await commentSize()
+    const splitCollapsed = await poll(
+      () => commentSize(),
+      (size) => splitExpanded.host - size.host >= 20,
+      3_000,
+    )
     check(
       'split diff also reclaims folded comment height',
       splitExpanded.host - splitCollapsed.host >= 20,
@@ -300,7 +322,10 @@ export default {
         .find((button) => button.textContent?.trim() === 'Unified')
         ?.click(),
     )
-    await sleep(400)
+    await until(
+      page,
+      `document.querySelector('.segmented button[title^="Unified"]')?.ariaPressed === 'true'`,
+    )
 
     // The anchor never reaches the DOM, and nothing above would notice it being
     // empty — which is the whole basis of the staleness check to come. Asked of
@@ -329,7 +354,7 @@ export default {
     await page.click('.comment-collapse')
     await page.waitForSelector('.comment-collapse[aria-expanded="false"]')
     await page.evaluate(clickButton('Edit'))
-    await sleep(900)
+    await composers(1)
     const prefilled = await page.evaluate(
       `(document.querySelector('.comment-composer textarea') || {}).value`,
     )
@@ -364,7 +389,10 @@ export default {
       `(() => { const t = document.querySelector('.comment-composer textarea'); t.value = 'rename it too'; t.dispatchEvent(new Event('change', { bubbles: true })) })()`,
     )
     await page.evaluate(clickButton('Update'))
-    await sleep(1500)
+    await poll(
+      () => bodies(),
+      (shown) => shown[0] === 'rename it too',
+    )
     check(
       'updating rewrites the body',
       (await bodies())[0] === 'rename it too',
@@ -377,7 +405,7 @@ export default {
     const refreshed = page.waitForResponse((response) => /\/api\/diff(?:\?|$)/.test(response.url()))
     await page.keyboard.press('r')
     await refreshed
-    await sleep(1500)
+    await settled(page)
     check(
       'refresh preserves an unsaved edit even when the server returns its old ID',
       (await bodies())[0] === 'rename it too' &&
@@ -404,20 +432,20 @@ export default {
     // pointer. Nothing on the page could clear it, so the only way out was a
     // reload.
     await page.mouse.move(cell.x, cell.y)
-    await sleep(400)
+    await until(page, PLUS_BUTTON, 5_000)
     const plusAgain = (await page.evaluate(PLUS_BUTTON)) as { x: number; y: number } | null
     if (plusAgain) {
       await page.mouse.click(plusAgain.x, plusAgain.y)
-      await sleep(800)
+      await composers(1)
       await page.keyboard.press('Escape')
-      await sleep(600)
+      await composers(0)
       check('escape closes the composer', (await count('.comment-composer')) === 0)
 
       const points = (await page.evaluate(GUTTER_POINTS)) as { x: number; y: number }[]
       const elsewhere = points.findLast((p) => Math.abs(p.y - cell.y) > 40)
       if (elsewhere) {
         await page.mouse.move(elsewhere.x, elsewhere.y)
-        await sleep(600)
+        await until(page, `Math.abs((${PLUS_BUTTON})?.y - ${elsewhere.y}) < 20`, 5_000)
         const moved = (await page.evaluate(PLUS_BUTTON)) as { x: number; y: number } | null
         check(
           '  and the "+" follows the pointer again',
@@ -426,7 +454,7 @@ export default {
         )
         if (moved) {
           await page.mouse.click(moved.x, moved.y)
-          await sleep(900)
+          await composers(1)
           // The anchor, not merely that *a* composer opened: reopening the
           // abandoned line would leave one on screen too, and that is the bug.
           // A slot that is not line 1's. The comment saved earlier still holds
@@ -439,7 +467,7 @@ export default {
             reopened.join(', ') || 'nothing',
           )
           await page.keyboard.press('Escape')
-          await sleep(600)
+          await composers(0)
         }
       }
     }
@@ -449,10 +477,14 @@ export default {
     // The gutter cell itself, not the "+" inside it: that selects without opening
     // anything, which is the state `c` exists for.
     await page.mouse.click(cell.x, cell.y)
-    await sleep(700)
+    await until(
+      page,
+      `[...document.querySelectorAll('.diff diffs-container')].some((host) => host.shadowRoot?.querySelector('[data-selected-line]'))`,
+      5_000,
+    )
     check('clicking the gutter selects without composing', (await count('.comment-composer')) === 0)
     await page.keyboard.press('c')
-    await sleep(800)
+    await composers(1)
     check('  and c comments that selection', (await count('.comment-composer')) === 1)
 
     // A card leaves the DOM with its virtualised file. Its draft belongs to the
@@ -479,7 +511,6 @@ export default {
         (await slots()).join('|') === draftSlots.join('|'),
     )
     await page.keyboard.press('Escape')
-    await sleep(600)
 
     // ---- deleting ----------------------------------------------------------
 
@@ -487,9 +518,10 @@ export default {
     // original card to fall outside the virtual window. Reload at its file
     // before asking its button to delete it: absence from the DOM is not a click.
     await ready()
-    await sleep(1200)
+    await comments(1)
     await page.evaluate(clickButton('Delete'))
-    await sleep(1500)
+    await comments(0)
+    await settled(page)
     check('deleting removes the comment', (await count('.comment')) === 0)
     check('  and clears the tree badge', (await pencilled()).length === 0)
     check(
@@ -501,7 +533,6 @@ export default {
     )
 
     await ready()
-    await sleep(1200)
     check('  for good', (await count('.comment')) === 0)
 
     // ---- lines that moved --------------------------------------------------
@@ -530,7 +561,7 @@ export default {
       // No target: the working tree of the checkout, which is where the edit lands.
       await load('')
       await page.waitForSelector('.viewed-toggle input', { timeout: 30_000 })
-      await sleep(1500)
+      await until(page, GUTTER_CELL)
 
       const freshCell = (await page.evaluate(GUTTER_CELL)) as { x: number; y: number } | null
       if (!freshCell) {
@@ -538,17 +569,18 @@ export default {
         return
       }
       await page.mouse.move(freshCell.x, freshCell.y)
-      await sleep(500)
+      await until(page, PLUS_BUTTON, 5_000)
       const freshPlus = (await page.evaluate(PLUS_BUTTON)) as { x: number; y: number } | null
       if (!freshPlus) {
         check('the working tree offers a "+"', false, 'no button found')
         return
       }
       await page.mouse.click(freshPlus.x, freshPlus.y)
-      await sleep(900)
+      await composers(1)
       await page.type('.comment-composer textarea', 'this constant needs a name')
       await page.evaluate(clickButton('Comment'))
-      await sleep(1500)
+      await comments(1)
+      await settled(page)
       check('a comment on the working tree saves', (await count('.comment')) === 1)
       check('  and starts out fresh', (await count('.comment.stale')) === 0)
 
@@ -567,7 +599,7 @@ export default {
       // That line and only that line: the others are the control.
       stage(original.map((line, index) => (index === at - 1 ? 'const renamed = 99' : line)))
       await page.keyboard.press('r')
-      await sleep(2500)
+      await until(page, `document.querySelectorAll('.comment.stale').length === 1`)
 
       check('rewriting the commented line flags it', (await count('.comment.stale')) === 1)
       // With the flag stripped of context, a stale comment is an instruction about
@@ -590,12 +622,13 @@ export default {
       // clears on its own rather than needing to be undone.
       stage(original)
       await page.keyboard.press('r')
-      await sleep(2500)
+      await until(page, `document.querySelectorAll('.comment.stale').length === 0`)
       check('restoring the line clears the flag', (await count('.comment.stale')) === 0)
       check('  and the comment is still there', (await count('.comment')) === 1)
 
       await page.evaluate(clickButton('Delete'))
-      await sleep(1200)
+      await comments(0)
+      await settled(page)
     } finally {
       // Whatever happened above, the next suite gets the tree it expects.
       git('reset', '-q')

@@ -1,4 +1,4 @@
-import { openPicker, sleep, titlebar, type Suite } from '../harness.ts'
+import { openPicker, pickerShows, titlebar, titlebarWhen, type Suite } from '../harness.ts'
 
 export default {
   name: 'pickers',
@@ -23,13 +23,13 @@ export default {
     check('b opens a picker listing the refs', offered.length >= 3, offered.join(', '))
 
     await page.keyboard.type('other')
-    await sleep(600)
+    await pickerShows(page, 'other')
     const filtered = await items()
     check('typing filters the list', filtered.length < offered.length, filtered.join(', '))
     check('  and the match is relevant', filtered[0]?.includes('other') === true, filtered[0])
 
     await page.keyboard.press('Escape')
-    await sleep(400)
+    await page.waitForSelector('.picker-input', { hidden: true })
     check('escape closes without picking', (await shown()).base === 'main')
 
     // `release` is an older commit on main, so the diff has to widen. `other`
@@ -37,10 +37,9 @@ export default {
     // is exactly how a base picker that does not work could pass.
     await openPicker(page, 'b')
     await page.keyboard.type('release')
-    await sleep(600)
+    await pickerShows(page, 'release')
     await page.keyboard.press('Enter')
-    await sleep(4000)
-    const rebased = await shown()
+    const rebased = await titlebarWhen(page, (state) => state.base === 'release')
     check('picking changes the base', rebased.base === 'release', rebased.base ?? '')
     check('  and the diff changes with it', rebased.files !== start.files, String(rebased.files))
 
@@ -64,10 +63,9 @@ export default {
     )
 
     await page.keyboard.type('working tree')
-    await sleep(600)
+    await pickerShows(page, 'working tree')
     await page.keyboard.press('Enter')
-    await sleep(4000)
-    const onCheckout = await shown()
+    const onCheckout = await titlebarWhen(page, (state) => state.target === 'main')
     check('picking it reviews the checkout', onCheckout.target === 'main', onCheckout.target ?? '')
     check(
       '  and drops target from the URL',
@@ -77,10 +75,9 @@ export default {
 
     await openPicker(page, 't')
     await page.keyboard.type('feature')
-    await sleep(600)
+    await pickerShows(page, 'feature')
     await page.keyboard.press('Enter')
-    await sleep(4000)
-    const back = await shown()
+    const back = await titlebarWhen(page, (state) => state.target === 'feature')
     check('and back to a ref', back.target === 'feature', back.target ?? '')
     check(
       '  which warns the working tree is excluded',
@@ -99,10 +96,9 @@ export default {
 
     await openPicker(page, 'b')
     await page.keyboard.type('release')
-    await sleep(600)
+    await pickerShows(page, 'release')
     await page.keyboard.press('Enter')
-    await sleep(4000)
-    const overridden = await shown()
+    const overridden = await titlebarWhen(page, (state) => state.base === 'release')
     check(
       '  and picking another one takes effect at once',
       overridden.base === 'release',

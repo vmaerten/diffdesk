@@ -23,6 +23,27 @@ export async function serveDesktopUI(api: string) {
 }
 
 /** Simulate the desktop runtime in every document `page` loads. */
-export function installDesktopRuntime(page: Page, tabs?: DesktopTab[]) {
-  return page.evaluateOnNewDocument(simulateDesktopRuntime, tabs ?? null, BRIDGE)
+export async function installDesktopRuntime(page: Page, tabs?: DesktopTab[]) {
+  await page.evaluateOnNewDocument(simulateDesktopRuntime, tabs ?? null, BRIDGE)
+  await page.evaluateOnNewDocument(trackRequests)
+}
+
+/**
+ * Count the document's own requests in flight, for `settled` in the harness.
+ *
+ * Puppeteer's network idle counts requests of the previous document that never
+ * reported an end, so a suite that navigates would wait out its whole timeout.
+ */
+function trackRequests() {
+  const original = window.fetch
+  const activity = { inflight: 0, last: performance.now() }
+  Object.assign(window, { requestActivity: activity })
+  window.fetch = (...args) => {
+    activity.inflight++
+    activity.last = performance.now()
+    return original(...args).finally(() => {
+      activity.inflight--
+      activity.last = performance.now()
+    })
+  }
 }
