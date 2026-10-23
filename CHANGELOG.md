@@ -2,8 +2,14 @@
 
 ## Unreleased
 
-- Add `ghl-desktop`, a Wails application with review tabs and restoration of drafts, selection and scroll between tabs; share saved comments and Viewed with the browser CLI. Distribute an ad hoc signed macOS app ZIP alongside it.
-- Build, verify and publish all CLI archives and the desktop ZIP through `task release`, automatically invoked by GitHub Actions only for stable release tags.
+ghl is now a macOS app. `ghl` opens or activates a review tab in one native window instead of serving the review to a browser.
+
+- **Breaking:** replace the browser CLI, its shared daemon on port 7777 and the `ghl.localhost` URLs with the app's own window. `ghl comments [--json]` and `ghl --version [--json]` still print in the terminal; `--port`, `--no-open`, `--no-daemon`, `--idle`, `--print`, `--import-state` and `GHL_PORT` are removed. ([#167](https://github.com/vmaerten/ghl/pull/167), [#169](https://github.com/vmaerten/ghl/pull/169), [#171](https://github.com/vmaerten/ghl/pull/171))
+- **Breaking:** ship one archive, `ghl_<version>_darwin_arm64.zip` with `ghl.app`, for macOS 13 or later on Apple Silicon. Linux and macOS Intel stay on 0.2.0. ([#172](https://github.com/vmaerten/ghl/pull/172))
+- Install with Homebrew, `brew install --cask vmaerten/tap/ghl`, or keep mise's `github:vmaerten/ghl`, which moves to the app on upgrade. ([#173](https://github.com/vmaerten/ghl/pull/173))
+- Review in a macOS-style window: review tabs in a unified title bar holding the comparison controls, a translucent file sidebar, files as cards, a comments side panel beside the diff, a status bar and native menus. ([#155](https://github.com/vmaerten/ghl/pull/155)–[#164](https://github.com/vmaerten/ghl/pull/164))
+- Choose the appearance (System, Light or Dark), a syntax theme for each mode and the code font and size in Settings. ([#157](https://github.com/vmaerten/ghl/pull/157))
+- Keep comments and Viewed in the same `.git/ghl/state.json`. Settings saved by the earlier `ghl Desktop` build are read until the first change.
 
 ## 0.2.0
 
@@ -34,4 +40,4 @@ The `ghl` backend and CLI now run exclusively on Go. React is embedded in the ex
 - Remove the Node backend, CLI and fallback installer. Node and pnpm are only needed for development, frontend builds and test drivers.
 - Fix search input replacement during delayed opening frames and skip nested untracked Git repositories/worktrees rather than aborting the entire review.
 
-Stop an old Node daemon before starting Go on the same port. Read the [migration guide](./docs/migration.md) for PATH precedence, backups and rollback, and the [installation guide](./docs/installation.md) for mise commands. Other platforms and the optional URL without a port remain follow-up work.
+Stop an old Node daemon before starting Go on the same port. Read the [migration guide](https://github.com/vmaerten/ghl/blob/v0.1.0/docs/migration.md) for PATH precedence, backups and rollback, and the [installation guide](./docs/installation.md) for mise commands. Other platforms and the optional URL without a port remain follow-up work.

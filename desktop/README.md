@@ -1,6 +1,6 @@
-# ghl Desktop
+# The ghl app
 
-The desktop app opens the existing Go backend and React interface in one reusable native window with review tabs. It coexists with the browser CLI and currently targets macOS on Apple Silicon.
+ghl opens the Go review server and the React interface in one reusable native window with review tabs. It is built with Wails v2 for macOS 13 or later on Apple Silicon.
 
 ## Run
 
@@ -11,43 +11,43 @@ task desktop:run -- --repo .
 task desktop:run -- --repo /path/to/another/repository --base main
 ```
 
-The task builds an embedded React release and a locally signed application in `.task/desktop/ghl Desktop.app`. The terminal returns after opening the window. Later launches open or activate a review tab in the same window and bring it back from a minimised state. A tab identifies a canonical checkout and its base/target parameters; repeated commands activate an existing matching tab. Commit, Working tree and Untracked selections belong to that tab's view and survive switching. Repeating the active comparison does not reload its page.
+The task builds an embedded React release and a locally signed application in `.task/desktop/ghl.app`. The terminal returns after opening the window. Later launches open or activate a review tab in the same window and bring it back from a minimised state. A tab identifies a canonical checkout and its base/target parameters; repeated commands activate an existing matching tab. Commit, Working tree and Untracked selections belong to that tab's view and survive switching. Repeating the active comparison does not reload its page.
 
 The tab strip supplies selection, per-tab close buttons and **+** to open a repository. Arrow keys, Home and End navigate the focused tab strip. `Cmd+W` closes the active tab; closing the last tab leaves the welcome screen open. Only the active React review is mounted. Inactive tabs retain their route and label, not their parsed patch, DOM or a hidden review component. Each tab also keeps a small, versioned saved view: unified/split mode, scroll position, selected lines, inline composer text, comment-panel edits and context-expansion coordinates. These survive switching and `Cmd+R`; `Ctrl+Tab` and `Ctrl+Shift+Tab` cycle reviews. A user interaction cancels a pending scroll restoration. Expansion replay checks each file's diff hash before applying it. Saved views remain in memory, with a 2 MiB per-tab limit. Closing a tab discards its unsaved drafts; quitting the application discards all saved views and the tab list. Saved comments and Viewed remain durable in repository state.
 
-For daily use, install a separate command:
+For daily use from a checkout, link the command to the built bundle:
 
 ```bash
-task desktop:install
-ghl-desktop                    # current repository, automatically resolved base
-ghl-desktop --base main
-ghl-desktop feature --repo ../another-repository --base main
-ghl-desktop --help
+task install
+ghl                            # current repository, automatically resolved base
+ghl feature --repo ../another-repository --base main
+ghl comments --json            # this comparison's comments, without a window
+ghl --help
 ```
 
-Installation creates a symlink in `~/.local/bin` pointing to the local bundle; that directory must be on PATH. `BIN_DIR` overrides the command directory. Keep the bundle at its build location while using that link. The normal `ghl` installation remains the browser version. `task desktop:uninstall` removes only the desktop symlink.
+Installation creates a symlink in `~/.local/bin` pointing to the local bundle; that directory must be on PATH. `BIN_DIR` overrides the command directory. Keep the bundle at its build location while using that link. `task install` refuses to replace a file that is not a link, such as a 0.2.0 browser CLI; `task uninstall` removes only the link. Released builds install through [Homebrew or mise](../docs/installation.md).
+
+`ghl comments` and `ghl --version` answer in the terminal and never reach the window. Any other invocation hands a canonical request to LaunchServices and returns.
 
 The application menu supplies **File → Open repository** (`Cmd+O`), **File → Settings…** (`Cmd+,`), native Edit commands, close tab (`Cmd+W`), reload (`Cmd+R`) and quit (`Cmd+Q`). Settings sits under File because Wails v2 builds the application menu itself. Closing the window quits the app.
 
-The desktop app uses its own neutral light and dark palettes and ignores the browser's theme choice. Settings chooses the appearance (System follows macOS, or Light or Dark), one syntax theme for each mode, and the code font and size. Changes apply immediately and persist in `~/Library/Application Support/ghl Desktop/settings.json`. A font that is not installed falls back to SF Mono, and Settings says so. Git and macOS system WebKit are the runtime requirements; consumers of a copied bundle need no Node, pnpm, Task or Go. No Caddy, DNS or proxy setup is required.
+The app uses its own neutral light and dark palettes. Settings chooses the appearance (System follows macOS, or Light or Dark), one syntax theme for each mode, and the code font and size. Changes apply immediately and persist in `~/Library/Application Support/ghl/settings.json`; settings saved by the earlier `ghl Desktop` app are read until the first change. A font that is not installed falls back to SF Mono, and Settings says so. Git and macOS system WebKit are the runtime requirements; a copied bundle needs no Node, pnpm, Task or Go.
 
 ## App icon
 
-The editable icon is `icon/AppIcon.svg`; `icon/AppIcon.png` is its transparent 1024px export. It extends the browser favicon's green/red diff language into a macOS document mark. Export an updated SVG as a transparent 1024×1024 PNG when changing the design. The desktop build uses only macOS `sips` and `iconutil` to create the 16–1024px normal/Retina icon sizes. The desktop build copies the ICNS into `Contents/Resources` before signing; the release ZIP retains that resource and checks its bundle declaration and container.
+The editable icon is `icon/AppIcon.svg`; `icon/AppIcon.png` is its transparent 1024px export. It carries the green/red diff language into a macOS document mark. Export an updated SVG as a transparent 1024×1024 PNG when changing the design. The desktop build uses only macOS `sips` and `iconutil` to create the 16–1024px normal/Retina icon sizes. The desktop build copies the ICNS into `Contents/Resources` before signing; the release ZIP retains that resource and checks its bundle declaration and container.
 
 ## Release archive
 
-`task release:snapshot` invokes GoReleaser OSS to build the CLI and desktop, package `ghl-desktop_<version>_darwin_arm64.zip` beside the four CLI tarballs and checksum all five in `go/dist/release/checksums.txt`. The ZIP contains the complete `ghl Desktop.app`, the project MIT license and notices for the embedded frontend, Go standard library and linked Go dependencies. Version and commit metadata are checked against the release in both the bundle and native runtime.
-
-Extract the ZIP and move `ghl Desktop.app` to `/Applications`. The archive has free ad hoc signing, with no Apple notarisation. macOS may require a first-launch exception after download. No automatic quarantine removal or desktop mise installer is included. See the [release guide](../docs/releases.md) for local verification and the tag-only release workflow. `task release:snapshot` and `task desktop:build` do not publish; `task release` publishes verified archives.
+`task release:snapshot` packages the complete `ghl.app`, the project MIT license and notices for the embedded frontend, Go standard library and linked Go dependencies as `ghl_<version>_darwin_arm64.zip`. The bundle is signed ad hoc, without Apple notarisation, and declares macOS 13 as its minimum. The [release guide](../docs/releases.md) covers its verification, the tag-only release workflow and the Homebrew cask. `task release:snapshot` and `task desktop:build` never publish.
 
 ## What is preserved
 
-The current React interface keeps its files/tree, unified/split diffs, context expansion, comments, Viewed, syntax themes, search, revision selectors and shortcuts. Markdown/file-name copy uses the native macOS clipboard through Wails instead of browser permission prompts. Comments and Viewed use the existing version-1 `.git/ghl/state.json`, including worktree-specific Git directories. The desktop app does not import or create another review-state schema.
+The React interface keeps its files/tree, unified/split diffs, context expansion, comments, Viewed, syntax themes, search, revision selectors and shortcuts. Markdown/file-name copy uses the native macOS clipboard through Wails. Comments and Viewed use the version-1 `.git/ghl/state.json`, including worktree-specific Git directories.
 
-One Go process owns the native window and the review server. It binds a private ephemeral loopback port, independently of the browser daemon on 7777, and stops on window close, quit or a termination signal. Reopening another repository registers it in that same runtime; there is no companion executable or separate server process. A bad repository/ref reports an error while keeping the current review. Selection failures occur in the window after the launcher has returned.
+One Go process owns the native window and the [review server](../go/README.md). It binds a private ephemeral loopback port and stops on window close, quit or a termination signal. Reopening another repository registers it in that same runtime; there is no companion executable or separate server process. A bad repository/ref reports an error while keeping the current review. Selection failures occur in the window after the launcher has returned.
 
-The Wails module depends on the production Go source through a local module replacement. Its dependencies stay in the desktop module; the production module retains its standard-library-only dependency set. The Wails asset handler forwards requests to the owned runtime, translating only the private document origin. The public runtime Host/Origin checks remain intact.
+The Wails module depends on the review server's Go module through a local module replacement. Its dependencies stay in the desktop module; the server module keeps its standard-library-only dependency set. The Wails asset handler forwards requests to the owned runtime, translating only the private document origin. The public runtime Host/Origin checks remain intact.
 
 Wails v2 notifications contain arguments without the executable and report the executable directory, rather than the terminal directory. The launcher resolves relative paths and canonicalizes arguments before handing them to Wails. Review URLs end in `/` so Wails injects its native runtime after a page reload. Tab navigation changes history and remounts the active review within the same native document. A late remembered-base write from an unmounted review cannot replace the next tab's URL. Revision numbers on native tab snapshots reject old replies.
 
@@ -75,8 +75,8 @@ The median physical footprint is **116.6 MiB after warming both tabs**, then **1
 
 `desktop:memory` measures app descendants plus attributed WebKit/network/GPU tasks with the same macOS footprint/Mach-time sampler as the envelope benchmark. WindowServer and the driver are excluded. Run it without concurrent tests or other benchmark loads; no forced garbage collection is requested.
 
-The optional `GHL_DESKTOP_PROBE` path is a local acceptance-test script injected into the native document; it is unused in normal launches. Its unique path also isolates the test's instance lock, so fixture opens cannot join a user's running desktop app. Smoke and memory runs point `GHL_DESKTOP_SETTINGS` at a temporary file, so they never read or change your settings. Tests do not open your personal Chrome or mutate a real repository. The clipboard check writes fixture Markdown to the system clipboard.
+The optional `GHL_DESKTOP_PROBE` path is a local acceptance-test script injected into the native document; it is unused in normal launches. Its unique path also isolates the test's instance lock, so fixture opens cannot join a user's running app. Smoke and memory runs point `GHL_DESKTOP_SETTINGS` at a temporary file, so they never read or change your settings. Tests do not open your personal Chrome or mutate a real repository. The clipboard check writes fixture Markdown to the system clipboard.
 
 During the local demonstration, a second invocation sent while the first window was still bootstrapping was not registered; retrying after the window was ready worked. Concurrent cold launches are not yet guaranteed by the Wails notification path. Wait for the first window before sending another review. This is tracked as a non-blocking follow-up in [#136](https://github.com/vmaerten/ghl/issues/136).
 
-Builds are manual/local with ad hoc signing. Release signing, notarisation and automatic updates are not configured. Stable release tags run a hosted macOS job through `task release`; PRs and branch pushes do not run CI. Native hot reload is not configured; `task dev` runs the desktop UI in a browser, on the Wails bindings simulated by `simulator.ts`, with React hot reload. Quit the desktop app before rebuilding to load new embedded UI/server code. The envelope benchmark's RAM measurements do not measure this in-process integration; no memory saving is asserted here. Linux/Windows, native image interactions and restoration against a substantially changed diff remain outside this validation.
+Builds are manual/local with ad hoc signing. Release signing, notarisation and automatic updates are not configured. Stable release tags run a hosted macOS job through `task release`; PRs and branch pushes do not run CI. Native hot reload is not configured; `task dev` runs the UI in a browser, on the Wails bindings simulated by `simulator.ts`, with React hot reload. Quit the app before rebuilding to load new embedded UI/server code. The envelope benchmark's RAM measurements do not measure this in-process integration; no memory saving is asserted here. Linux/Windows, native image interactions and restoration against a substantially changed diff remain outside this validation.
