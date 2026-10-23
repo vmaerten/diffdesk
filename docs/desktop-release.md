@@ -89,15 +89,15 @@ La release v0.2.0 ne contient pas de zip desktop. Le spike a donc reconditionné
 
 Les suites de `test/run.ts`, celles que rejoue `goRevisions.ts`, les tests d'images et `desktopTabs.ts` chargent l'UI desktop de production (`task desktop:assets`), servie par `vite preview` avec les appels d'API relayés au serveur Go, dans Chrome headless. Les bindings Wails sont simulés par `desktop/simulator.ts` et le vrai `bridge.js` est injecté. Les sélecteurs suivent les zones desktop (barre de titre, popover Options, barre d'état, panneau de commentaires). `task dev` sert la même UI avec le hot reload, sur la même simulation. Cette PR précède toute suppression, pour garder la couverture des commentaires, de l'arbre, de la recherche et du Viewed.
 
-### 02 · `desktop-release/02-go-runtime` — Serveur intégré seulement
+### 02 · `desktop-release/02-go-runtime` — Serveur intégré seulement — [#167](https://github.com/vmaerten/ghl/pull/167)
 
 Supprimer `go/cmd/ghl`, `go/cmd/ghl-go-poc`, l'ouverture du navigateur, le daemon partagé (port 7777, inactivité, découverte et remplacement du runtime) et l'hôte `ghl.localhost`. Exposer une entrée de bibliothèque, par exemple `app.Serve(ctx, listener, assets)`, que `desktop/backend.go` appelle à la place de `app.Main(--daemon --port 0 --idle 0)`. Garder l'API, l'état, les révisions, les images et l'export. Retirer les tests et tâches devenus sans objet : `goCLI`, `goDaemon`, `goLocalInstall`, `goPoc` et `poc:*`. `goDev` reste et suit le serveur de dev.
 
-### 03 · `desktop-release/03-remove-web-ui` — Supprimer l'interface navigateur
+### 03 · `desktop-release/03-remove-web-ui` — Supprimer l'interface navigateur — [#169](https://github.com/vmaerten/ghl/pull/169)
 
 Après la PR 02, plus rien ne sert l'interface navigateur : c'est du code mort. Supprimer le rendu `App` hors desktop dans `main.tsx`, les branches `GO_DESKTOP` et `GO_POC`, les composants réservés au navigateur (`RepoBar`, `ThemePicker`, contrôles d'en-tête GitHub, mise en page mobile), le thème lu dans le `localStorage` et le CSS GitHub de `styles.css`. Les modes Vite `go` et `go-poc` disparaissent ; `go-desktop` devient le seul build.
 
-### 04 · `desktop-release/04-fast-ui-tests` — Tests UI plus rapides
+### 04 · `desktop-release/04-fast-ui-tests` — Tests UI plus rapides — [#170](https://github.com/vmaerten/ghl/pull/170)
 
 `test/run.ts` prend 294 s, autant sur `main` qu'avec la PR 01, et `task test` environ 7 minutes. Le temps part dans des attentes fixes : environ 95 s de `sleep` dans les suites, 2,5 s après chacun des quelque 36 chargements de page, et les helpers de défilement qui parcourent tout l'arbre ou tout le diff par pas de 150 à 200 ms. Deux leviers :
 
@@ -160,3 +160,7 @@ Prérequis : correction de [#136](https://github.com/vmaerten/ghl/issues/136). P
 | 02 | Les tests avaient besoin d'un serveur sans fenêtre. | `go/cmd/ghl-dev` sert aussi les tests, avec des flags `--repo`, `--base` et `--port` dont les variables d'Air donnent les valeurs par défaut. |
 | 03 | `styles.css` mêle styles partagés et styles GitHub du navigateur, sans découpage par interface. | Règle retirée seulement si elle vise une classe que plus aucun code n'emploie, ou si elle vit sous une media query de moins de 800 px, la largeur minimale de la fenêtre. 14 captures avant/après, en clair et en sombre : écarts limités au nom d'onglet et à l'ordre des branches du fixture. |
 | 03 | Les modes Vite `go`, `go-poc` et `go-desktop` ne distinguent plus rien. | Supprimés : `vite build` et `vite` sans mode ; le serveur de dev injecte toujours la simulation des bindings. |
+| 04 | En parallèle, les pages d'une même origine partagent un processus de rendu, et Chrome cesse de peindre celles qui ne sont pas au premier plan : arbre et diff virtualisés ne rendaient plus rien. | Un contexte de navigateur par suite, et les drapeaux qui empêchent la mise en veille des pages en arrière-plan. |
+| 04 | `waitForNetworkIdle` compte encore les requêtes du document précédent après une navigation : `settled` attendait toute sa limite. | La page compte elle-même ses requêtes en vol ; `settled` attend qu'elle soit calme depuis 300 ms. |
+| 04 | Le compteur Viewed bouge avant que l'écriture n'arrive au serveur ; le `sleep(1200)` laissait le `POST` finir avant un rechargement. | Attendre le compteur, puis que la page n'ait plus de requête en vol. |
+| 04 | L'objectif visait 4 suites à la fois. | La moitié des cœurs, au plus 8 : 7 ici, 28 s au lieu de 39 s, stable sur cinq passes. `GHL_TEST_JOBS` force une autre valeur. |
