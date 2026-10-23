@@ -1,4 +1,3 @@
-import { GO_POC } from './capabilities.ts'
 import type { LoadedReviewDiff } from './useReviewDiff.tsx'
 
 export const workingTreeToggleable = (
@@ -46,28 +45,26 @@ export default function ScopeControls({
         <span>Working tree</span>
       </label>
 
-      {!GO_POC && (
-        <label className="scope-check" title="Include the files git does not track yet">
-          <input
-            type="checkbox"
-            className="untracked"
-            checked={data?.untrackedIncluded ?? withUntracked}
-            onChange={onToggleUntracked}
-            // One condition for the four cases that leave nothing to include —
-            // a ref, a commit, the working tree out, a checkout with no stray
-            // file — because `buildPatch` empties the list in all of them.
-            disabled={!untrackedToggleable(data)}
-          />
-          <span>
-            {/* The count is the whole reason the default is off: 2 changed
-            files against 446 untracked ones is what it protects against,
-            and it reads both ways — what is being hidden, or what was
-            taken in. */}
-            Untracked
-            {data && data.untracked.length > 0 ? ` (${data.untracked.length})` : ''}
-          </span>
-        </label>
-      )}
+      <label className="scope-check" title="Include the files git does not track yet">
+        <input
+          type="checkbox"
+          className="untracked"
+          checked={data?.untrackedIncluded ?? withUntracked}
+          onChange={onToggleUntracked}
+          // One condition for the four cases that leave nothing to include —
+          // a ref, a commit, the working tree out, a checkout with no stray
+          // file — because `buildPatch` empties the list in all of them.
+          disabled={!untrackedToggleable(data)}
+        />
+        <span>
+          {/* The count is the whole reason the default is off: 2 changed
+          files against 446 untracked ones is what it protects against,
+          and it reads both ways — what is being hidden, or what was
+          taken in. */}
+          Untracked
+          {data && data.untracked.length > 0 ? ` (${data.untracked.length})` : ''}
+        </span>
+      </label>
     </>
   )
 }
