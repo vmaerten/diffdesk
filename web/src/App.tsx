@@ -502,6 +502,17 @@ export default function App({
   const nextPath =
     entries[entries.findIndex((entry) => entry.path === activePath) + 1]?.path ?? null
 
+  const footer = (
+    <ReviewFooter
+      data={data}
+      baseSource={baseSource}
+      note={comparisonNote(data, target)}
+      stack={stack}
+      onPickTarget={pickTarget}
+      nextPath={nextPath}
+      onNext={() => navigate(1)}
+    />
+  )
   const commentsPanel = (
     <CommentsPanel
       savedEditor={panelEditor}
@@ -724,21 +735,20 @@ export default function App({
           )}
           <Resizer containerRef={bodyRef} onCommit={resizeSidebar} />
 
-          {view}
+          {desktop ? (
+            // The status bar belongs to the code: the sidebar and the comments
+            // panel run the full height beside it.
+            <div className="review-main">
+              {view}
+              {footer}
+            </div>
+          ) : (
+            view
+          )}
           {desktop && commentsPanel}
         </div>
       )}
-      {desktop && (
-        <ReviewFooter
-          data={data}
-          baseSource={baseSource}
-          note={comparisonNote(data, target)}
-          stack={stack}
-          onPickTarget={pickTarget}
-          nextPath={nextPath}
-          onNext={() => navigate(1)}
-        />
-      )}
+      {desktop && entries.length === 0 && footer}
     </div>
   )
 }

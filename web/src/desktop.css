@@ -652,6 +652,16 @@ body,
   background: var(--wash);
 }
 
+.review-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.review-main > .diff {
+  min-height: 0;
+}
 .review-footer {
   display: flex;
   flex-shrink: 0;
