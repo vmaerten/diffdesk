@@ -254,9 +254,12 @@ try {
   )
   console.log('  ok React/CSS hot reload through Vite without rebuilding embedded assets')
 
-  const commandPath = join(checkout, 'go/internal/app/command.go')
-  const command = readFileSync(commandPath, 'utf8')
-  writeFileSync(commandPath, command.replace('var version = "dev"', 'var version = "hot-reloaded"'))
+  const versionPath = join(checkout, 'go/internal/app/version.go')
+  const versionSource = readFileSync(versionPath, 'utf8')
+  writeFileSync(
+    versionPath,
+    versionSource.replace('var version = "dev"', 'var version = "hot-reloaded"'),
+  )
   const after = await waitFor(async () => {
     try {
       const h = await health()
@@ -276,7 +279,7 @@ try {
   assert.ok(restored.viewed['context.txt'])
   console.log('  ok Go rebuild/restart preserves URL, comments and Viewed')
 
-  writeFileSync(commandPath, command + '\ninvalid go syntax\n')
+  writeFileSync(versionPath, versionSource + '\ninvalid go syntax\n')
   await waitFor(async () => running.output().includes('failed to build'), 'build failure')
   const fallback = await waitFor(async () => {
     try {
@@ -287,7 +290,10 @@ try {
     }
   }, 'last successful build after a compile error')
   latestPid = fallback.pid
-  writeFileSync(commandPath, command.replace('var version = "dev"', 'var version = "recovered"'))
+  writeFileSync(
+    versionPath,
+    versionSource.replace('var version = "dev"', 'var version = "recovered"'),
+  )
   latestPid = (
     await waitFor(async () => {
       try {

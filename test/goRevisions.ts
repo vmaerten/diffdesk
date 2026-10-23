@@ -61,13 +61,9 @@ async function json<T>(url: string, body?: unknown): Promise<T> {
 }
 
 try {
-  child = spawn(
-    binary,
-    ['--repo', repo, '--base', 'HEAD', '--no-open', '--no-daemon', '--port', '0', '--json'],
-    {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  )
+  child = spawn(binary, ['--repo', repo, '--base', 'HEAD', '--port', '0'], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
   let errors = ''
   child.stderr!.on('data', (chunk) => {
     errors += String(chunk)
