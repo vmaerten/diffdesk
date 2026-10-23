@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 ghl is now a macOS app. `ghl` opens or activates a review tab in one native window instead of serving the review to a browser.
 
