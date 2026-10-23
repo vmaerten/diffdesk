@@ -390,7 +390,14 @@ export default function App({
         void resetViewed()
         break
       case 'copy-path':
-        if (activePath) void navigator.clipboard.writeText(activePath)
+        if (activePath)
+          navigator.clipboard
+            .writeText(activePath)
+            .catch((cause) =>
+              setCopyError(
+                `Could not copy ${activePath}. ${cause instanceof Error ? cause.message : ''}`,
+              ),
+            )
         break
       case 'reveal':
         if (activePath && onReveal)
