@@ -1,3 +1,5 @@
+import { availableParallelism } from 'node:os'
+
 import { createFixture } from './fixture.ts'
 import { withHarness, type Check, type Suite } from './harness.ts'
 import { runExport } from './export.ts'
@@ -90,33 +92,56 @@ for (const suite of plain) {
 // Skipped entirely when only a browser-free suite was asked for: no fixture to
 // build, and no browser to start.
 if (selected.length > 0) {
-  const fixture = createFixture()
+  // One fixture per suite, so suites cannot leak state into each other and can
+  // run side by side. Built up front: Git runs synchronously and would stall the
+  // suites already driving a page.
+  const fixtures = selected.map(() => createFixture())
+  // Each suite drives its own renderer: half the cores keeps them from starving each other.
+  const jobs = Math.max(
+    1,
+    Number(process.env.GHL_TEST_JOBS ?? Math.min(8, Math.floor(availableParallelism() / 2))),
+  )
 
   try {
-    await withHarness(fixture.path, async (make) => {
-      for (const suite of selected) {
-        process.stdout.write(`\n${suite.name}\n`)
-        const harness = await make('feature')
-
+    await withHarness(fixtures[0]!.path, async (make) => {
+      const run = async (suite: Suite, fixture: (typeof fixtures)[number]) => {
+        // Buffered, so parallel suites print in one piece each.
+        const started = performance.now()
+        let output = ''
+        const record: Check = (name, ok, detail) => {
+          total += 1
+          if (!ok) failures += 1
+          output += `${ok ? '  ok  ' : '  FAIL'} ${name}${detail ? `  — ${detail}` : ''}\n`
+        }
+        const harness = await make('feature', fixture.path)
         try {
-          await suite.run(harness, check)
-          check(
+          await suite.run(harness, record)
+          record(
             'no page errors',
             harness.errors.length === 0,
             harness.errors.slice(0, 2).join(' | '),
           )
         } catch (error) {
-          failures += 1
-          total += 1
-          const detail = error instanceof Error ? error.message : String(error)
-          process.stdout.write(`  FAIL ${suite.name} threw  — ${detail}\n`)
+          record(
+            `${suite.name} threw`,
+            false,
+            error instanceof Error ? error.message : String(error),
+          )
         } finally {
           await harness.page.close()
+          const seconds = ((performance.now() - started) / 1000).toFixed(1)
+          process.stdout.write(`\n${suite.name} (${seconds}s)\n${output}`)
         }
       }
+      const queue = selected.map((suite, index) => () => run(suite, fixtures[index]!))
+      await Promise.all(
+        Array.from({ length: Math.min(jobs, queue.length) }, async () => {
+          for (let next = queue.shift(); next; next = queue.shift()) await next()
+        }),
+      )
     })
   } finally {
-    fixture.cleanup()
+    for (const fixture of fixtures) fixture.cleanup()
   }
 }
 

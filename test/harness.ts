@@ -36,8 +36,8 @@ export interface Harness {
    * The fixture being served.
    *
    * Exposed so a suite can change the repository under the UI — the only way to
-   * exercise anything that reacts to the code moving. A suite that dirties it
-   * owes the next one a clean tree, since the fixture is built once per run.
+   * exercise anything that reacts to the code moving. A suite given its own
+   * fixture may leave it dirty; one sharing the server's owes the next a clean tree.
    */
   repoPath: string
   /** URL of the served repository, with an optional query string. */
@@ -61,27 +61,53 @@ export { sleep }
 /**
  * Serve `repoPath` and drive it with one browser, reused across suites.
  *
- * The suites drive the built desktop UI against the production Go executable's API.
+ * The suites drive the built desktop UI against the Go API. `make` opens a page
+ * on `repoPath`, or on another repository it registers on the same server.
  */
 export async function withHarness<T>(
   repoPath: string,
-  body: (make: (target?: string) => Promise<Harness>, browser: Browser) => Promise<T>,
+  body: (
+    make: (target?: string, repo?: string) => Promise<Harness>,
+    browser: Browser,
+  ) => Promise<T>,
 ): Promise<T> {
   const server = await serveGo(repoPath)
   let ui: Awaited<ReturnType<typeof serveDesktopUI>> | undefined
   let browser: Browser | undefined
   try {
     ui = await serveDesktopUI(server.origin)
-    const base = `${ui.origin}/r/${server.repoId}`
+    const origin = ui.origin
     browser = await launch({
       executablePath: findChrome(),
       headless: 'shell',
-      args: ['--no-sandbox'],
+      // Suites run side by side: a page that is not in front must still paint,
+      // or the virtualised tree and diff never render what a suite scrolls to.
+      args: [
+        '--no-sandbox',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+      ],
       defaultViewport: { width: 1600, height: 1000 },
     })
 
-    const make = async (target?: string): Promise<Harness> => {
-      const page = await browser!.newPage()
+    const make = async (target?: string, repo = repoPath): Promise<Harness> => {
+      let repoId = server.repoId
+      if (repo !== repoPath) {
+        const response = await fetch(`${server.origin}/api/repos`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ repoPath: repo }),
+        })
+        if (!response.ok) throw new Error(`could not register ${repo}: ${await response.text()}`)
+        repoId = ((await response.json()) as { id: string }).id
+      }
+      const base = `${origin}/r/${repoId}`
+      // Its own context, hence its own renderer and storage: pages of one origin
+      // would otherwise share a single process and run one at a time.
+      const context = await browser!.createBrowserContext()
+      const page = await context.newPage()
+      page.once('close', () => void context.close())
       await installDesktopRuntime(page)
       const errors: string[] = []
       page.on('pageerror', (error) => {
@@ -103,7 +129,7 @@ export async function withHarness<T>(
         await sleep(2500)
       }
 
-      return { page, repoPath, url, errors, load }
+      return { page, repoPath: repo, url, errors, load }
     }
 
     return await body(make, browser)
