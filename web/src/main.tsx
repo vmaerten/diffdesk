@@ -6,11 +6,12 @@ import App from './App.tsx'
 import DesktopApp from './DesktopApp.tsx'
 import { GO_DESKTOP } from './capabilities.ts'
 import { applyTheme, readTheme } from './theme.ts'
+import { activeTheme, DEFAULT_APPEARANCE } from './appearance.ts'
 import './themes.css'
 import './styles.css'
 
 registerCustomTheme('ghl-darcula', () => import('./darcula.ts').then((module) => module.default))
-applyTheme(readTheme())
+applyTheme(GO_DESKTOP ? activeTheme(DEFAULT_APPEARANCE) : readTheme())
 
 const root = document.getElementById('root')
 if (!root) throw new Error('#root is missing from index.html')

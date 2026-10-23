@@ -20,6 +20,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/menu/keys"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -114,8 +115,13 @@ func run() error {
 	})
 	return wails.Run(&options.App{
 		Title: "ghl — Desktop", Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
+		// The runtime limits this menu to fields and selected text; disabling it
+		// would also remove Copy and Paste there.
 		Menu: appMenu, EnableDefaultContextMenu: true,
-		BackgroundColour: options.NewRGBA(34, 39, 46, 255),
+		// Transparent until the page paints: launch shows the system material in
+		// either appearance instead of a fixed dark colour.
+		BackgroundColour: options.NewRGBA(0, 0, 0, 0),
+		Mac:              &mac.Options{WebviewIsTransparent: true, WindowIsTranslucent: true},
 		AssetServer:      &assetserver.Options{Handler: backend.handler()},
 		Bind:             []interface{}{desktop},
 		OnStartup: func(windowCtx context.Context) {
