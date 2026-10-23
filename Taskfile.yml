@@ -289,8 +289,58 @@ tasks:
     cmds:
       - task: release:build
         vars: { RELEASE_TAG: '{{.RELEASE_REF}}' }
+      - task: release:tap:access
+        vars: { RELEASE_TAG: '{{.RELEASE_REF}}' }
       - task: release:publish
         vars: { RELEASE_TAG: '{{.RELEASE_REF}}' }
+      - task: release:tap
+        vars: { TAG: '{{.RELEASE_REF}}' }
+
+  release:tap:
+    desc: Point the Homebrew cask at a published stable release (optional TAG)
+    vars:
+      TAP_TAG:
+        sh: |
+          requested_tag={{.TAG | default (env "RELEASE_TAG") | shellQuote}}
+          if [ -n "$requested_tag" ]; then
+            printf '%s' "$requested_tag"
+          else
+            git describe --tags --exact-match HEAD
+          fi
+    env:
+      RELEASE_TAG: '{{.TAP_TAG}}'
+    cmds:
+      - |
+        set -eu
+        version="${RELEASE_TAG#v}"
+        case "$version" in *-*) echo "$RELEASE_TAG is a prerelease: the cask keeps the last stable release"; exit 0;; esac
+        work=$(mktemp -d)
+        trap 'rm -rf "$work"' EXIT
+        # From the published release, so this can rerun after a failed push.
+        gh release download "$RELEASE_TAG" --pattern checksums.txt --dir "$work"
+        node scripts/release-cask.ts "$version" "$work/checksums.txt" > "$work/ghl.rb"
+        # The workflow token reaches only this repository; the tap needs its own.
+        if [ -n "${HOMEBREW_TAP_TOKEN:-}" ]; then export GH_TOKEN="$HOMEBREW_TAP_TOKEN"; fi
+        cask=repos/vmaerten/homebrew-tap/contents/Casks/ghl.rb
+        set -- -f message="ghl $version" -f content="$(base64 < "$work/ghl.rb")"
+        if sha=$(gh api "$cask" --jq .sha 2>/dev/null); then set -- "$@" -f sha="$sha"; fi
+        gh api --method PUT "$cask" "$@" > /dev/null
+        printf 'Cask ghl %s pushed to vmaerten/homebrew-tap\n' "$version"
+
+  release:tap:access:
+    internal: true
+    env:
+      RELEASE_TAG: '{{.RELEASE_TAG}}'
+    cmds:
+      # Fail before publishing rather than leave a release the cask does not offer.
+      - |
+        set -eu
+        case "$RELEASE_TAG" in *-*) exit 0;; esac
+        if [ -n "${HOMEBREW_TAP_TOKEN:-}" ]; then export GH_TOKEN="$HOMEBREW_TAP_TOKEN"; fi
+        gh api repos/vmaerten/homebrew-tap --jq .full_name > /dev/null || {
+          echo "Cannot reach vmaerten/homebrew-tap: set HOMEBREW_TAP_TOKEN" >&2
+          exit 1
+        }
 
   release:publish:
     internal: true
