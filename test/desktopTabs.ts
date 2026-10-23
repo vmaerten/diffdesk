@@ -1,12 +1,11 @@
-// After task build: node test/desktopTabs.ts. Real React/API, simulated Wails bindings.
+// After task build and task desktop:assets: node test/desktopTabs.ts. Real React/API, simulated Wails bindings.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createServer } from 'vite'
-import react from '@vitejs/plugin-react'
 import { launch } from 'puppeteer-core'
+import { installDesktopRuntime, serveDesktopUI } from './desktopRuntime.ts'
 import { serveGo } from './goBinary.ts'
 import { findChrome } from './harness.ts'
 
@@ -30,23 +29,11 @@ writeFileSync(
 )
 
 const backend = await serveGo(repo)
-const frontend = await createServer({
-  configFile: false,
-  root: 'web',
-  cacheDir: join(repo, '.vite'),
-  plugins: [react({ compiler: true })],
-  mode: 'go-desktop',
-  server: {
-    host: '127.0.0.1',
-    port: 0,
-    proxy: { '/r': backend.origin, '/api': backend.origin },
-  },
-})
+let frontend: Awaited<ReturnType<typeof serveDesktopUI>> | undefined
 let browser: Awaited<ReturnType<typeof launch>> | undefined
 try {
-  await frontend.listen()
-  const origin = frontend.resolvedUrls?.local[0]
-  assert.ok(origin)
+  frontend = await serveDesktopUI(backend.origin)
+  const origin = frontend.origin
   browser = await launch({
     executablePath: findChrome(),
     headless: true,
@@ -56,46 +43,10 @@ try {
   const page = await browser.newPage()
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(String(error)))
-  await page.evaluateOnNewDocument((repoId: string) => {
-    const state = {
-      revision: 1,
-      active: '1',
-      tabs: [
-        { id: '1', name: 'first', path: '~/first', route: `/r/${repoId}/?base=HEAD` },
-        { id: '2', name: 'second', path: '~/second', route: `/r/${repoId}/?base=main` },
-      ],
-    }
-    type Snapshot = Awaited<ReturnType<NonNullable<Window['go']>['main']['desktopApp']['Tabs']>>
-    const listeners = new Set<(state: Snapshot) => void>()
-    const snapshot = (): Snapshot => structuredClone(state)
-    window.go = {
-      main: {
-        desktopApp: {
-          Tabs: async () => snapshot(),
-          ActivateTab: async (id) => {
-            state.active = id
-            state.revision++
-            for (const listener of listeners) listener(snapshot())
-            return snapshot()
-          },
-          CloseTab: async () => snapshot(),
-          UpdateTabURL: async () => snapshot(),
-          OpenRepository: async () => {},
-          SaveTabView: async () => {},
-          Settings: async () => '',
-          SaveSettings: async () => {},
-          RevealInFinder: async () => {},
-        },
-      },
-    }
-    window.runtime = {
-      EventsOn: (_name, callback) => {
-        listeners.add(callback)
-        return () => listeners.delete(callback)
-      },
-      WindowSetTitle: () => {},
-    }
-  }, backend.repoId)
+  await installDesktopRuntime(page, [
+    { id: '1', name: 'first', path: '~/first', route: `/r/${backend.repoId}/?base=HEAD` },
+    { id: '2', name: 'second', path: '~/second', route: `/r/${backend.repoId}/?base=main` },
+  ])
   await page.goto(origin, { waitUntil: 'networkidle0' })
   const ready = async (id: string) => {
     await page.waitForSelector(`.desktop-review[data-active-tab="${id}"] .viewed-toggle input`)
@@ -251,7 +202,7 @@ try {
   assert.equal(failures, 0, 'Desktop tab regressions')
 } finally {
   await browser?.close()
-  await frontend.close()
+  await frontend?.close()
   await backend.close()
   rmSync(repo, { recursive: true, force: true })
 }

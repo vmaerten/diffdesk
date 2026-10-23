@@ -2,9 +2,11 @@ import {
   allDiffFiles,
   allTreeRows,
   clickTreeRow,
+  command,
   DIFF_ON_SCREEN as ON_SCREEN,
   DIFF_SCROLLER as SCROLLER,
   sleep,
+  VIEWED_COUNT,
   type Suite,
 } from '../harness.ts'
 
@@ -19,10 +21,7 @@ export default {
     }
     await ready()
 
-    const counter = () =>
-      page.evaluate(
-        `document.querySelector('.sidebar-head span')?.textContent?.trim() ?? null`,
-      ) as Promise<string | null>
+    const counter = () => page.evaluate(VIEWED_COUNT) as Promise<string | null>
     // The tick can be on a row well below the fold, so the whole tree is walked.
     const ticked = async () => (await allTreeRows(page)).filter((r) => r.decoration.includes('✓'))
 
@@ -42,7 +41,7 @@ export default {
     const marked = await ticked()
     check(
       'marking updates the counter',
-      (await counter())?.includes('1/') === true,
+      (await counter())?.startsWith('1 of ') === true,
       (await counter()) ?? '',
     )
     check('  and ticks the row in the tree', marked.length === 1, marked[0]?.path)
@@ -146,9 +145,7 @@ export default {
     )
     check('  and it is still marked viewed', (await ticked()).length === 1, (await counter()) ?? '')
 
-    await page.evaluate(
-      `[...document.querySelectorAll('.sidebar-head button')].find((b) => b.textContent === 'Reset').click()`,
-    )
+    await command(page, 'reset-viewed')
     await sleep(1200)
     await ready()
     check('reset clears the state for good', (await ticked()).length === 0)
@@ -181,18 +178,14 @@ export default {
     await page.evaluate(`document.querySelector('.viewed-toggle input').click()`)
     await saved
     await failNextWrite()
-    await page.evaluate(
-      `[...document.querySelectorAll('.sidebar-head button')].find((b) => b.textContent === 'Reset').click()`,
-    )
+    await command(page, 'reset-viewed')
     await page.waitForFunction(() =>
       document.querySelector('.message')?.textContent?.includes('could not reset viewed state'),
     )
     check('failed Reset restores confirmed Viewed', (await ticked()).length === 1)
     await ready()
     const cleared = page.waitForResponse((response) => response.url().includes('/api/viewed'))
-    await page.evaluate(
-      `[...document.querySelectorAll('.sidebar-head button')].find((b) => b.textContent === 'Reset').click()`,
-    )
+    await command(page, 'reset-viewed')
     await cleared
   },
 } satisfies Suite

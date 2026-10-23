@@ -2,6 +2,7 @@ import {
   allTreeRows,
   openPicker,
   sleep,
+  titlebar,
   waitForRows,
   TREE_ROWS,
   TREE_SCROLLER,
@@ -31,12 +32,8 @@ export default {
         icons: number
       }>
 
-    const clickHead = (label: string) =>
-      page.evaluate(
-        `[...document.querySelectorAll('.sidebar-head button')]
-           .find((b) => b.textContent.includes(${JSON.stringify(label)}))
-           .click()`,
-      )
+    const clickHead = (label: 'Collapse all' | 'Expand all') =>
+      page.click(`.sidebar-head button[title="${label}"]`)
 
     const start = await rows()
     check('the tree renders rows', start.rows.length > 0, `${start.rows.length} rows`)
@@ -60,9 +57,7 @@ export default {
     )
 
     // Virtualisation: the layout covers every row, the DOM holds a window.
-    const claimed = (await page.evaluate(
-      `parseInt(document.querySelector('.sidebar-head span').textContent, 10)`,
-    )) as number
+    const claimed = (await titlebar(page)).files ?? NaN
     const geometry = (await page.evaluate(`(() => {
       const el = ${TREE_SCROLLER}
       return { scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }
@@ -81,7 +76,7 @@ export default {
     )
 
     // Folding.
-    await clickHead('Collapse')
+    await clickHead('Collapse all')
     await sleep(400)
     const folded = await rows()
     check(
@@ -97,7 +92,7 @@ export default {
       summaries.length > 0,
       summaries.map((r) => r.decoration).join(' | '),
     )
-    await clickHead('Expand')
+    await clickHead('Expand all')
     await sleep(400)
     check('expand all restores them', (await rows()).rows.length === start.rows.length)
 
@@ -111,7 +106,7 @@ export default {
     )
 
     // j has to reveal what it selects, not select something invisible.
-    await clickHead('Collapse')
+    await clickHead('Collapse all')
     await sleep(400)
     const closed = await rows()
     let revealed = closed
@@ -134,7 +129,7 @@ export default {
 
     // Reviewing another revision rebuilds the tree — the only path that reaches
     // resetPaths, since an identical file list is reused as is.
-    await clickHead('Collapse')
+    await clickHead('Collapse all')
     await sleep(400)
     const beforeSwitch = await rows()
     const wasFolded = new Set(beforeSwitch.dirs.filter((d) => !d.open).map((d) => d.path))

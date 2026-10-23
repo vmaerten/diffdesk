@@ -4,6 +4,7 @@ import { platform } from 'node:process'
 import { launch, type Browser, type Page } from 'puppeteer-core'
 
 import { serveGo } from './goBinary.ts'
+import { installDesktopRuntime, serveDesktopUI } from './desktopRuntime.ts'
 import { testBrowserPath } from '../scripts/test-browser.ts'
 
 /** Where Chrome usually lives, unless CHROME_PATH says otherwise. */
@@ -60,17 +61,18 @@ export { sleep }
 /**
  * Serve `repoPath` and drive it with one browser, reused across suites.
  *
- * The suites drive the production Go executable with its embedded frontend.
+ * The suites drive the built desktop UI against the production Go executable's API.
  */
 export async function withHarness<T>(
   repoPath: string,
   body: (make: (target?: string) => Promise<Harness>, browser: Browser) => Promise<T>,
 ): Promise<T> {
   const server = await serveGo(repoPath)
-  const base = `${server.origin}/r/${server.repoId}`
-
+  let ui: Awaited<ReturnType<typeof serveDesktopUI>> | undefined
   let browser: Browser | undefined
   try {
+    ui = await serveDesktopUI(server.origin)
+    const base = `${ui.origin}/r/${server.repoId}`
     browser = await launch({
       executablePath: findChrome(),
       headless: 'shell',
@@ -80,6 +82,7 @@ export async function withHarness<T>(
 
     const make = async (target?: string): Promise<Harness> => {
       const page = await browser!.newPage()
+      await installDesktopRuntime(page)
       const errors: string[] = []
       page.on('pageerror', (error) => {
         errors.push(error instanceof Error ? error.message : String(error))
@@ -107,6 +110,7 @@ export async function withHarness<T>(
   } finally {
     try {
       await browser?.close()
+      await ui?.close()
     } finally {
       await server.close()
     }
@@ -141,33 +145,35 @@ export const TREE_ROWS = `(() => {
   }
 })()`
 
-/** What the topbar says about the review, as several suites need to read it. */
-export interface TopbarState {
+/** What the title bar and status bar say about the review, as several suites need to read it. */
+export interface TitlebarState {
   base: string | null
   target: string | null
-  files: string | null
+  /** The sidebar's file count. */
+  files: number | null
+  /** The status bar's items: base source, scope, untracked files. */
   notes: string[]
   /** The stack chain: its trunk, then one entry per layer. Empty without one. */
   trunk: string | null
   layers: { name: string; pr: string | null; current: boolean; merged: boolean; gone: boolean }[]
-  /** The revision group's scope checkboxes, in order. */
+  /** The scope checkboxes, in order. Empty until `openOptions` shows them. */
   toggles: { label: string; pressed: boolean; off: boolean }[]
   search: string
 }
 
 /**
- * Read the topbar.
+ * Read the title bar and status bar.
  *
  * Shared rather than repeated per suite: the selectors and the caret stripping
- * are markup details, and a change to the header would otherwise have to be
+ * are markup details, and a change to the chrome would otherwise have to be
  * chased through every suite that reads a revision back.
  */
-export function topbar(page: Page): Promise<TopbarState> {
+export function titlebar(page: Page): Promise<TitlebarState> {
   return page.evaluate(`(() => ({
-    base: document.querySelector('.ref.base')?.textContent?.replace('▾', '').trim() ?? null,
-    target: document.querySelector('.ref.target')?.textContent?.replace('▾', '').trim() ?? null,
-    files: document.querySelector('.sidebar-head span')?.textContent?.trim() ?? null,
-    notes: [...document.querySelectorAll('.source')].map((e) => e.textContent.trim()),
+    base: document.querySelector('[aria-label^="Base:"]')?.textContent?.replace('▾', '').trim() ?? null,
+    target: document.querySelector('[aria-label^="Target:"]')?.textContent?.replace('▾', '').trim() ?? null,
+    files: Number(document.querySelector('.sidebar-head .counter')?.textContent ?? NaN) || null,
+    notes: [...document.querySelectorAll('.review-footer > span')].map((e) => e.textContent.trim()),
     trunk: document.querySelector('.stack > span')?.textContent?.trim() ?? null,
     layers: [...document.querySelectorAll('.stack-layer')].map((e) => ({
       name: e.querySelector('.stack-name')?.textContent?.trim() ?? '',
@@ -176,14 +182,43 @@ export function topbar(page: Page): Promise<TopbarState> {
       merged: e.classList.contains('merged'),
       gone: e.querySelector('.stack-name')?.disabled === true,
     })),
-    toggles: [...document.querySelectorAll('.revision .scope-check input')].map((e) => ({
+    toggles: [...document.querySelectorAll('.options-popover .scope-check input:is(.worktree, .untracked)')].map((e) => ({
       label: e.closest('label')?.textContent?.trim() ?? '',
       pressed: e.checked === true,
       off: e.disabled,
     })),
     search: location.search,
-  }))()`) as Promise<TopbarState>
+  }))()`) as Promise<TitlebarState>
 }
+
+/** Open the title bar's Options popover, which holds the scope and whitespace checkboxes. */
+export async function openOptions(page: Page): Promise<void> {
+  if (await page.$('.options-popover')) return
+  await page.click('.titlebar-actions button[title="Diff options"]')
+  await page.waitForSelector('.options-popover', { timeout: 5_000 })
+}
+
+/** Close the Options popover the way a click outside it does. */
+export function closeOptions(page: Page): Promise<void> {
+  return page.evaluate(() => {
+    const backdrop = document.querySelector('.options-popover')?.previousElementSibling
+    backdrop?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+  })
+}
+
+/** Run a menu command the way the native menu does. */
+export function command(page: Page, name: string): Promise<void> {
+  return page.evaluate(
+    (detail) => void window.dispatchEvent(new CustomEvent('desktop:command', { detail })),
+    name,
+  )
+}
+
+/** The comments side panel, while it is shown. */
+export const COMMENTS_OPEN = '.comments-panel:not([hidden])'
+
+/** The sidebar footer's viewed count, as "<viewed> of <files> viewed". */
+export const VIEWED_COUNT = `document.querySelector('.sidebar-foot-line span')?.textContent?.trim() ?? null`
 
 /**
  * Open a picker and wait for what it is listing, not merely for a row.

@@ -1,4 +1,4 @@
-import { allTreeRows, openPicker, sleep, topbar, waitForRows, type Suite } from '../harness.ts'
+import { allTreeRows, openPicker, sleep, titlebar, waitForRows, type Suite } from '../harness.ts'
 
 /** The subjects the fixture's branch carries, newest first. */
 const NEWEST = 'move things around'
@@ -41,7 +41,7 @@ export default {
     await waitForRows(page)
     await sleep(1500)
 
-    const state = await topbar(page)
+    const state = await titlebar(page)
     check('picking one shows that commit', state.search.includes('commit='), state.search)
     check(
       '  and says the base is not compared',
@@ -69,7 +69,7 @@ export default {
     await page.keyboard.press('Enter')
     await waitForRows(page)
     await sleep(1500)
-    const back = await topbar(page)
+    const back = await titlebar(page)
     check(
       'going back to all commits drops the parameter',
       !back.search.includes('commit='),
@@ -97,7 +97,7 @@ export default {
     await page.waitForFunction(() => !new URLSearchParams(location.search).has('commit'))
     check(
       'changing target clears the commit selected in the previous history',
-      !(await topbar(page)).search.includes('commit='),
+      !(await titlebar(page)).search.includes('commit='),
     )
 
     // A rebase, an amend: the sha is gone. Falling back in silence would leave
@@ -108,8 +108,8 @@ export default {
     )) as string[]
     check(
       'a sha that no longer resolves falls back to the range',
-      (await topbar(page)).notes.join(' | ').includes('not compared') === false,
-      (await topbar(page)).notes.join(' | '),
+      (await titlebar(page)).notes.join(' | ').includes('not compared') === false,
+      (await titlebar(page)).notes.join(' | '),
     )
     check(
       '  and says so rather than showing the branch under its name',

@@ -1,117 +1,134 @@
-import { clickTreeRow, DIFF_SCROLLER, sleep, type Suite } from '../harness.ts'
+import type { ElementHandle } from 'puppeteer-core'
+
+import { clickTreeRow, command, DIFF_SCROLLER, sleep, type Suite } from '../harness.ts'
+
+/** The review's syntax colours, not those of the Settings preview. */
+const TOKENS = `[...(document.querySelector('.diff diffs-container')?.shadowRoot
+  ?.querySelectorAll('span[style]') ?? [])].slice(0, 30).map((t) => getComputedStyle(t).color).join(',')`
 
 export default {
   name: 'themes',
   async run({ page, load }, check) {
     await load()
-    const picker = '.theme-picker select'
-    const selected = () => page.$eval(picker, (el) => (el as HTMLSelectElement).value)
-    check('defaults to GitHub Dark dimmed', (await selected()) === 'github-dimmed')
+    await page.waitForSelector('.viewed-toggle input', { timeout: 30_000 })
 
-    const palettes = [
-      ['catppuccin-frappe', 'rgb(48, 52, 70)', 'dark'],
-      ['github-dark', 'rgb(13, 17, 23)', 'dark'],
-      ['vscode-dark', 'rgb(30, 30, 30)', 'dark'],
-      ['darcula', 'rgb(43, 43, 43)', 'dark'],
-      ['catppuccin-mocha', 'rgb(30, 30, 46)', 'dark'],
-      ['github-light', 'rgb(255, 255, 255)', 'light'],
-      ['vscode-light', 'rgb(255, 255, 255)', 'light'],
-      ['catppuccin-latte', 'rgb(239, 241, 245)', 'light'],
-      ['solarized-light', 'rgb(253, 246, 227)', 'light'],
-      ['github-dimmed', 'rgb(34, 39, 46)', 'dark'],
-    ] as const
-    const tokenColors = new Set<string>()
-    for (const [theme, background, mode] of palettes) {
-      await page.select(picker, theme)
-      await page.waitForFunction(
-        (bg) => {
-          const diff = document.querySelector('diffs-container')
-          return diff && getComputedStyle(diff).backgroundColor === bg
-        },
-        {},
-        background,
+    const openSettings = async () => {
+      await command(page, 'settings')
+      await page.waitForSelector('.settings-sheet[open]')
+    }
+    const closeSettings = async () => {
+      await page.click('.settings-sheet footer button')
+      await page.waitForSelector('.settings-sheet:not([open])')
+    }
+    const appearance = (choice: 'Light' | 'Dark') =>
+      page.evaluate(
+        (label) =>
+          [...document.querySelectorAll<HTMLButtonElement>('.appearance-choices button')]
+            .find((button) => button.textContent?.trim() === label)
+            ?.click(),
+        choice,
       )
-      // Syntax loading is asynchronous, including between two white palettes.
+    const themeSelect = async (which: 'Light' | 'Dark') =>
+      (
+        await page.evaluateHandle(
+          (name) =>
+            [...document.querySelectorAll('.settings-sheet label.settings-field')]
+              .find((field) => field.textContent?.startsWith(`${name} syntax theme`))
+              ?.querySelector('select'),
+          which,
+        )
+      ).asElement() as ElementHandle<HTMLSelectElement>
+    const tokens = () => page.evaluate(TOKENS) as Promise<string>
+    /** Wait for the syntax colours to move away from `previous`, then settle. */
+    const repainted = async (previous: string) => {
+      await page.waitForFunction(`(${TOKENS}) !== ${JSON.stringify(previous)}`, { timeout: 15_000 })
       await page.waitForNetworkIdle()
-      const colors = await page.evaluate(() => {
-        const tree = document.querySelector('file-tree-container')!
-        const diff = document.querySelector('diffs-container')!
-        const tokens = [...(diff.shadowRoot?.querySelectorAll('span[style]') ?? [])].slice(0, 30)
-        return {
-          body: getComputedStyle(document.body).backgroundColor,
-          tree: getComputedStyle(tree).backgroundColor,
-          token: tokens.map((token) => getComputedStyle(token).color).join(','),
-          mode: getComputedStyle(document.documentElement).colorScheme,
-          icons: tree.shadowRoot?.querySelectorAll('svg use').length ?? 0,
-        }
-      })
-      check(
-        `${theme} updates the app, tree and diff`,
-        colors.body === background && colors.tree === background,
-      )
-      check(`${theme} keeps file icons`, colors.icons > 0)
-      check(`${theme} sets the native color scheme`, colors.mode === mode)
-      tokenColors.add(colors.token)
+      await sleep(300)
+      return tokens()
+    }
+
+    // Each step changes the active theme, so each one has new colours to wait for.
+    // Headless Chrome reports a dark system, whose default is GitHub Dark dimmed.
+    const steps = [
+      ['Light', 'github-light'],
+      ['Light', 'vscode-light'],
+      ['Light', 'catppuccin-latte'],
+      ['Light', 'solarized-light'],
+      ['Dark', 'github-dimmed'],
+      ['Dark', 'catppuccin-frappe'],
+      ['Dark', 'github-dark'],
+      ['Dark', 'vscode-dark'],
+      ['Dark', 'darcula'],
+      ['Dark', 'catppuccin-mocha'],
+    ] as const
+    await openSettings()
+    let current = await tokens()
+    let mode: 'Light' | 'Dark' | null = null
+    const tokenColors = new Set<string>()
+    for (const [wanted, theme] of steps) {
+      if (wanted !== mode) {
+        mode = wanted
+        await appearance(mode)
+      }
+      const select = await themeSelect(mode)
+      if ((await select.evaluate((el) => el.value)) !== theme) await select.select(theme)
+      current = await repainted(current)
+      const state = await page.evaluate(() => ({
+        scheme: getComputedStyle(document.documentElement).colorScheme,
+        icons:
+          document.querySelector('file-tree-container')?.shadowRoot?.querySelectorAll('svg use')
+            .length ?? 0,
+      }))
+      check(`${theme} keeps file icons`, state.icons > 0)
+      check(`${theme} sets the native color scheme`, state.scheme === mode.toLowerCase())
+      tokenColors.add(current)
     }
     check(
       'each theme uses its own syntax colors',
-      tokenColors.size === palettes.length && !tokenColors.has(''),
+      tokenColors.size === steps.length && !tokenColors.has(''),
+      `${tokenColors.size} distinct of ${steps.length}`,
     )
+    await sleep(500)
+    const saved = (await page.evaluate(
+      () => (window as unknown as { desktopFixture: { settings: string } }).desktopFixture.settings,
+    )) as string
+    const chosen = saved ? JSON.parse(saved) : {}
+    check(
+      'the choice reaches the native side',
+      chosen.appearance === 'dark' &&
+        chosen.light === 'solarized-light' &&
+        chosen.dark === 'catppuccin-mocha',
+      saved,
+    )
+    await closeSettings()
 
     await clickTreeRow(page, 'web/components/Widget40.tsx')
     await sleep(500)
     const scroll = () => page.evaluate(`${DIFF_SCROLLER}.scrollTop`) as Promise<number>
     const before = await scroll()
-    await page.select(picker, 'catppuccin-latte')
-    await sleep(600)
+    await openSettings()
+    await (await themeSelect('Dark')).select('github-dark')
+    await repainted(current)
+    await closeSettings()
     check(
       'switching keeps the reading position',
       before > 0 && Math.abs((await scroll()) - before) < 2,
+      `${before} -> ${await scroll()}`,
     )
-    await page.click('.comments-trigger')
-    check(
-      'comments panel follows the theme',
-      await page.$eval(
-        '.comments-panel',
-        (el) => getComputedStyle(el).backgroundColor === 'rgb(239, 241, 245)',
-      ),
-    )
-    await page.keyboard.press('Escape')
+    // Read at the top, where the reloaded review opens.
+    await page.evaluate(`${DIFF_SCROLLER}.scrollTop = 0`)
+    await sleep(900)
+    const chosenTheme = await tokens()
+
+    await sleep(500)
     await load()
-    check('light theme survives a reload', (await selected()) === 'catppuccin-latte')
+    await page.waitForSelector('.viewed-toggle input', { timeout: 30_000 })
+    await page.waitForNetworkIdle()
+    check('the theme survives a reload', (await tokens()) === chosenTheme)
     check(
-      'native light controls survive a reload',
+      '  with its native color scheme',
       (await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)) ===
-        'light',
+        'dark',
     )
-
-    for (const width of [390, 320]) {
-      await page.setViewport({ width, height: 844 })
-      await sleep(200)
-      check(
-        `theme selector fits at ${width}px`,
-        await page.$eval(picker, (el) => {
-          const r = el.getBoundingClientRect()
-          return (
-            r.width > 100 &&
-            r.left >= 0 &&
-            r.right <= innerWidth &&
-            document.documentElement.scrollWidth === innerWidth
-          )
-        }),
-      )
-    }
-
-    await page.evaluate(() => localStorage.setItem('ghl.theme.v1', 'obsolete-theme'))
-    await load()
-    check('unknown saved themes fall back safely', (await selected()) === 'github-dimmed')
-    await page.evaluate(() => {
-      Storage.prototype.setItem = () => {
-        throw new Error('Storage unavailable')
-      }
-    })
-    await page.select(picker, 'catppuccin-frappe')
-    check('theme remains usable without storage', (await selected()) === 'catppuccin-frappe')
-    await page.evaluate(() => localStorage.removeItem('ghl.theme.v1'))
   },
 } satisfies Suite

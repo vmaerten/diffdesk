@@ -1,4 +1,4 @@
-import { sleep, topbar, waitForRows, type Suite, type TopbarState } from '../harness.ts'
+import { sleep, titlebar, waitForRows, type Suite, type TitlebarState } from '../harness.ts'
 
 /**
  * The fixture stacks `stack/a` (2 files) on `main`, then `stack/b` (1 file) on
@@ -6,9 +6,9 @@ import { sleep, topbar, waitForRows, type Suite, type TopbarState } from '../har
  * since the trunk" — a chain rendered correctly but diffed against the trunk
  * would pass every check about the strip itself.
  */
-const names = (state: TopbarState) => state.layers.map((l) => l.name).join(', ')
+const names = (state: TitlebarState) => state.layers.map((l) => l.name).join(', ')
 
-const current = (state: TopbarState) =>
+const current = (state: TitlebarState) =>
   state.layers
     .filter((l) => l.current)
     .map((l) => l.name)
@@ -17,7 +17,7 @@ const current = (state: TopbarState) =>
 export default {
   name: 'stack',
   async run({ page, load }, check) {
-    const shown = () => topbar(page)
+    const shown = () => titlebar(page)
 
     await load('?target=stack%2Fb')
     const top = await shown()
@@ -38,7 +38,7 @@ export default {
       top.notes.join(' ').includes('stack'),
       top.notes.join(' | '),
     )
-    check('  so only that layer is in the diff', top.files === '1 files', top.files ?? '')
+    check('  so only that layer is in the diff', top.files === 1, String(top.files))
 
     // Clicking a layer changes what is reviewed; the base follows on its own.
     await page.evaluate(
@@ -52,7 +52,7 @@ export default {
 
     check('clicking a layer reviews it', bottom.target === 'stack/a', bottom.target ?? '')
     check('  its base is the trunk', bottom.base === 'main', bottom.base ?? '')
-    check('  and the diff is that layer', bottom.files === '2 files', bottom.files ?? '')
+    check('  and the diff is that layer', bottom.files === 2, String(bottom.files))
     check('  carried in the URL', bottom.search.includes('stack%2Fa'), bottom.search)
     check('  and the strip follows the move', current(bottom) === 'stack/a', current(bottom))
 
@@ -72,7 +72,7 @@ export default {
       above.base === 'main',
       above.base ?? '',
     )
-    check('  with only its own files in the diff', above.files === '3 files', above.files ?? '')
+    check('  with only its own files in the diff', above.files === 3, String(above.files))
 
     // A branch in no stack must be left exactly as it was: no strip, and the
     // base still guessed as the trunk. `other` rather than the suites' usual

@@ -1,11 +1,11 @@
-import { openPicker, sleep, topbar, type Suite } from '../harness.ts'
+import { openPicker, sleep, titlebar, type Suite } from '../harness.ts'
 
 export default {
   name: 'pickers',
   async run({ page, load }, check) {
     await load()
 
-    const shown = () => topbar(page)
+    const shown = () => titlebar(page)
 
     const items = () =>
       page.evaluate(
@@ -42,7 +42,7 @@ export default {
     await sleep(4000)
     const rebased = await shown()
     check('picking changes the base', rebased.base === 'release', rebased.base ?? '')
-    check('  and the diff changes with it', rebased.files !== start.files, rebased.files ?? '')
+    check('  and the diff changes with it', rebased.files !== start.files, String(rebased.files))
 
     // Remembered in .git/config, so it has to survive a reload.
     await load()
