@@ -13,16 +13,26 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-const help = `ghl-desktop — desktop Git review (macOS)
+const help = `ghl — review the PR you are about to open, without opening it (macOS)
 
-Usage: ghl-desktop [target] [--repo <path>] [--base <ref>]
+Usage:
+  ghl [target] [--repo <path>] [--base <ref>]
+  ghl comments [target] [--repo <path>] [--base <ref>] [--json]
 
-Defaults to the current checkout. Returns to the terminal after opening.
-Launching it again opens or activates a review tab in the same window.
+  target     Branch or revision; defaults to the checkout and its working tree.
+  comments   Print this comparison's comments with their code, as Markdown or,
+             with --json, JSON. Use refs/heads/comments for a branch named "comments".
+
+Options:
+  --repo <path>  Repository to review (default: current directory)
+  --base <rev>   Compare against <rev> instead of the automatically resolved base
+  --version      Print version and build metadata, as JSON with --json
+  -h, --help     Show this help
+
+Opens or activates a review tab in the ghl window, then returns to the terminal.
 Relative paths are resolved from the calling terminal, including later launches.
 Cmd+O opens another repository; Cmd+W closes a tab; Cmd+R reloads; Cmd+Q quits.
-Uses the same .git/ghl/state.json as the browser CLI.
-The desktop app is separate from the installed ghl command. No Caddy is needed.
+Comments and Viewed live in each checkout's .git/ghl/state.json.
 `
 
 type launch struct {
@@ -170,7 +180,7 @@ func (d *desktopApp) chooseRepository() {
 }
 
 func (d *desktopApp) showError(err error) {
-	fmt.Println("ghl-desktop:", err)
+	fmt.Println("ghl:", err)
 	if ctx := d.runtimeContext(); ctx != nil {
 		runtime.WindowUnminimise(ctx)
 		runtime.Show(ctx)

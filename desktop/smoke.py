@@ -12,7 +12,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = Path(__file__).resolve().parent.parent
-BINARY = ROOT / '.task/desktop/ghl Desktop.app/Contents/MacOS/ghl-desktop'
+BINARY = ROOT / '.task/desktop/ghl.app/Contents/MacOS/ghl'
 
 
 def fixture(path, context):
@@ -64,7 +64,7 @@ def main():
     server.events = []
     threading.Thread(target=server.serve_forever, daemon=True).start()
     app = None
-    with tempfile.TemporaryDirectory(prefix='ghl-desktop-smoke-') as directory:
+    with tempfile.TemporaryDirectory(prefix='ghl-smoke-') as directory:
         folder = Path(directory).resolve()
         first, second = folder / 'first', folder / 'second é space'
         fixture(first, True)
@@ -72,12 +72,12 @@ def main():
         script = folder / 'probe.js'
         script.write_text(f'window.smokeCollector = "http://127.0.0.1:{server.server_port}/";\n' + Path(__file__).with_name('native-smoke.js').read_text())
         env = {**os.environ, 'GHL_DESKTOP_PROBE': str(script), 'GHL_DESKTOP_SETTINGS': str(folder / 'settings.json')}
-        source_binary = (args.bundle.resolve() / 'Contents/MacOS/ghl-desktop') if args.bundle else BINARY
+        source_binary = (args.bundle.resolve() / 'Contents/MacOS/ghl') if args.bundle else BINARY
         binary = source_binary
         if args.standalone:
-            bundle = folder / 'ghl Desktop.app'
+            bundle = folder / 'ghl.app'
             shutil.copytree(source_binary.parents[2], bundle)
-            binary = bundle / 'Contents/MacOS/ghl-desktop'
+            binary = bundle / 'Contents/MacOS/ghl'
             env['PATH'] = '/usr/bin:/bin:/usr/sbin:/sbin'
             assert all(shutil.which(tool, path=env['PATH']) is None for tool in ['node', 'pnpm', 'go'])
         log_path = ROOT / '.task/desktop/smoke.log'

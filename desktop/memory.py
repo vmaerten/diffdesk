@@ -15,7 +15,7 @@ from metrics import responsible, sample
 from smoke import fixture
 
 ROOT = Path(__file__).resolve().parent.parent
-BINARY = ROOT / '.task/desktop/ghl Desktop.app/Contents/MacOS/ghl-desktop'
+BINARY = ROOT / '.task/desktop/ghl.app/Contents/MacOS/ghl'
 
 
 class Collector(BaseHTTPRequestHandler):

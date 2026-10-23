@@ -14,3 +14,6 @@ type BuildInfo struct {
 func buildInfo() BuildInfo {
 	return BuildInfo{version, commit, buildDate}
 }
+
+// Build reports the version and commit this executable was built from.
+func Build() BuildInfo { return buildInfo() }
