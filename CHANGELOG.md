@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Open the review when `ghl` runs with another or no `TMPDIR`, as in some tool environments, instead of failing with "the ghl app did not start". ([#178](https://github.com/vmaerten/ghl/pull/178))
+
 ## 0.3.0
 
 ghl is now a macOS app. `ghl` opens or activates a review tab in one native window instead of serving the review to a browser.
