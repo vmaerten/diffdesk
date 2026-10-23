@@ -11,13 +11,14 @@ import (
 )
 
 type reviewTab struct {
-	ID    string          `json:"id"`
-	Name  string          `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Path is the checkout as the page shows it, home-relative.
 	Path  string          `json:"path"`
 	Route string          `json:"route"`
 	View  json.RawMessage `json:"view,omitempty"`
-	// The checkout itself, for actions on its files; the page only sees Path.
-	root string
+	// The checkout itself, for actions on its files.
+	checkout string
 }
 type tabSnapshot struct {
 	Revision uint64      `json:"revision"`
@@ -53,7 +54,7 @@ func (t *reviewTabs) snapshot() tabSnapshot {
 	defer t.mu.Unlock()
 	return t.snapshotLocked()
 }
-func (t *reviewTabs) open(route, root string) tabSnapshot {
+func (t *reviewTabs) open(route, checkout string) tabSnapshot {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	key := comparisonKey(route)
@@ -78,7 +79,7 @@ func (t *reviewTabs) open(route, root string) tabSnapshot {
 	if len(name) > 8 {
 		name = name[:len(name)-8]
 	}
-	t.state.Tabs = append(t.state.Tabs, reviewTab{ID: id, Name: name, Path: homeRelative(root), Route: route, root: root})
+	t.state.Tabs = append(t.state.Tabs, reviewTab{ID: id, Name: name, Path: homeRelative(checkout), Route: route, checkout: checkout})
 	t.state.Active = id
 	t.state.Revision++
 	return t.snapshotLocked()
@@ -186,7 +187,7 @@ func (t *reviewTabs) checkout(id string) (string, bool) {
 	defer t.mu.Unlock()
 	for _, tab := range t.state.Tabs {
 		if tab.ID == id {
-			return tab.root, tab.root != ""
+			return tab.checkout, tab.checkout != ""
 		}
 	}
 	return "", false

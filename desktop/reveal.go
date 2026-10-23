@@ -11,19 +11,19 @@ var errOutsideCheckout = errors.New("the file is outside the reviewed checkout")
 
 // insideCheckout resolves a repository-relative path, symlinks included, and
 // refuses anything that lands outside the checkout.
-func insideCheckout(root, rel string) (string, error) {
+func insideCheckout(checkout, rel string) (string, error) {
 	if rel == "" || filepath.IsAbs(rel) {
 		return "", errOutsideCheckout
 	}
-	root, err := filepath.EvalSymlinks(root)
+	checkout, err := filepath.EvalSymlinks(checkout)
 	if err != nil {
 		return "", err
 	}
-	target, err := filepath.EvalSymlinks(filepath.Join(root, filepath.FromSlash(rel)))
+	target, err := filepath.EvalSymlinks(filepath.Join(checkout, filepath.FromSlash(rel)))
 	if err != nil {
 		return "", err
 	}
-	if !strings.HasPrefix(target, root+string(filepath.Separator)) {
+	if !strings.HasPrefix(target, checkout+string(filepath.Separator)) {
 		return "", errOutsideCheckout
 	}
 	return target, nil
@@ -32,11 +32,11 @@ func insideCheckout(root, rel string) (string, error) {
 // RevealInFinder selects a reviewed file in Finder. The path comes from the
 // page, so it is checked against the tab's own checkout.
 func (d *desktopApp) RevealInFinder(tabID, path string) error {
-	root, ok := d.tabs.checkout(tabID)
+	checkout, ok := d.tabs.checkout(tabID)
 	if !ok {
 		return errors.New("this review is no longer open")
 	}
-	target, err := insideCheckout(root, path)
+	target, err := insideCheckout(checkout, path)
 	if err != nil {
 		return err
 	}
