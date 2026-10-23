@@ -32,7 +32,7 @@ var bridge string
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "ghl-desktop:", err)
+		fmt.Fprintln(os.Stderr, "ghl:", err)
 		os.Exit(1)
 	}
 }
@@ -46,6 +46,17 @@ func run() error {
 	windowMode := len(args) > 0 && args[0] == "--desktop-window"
 	if windowMode {
 		args = args[1:]
+	} else {
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		handled, err := runTerminal(ctx, args, cwd, os.Stdout, os.Stderr)
+		cancel()
+		if errors.Is(err, flag.ErrHelp) {
+			fmt.Print(help)
+			return nil
+		}
+		if handled {
+			return err
+		}
 	}
 	initial, err := parseLaunch(args, cwd)
 	if errors.Is(err, flag.ErrHelp) {
@@ -69,7 +80,7 @@ func run() error {
 		}
 		bundle := filepath.Dir(filepath.Dir(filepath.Dir(executable)))
 		if filepath.Ext(bundle) != ".app" {
-			return fmt.Errorf("run the desktop app from its .app bundle (task desktop:run)")
+			return fmt.Errorf("run ghl from its .app bundle (task desktop:run)")
 		}
 		// LaunchServices gives the window a Dock identity and lets the terminal
 		// return. -n delivers later requests through Wails' single-instance callback.
@@ -161,7 +172,7 @@ func run() error {
 	helpMenu := appMenu.AddSubmenu("Help")
 	helpMenu.AddText("Keyboard Shortcuts", nil, command("shortcuts"))
 	return wails.Run(&options.App{
-		Title: "ghl — Desktop", Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
+		Title: "ghl", Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
 		// The runtime limits this menu to fields and selected text; disabling it
 		// would also remove Copy and Paste there.
 		Menu: appMenu, EnableDefaultContextMenu: true,

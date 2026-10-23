@@ -147,7 +147,7 @@ export default function DesktopApp() {
                 expansions: [],
               },
         )
-      runtime.WindowSetTitle(active ? `ghl — ${active.name}` : 'ghl — Desktop')
+      runtime.WindowSetTitle(active ? `ghl — ${active.name}` : 'ghl')
       // The outgoing review stays mounted until the next render, so detach it before
       // seeding the URL that the next App reads at mount.
       if (previous.active !== next.active) {
