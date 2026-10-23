@@ -36,7 +36,7 @@
       const tabState = await window.go.main.desktopApp.Tabs()
       const expected = tabState.tabs.find((tab) => tab.id === tabId)
       await wait(
-        () => document.querySelector('.repo-name')?.textContent === expected.name,
+        () => document.querySelector('.desktop-review .app')?.dataset.repo === expected.name,
         'Wrong review rendered',
       )
       await wait(() => document.querySelector('.viewed-toggle input'), 'UI never rendered')
@@ -129,7 +129,7 @@
           if (!sessionStorage.getItem(flag)) {
             sessionStorage.setItem(flag, '1')
             await report({ ...baseReport, phase: 'restored-editor', panelDraft: true })
-            window.dispatchEvent(new Event('desktop:reload'))
+            window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'reload' }))
             return
           }
           sessionStorage.removeItem(flag)
@@ -158,7 +158,7 @@
       }
       // Change the appearance and code size, check both apply and reach Go, then
       // put them back for the rest of the run.
-      window.dispatchEvent(new Event('desktop:settings'))
+      window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'settings' }))
       const sheet = await wait(
         () => document.querySelector('.settings-sheet[open]'),
         'Settings did not open',
@@ -198,6 +198,12 @@
         'System appearance did not return',
       )
       check(root.dataset.material === 'translucent', 'Chrome stays opaque under System')
+      // A menu command reaches the review: Go dispatches it as an event.
+      const layout = () => document.querySelector('.segmented [aria-pressed="true"]')?.textContent
+      window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'split' }))
+      await wait(() => layout() === 'Split', 'Split command did not apply')
+      window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'unified' }))
+      await wait(() => layout() === 'Unified', 'Unified command did not apply')
       let contextRequests = 0
       const realFetch = window.fetch
       window.fetch = (...args) => {

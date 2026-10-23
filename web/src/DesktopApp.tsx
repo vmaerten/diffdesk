@@ -6,6 +6,7 @@ import { releaseUrl } from './reviewSelection.ts'
 import { sameCapacity, splitTabs, tabSizes } from './tabOverflow.ts'
 import { useAppearance } from './appearance.ts'
 import SettingsSheet from './SettingsSheet.tsx'
+import ShortcutsSheet from './ShortcutsSheet.tsx'
 import {
   codeFontFamily,
   codeLineHeight,
@@ -60,6 +61,8 @@ export default function DesktopApp() {
   const [state, setState] = useState(EMPTY)
   const [settings, setSettings] = useState<DesktopSettings | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
   const syntaxTheme = useAppearance(settings ?? DEFAULT_SETTINGS)
   const latest = useRef(EMPTY)
   const [error, setError] = useState<string | null>(null)
@@ -152,14 +155,20 @@ export default function DesktopApp() {
       const next = tabs[(index + tabs.length + (event.shiftKey ? -1 : 1)) % tabs.length]
       if (next) apply(api.ActivateTab(next.id))
     }
-    window.addEventListener('desktop:reload', reload)
-    window.addEventListener('desktop:close-active', closeActive)
+    // The window's menu commands; App takes the review's from the same event.
+    const runCommand = (event: Event) => {
+      const command = (event as CustomEvent<string>).detail
+      if (command === 'reload') reload()
+      else if (command === 'close-tab') closeActive()
+      else if (command === 'settings') setSettingsOpen(true)
+      else if (command === 'shortcuts') setShortcutsOpen(true)
+    }
+    window.addEventListener('desktop:command', runCommand)
     window.addEventListener('keydown', cycle)
     return () => {
       disposed = true
       unsubscribe()
-      window.removeEventListener('desktop:reload', reload)
-      window.removeEventListener('desktop:close-active', closeActive)
+      window.removeEventListener('desktop:command', runCommand)
       window.removeEventListener('keydown', cycle)
     }
   }, [apply])
@@ -171,9 +180,6 @@ export default function DesktopApp() {
         setError(String(cause))
         setSettings(DEFAULT_SETTINGS)
       })
-    const openSettings = () => setSettingsOpen(true)
-    window.addEventListener('desktop:settings', openSettings)
-    return () => window.removeEventListener('desktop:settings', openSettings)
   }, [])
   // Each change applies to the latest settings: two controls used before a
   // render must not undo each other.
@@ -336,6 +342,7 @@ export default function DesktopApp() {
             </label>
           )}
         </div>
+        <div className="titlebar-review" ref={setToolbar} />
       </header>
       {error ? (
         <p role="alert" className="desktop-error">
@@ -360,6 +367,7 @@ export default function DesktopApp() {
               onRouteChange={routeChanged}
               syntaxTheme={syntaxTheme}
               codeLineHeight={codeLineHeight(settings.codeSize)}
+              toolbar={toolbar}
             />
           )}
         </div>
@@ -372,6 +380,7 @@ export default function DesktopApp() {
           </button>
         </div>
       )}
+      <ShortcutsSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       {settings && (
         <SettingsSheet
           open={settingsOpen}

@@ -108,20 +108,53 @@ func run() error {
 	}
 	desktop := &desktopApp{backend: backend, requests: make(chan launch, 16), settings: settings}
 	desktop.requests <- initial
-	appMenu := menu.NewMenuFromItems(menu.AppMenu(), menu.EditMenu())
+	// Every menu item reaches the page as one named command: the shell takes the
+	// window's, the mounted review the rest. Single-letter shortcuts stay in the
+	// page, since a key without a modifier would also capture typing.
+	command := func(name string) func(*menu.CallbackData) {
+		return func(*menu.CallbackData) {
+			runtime.WindowExecJS(desktop.runtimeContext(),
+				fmt.Sprintf("window.dispatchEvent(new CustomEvent('desktop:command', {detail: %q}))", name))
+		}
+	}
+	optionCmd := func(key string) *keys.Accelerator {
+		return keys.Combo(key, keys.OptionOrAltKey, keys.CmdOrCtrlKey)
+	}
+	appMenu := menu.NewMenu()
+	appMenu.Append(menu.AppMenu())
 	fileMenu := appMenu.AddSubmenu("File")
-	fileMenu.AddText("Open repository…", keys.CmdOrCtrl("o"), func(*menu.CallbackData) { desktop.chooseRepository() })
-	fileMenu.AddText("Refresh", keys.CmdOrCtrl("r"), func(*menu.CallbackData) {
-		runtime.WindowExecJS(desktop.runtimeContext(), "window.dispatchEvent(new Event('desktop:reload'))")
-	})
-	fileMenu.AddText("Close tab", keys.CmdOrCtrl("w"), func(*menu.CallbackData) {
-		runtime.WindowExecJS(desktop.runtimeContext(), "window.dispatchEvent(new Event('desktop:close-active'))")
-	})
+	fileMenu.AddText("Open Repository…", keys.CmdOrCtrl("o"), func(*menu.CallbackData) { desktop.chooseRepository() })
+	fileMenu.AddText("Close Tab", keys.CmdOrCtrl("w"), command("close-tab"))
 	// Wails v2 builds the application menu itself, leaving no room for Settings there.
 	fileMenu.AddSeparator()
-	fileMenu.AddText("Settings…", keys.CmdOrCtrl(","), func(*menu.CallbackData) {
-		runtime.WindowExecJS(desktop.runtimeContext(), "window.dispatchEvent(new Event('desktop:settings'))")
-	})
+	fileMenu.AddText("Settings…", keys.CmdOrCtrl(","), command("settings"))
+	appMenu.Append(menu.EditMenu())
+	viewMenu := appMenu.AddSubmenu("View")
+	viewMenu.AddText("Refresh", keys.CmdOrCtrl("r"), command("reload"))
+	viewMenu.AddSeparator()
+	viewMenu.AddText("Unified", keys.CmdOrCtrl("1"), command("unified"))
+	viewMenu.AddText("Split", keys.CmdOrCtrl("2"), command("split"))
+	viewMenu.AddSeparator()
+	viewMenu.AddText("Include Working Tree", nil, command("working-tree"))
+	viewMenu.AddText("Include Untracked Files", nil, command("untracked"))
+	viewMenu.AddText("Ignore Whitespace", optionCmd("w"), command("whitespace"))
+	viewMenu.AddSeparator()
+	viewMenu.AddText("Comments", optionCmd("0"), command("comments"))
+	goMenu := appMenu.AddSubmenu("Go")
+	goMenu.AddText("Next File", nil, command("next-file"))
+	goMenu.AddText("Previous File", nil, command("previous-file"))
+	goMenu.AddSeparator()
+	goMenu.AddText("Choose Base…", nil, command("base"))
+	goMenu.AddText("Choose Target…", nil, command("target"))
+	goMenu.AddText("Choose Commit…", nil, command("commit"))
+	reviewMenu := appMenu.AddSubmenu("Review")
+	reviewMenu.AddText("Mark as Viewed", nil, command("viewed"))
+	reviewMenu.AddText("Comment on Selection", nil, command("comment"))
+	reviewMenu.AddSeparator()
+	reviewMenu.AddText("Copy All Comments", keys.Combo("c", keys.ShiftKey, keys.CmdOrCtrlKey), command("copy-comments"))
+	appMenu.Append(menu.WindowMenu())
+	helpMenu := appMenu.AddSubmenu("Help")
+	helpMenu.AddText("Keyboard Shortcuts", nil, command("shortcuts"))
 	return wails.Run(&options.App{
 		Title: "ghl — Desktop", Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
 		// The runtime limits this menu to fields and selected text; disabling it

@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type Ref,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useStableCallback } from '@pierre/diffs/react'
 import { useReviewDiff, type LoadedReviewDiff } from './useReviewDiff.tsx'
 import { useReviewSelection } from './reviewSelection.ts'
@@ -21,7 +22,14 @@ import { useViewedPersistence } from './viewedPersistence.ts'
 import { useTheme, type SyntaxTheme } from './theme.ts'
 import CommentsPanel from './CommentsPanel.tsx'
 import RepoBar from './RepoBar.tsx'
-import RevisionControls, { type Picker } from './RevisionControls.tsx'
+import RevisionControls, {
+  revisionNote,
+  type Picker,
+  type RevisionProps,
+} from './RevisionControls.tsx'
+import { untrackedToggleable, workingTreeToggleable } from './ScopeControls.tsx'
+import DesktopToolbar from './DesktopToolbar.tsx'
+import ReviewFooter from './ReviewFooter.tsx'
 import StackNav from './StackNav.tsx'
 import ReviewTools from './ReviewTools.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
@@ -45,6 +53,21 @@ const NOT_LISTENING = GO_POC
   ? 'ghl-go-poc is no longer listening — restart it in that repository'
   : 'ghl is no longer listening — run `ghl` again in that repository'
 
+/** The single-letter shortcuts, by review command. */
+const KEY_COMMANDS: Record<string, string> = {
+  b: 'base',
+  t: 'target',
+  // `l` for log, which is what the list is. `c` is the comment key.
+  l: 'commit',
+  j: 'next-file',
+  k: 'previous-file',
+  r: 'refresh',
+  R: 'refresh',
+  c: 'comment',
+  v: 'viewed',
+}
+const PICKERS = ['base', 'target', 'commit']
+
 /** Shorter than the CLI's wording: this is a badge in a topbar, not a report. */
 const BASE_SOURCES: Record<BaseSource, string> = {
   override: 'given on the command line',
@@ -61,6 +84,7 @@ export default function App({
   onRouteChange,
   syntaxTheme: appearanceSyntax,
   codeLineHeight,
+  toolbar,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -71,9 +95,12 @@ export default function App({
   syntaxTheme?: SyntaxTheme
   /** Set by the desktop app when its code size changes the row height. */
   codeLineHeight?: number
+  /** The desktop title bar node its review controls render into; the browser has none. */
+  toolbar?: HTMLElement | null
 } = {}) {
   const { theme, syntaxTheme: pickedSyntax, chooseTheme } = useTheme()
   const syntaxTheme = appearanceSyntax ?? pickedSyntax
+  const desktop = toolbar !== undefined
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
   const loadRef = useRef(0)
@@ -310,6 +337,51 @@ export default function App({
     [diffStyle, commentsOpen, captureView],
   )
 
+  /** Every review command by name: the single-letter keys and the desktop menus. */
+  const runCommand = useStableCallback((command: string) => {
+    switch (command) {
+      case 'base':
+      case 'target':
+      case 'commit':
+        setPicking(command)
+        break
+      case 'next-file':
+        navigate(1)
+        break
+      case 'previous-file':
+        navigate(-1)
+        break
+      case 'refresh':
+        void refresh()
+        break
+      case 'comment':
+        commentSelection()
+        break
+      case 'viewed':
+        if (activePath) void toggleViewed(activePath, !(activePath in viewed))
+        break
+      case 'unified':
+      case 'split':
+        setDiffStyle(command)
+        break
+      case 'working-tree':
+        if (workingTreeToggleable(data, target, commit)) toggleCommitted()
+        break
+      case 'untracked':
+        if (untrackedToggleable(data)) toggleUntracked()
+        break
+      case 'whitespace':
+        select.toggleWhitespace()
+        break
+      case 'comments':
+        setCommentsOpen((open) => !open)
+        break
+      case 'copy-comments':
+        if (comments.length > 0) void copyComments()
+        break
+    }
+  })
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (commentsOpen) return
@@ -346,18 +418,9 @@ export default function App({
       // item — so a composer can be open with the focus nowhere near it.
       if (isComposing) return
 
-      if (!GO_POC && event.key === 'b') setPicking('base')
-      else if (!GO_POC && event.key === 't') setPicking('target')
-      // `l` for log, which is what the list is. `c` is the comment key.
-      else if (!GO_POC && event.key === 'l') setPicking('commit')
-      else if (event.key === 'j') navigate(1)
-      else if (event.key === 'k') navigate(-1)
-      else if (event.key === 'r' || event.key === 'R') refresh()
-      else if (event.key === 'c') commentSelection()
-      else if (event.key === 'v') {
-        if (activePath) toggleViewed(activePath, !(activePath in viewed))
-      } else return
-
+      const name = KEY_COMMANDS[event.key]
+      if (!name || (GO_POC && PICKERS.includes(name))) return
+      runCommand(name)
       event.preventDefault()
     }
 
@@ -366,19 +429,21 @@ export default function App({
   }, [
     commentsOpen,
     filesOpen,
-    activePath,
-    navigate,
-    refresh,
     entries.length,
-    viewed,
-    toggleViewed,
     picking,
     isComposing,
-    commentSelection,
     searchOpen,
     openSearch,
     stepSearch,
+    runCommand,
   ])
+
+  useEffect(() => {
+    if (!desktop) return
+    const listener = (event: Event) => runCommand((event as CustomEvent<string>).detail)
+    window.addEventListener('desktop:command', listener)
+    return () => window.removeEventListener('desktop:command', listener)
+  }, [desktop, runCommand])
 
   const resizeSidebar = useCallback((width: number) => {
     setSidebarWidth(width)
@@ -389,70 +454,92 @@ export default function App({
 
   const stack = GO_POC ? null : (data?.base.stack ?? null)
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
+  const revision: RevisionProps = {
+    repoId,
+    data,
+    query,
+    target,
+    commit,
+    committed,
+    withUntracked,
+    picking,
+    onPickingChange: setPicking,
+    onPickBase: pickBase,
+    onPickTarget: pickTarget,
+    onPickCommit: pickCommit,
+    onToggleCommitted: toggleCommitted,
+    onToggleUntracked: toggleUntracked,
+  }
+  const nextPath =
+    entries[entries.findIndex((entry) => entry.path === activePath) + 1]?.path ?? null
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <RepoBar
-          repoName={repoName}
-          repoPath={data?.repo.path}
-          theme={appearanceSyntax ? undefined : theme}
-          onThemeChange={chooseTheme}
-          refreshing={refreshing}
-          onRefresh={refresh}
-        />
-
-        <div className="reviewbar">
-          <RevisionControls
-            repoId={repoId}
-            data={data}
-            query={query}
-            target={target}
-            commit={commit}
-            committed={committed}
-            withUntracked={withUntracked}
-            baseSource={baseSource}
-            picking={picking}
-            onPickingChange={setPicking}
-            onPickBase={pickBase}
-            onPickTarget={pickTarget}
-            onPickCommit={pickCommit}
-            onToggleCommitted={toggleCommitted}
-            onToggleUntracked={toggleUntracked}
+    <div className="app" data-repo={repoName}>
+      {toolbar &&
+        createPortal(
+          <DesktopToolbar
+            {...revision}
+            ignoreWhitespace={ignoreWhitespace}
+            onToggleWhitespace={select.toggleWhitespace}
+            diffStyle={diffStyle}
+            onDiffStyleChange={setDiffStyle}
+            commentCount={comments.length}
+            commentsOpen={commentsOpen}
+            onOpenComments={() => setCommentsOpen(true)}
+            copiedAll={copied === 'all'}
+            onCopyAll={() => copyComments()}
+          />,
+          toolbar,
+        )}
+      {!desktop && (
+        <header className="topbar">
+          <RepoBar
+            repoName={repoName}
+            repoPath={data?.repo.path}
+            theme={theme}
+            onThemeChange={chooseTheme}
+            refreshing={refreshing}
+            onRefresh={refresh}
           />
 
-          {data && (
-            <span className="stats" aria-label="Diff statistics">
-              <span className="file-count">{stats.files} files</span>
-              <span className="add">+{stats.additions}</span>
-              <span className="del">−{stats.deletions}</span>
-            </span>
-          )}
-        </div>
+          <div className="reviewbar">
+            <RevisionControls {...revision} baseSource={baseSource} />
 
-        {/* The stack is a third, conditional level: it tells a different story
+            {data && (
+              <span className="stats" aria-label="Diff statistics">
+                <span className="file-count">{stats.files} files</span>
+                <span className="add">+{stats.additions}</span>
+                <span className="del">−{stats.deletions}</span>
+              </span>
+            )}
+          </div>
+
+          {/* The stack is a third, conditional level: it tells a different story
             than the comparison controls above and should never disrupt them. */}
-        {stack && (
-          <StackNav stack={stack} headBranch={data?.head.branch} onPickTarget={pickTarget} />
-        )}
-      </header>
+          {stack && (
+            <StackNav stack={stack} headBranch={data?.head.branch} onPickTarget={pickTarget} />
+          )}
+        </header>
+      )}
 
-      <ReviewTools
-        filesOpen={filesOpen}
-        onToggleFiles={() => setFilesOpen((value) => !value)}
-        fileCount={stats.files}
-        viewedCount={viewedCount}
-        ignoreWhitespace={ignoreWhitespace}
-        onToggleWhitespace={select.toggleWhitespace}
-        diffStyle={diffStyle}
-        onDiffStyleChange={setDiffStyle}
-        loaded={data !== null}
-        commentCount={comments.length}
-        commentsOpen={commentsOpen}
-        onOpenComments={() => setCommentsOpen(true)}
-        copiedAll={copied === 'all'}
-        onCopyAll={() => copyComments()}
-      />
+      {!desktop && (
+        <ReviewTools
+          filesOpen={filesOpen}
+          onToggleFiles={() => setFilesOpen((value) => !value)}
+          fileCount={stats.files}
+          viewedCount={viewedCount}
+          ignoreWhitespace={ignoreWhitespace}
+          onToggleWhitespace={select.toggleWhitespace}
+          diffStyle={diffStyle}
+          onDiffStyleChange={setDiffStyle}
+          loaded={data !== null}
+          commentCount={comments.length}
+          commentsOpen={commentsOpen}
+          onOpenComments={() => setCommentsOpen(true)}
+          copiedAll={copied === 'all'}
+          onCopyAll={() => copyComments()}
+        />
+      )}
       <span className="visually-hidden" role="status">
         {copied ? 'Comments copied to clipboard' : ''}
       </span>
@@ -588,6 +675,19 @@ export default function App({
 
           {view}
         </div>
+      )}
+      {desktop && (
+        <ReviewFooter
+          data={data}
+          baseSource={baseSource}
+          note={revisionNote(data, target)}
+          stats={stats}
+          viewedCount={viewedCount}
+          stack={stack}
+          onPickTarget={pickTarget}
+          nextPath={nextPath}
+          onNext={() => navigate(1)}
+        />
       )}
     </div>
   )

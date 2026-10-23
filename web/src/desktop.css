@@ -86,11 +86,11 @@ body {
 }
 /* Chrome is not text to select. Fields inside it stay editable, which WebKit
    would otherwise refuse under an unselectable ancestor. */
-:is(.desktop-titlebar, .topbar, .review-tools, .sidebar-head, .desktop-empty) {
+:is(.desktop-titlebar, .sidebar-head, .desktop-empty) {
   -webkit-user-select: none;
   user-select: none;
 }
-:is(.desktop-titlebar, .topbar, .review-tools, .sidebar-head, .desktop-empty) :is(input, textarea) {
+:is(.desktop-titlebar, .sidebar-head, .desktop-empty) :is(input, textarea) {
   -webkit-user-select: text;
   user-select: text;
 }
@@ -107,6 +107,8 @@ body,
 }
 .desktop-titlebar {
   --wails-draggable: drag;
+  position: relative;
+  z-index: 30;
   display: flex;
   flex-shrink: 0;
   align-items: center;
@@ -438,4 +440,179 @@ body,
   display: flex;
   justify-content: flex-end;
   padding: 14px 20px 16px;
+}
+
+.shortcuts-sheet {
+  width: min(420px, calc(100vw - 48px));
+}
+
+/* The review renders its controls here, through a portal. */
+.titlebar-review {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+}
+.titlebar-review > * {
+  --wails-draggable: no-drag;
+}
+.compare-capsule {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--wash);
+}
+.compare-capsule :is(.capsule-ref, .capsule-commit) {
+  max-width: 200px;
+  height: 24px;
+  padding: 0 8px 0 10px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--text);
+  font: 600 12px/24px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compare-capsule .capsule-commit {
+  max-width: 240px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-weight: 500;
+}
+.compare-capsule button:hover:not(:disabled),
+.compare-capsule button[aria-expanded='true'] {
+  background: var(--wash-strong);
+}
+:is(.compare-capsule, .titlebar-text) .caret {
+  font-size: 10px;
+  opacity: 0.6;
+}
+.capsule-arrow {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.capsule-separator {
+  width: 1px;
+  height: 14px;
+  margin: 0 3px;
+  background: var(--border);
+}
+/* The right-hand pickers open leftwards, inside the window. */
+.compare-capsule > .base-anchor:last-child .picker {
+  right: 0;
+  left: auto;
+}
+.titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.segmented {
+  display: flex;
+  gap: 2px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--wash);
+}
+.segmented button {
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 500;
+}
+.segmented button[aria-pressed='true'] {
+  background: var(--bg-raised);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
+}
+.titlebar-button:disabled {
+  opacity: 0.45;
+}
+.titlebar-button[aria-expanded='true'] {
+  background: var(--wash);
+  color: var(--text);
+}
+/* Text rather than icons: the options and the copy are not obvious as glyphs. */
+.titlebar-text {
+  width: auto;
+  grid-auto-flow: column;
+  gap: 5px;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.options-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 1000;
+  display: grid;
+  gap: 2px;
+  width: 240px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-overlay);
+  box-shadow: 0 16px 40px -12px rgb(0 0 0 / 45%);
+}
+.options-popover .scope-check {
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: 7px;
+}
+.options-popover .scope-check:hover:not(:has(input:disabled)) {
+  background: var(--wash);
+}
+
+.review-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 14px;
+  min-height: 30px;
+  margin-top: auto;
+  padding: 0 14px;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-dim);
+  font-size: 12px;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.review-footer .stack {
+  flex-wrap: nowrap;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.footer-next {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+}
+.footer-next b {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 600;
+  text-overflow: ellipsis;
 }
