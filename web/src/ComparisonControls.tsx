@@ -1,8 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 import RefSelector from './RefSelector.tsx'
 import CommitSelector from './CommitSelector.tsx'
-import ScopeControls from './ScopeControls.tsx'
-import { GO_POC } from './capabilities.ts'
 import type { LoadedReviewDiff } from './useReviewDiff.tsx'
 
 export type Picker = 'base' | 'target' | 'commit'
@@ -18,7 +16,7 @@ export function comparisonNote(
   return null
 }
 
-/** The comparison state and actions that both the browser header and the desktop title bar render. */
+/** The comparison state and actions the title bar renders. */
 export interface ComparisonProps {
   repoId: string | null
   data: LoadedReviewDiff | null
@@ -90,117 +88,5 @@ export function ComparisonSelector({
       onPick={onPickTarget}
       onClose={close}
     />
-  )
-}
-
-export default function ComparisonControls(props: ComparisonProps & { baseSource: string | null }) {
-  const {
-    data,
-    target,
-    commit,
-    committed,
-    withUntracked,
-    baseSource,
-    picking,
-    onPickingChange,
-    onToggleCommitted,
-    onToggleUntracked,
-  } = props
-  const note = comparisonNote(data, target)
-  return (
-    <div className="revision">
-      <div className="toolbar-group compare-group">
-        <span className="toolbar-label">
-          Compare {baseSource && <span className="source">· base {baseSource}</span>}
-        </span>
-        <div className="revision-flow">
-          <span className="base-anchor">
-            <span className="ref-role">Base</span>
-            {GO_POC ? (
-              <span className="ref base">{data?.base?.ref ?? '…'}</span>
-            ) : (
-              <button
-                type="button"
-                className="ref base"
-                onClick={() => togglePicker(onPickingChange, 'base')}
-                title="Change the base (b)"
-                aria-label={`Base: ${data?.base?.ref ?? 'loading'}`}
-                aria-expanded={picking === 'base'}
-                disabled={!data}
-              >
-                {data?.base?.ref ?? '…'} <span className="caret">▾</span>
-              </button>
-            )}
-
-            {!GO_POC && <ComparisonSelector picker="base" {...props} />}
-          </span>
-
-          <span className="arrow" aria-hidden="true">
-            →
-          </span>
-
-          <span className="base-anchor">
-            <span className="ref-role">Target</span>
-            {GO_POC ? (
-              <span className="ref target">{data?.target?.ref ?? 'HEAD'}</span>
-            ) : (
-              <button
-                type="button"
-                className="ref target"
-                onClick={() => togglePicker(onPickingChange, 'target')}
-                title="Review another revision (t)"
-                aria-label={`Target: ${data?.target?.ref ?? 'HEAD'}`}
-                aria-expanded={picking === 'target'}
-                disabled={!data}
-              >
-                {data?.target?.ref ?? 'HEAD'} <span className="caret">▾</span>
-              </button>
-            )}
-
-            {!GO_POC && <ComparisonSelector picker="target" {...props} />}
-          </span>
-        </div>
-      </div>
-
-      {/* Beside the chain, not a third link in it: `main → feature → abc1234`
-          reads as "from main up to that commit", which is the cumulative
-          diff. This one is the commit's own. */}
-      {!GO_POC && (
-        <div className="toolbar-group commit-group">
-          <span className="toolbar-label">Commit</span>
-          <span className="base-anchor">
-            <button
-              type="button"
-              className="ref commit"
-              onClick={() => togglePicker(onPickingChange, 'commit')}
-              title="Show one commit (l)"
-              aria-expanded={picking === 'commit'}
-              disabled={!data}
-            >
-              {commitLabel(data)} <span className="caret">▾</span>
-            </button>
-
-            <ComparisonSelector picker="commit" {...props} />
-          </span>
-        </div>
-      )}
-
-      <div className="toolbar-group scope-group">
-        <span className="toolbar-label">Include</span>
-        <div className="scope-controls">
-          <ScopeControls
-            data={data}
-            target={target}
-            commit={commit}
-            committed={committed}
-            withUntracked={withUntracked}
-            onToggleCommitted={onToggleCommitted}
-            onToggleUntracked={onToggleUntracked}
-          />
-        </div>
-      </div>
-
-      {note && <span className="source revision-note">{note}</span>}
-    </div>
   )
 }

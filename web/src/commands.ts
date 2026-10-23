@@ -25,7 +25,5 @@ export type ReviewCommand =
 
 export type WindowCommand = 'reload' | 'close-tab' | 'settings' | 'shortcuts' | 'sidebar'
 
-export const PICKERS: readonly Picker[] = ['base', 'target', 'commit']
-
 export const commandOf = (event: Event) =>
   (event as CustomEvent<ReviewCommand | WindowCommand>).detail

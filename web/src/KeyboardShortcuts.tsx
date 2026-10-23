@@ -1,32 +1,24 @@
-import { GO_POC } from './capabilities.ts'
-
 export default function KeyboardShortcuts() {
   return (
     <dl className="shortcut-list">
-      {!GO_POC && (
-        <div>
-          <dt>
-            <kbd>b</kbd>
-          </dt>
-          <dd>Choose base</dd>
-        </div>
-      )}
-      {!GO_POC && (
-        <div>
-          <dt>
-            <kbd>t</kbd>
-          </dt>
-          <dd>Choose target</dd>
-        </div>
-      )}
-      {!GO_POC && (
-        <div>
-          <dt>
-            <kbd>l</kbd>
-          </dt>
-          <dd>Choose commit</dd>
-        </div>
-      )}
+      <div>
+        <dt>
+          <kbd>b</kbd>
+        </dt>
+        <dd>Choose base</dd>
+      </div>
+      <div>
+        <dt>
+          <kbd>t</kbd>
+        </dt>
+        <dd>Choose target</dd>
+      </div>
+      <div>
+        <dt>
+          <kbd>l</kbd>
+        </dt>
+        <dd>Choose commit</dd>
+      </div>
       <div>
         <dt>
           <kbd>j</kbd> <kbd>k</kbd>

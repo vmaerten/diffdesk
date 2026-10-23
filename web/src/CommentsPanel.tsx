@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useState, type RefObject } from 'react'
 import type { ServedComment } from '../../src/types.ts'
 import type { SaveState } from './commentPersistence.ts'
 import CommentCard, { lineLabel } from './CommentCard.tsx'
@@ -19,7 +19,6 @@ export default function CommentsPanel({
   onUpdate,
   onDelete,
   onRetry,
-  inline = false,
 }: {
   savedEditor?: RefObject<{ editing: string | null; draft: string }>
   open: boolean
@@ -35,10 +34,7 @@ export default function CommentsPanel({
   onUpdate: (comment: ServedComment, body: string) => void
   onDelete: (id: string) => void
   onRetry: (comment: ServedComment) => void
-  /** Set by the desktop app: a side panel beside the diff instead of a modal drawer. */
-  inline?: boolean
 }) {
-  const dialog = useRef<HTMLDialogElement>(null)
   const [editing, setEditing] = useState<string | null>(savedEditor?.current.editing ?? null)
   const [draft, setDraft] = useState(savedEditor?.current.draft ?? '')
   useEffect(() => {
@@ -56,11 +52,6 @@ export default function CommentsPanel({
     }
     return [...result]
   }, [comments])
-  useEffect(() => {
-    if (inline) return
-    if (open && !dialog.current?.open) dialog.current?.showModal()
-    else if (!open && dialog.current?.open) dialog.current.close()
-  }, [inline, open])
   const update = (comment: ServedComment) => {
     if (!draft.trim()) return
     onUpdate(comment, draft.trim())
@@ -68,7 +59,6 @@ export default function CommentsPanel({
   }
   const toolbar = (
     <div className="comments-panel-toolbar">
-      {!inline && <span>All comments in this repository</span>}
       <button
         type="button"
         className="button primary"
@@ -76,8 +66,8 @@ export default function CommentsPanel({
         onClick={() => onCopy()}
       >
         <Icon name="copy" />
-        {copied === 'all' ? 'Copied' : inline ? 'Copy all as Markdown' : 'Copy all'}
-        {inline && <kbd>⇧⌘C</kbd>}
+        {copied === 'all' ? 'Copied' : 'Copy all as Markdown'}
+        <kbd>⇧⌘C</kbd>
       </button>
     </div>
   )
@@ -87,17 +77,10 @@ export default function CommentsPanel({
         <h2 id="comments-title">
           <Icon name="comment" /> Comments <span className="counter">{comments.length}</span>
         </h2>
-        <button
-          className="icon-button"
-          type="button"
-          aria-label="Close comments"
-          onClick={onClose}
-          autoFocus={!inline}
-        >
+        <button className="icon-button" type="button" aria-label="Close comments" onClick={onClose}>
           <Icon name="close" />
         </button>
       </div>
-      {!inline && toolbar}
       {copyError && (
         <p className="warning" role="alert">
           {copyError}
@@ -190,40 +173,20 @@ export default function CommentsPanel({
             </section>
           ))}
       </div>
-      {inline && toolbar}
+      {toolbar}
     </>
   )
-  if (inline)
-    return (
-      <aside
-        className="comments-panel inline"
-        id="comments-panel"
-        aria-labelledby="comments-title"
-        hidden={!open}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' && !(event.target instanceof HTMLTextAreaElement)) onClose()
-        }}
-      >
-        {content}
-      </aside>
-    )
   return (
-    <dialog
-      ref={dialog}
-      className="comments-panel"
+    <aside
+      className="comments-panel inline"
       id="comments-panel"
       aria-labelledby="comments-title"
-      onCancel={onClose}
-      onClose={onClose}
-      onClick={(event) => {
-        if (
-          event.target === event.currentTarget &&
-          event.clientX < event.currentTarget.getBoundingClientRect().left
-        )
-          onClose()
+      hidden={!open}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && !(event.target instanceof HTMLTextAreaElement)) onClose()
       }}
     >
       {content}
-    </dialog>
+    </aside>
   )
 }

@@ -73,7 +73,7 @@ tasks:
   desktop:assets:
     desc: Build the desktop UI, embedded by the app and driven by the UI tests
     cmds:
-      - pnpm exec vite build --mode go-desktop --outDir ../desktop/assets
+      - pnpm exec vite build
       # Vite removes the tracked placeholder while cleaning its output.
       - touch desktop/assets/.gitkeep
 
@@ -211,7 +211,7 @@ tasks:
           until curl --noproxy '*' --fail --silent --max-time 1 "$GHL_DEV_API/api/health" >/dev/null; do sleep 0.1; done
         timeout: 30s
       - >-
-        pnpm exec vite --mode go-desktop --host 127.0.0.1 --strictPort --port {{.DEV_PORT | shellQuote}}
+        pnpm exec vite --host 127.0.0.1 --strictPort --port {{.DEV_PORT | shellQuote}}
         {{if and (ne (.OPEN | default "true") "false") (ne (.OPEN | default "true") "0")}}--open {{.REVIEW_PATH | shellQuote}}{{end}}
 
   dev:tools:

@@ -20,10 +20,10 @@ const desktopRuntime = {
 
 // The UI is served from /r/<repoId>, but assets are always requested from the
 // root, so `base: '/'` keeps a single asset path whatever the repo id.
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   root: 'web',
   base: '/',
-  plugins: [react({ compiler: true }), ...(mode === 'go-desktop' ? [desktopRuntime] : [])],
+  plugins: [react({ compiler: true }), desktopRuntime],
   build: {
     outDir: '../desktop/assets',
     emptyOutDir: true,
@@ -39,4 +39,4 @@ export default defineConfig(({ mode }) => ({
       '/api': process.env.GHL_DEV_API ?? 'http://127.0.0.1:5181',
     },
   },
-}))
+})

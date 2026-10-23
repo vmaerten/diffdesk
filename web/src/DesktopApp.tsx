@@ -20,7 +20,6 @@ import {
   createRepositoryCommentPersistence,
   type CommentPersistence,
 } from './commentPersistence.ts'
-// Inlined so the browser build, which tree-shakes this module, carries no desktop CSS.
 import desktopStyles from './desktop.css?inline'
 
 interface ReviewTab {

@@ -19,24 +19,16 @@ import {
 } from './commentPersistence.ts'
 import { useViewedPersistence } from './viewedPersistence.ts'
 
-import { useTheme, type SyntaxTheme } from './theme.ts'
+import type { SyntaxTheme } from './theme.ts'
 import CommentsPanel from './CommentsPanel.tsx'
-import RepoBar from './RepoBar.tsx'
-import ComparisonControls, {
-  comparisonNote,
-  type Picker,
-  type ComparisonProps,
-} from './ComparisonControls.tsx'
+import { comparisonNote, type Picker, type ComparisonProps } from './ComparisonControls.tsx'
 import { untrackedToggleable, workingTreeToggleable } from './ScopeControls.tsx'
 import DesktopToolbar from './DesktopToolbar.tsx'
 import ReviewFooter from './ReviewFooter.tsx'
 import { DesktopSidebarFoot, DesktopSidebarHead } from './DesktopSidebar.tsx'
-import StackNav from './StackNav.tsx'
-import ReviewTools from './ReviewTools.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
-import { GO_POC } from './capabilities.ts'
-import { commandOf, PICKERS, type ReviewCommand, type WindowCommand } from './commands.ts'
+import { commandOf, type ReviewCommand, type WindowCommand } from './commands.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
 import type { SavedView, SavedViewHandle } from './savedView.ts'
@@ -46,14 +38,6 @@ function repoIdFromLocation() {
   const match = window.location.pathname.match(/^\/r\/([^/]+)/)
   return match?.[1] ?? null
 }
-
-/** Well under the server's idle threshold, and cheap enough to be invisible. */
-const HEARTBEAT_MS = 5 * 60_000
-
-/** A fetch that never reached anything rejects with a TypeError, not an HTTP status. */
-const NOT_LISTENING = GO_POC
-  ? 'ghl-go-poc is no longer listening — restart it in that repository'
-  : 'ghl is no longer listening — run `ghl` again in that repository'
 
 /** Review commands, by their single-letter key. */
 const KEY_COMMANDS: Record<string, ReviewCommand> = {
@@ -83,10 +67,10 @@ export default function App({
   viewHandle,
   commentStore,
   onRouteChange,
-  syntaxTheme: appearanceSyntax,
+  syntaxTheme,
   codeLineHeight,
   toolbar,
-  sidebarHidden = false,
+  sidebarHidden,
   onReveal,
 }: {
   savedView?: SavedView
@@ -94,27 +78,22 @@ export default function App({
   commentStore?: CommentPersistence
   /** Receives every selection URL the review writes. */
   onRouteChange?: (route: string) => void
-  /** Set by the desktop app, whose appearance replaces the theme picker. */
-  syntaxTheme?: SyntaxTheme
-  /** Set by the desktop app when its code size changes the row height. */
+  syntaxTheme: SyntaxTheme
+  /** Follows the code size, which changes the row height. */
   codeLineHeight?: number
-  /** The desktop title bar node its review controls render into; the browser has none. */
-  toolbar?: HTMLElement | null
-  /** Set by the desktop app, whose title bar shows and hides the file tree. */
-  sidebarHidden?: boolean
-  /** Set by the desktop app: selects a file of the checkout in Finder. */
+  /** The title bar node the review controls render into, once mounted. */
+  toolbar: HTMLElement | null
+  /** The title bar shows and hides the file tree. */
+  sidebarHidden: boolean
+  /** Selects a file of the checkout in Finder. */
   onReveal?: (path: string) => Promise<void>
-} = {}) {
-  const { theme, syntaxTheme: pickedSyntax, chooseTheme } = useTheme()
-  const syntaxTheme = appearanceSyntax ?? pickedSyntax
-  const desktop = toolbar !== undefined
+}) {
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
   const loadRef = useRef(0)
   const controllerRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(savedView?.diffStyle ?? 'unified')
-  const [refreshing, setRefreshing] = useState(false)
   const [viewed, viewedPersistence] = useViewedPersistence(repoId)
   const [picking, setPicking] = useState<Picker | null>(null)
   const [selection, select] = useReviewSelection(repoId, onRouteChange)
@@ -126,14 +105,6 @@ export default function App({
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [commentsOpen, setCommentsOpen] = useState(savedView?.commentsOpen ?? false)
   const panelEditor = useRef(savedView?.panelEditor ?? { editing: null, draft: '' })
-  const [filesOpen, setFilesOpen] = useState(false)
-  const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 767px)')
-    const update = () => setMobile(media.matches)
-    media.addEventListener('change', update)
-    return () => media.removeEventListener('change', update)
-  }, [])
   useEffect(
     () => () => {
       if (copyTimer.current) clearTimeout(copyTimer.current)
@@ -160,7 +131,6 @@ export default function App({
     controllerRef.current?.abort()
     const controller = new AbortController()
     controllerRef.current = controller
-    setRefreshing(true)
     const receiveComments = commentPersistence.refresh()
     const receiveViewed = viewedPersistence.refresh()
     try {
@@ -176,10 +146,7 @@ export default function App({
       setError(null)
     } catch (cause) {
       if (controller.signal.aborted) return
-      if (cause instanceof TypeError) setError(NOT_LISTENING)
-      else setError(cause instanceof Error ? cause.message : String(cause))
-    } finally {
-      if (!controller.signal.aborted) setRefreshing(false)
+      setError(cause instanceof Error ? cause.message : String(cause))
     }
   }, [repoId, selection, commentPersistence, viewedPersistence])
 
@@ -187,27 +154,6 @@ export default function App({
     refresh()
     return () => controllerRef.current?.abort()
   }, [refresh])
-
-  /**
-   * Say we are still here, while we are still here.
-   *
-   * One process now serves every repository and stops on its own once nothing
-   * watches it. Reading a long diff sends no request at all, so without this it
-   * would stop under an open tab — the heartbeat is what makes the threshold
-   * mean "no tab" rather than "no click".
-   */
-  useEffect(() => {
-    if (GO_POC) return
-    const beat = () => {
-      if (document.visibilityState === 'visible') fetch('/api/health').catch(() => {})
-    }
-    const timer = setInterval(beat, HEARTBEAT_MS)
-    document.addEventListener('visibilitychange', beat)
-    return () => {
-      clearInterval(timer)
-      document.removeEventListener('visibilitychange', beat)
-    }
-  }, [])
 
   const pickTarget = useCallback(
     (ref: string | null) => {
@@ -280,9 +226,7 @@ export default function App({
       if (copyTimer.current) clearTimeout(copyTimer.current)
       copyTimer.current = setTimeout(() => setCopied(null), 2000)
     } catch (cause) {
-      setCopyError(
-        `Could not copy. Try again or check your browser's clipboard permissions. ${cause instanceof Error ? cause.message : ''}`,
-      )
+      setCopyError(`Could not copy. ${cause instanceof Error ? cause.message : ''}`)
     }
   })
 
@@ -314,7 +258,7 @@ export default function App({
     savedView,
     repoId,
     data,
-    diffStyle: mobile ? 'unified' : diffStyle,
+    diffStyle,
     syntaxTheme,
     lineHeight: codeLineHeight,
     viewed,
@@ -412,13 +356,8 @@ export default function App({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      // A modal dialog owns the keyboard: the browser's comments drawer, a
-      // desktop sheet. The desktop comments panel is not one, so keys still work.
+      // A modal sheet owns the keyboard. The comments panel is not one, so keys still work.
       if (document.querySelector('dialog:modal')) return
-      if (event.key === 'Escape' && filesOpen) {
-        setFilesOpen(false)
-        return
-      }
       const key = event.key.toLocaleLowerCase()
       const command = event.metaKey || event.ctrlKey
 
@@ -449,30 +388,20 @@ export default function App({
       if (isComposing) return
 
       const name = KEY_COMMANDS[event.key]
-      if (!name || (GO_POC && (PICKERS as readonly string[]).includes(name))) return
+      if (!name) return
       runCommand(name)
       event.preventDefault()
     }
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [
-    filesOpen,
-    entries.length,
-    picking,
-    isComposing,
-    searchOpen,
-    openSearch,
-    stepSearch,
-    runCommand,
-  ])
+  }, [entries.length, picking, isComposing, searchOpen, openSearch, stepSearch, runCommand])
 
   useEffect(() => {
-    if (!desktop) return
     const listener = (event: Event) => runCommand(commandOf(event))
     window.addEventListener('desktop:command', listener)
     return () => window.removeEventListener('desktop:command', listener)
-  }, [desktop, runCommand])
+  }, [runCommand])
 
   const resizeSidebar = useCallback((width: number) => {
     setSidebarWidth(width)
@@ -481,7 +410,7 @@ export default function App({
 
   const baseSource = data ? BASE_SOURCES[data.base.source] : null
 
-  const stack = GO_POC ? null : (data?.base.stack ?? null)
+  const stack = data?.base.stack ?? null
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
   const comparison: ComparisonProps = {
     repoId,
@@ -525,11 +454,7 @@ export default function App({
       onClose={() => setCommentsOpen(false)}
       onCopy={copyComments}
       canView={canRevealComment}
-      onView={(comment) => {
-        if (!desktop) setCommentsOpen(false)
-        setFilesOpen(false)
-        revealComment(comment)
-      }}
+      onView={revealComment}
       onUpdate={(comment, body) =>
         submitComment({
           path: comment.path,
@@ -544,7 +469,6 @@ export default function App({
       onRetry={(comment) => {
         void commentPersistence.retry(comment.id)
       }}
-      inline={desktop}
     />
   )
 
@@ -566,59 +490,10 @@ export default function App({
           />,
           toolbar,
         )}
-      {!desktop && (
-        <header className="topbar">
-          <RepoBar
-            repoName={repoName}
-            repoPath={data?.repo.path}
-            theme={theme}
-            onThemeChange={chooseTheme}
-            refreshing={refreshing}
-            onRefresh={refresh}
-          />
-
-          <div className="reviewbar">
-            <ComparisonControls {...comparison} baseSource={baseSource} />
-
-            {data && (
-              <span className="stats" aria-label="Diff statistics">
-                <span className="file-count">{stats.files} files</span>
-                <span className="add">+{stats.additions}</span>
-                <span className="del">−{stats.deletions}</span>
-              </span>
-            )}
-          </div>
-
-          {/* The stack is a third, conditional level: it tells a different story
-            than the comparison controls above and should never disrupt them. */}
-          {stack && (
-            <StackNav stack={stack} headBranch={data?.head.branch} onPickTarget={pickTarget} />
-          )}
-        </header>
-      )}
-
-      {!desktop && (
-        <ReviewTools
-          filesOpen={filesOpen}
-          onToggleFiles={() => setFilesOpen((value) => !value)}
-          fileCount={stats.files}
-          viewedCount={viewedCount}
-          ignoreWhitespace={ignoreWhitespace}
-          onToggleWhitespace={select.toggleWhitespace}
-          diffStyle={diffStyle}
-          onDiffStyleChange={setDiffStyle}
-          loaded={data !== null}
-          commentCount={comments.length}
-          commentsOpen={commentsOpen}
-          onOpenComments={() => setCommentsOpen(true)}
-          copiedAll={copied === 'all'}
-          onCopyAll={() => copyComments()}
-        />
-      )}
       <span className="visually-hidden" role="status">
         {copied ? 'Comments copied to clipboard' : ''}
       </span>
-      {(!desktop || entries.length === 0) && commentsPanel}
+      {entries.length === 0 && commentsPanel}
 
       {copyError && !commentsOpen && (
         <div className="warning" role="alert">
@@ -672,83 +547,44 @@ export default function App({
 
       {entries.length > 0 && (
         <div
-          className={`body${filesOpen ? ' files-open' : ''}${sidebarHidden ? ' sidebar-hidden' : ''}`}
+          className={`body${sidebarHidden ? ' sidebar-hidden' : ''}`}
           ref={bodyRef}
           style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
         >
           <aside className="sidebar" id="changed-files" aria-label="Changed files">
             <div className="sidebar-head">
-              {desktop ? (
-                <DesktopSidebarHead
-                  fileCount={entries.length}
-                  onCollapseAll={() => treeRef.current?.collapseAll()}
-                  onExpandAll={() => treeRef.current?.expandAll()}
-                />
-              ) : (
-                <>
-                  <span>
-                    {viewedCount > 0
-                      ? `${viewedCount}/${entries.length} viewed`
-                      : `${entries.length} files`}
-                  </span>
-                  <span className="spacer" />
-                  {viewedCount > 0 && (
-                    <button type="button" onClick={resetViewed} title="Unmark every file">
-                      Reset
-                    </button>
-                  )}
-                  <button type="button" onClick={() => treeRef.current?.collapseAll()}>
-                    Collapse all
-                  </button>
-                  <button type="button" onClick={() => treeRef.current?.expandAll()}>
-                    Expand all
-                  </button>
-                </>
-              )}
+              <DesktopSidebarHead
+                fileCount={entries.length}
+                onCollapseAll={() => treeRef.current?.collapseAll()}
+                onExpandAll={() => treeRef.current?.expandAll()}
+              />
             </div>
             <FileTree
               ref={treeRef}
               syntaxTheme={syntaxTheme}
               entries={entries}
               activePath={activePath}
-              onSelect={(path) => {
-                selectFile(path)
-                setFilesOpen(false)
-              }}
+              onSelect={selectFile}
             />
-            {desktop && (
-              <DesktopSidebarFoot
-                fileCount={entries.length}
-                viewedCount={viewedCount}
-                stats={stats}
-              />
-            )}
+            <DesktopSidebarFoot
+              fileCount={entries.length}
+              viewedCount={viewedCount}
+              stats={stats}
+            />
           </aside>
 
-          {filesOpen && (
-            <button
-              type="button"
-              className="files-backdrop"
-              aria-label="Close files"
-              onClick={() => setFilesOpen(false)}
-            />
-          )}
           <Resizer containerRef={bodyRef} onCommit={resizeSidebar} />
 
-          {desktop ? (
-            // The status bar belongs to the code: the sidebar and the comments
-            // panel run the full height beside it.
-            <div className="review-main">
-              {view}
-              {footer}
-            </div>
-          ) : (
-            view
-          )}
-          {desktop && commentsPanel}
+          {/* The status bar belongs to the code: the sidebar and the comments
+            panel run the full height beside it. */}
+          <div className="review-main">
+            {view}
+            {footer}
+          </div>
+          {commentsPanel}
         </div>
       )}
-      {desktop && entries.length === 0 && footer}
+      {entries.length === 0 && footer}
     </div>
   )
 }
