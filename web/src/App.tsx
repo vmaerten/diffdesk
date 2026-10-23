@@ -405,9 +405,9 @@ export default function App({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      // The browser's drawer is modal; the desktop panel sits beside the diff,
-      // and its fields already keep their keys through the guard below.
-      if (commentsOpen && !desktop) return
+      // A modal dialog owns the keyboard: the browser's comments drawer, a
+      // desktop sheet. The desktop comments panel is not one, so keys still work.
+      if (document.querySelector('dialog:modal')) return
       if (event.key === 'Escape' && filesOpen) {
         setFilesOpen(false)
         return
@@ -450,8 +450,6 @@ export default function App({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [
-    desktop,
-    commentsOpen,
     filesOpen,
     entries.length,
     picking,

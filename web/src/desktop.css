@@ -722,20 +722,13 @@ body,
 
 /* The comments sit beside the diff and push it aside: a panel, not a modal
    drawer, so the review stays usable while they are open. */
-.desktop-review .comments-panel.inline {
-  position: static;
+.desktop-review .comments-panel.inline:not([hidden]) {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   width: 320px;
-  height: auto;
-  max-height: none;
   border-left: 1px solid var(--border);
   background: var(--chrome-bg);
-  box-shadow: none;
-}
-.desktop-review .comments-panel.inline[hidden] {
-  display: none;
 }
 .desktop-review .comments-panel.inline .comments-panel-list {
   flex: 1;
