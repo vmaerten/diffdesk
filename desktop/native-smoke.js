@@ -280,6 +280,13 @@
         clipboard.includes('edited in native WebView') && clipboard.includes('line 20'),
         'Native clipboard lacks Markdown/code',
       )
+      // The Copy All Comments menu item (⇧⌘C) reaches the same clipboard.
+      await window.runtime.ClipboardSetText('before the menu copy')
+      window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'copy-comments' }))
+      await wait(
+        async () => (await navigator.clipboard.readText()).includes('edited in native WebView'),
+        'Copy command did not reach the clipboard',
+      )
       document.querySelector('.comments-panel .danger-action').click()
       await wait(async () => (await diff()).comments.length === 0, 'Delete not saved')
       document.querySelector('[aria-label="Close comments"]').click()
