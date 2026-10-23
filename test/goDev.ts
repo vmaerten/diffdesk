@@ -34,7 +34,14 @@ for (const directory of ['go', 'web', 'src']) {
       !path.includes('/assets') && !path.includes('/dist') && !path.includes('/node_modules'),
   })
 }
-for (const path of ['package.json', 'tsconfig.json', 'vite.config.js', 'Taskfile.yml'])
+for (const path of [
+  'package.json',
+  'tsconfig.json',
+  'vite.config.js',
+  'Taskfile.yml',
+  'desktop/simulator.ts',
+  'desktop/bridge.js',
+])
   cpSync(join(root, path), join(checkout, path))
 symlinkSync(join(root, 'node_modules'), join(checkout, 'node_modules'), 'dir')
 // Reuse the installed dependencies without pnpm reinstalling the fixture's symlink.
@@ -212,16 +219,21 @@ try {
   })
   const page = await browser.newPage()
   await page.goto(url, { waitUntil: 'networkidle0' })
-  await page.waitForSelector('.product-name')
+  await page.waitForSelector('.sidebar-title')
   await page.evaluate('window.__ghl_dev_marker = 123')
-  const appPath = join(checkout, 'web/src/App.tsx')
-  const app = readFileSync(appPath, 'utf8')
-  assert.ok(app.includes("{GO_POC ? 'ghl Go PoC' : 'ghl'}"))
+  const sidebarPath = join(checkout, 'web/src/DesktopSidebar.tsx')
+  const sidebar = readFileSync(sidebarPath, 'utf8')
+  assert.ok(sidebar.includes('<span className="sidebar-title">Changes</span>'))
   writeFileSync(
-    appPath,
-    app.replace("{GO_POC ? 'ghl Go PoC' : 'ghl'}", "{GO_POC ? 'ghl Go PoC' : 'ghl HMR'}"),
+    sidebarPath,
+    sidebar.replace(
+      '<span className="sidebar-title">Changes</span>',
+      '<span className="sidebar-title">Changes HMR</span>',
+    ),
   )
-  await page.waitForFunction("document.querySelector('.product-name')?.textContent === 'ghl HMR'")
+  await page.waitForFunction(
+    "document.querySelector('.sidebar-title')?.textContent === 'Changes HMR'",
+  )
   assert.equal(
     await page.evaluate('window.__ghl_dev_marker'),
     123,
@@ -230,10 +242,10 @@ try {
   const cssPath = join(checkout, 'web/src/styles.css')
   writeFileSync(
     cssPath,
-    readFileSync(cssPath, 'utf8') + '\n.product-name { outline: 2px solid rgb(12, 34, 56); }\n',
+    readFileSync(cssPath, 'utf8') + '\n.sidebar-title { outline: 2px solid rgb(12, 34, 56); }\n',
   )
   await page.waitForFunction(
-    "getComputedStyle(document.querySelector('.product-name')).outlineColor === 'rgb(12, 34, 56)'",
+    "getComputedStyle(document.querySelector('.sidebar-title')).outlineColor === 'rgb(12, 34, 56)'",
   )
   assert.equal(
     await page.evaluate('window.__ghl_dev_marker'),

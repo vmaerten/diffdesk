@@ -192,7 +192,7 @@ tasks:
       - ../.task/bin/air -c .air.toml
 
   dev:web:
-    desc: Serve React with Vite, proxying to the development Go backend
+    desc: Serve the desktop UI with Vite in a browser, proxying to the development Go backend
     vars:
       DEV_REPO: '{{if .REPO}}{{if isAbs .REPO}}{{.REPO}}{{else}}{{.USER_WORKING_DIR}}/{{.REPO}}{{end}}{{else}}{{.USER_WORKING_DIR}}{{end}}'
       DEV_PORT: '{{.PORT | default "5180"}}'
@@ -211,7 +211,7 @@ tasks:
           until curl --noproxy '*' --fail --silent --max-time 1 "$GHL_DEV_API/api/health" >/dev/null; do sleep 0.1; done
         timeout: 30s
       - >-
-        pnpm exec vite --mode go --host 127.0.0.1 --strictPort --port {{.DEV_PORT | shellQuote}}
+        pnpm exec vite --mode go-desktop --host 127.0.0.1 --strictPort --port {{.DEV_PORT | shellQuote}}
         {{if and (ne (.OPEN | default "true") "false") (ne (.OPEN | default "true") "0")}}--open {{.REVIEW_PATH | shellQuote}}{{end}}
 
   dev:tools:
