@@ -27,7 +27,7 @@ ghl --help
 
 Installation creates a symlink in `~/.local/bin` pointing to the local bundle; that directory must be on PATH. `BIN_DIR` overrides the command directory. Keep the bundle at its build location while using that link. `task install` refuses to replace a file that is not a link, such as a 0.2.0 browser CLI; `task uninstall` removes only the link. Released builds install through [Homebrew or mise](../docs/installation.md).
 
-`ghl comments` and `ghl --version` answer in the terminal and never reach the window. Any other invocation hands a canonical request to LaunchServices and returns.
+`ghl comments` and `ghl --version` answer in the terminal and never reach the window. Any other invocation delivers its review to the running app, or starts the app first, and returns once the app has queued it.
 
 The application menu supplies **File → Open repository** (`Cmd+O`), **File → Settings…** (`Cmd+,`), native Edit commands, close tab (`Cmd+W`), reload (`Cmd+R`) and quit (`Cmd+Q`). Settings sits under File because Wails v2 builds the application menu itself. Closing the window quits the app.
 
@@ -49,7 +49,7 @@ One Go process owns the native window and the [review server](../go/README.md). 
 
 The Wails module depends on the review server's Go module through a local module replacement. Its dependencies stay in the desktop module; the server module keeps its standard-library-only dependency set. The Wails asset handler forwards requests to the owned runtime, translating only the private document origin. The public runtime Host/Origin checks remain intact.
 
-Wails v2 notifications contain arguments without the executable and report the executable directory, rather than the terminal directory. The launcher resolves relative paths and canonicalizes arguments before handing them to Wails. Review URLs end in `/` so Wails injects its native runtime after a page reload. Tab navigation changes history and remounts the active review within the same native document. A late remembered-base write from an unmounted review cannot replace the next tab's URL. Revision numbers on native tab snapshots reject old replies.
+One app runs per user. It holds a lock file and listens on a Unix socket beside it, in the per-user temporary directory, before its backend or window starts. The launcher resolves relative paths from the terminal, sends the canonical request over that socket and waits for the app to queue it. With no app listening, it starts one through LaunchServices, which gives the window its Dock identity, and delivers once it listens; launchers that start apps at the same time all deliver to the one that wins the lock. Wails' own single-instance lock is not used: it listens only after the app has finished launching, and dropped requests sent in between. Requests from the socket are untrusted input, parsed with the same small argument surface. Review URLs end in `/` so Wails injects its native runtime after a page reload. Tab navigation changes history and remounts the active review within the same native document. A late remembered-base write from an unmounted review cannot replace the next tab's URL. Revision numbers on native tab snapshots reject old replies.
 
 ## Validation and limitations
 
@@ -77,6 +77,6 @@ The median physical footprint is **116.6 MiB after warming both tabs**, then **1
 
 The optional `GHL_DESKTOP_PROBE` path is a local acceptance-test script injected into the native document; it is unused in normal launches. Its unique path also isolates the test's instance lock, so fixture opens cannot join a user's running app. Smoke and memory runs point `GHL_DESKTOP_SETTINGS` at a temporary file, so they never read or change your settings. Tests do not open your personal Chrome or mutate a real repository. The clipboard check writes fixture Markdown to the system clipboard.
 
-During the local demonstration, a second invocation sent while the first window was still bootstrapping was not registered; retrying after the window was ready worked. Concurrent cold launches are not yet guaranteed by the Wails notification path. Wait for the first window before sending another review. This is tracked as a non-blocking follow-up in [#136](https://github.com/vmaerten/ghl/issues/136).
+`desktop/cold.py`, part of `task desktop:smoke`, launches two reviews and a duplicate at once on a cold app, three times: every review opens once, in one app.
 
 Builds are manual/local with ad hoc signing. Release signing, notarisation and automatic updates are not configured. Stable release tags run a hosted macOS job through `task release`; PRs and branch pushes do not run CI. Native hot reload is not configured; `task dev` runs the UI in a browser, on the Wails bindings simulated by `simulator.ts`, with React hot reload. Quit the app before rebuilding to load new embedded UI/server code. The envelope benchmark's RAM measurements do not measure this in-process integration; no memory saving is asserted here. Linux/Windows, native image interactions and restoration against a substantially changed diff remain outside this validation.
