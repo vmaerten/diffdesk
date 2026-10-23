@@ -218,6 +218,13 @@ Chaque écart avec ce plan et chaque particularité de Wails v2 rencontrée en r
 | 08 | Le panneau reste monté, masqué par `hidden`, pour garder le brouillon d'édition ; le smoke cible `.comments-panel:not([hidden])` au lieu de `[open]`. | Ajout au plan | — | — | — |
 | 08 | « View in diff » laisse désormais le panneau ouvert en desktop. | Ajout au plan | — | — | — |
 | 08 | Les fixtures du smoke n'ont qu'un fichier : `j`/`k` ne peuvent pas y changer de fichier. | Écart (test) | Le smoke vérifie à la place qu'un raccourci (`b`) marche panneau ouvert, hors brouillon en cours. | — | — |
+| Review | La version navigateur doit être retirée (décision du 23 octobre) : ses deux régressions trouvées en review (couleur des en-têtes collants, touches bloquées par la visionneuse d'images) ne sont pas corrigées, et la duplication avec les composants du navigateur (`ReviewTools`, en-tête) n'est pas factorisée. | Décision | — | — | — |
+| Review | Accent clair `#2a66c9` au lieu de `#3d87f5`, et un seul niveau de texte atténué (`--text-dim` à 60 % / 56 %) au lieu de `--text-2` et `--muted` : contraste AA et modèle de variables existant. | Écart (spec) | Conservé. | — | — |
+| Review | Unified/Split en texte plutôt qu'en icônes, comme Options et Copy. | Écart (spec) | Conservé. | — | — |
+| Review | Cartes : ni marge de 12 px, ni en-tête de 44 px, ni dossier atténué dans le chemin. Espacement et hauteur d'en-tête viennent de `@pierre/diffs` et de ses estimations de défilement ; le chemin est un seul texte dans son shadow DOM. | Contrainte (bibliothèque) | Conservé. | Identique. | Identique. |
+| Review | Valeurs de réglages hors bornes testées en TS, pas en Go : Go ne connaît pas le schéma. | Écart (test) | — | — | — |
+| Review | Raccourcis clavier affichés dans une feuille (menu Help), non prévue par le spec. | Ajout | Seule surface possible avec une fenêtre unique. | Fenêtre ou popover natif. | Seconde fenêtre possible. |
+| Review | Commits `refactor` qui changent un comportement (`3eb28ca`, `7c74f76`) : historique déjà publié, non réécrit. Les corrections de la review vont dans une PR 09 en haut de la pile. | Constat | — | — | — |
 
 ## Onglets : propositions
 
