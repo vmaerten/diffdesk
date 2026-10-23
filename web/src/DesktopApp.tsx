@@ -411,7 +411,7 @@ export default function DesktopApp() {
           <h1>ghl</h1>
           <p>Open a repository to start a review.</p>
           <button className="button primary" onClick={open}>
-            Open repository…
+            Open Repository… <kbd>⌘O</kbd>
           </button>
         </div>
       )}

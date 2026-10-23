@@ -334,6 +334,11 @@ body,
   margin: 0;
   font-size: 22px;
 }
+.desktop-empty kbd {
+  margin-left: 6px;
+  font: inherit;
+  opacity: 0.7;
+}
 .desktop-empty p {
   margin: 0 0 8px;
   color: var(--text-dim);
