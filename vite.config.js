@@ -25,18 +25,18 @@ export default defineConfig(({ mode }) => ({
   base: '/',
   plugins: [react({ compiler: true }), ...(mode === 'go-desktop' ? [desktopRuntime] : [])],
   build: {
-    outDir: mode === 'go-poc' ? '../go/cmd/ghl-go-poc/assets' : '../go/cmd/ghl/assets',
+    outDir: '../desktop/assets',
     emptyOutDir: true,
   },
   server: {
     port: 5180,
-    // In dev, Vite serves the UI and forwards data calls to a running `ghl`.
+    // In dev, Vite serves the UI and forwards data calls to the dev server (`task dev:go`).
     proxy: {
       '/r': {
-        target: process.env.GHL_DEV_API ?? 'http://localhost:7777',
+        target: process.env.GHL_DEV_API ?? 'http://127.0.0.1:5181',
         bypass: (req) => (req.url?.includes('/api/') ? undefined : req.url),
       },
-      '/api': process.env.GHL_DEV_API ?? 'http://localhost:7777',
+      '/api': process.env.GHL_DEV_API ?? 'http://127.0.0.1:5181',
     },
   },
 }))

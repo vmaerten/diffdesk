@@ -122,16 +122,17 @@ func TestSharedBackendNativeOriginAndShutdown(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatalf("comment: %d %s", w.Code, w.Body.String())
 	}
+	reopen, _ := json.Marshal(map[string]string{"repoPath": first})
 	for _, origin := range []string{"null", "wails://wails", ""} {
-		if w := request("POST", "/api/heartbeat", origin, "{}"); w.Code != 200 {
+		if w := request("POST", "/api/repos", origin, string(reopen)); w.Code != 200 {
 			t.Fatalf("native origin %q: %d", origin, w.Code)
 		}
 	}
-	if w := request("POST", "/api/heartbeat", "https://evil.example", "{}"); w.Code != 403 {
+	if w := request("POST", "/api/repos", "https://evil.example", string(reopen)); w.Code != 403 {
 		t.Fatal("external origin passed the bridge")
 	}
 	// The public listener still rejects Wails' custom origin.
-	req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/api/heartbeat", b.port), strings.NewReader("{}"))
+	req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/api/repos", b.port), strings.NewReader(string(reopen)))
 	req.Header.Set("Origin", "wails://wails")
 	client := &http.Client{Transport: &http.Transport{Proxy: nil}}
 	res, err := client.Do(req)

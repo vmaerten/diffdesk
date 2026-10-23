@@ -1,7 +1,7 @@
 import { loopbackURL } from './system.ts'
 import { goBinary } from './goBinary.ts'
 import assert from 'node:assert/strict'
-import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import {
   mkdirSync,
@@ -29,26 +29,10 @@ const stateFile = join(repo, '.git', 'ghl', 'state.json')
 const servers: ChildProcess[] = []
 let checks = 0
 
-function command(args: string[]) {
-  const result = spawnSync(binary, [...args, '--repo', repo], {
-    encoding: 'utf8',
-    timeout: 20_000,
-    env: { ...process.env, GHL_PORT: '' },
-  })
-  assert.ifError(result.error)
-  assert.equal(result.signal, null)
-  return result
-}
-
 async function start(repoPath = repo) {
-  const child = spawn(
-    binary,
-    ['--repo', repoPath, '--base', 'main', '--json', '--no-open', '--no-daemon', '--port', '0'],
-    {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, GHL_PORT: '' },
-    },
-  )
+  const child = spawn(binary, ['--repo', repoPath, '--base', 'main', '--port', '0'], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
   servers.push(child)
   let errors = ''
   child.stderr!.on('data', (chunk) => {
@@ -70,13 +54,16 @@ async function start(repoPath = repo) {
   }
 }
 
-async function request<T>(url: string, method = 'GET', body?: unknown): Promise<T> {
-  const response = await fetch(url, {
+const send = (url: string, method = 'GET', body?: unknown) =>
+  fetch(url, {
     method,
     headers: { 'content-type': 'application/json' },
     ...(method === 'GET' ? {} : { body: body === undefined ? undefined : JSON.stringify(body) }),
     signal: AbortSignal.timeout(20_000),
   })
+
+async function request<T>(url: string, method = 'GET', body?: unknown): Promise<T> {
+  const response = await send(url, method, body)
   assert.equal(response.status, 200, await response.clone().text())
   return response.json() as Promise<T>
 }
@@ -128,14 +115,6 @@ try {
     }),
   )
   const initial = readFileSync(stateFile, 'utf8')
-  // Old prototype data is untouched until explicitly imported.
-  for (const name of ['ghl-go', 'ghl-go-poc']) {
-    mkdirSync(join(repo, '.git', name))
-    writeFileSync(
-      join(repo, '.git', name, 'state.json'),
-      JSON.stringify({ version: 1, viewed: {}, comments: [{ ...seed, id: name }] }),
-    )
-  }
 
   let a = await start()
   let b = await start()
@@ -199,34 +178,6 @@ try {
   assert.equal(restarted.viewed['context.txt'], hash)
   checks++
 
-  const beforeImport = readFileSync(stateFile)
-  const source = join(repo, '.git', 'ghl-go', 'state.json')
-  const originalSource = readFileSync(source)
-  const imported = command(['--import-state', source, '--json'])
-  assert.equal(imported.status, 0, imported.stderr)
-  const report = JSON.parse(imported.stdout)
-  assert.equal(report.comments, 1)
-  assert.deepEqual(readFileSync(report.backup), beforeImport)
-  assert.deepEqual(readFileSync(source), originalSource)
-  const repeat = command(['--import-state', source, '--json'])
-  assert.equal(repeat.status, 0, repeat.stderr)
-  assert.deepEqual(JSON.parse(repeat.stdout), { comments: 0, viewed: 0, backup: null })
-  const pocSource = join(repo, '.git', 'ghl-go-poc', 'state.json')
-  assert.equal(command(['--import-state', pocSource]).status, 0)
-  checks += 5
-  const conflictFile = join(root, 'conflict.json')
-  writeFileSync(
-    conflictFile,
-    JSON.stringify({ version: 1, viewed: {}, comments: [{ ...seed, body: 'conflict' }] }),
-  )
-  const beforeConflict = readFileSync(stateFile)
-  const conflict = command(['--import-state', conflictFile, '--json'])
-  assert.equal(conflict.status, 1)
-  assert.equal(conflict.stdout, '')
-  assert.match(conflict.stderr, /Import conflict/)
-  assert.deepEqual(readFileSync(stateFile), beforeConflict)
-  checks++
-
   const linked = join(root, 'linked')
   git('worktree', 'add', '-q', '-b', 'linked', linked, 'HEAD')
   const linkedServer = await start(linked)
@@ -247,13 +198,9 @@ try {
     { encoding: 'utf8' },
   ).trim()
   assert.notEqual(linkedFile, stateFile)
-  const linkedRead = spawnSync(binary, ['comments', '--repo', linked, '--base', 'main', '--json'], {
-    encoding: 'utf8',
-    timeout: 20_000,
-  })
-  assert.equal(linkedRead.status, 0, linkedRead.stderr)
+  const linkedRead = await request<DiffPayload>(linkedServer.url + '/api/diff')
   assert.deepEqual(
-    JSON.parse(linkedRead.stdout).comments.map((c: { id: string }) => c.id),
+    linkedRead.comments.map((c) => c.id),
     ['linked-only'],
   )
   assert.equal(
@@ -264,27 +211,25 @@ try {
 
   const future = '{"version":2,"viewed":{},"comments":[]}'
   writeFileSync(stateFile, future)
-  const unsupported = command(['comments', '--base', 'main', '--json'])
-  assert.equal(unsupported.status, 1)
-  assert.match(unsupported.stderr, /Unsupported review state version/)
+  const unsupported = await send(a.url + '/api/diff')
+  assert.notEqual(unsupported.status, 200)
+  assert.match(await unsupported.text(), /Unsupported review state version/)
   assert.equal(readFileSync(stateFile, 'utf8'), future)
   checks += 2
   writeFileSync(stateFile, '{corrupt-one')
-  const corrupt = command(['comments', '--base', 'main', '--json'])
-  assert.equal(corrupt.status, 0, corrupt.stderr)
-  assert.match(corrupt.stderr, /\.corrupt/)
-  assert.deepEqual(JSON.parse(corrupt.stdout).comments, [])
+  const corrupt = await request<DiffPayload>(a.url + '/api/diff')
+  assert.match(corrupt.notice ?? '', /\.corrupt/)
+  assert.deepEqual(corrupt.comments, [])
   writeFileSync(stateFile, '{corrupt-two')
-  const recovered = command(['comments', '--base', 'main', '--json'])
-  assert.equal(recovered.status, 0, recovered.stderr)
-  assert.match(recovered.stderr, /\.corrupt/)
+  const recovered = await request<DiffPayload>(a.url + '/api/diff')
+  assert.match(recovered.notice ?? '', /\.corrupt/)
   const backups = readdirSync(join(repo, '.git', 'ghl'))
     .filter((file) => file.endsWith('.corrupt'))
     .map((file) => readFileSync(join(repo, '.git', 'ghl', file), 'utf8'))
   assert.deepEqual(backups.toSorted(), ['{corrupt-one', '{corrupt-two'])
   checks += 2
   console.log(
-    `Go state: ${checks} checks passed (Go process concurrency, imports, worktrees and schema compatibility)`,
+    `Go state: ${checks} checks passed (Go process concurrency, worktrees and schema compatibility)`,
   )
 } finally {
   for (const child of servers) {

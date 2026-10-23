@@ -139,11 +139,6 @@ type Review struct {
 }
 
 // Resolve once. Patch, statistics, hashes and context all describe these versions.
-func (r Repository) Compare(ctx context.Context, base string, committed bool) (*Review, error) {
-	return r.compare(ctx, Selection{Base: base, Committed: committed}, false)
-}
-
-// Resolve restores production selection while Compare keeps the isolated PoC.
 func (r Repository) Resolve(ctx context.Context, selection Selection) (*Review, error) {
 	return r.compare(ctx, selection, true)
 }

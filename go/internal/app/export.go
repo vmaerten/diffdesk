@@ -91,6 +91,21 @@ func writeCommentExport(comments []ServedComment, repo, comparison string, jsonO
 	return err
 }
 
+// ExportComments writes the branch's comments on the files of a comparison, as
+// Markdown or JSON, with their code. Untracked files count as part of it.
+func ExportComments(ctx context.Context, repoPath string, selection Selection, jsonOutput bool, stdout, stderr io.Writer) error {
+	repo, err := openRepository(ctx, repoPath)
+	if err != nil {
+		return err
+	}
+	selection.IncludeUntracked = true
+	review, err := repo.Resolve(ctx, selection)
+	if err != nil {
+		return err
+	}
+	return writeComments(ctx, review, storeFor(repo), jsonOutput, stdout, stderr)
+}
+
 func writeComments(ctx context.Context, review *Review, store *Store, jsonOutput bool, stdout, stderr io.Writer) error {
 	state, notice, err := store.Snapshot(ctx)
 	if err != nil {
@@ -118,51 +133,4 @@ func writeComments(ctx context.Context, review *Review, store *Store, jsonOutput
 		return err
 	}
 	return writeCommentExport(comments, review.repo.Path, review.Range, jsonOutput, stdout)
-}
-
-func writeSummary(review *Review, target string, out io.Writer) error {
-	source := map[string]string{
-		"override": "given on the command line", "remembered": "remembered in .git/config",
-		"stack": "what the gh stack chain says this sits on", "trunk": "repository trunk",
-	}
-	if review.Resolution.Distance != nil {
-		source["guessed"] = fmt.Sprintf("guessed (stacked branch, %d commit(s))", *review.Resolution.Distance)
-	}
-	if target == "" {
-		target = review.Target + " + working tree"
-	}
-	// Match Node's --print: count the patch itself, excluding file headers.
-	var files, additions, deletions int
-	for _, line := range strings.Split(review.Patch, "\n") {
-		switch {
-		case strings.HasPrefix(line, "diff --git "):
-			files++
-		case strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++"):
-			additions++
-		case strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "---"):
-			deletions++
-		}
-	}
-	var text strings.Builder
-	fmt.Fprintf(&text, "repo      %s\nreviewing %s\nbase      %s  — %s\nchanges   %d file(s), +%d -%d\nuntracked %d file(s) (excluded)\n",
-		review.repo.Path, target, review.Base, source[review.Resolution.Source], files, additions, deletions, len(review.Untracked))
-	if chain := review.Resolution.Stack; chain != nil {
-		layers := []string{chain.Trunk}
-		for i, layer := range chain.Layers {
-			label := layer.Branch
-			if layer.PR != nil {
-				label += fmt.Sprintf(" #%d", layer.PR.Number)
-			}
-			if layer.Merged {
-				label += " (merged)"
-			}
-			if i == chain.Current {
-				label = "[" + label + "]"
-			}
-			layers = append(layers, label)
-		}
-		fmt.Fprintf(&text, "stack     %s\n", strings.Join(layers, " → "))
-	}
-	_, err := io.WriteString(out, text.String())
-	return err
 }

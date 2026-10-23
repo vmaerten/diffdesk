@@ -227,65 +227,9 @@ tasks:
       - GOBIN={{.ROOT_DIR | shellQuote}}/.task/bin {{.GO_ROOT | shellQuote}}/bin/go install github.com/air-verse/air@{{.AIR_VERSION}}
 
   build:
-    desc: Build the embedded Go executable
+    desc: Build the review server without the desktop window, for the tests
     cmds:
-      - task: build:binary
-        vars: { MODE: go, COMMAND: ghl, OUTPUT: go/dist/ghl }
-
-  run:
-    desc: Build and run the default Go CLI (arguments after --)
-    cmds:
-      - task build >&2
-      - ./go/dist/ghl {{.CLI_ARGS}}
-
-  install:
-    desc: Build and atomically install the Go CLI locally (optional BIN_DIR)
-    deps: [build]
-    vars:
-      INSTALL_DIR: '{{.BIN_DIR | default (printf "%s/.local/bin" (env "HOME"))}}'
-    cmds:
-      - |
-        install_dir={{.INSTALL_DIR | shellQuote}}
-        mkdir -p "$install_dir"
-        if [ -d "$install_dir/ghl" ]; then
-          echo "Cannot replace directory: $install_dir/ghl" >&2
-          exit 1
-        fi
-        install_tmp=$(mktemp "$install_dir/.ghl-install.XXXXXX") || exit 1
-        trap 'rm -f "$install_tmp"' EXIT
-        cp go/dist/ghl "$install_tmp"
-        chmod 755 "$install_tmp"
-        mv -f "$install_tmp" "$install_dir/ghl"
-        printf 'installed %s\n' "$install_dir/ghl"
-
-  uninstall:
-    desc: Remove the locally installed CLI; preserve repository state
-    vars:
-      INSTALL_DIR: '{{.BIN_DIR | default (printf "%s/.local/bin" (env "HOME"))}}'
-    cmds:
-      - rm -f {{printf "%s/ghl" .INSTALL_DIR | shellQuote}}
-
-  build:binary:
-    internal: true
-    vars:
-      BUILD_VERSION: *build-version
-      BUILD_COMMIT: *build-commit
-      BUILD_DATE: *build-date
-      LDFLAGS: >-
-        -s -w
-        -X github.com/vmaerten/ghl/internal/app.version={{.BUILD_VERSION}}
-        -X github.com/vmaerten/ghl/internal/app.commit={{.BUILD_COMMIT}}
-        -X github.com/vmaerten/ghl/internal/app.buildDate={{.BUILD_DATE}}
-    preconditions:
-      - sh: '{{and (regexMatch `^[^\s''"]+$` .BUILD_VERSION) (regexMatch `^[^\s''"]+$` .BUILD_COMMIT)}}'
-        msg: Invalid build version or commit (empty, whitespace or quotes)
-    cmds:
-      - pnpm exec vite build --mode {{.MODE | shellQuote}}
-      # Vite removes the tracked placeholder while cleaning its output.
-      - touch {{printf "go/cmd/%s/assets/.gitkeep" .COMMAND | shellQuote}}
-      - >-
-        CGO_ENABLED=0 go -C go build -trimpath -ldflags={{.LDFLAGS | shellQuote}}
-        -o {{printf "../%s" .OUTPUT | shellQuote}} {{printf "./cmd/%s" .COMMAND | shellQuote}}
+      - CGO_ENABLED=0 go -C go build -trimpath -o dist/ghl-dev ./cmd/ghl-dev
 
   test:
     desc: Test the Go runtime, API contracts and the desktop UI
@@ -293,21 +237,13 @@ tasks:
       - task: build
       - task: desktop:assets
       - task: test:go
-      - node test/goCLI.ts
-      - node test/goDaemon.ts
       - node test/goState.ts
-      - node test/goPoc.ts go
       - node test/goRevisions.ts
       - node test/goImages.ts
       - node test/run.ts
       - node test/desktopTabs.ts
       - task: desktop:test
       - task: test:release
-
-  test:install:
-    desc: Verify local Go installation, upgrades and state preservation
-    cmds:
-      - node test/goLocalInstall.ts
 
   test:go:
     desc: Run Go tests with the race detector
@@ -412,16 +348,6 @@ tasks:
       - node test/releaseGuards.ts
       - python3 desktop/release.py verify
 
-  release:acceptance:
-    desc: Run contract, lifecycle and browser suites against the release archive
-    cmds:
-      - node test/goAcceptance.ts
-
-  release:bench:
-    desc: Benchmark the extracted release executable (three passes)
-    cmds:
-      - node test/goAcceptance.ts --bench
-
   release:mise:
     desc: Verify mise installation, PATH, upgrades and rollback against a local release fixture
     cmds:
@@ -444,21 +370,3 @@ tasks:
     cmds:
       - node scripts/test-browser.ts
 
-  bench:
-    desc: Benchmark production Go on shared fixtures (three passes)
-    cmds:
-      - task: build
-      - python3 scripts/bench-runtime/run.py
-
-  poc:build:
-    desc: Build the isolated Go PoC
-    cmds:
-      - task: build:binary
-        vars: { MODE: go-poc, COMMAND: ghl-go-poc, OUTPUT: poc/go/dist/ghl-go-poc }
-
-  poc:test:
-    desc: Test the isolated Go PoC
-    cmds:
-      - task: poc:build
-      - task: test:go
-      - node test/goPoc.ts

@@ -71,7 +71,6 @@ func TestProductionSelectionsShareExactVersions(t *testing.T) {
 
 func TestRememberedChoicesAndURLClearing(t *testing.T) {
 	s := testServer(t)
-	s.base = "HEAD" // A CLI choice must not be a server-side fallback.
 	w := api(t, s, "GET", "diff?base=HEAD", nil)
 	requireStatus(t, w, 200)
 	var payload struct {

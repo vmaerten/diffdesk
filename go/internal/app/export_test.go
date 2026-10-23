@@ -64,10 +64,10 @@ func TestReadingOrderIsStableAndIndependentOfLocale(t *testing.T) {
 	}
 }
 
-func TestCLIExportsOnlyCurrentFilesAndReportsCorruption(t *testing.T) {
+func TestExportKeepsCurrentFilesAndReportsCorruption(t *testing.T) {
 	ctx := context.Background()
 	r := fixture(t)
-	store := Options{}.store(r)
+	store := storeFor(r)
 	_, err := store.Mutate(context.Background(), func(state *StoredState) error {
 		for id, path := range map[string]string{"current": "context.txt", "outside": "old name é.txt", "untracked": "untracked.txt"} {
 			state.Comments = append(state.Comments, Comment{ID: id, Path: path, Side: "additions", Start: 10, End: 10, Body: id, Anchor: []string{"old"}, Range: "historic..feature", CreatedAt: "2020-01-01T00:00:00.000Z"})
@@ -78,16 +78,16 @@ func TestCLIExportsOnlyCurrentFilesAndReportsCorruption(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
-	code := Main(ctx, []string{"comments", "--repo", r.Path, "--base", "main", "--json"}, &stdout, &stderr, Options{})
-	if code != 0 || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"id": "current"`) || !strings.Contains(stdout.String(), `"id": "untracked"`) || strings.Contains(stdout.String(), `"id": "outside"`) {
-		t.Fatalf("wrong selection: %d %s %s", code, stdout.String(), stderr.String())
+	err = ExportComments(ctx, r.Path, Selection{Base: "main"}, true, &stdout, &stderr)
+	if err != nil || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"id": "current"`) || !strings.Contains(stdout.String(), `"id": "untracked"`) || strings.Contains(stdout.String(), `"id": "outside"`) {
+		t.Fatalf("wrong selection: %v %s %s", err, stdout.String(), stderr.String())
 	}
 	if err := os.WriteFile(store.path, []byte("corrupt"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	stdout.Reset()
-	code = Main(ctx, []string{"comments", "--repo", r.Path, "--base", "main", "--json"}, &stdout, &stderr, Options{})
-	if code != 0 || !json.Valid(stdout.Bytes()) || !strings.Contains(stderr.String(), ".corrupt") {
-		t.Fatalf("corruption lost or polluted JSON: %d %s %s", code, stdout.String(), stderr.String())
+	err = ExportComments(ctx, r.Path, Selection{Base: "main"}, true, &stdout, &stderr)
+	if err != nil || !json.Valid(stdout.Bytes()) || !strings.Contains(stderr.String(), ".corrupt") {
+		t.Fatalf("corruption lost or polluted JSON: %v %s %s", err, stdout.String(), stderr.String())
 	}
 }
