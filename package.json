@@ -4,16 +4,10 @@
   "private": true,
   "description": "Review the PR you are about to open, without opening it",
   "license": "MIT",
-  "bin": {
-    "ghl": "./go/dist/ghl"
-  },
   "type": "module",
   "scripts": {
     "build": "task build",
     "dev": "task dev",
-    "ghl": "task run --",
-    "install:local": "task install",
-    "uninstall:local": "task uninstall",
     "test": "task test",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint scripts src test web/src desktop/bridge.js desktop/simulator.ts vite.config.js",
@@ -22,9 +16,7 @@
     "format:check": "oxfmt --check scripts src test web/src desktop/bridge.js desktop/simulator.ts desktop/native-smoke.js desktop/memory-probe.js vite.config.js",
     "go:build": "task build",
     "go:test": "task test",
-    "go:vet": "task vet",
-    "poc:go:build": "task poc:build",
-    "poc:go:test": "task poc:test"
+    "go:vet": "task vet"
   },
   "dependencies": {
     "@pierre/diffs": "^1.3.5",

@@ -1,11 +1,7 @@
 node_modules/
 web-dist/
 *.log
-poc/go/assets/*
-poc/go/dist/
 go/dist/
-go/cmd/*/assets/*
-!go/cmd/*/assets/.gitkeep
 .task/
 .pnpm-store/
 __pycache__/
