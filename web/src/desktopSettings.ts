@@ -63,5 +63,5 @@ export function codeFontFamily(font: string): string {
 }
 
 export function codeLineHeight(size: number): number {
-  return Math.round((size * 5) / 3)
+  return Math.round(size * 1.65)
 }

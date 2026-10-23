@@ -592,7 +592,7 @@ button.ref:hover:not(:disabled) {
 }
 
 .body {
-  --sidebar-width: 300px;
+  --sidebar-width: 272px;
   display: flex;
   flex: 1;
   min-height: 0;
