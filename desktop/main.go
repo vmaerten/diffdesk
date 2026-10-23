@@ -131,7 +131,7 @@ func run() error {
 	appMenu.Append(menu.EditMenu())
 	viewMenu := appMenu.AddSubmenu("View")
 	viewMenu.AddText("Toggle Sidebar", keys.Combo("s", keys.ControlKey, keys.CmdOrCtrlKey), command("sidebar"))
-	viewMenu.AddText("Refresh", keys.CmdOrCtrl("r"), command("reload"))
+	viewMenu.AddText("Reload", keys.CmdOrCtrl("r"), command("reload"))
 	viewMenu.AddSeparator()
 	viewMenu.AddText("Unified", keys.CmdOrCtrl("1"), command("unified"))
 	viewMenu.AddText("Split", keys.CmdOrCtrl("2"), command("split"))
