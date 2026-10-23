@@ -83,6 +83,11 @@ body {
   --diffs-bg-separator-override: var(--diff-separator);
   --diffs-fg-number-override: var(--text-dim);
 }
+/* The macOS focus ring: a soft accent halo rather than the browser outline. */
+.desktop-shell :is(button, summary, select, input, textarea, a):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+}
 /* macOS controls keep the arrow: the pointing hand is a web convention. */
 .desktop-shell :is(button, summary, select, label, input[type='checkbox'], .picker-item) {
   cursor: default;
