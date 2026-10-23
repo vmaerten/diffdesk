@@ -25,7 +25,7 @@ The browser installer downloads into the ignored `.task/browser/` directory, and
 | Gate | Behavior exercised |
 | --- | --- |
 | `task test` | Go race tests, state concurrency and schema compatibility (`goState.ts`), revision contracts (`goRevisions.ts`), image API and previews (`goImages.ts`), the shared UI suites on the built desktop UI (`run.ts`), tab restoration (`desktopTabs.ts`), the desktop Go tests and the release flow |
-| `task desktop:smoke` | The real WebKit window on fixtures: comments, the native clipboard, Viewed, tabs, reuse of the running window, Settings, menus, shutdown and restart |
+| `task desktop:smoke` | The real WebKit window on fixtures: comments, the native clipboard, Viewed, tabs, reuse of the running window, Settings, menus, shutdown and restart, then concurrent cold launches |
 | `release:snapshot` | The archive itself: checksum, members, bundle metadata, minimum macOS, notices, signature, `ghl --version` and the native smoke test on the extracted app outside the checkout |
 | `release:mise` | Installation through the real mise client: PATH, shims, terminal commands with only Git, the window from the mise install, upgrade, rollback, corrupt downloads and uninstall |
 

@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -50,7 +49,7 @@ func (request launch) arguments() []string {
 	return args
 }
 
-// Instance notifications are untrusted input; accept only this small CLI surface.
+// Deliveries from other processes are untrusted input; accept only this small CLI surface.
 func parseLaunch(args []string, cwd string) (launch, error) {
 	result := launch{repo: cwd}
 	if !filepath.IsAbs(cwd) {
@@ -122,22 +121,13 @@ func (d *desktopApp) runtimeContext() context.Context {
 	return d.ctx
 }
 
-func (d *desktopApp) secondLaunch(data options.SecondInstanceData) {
-	// Wails v2 sends os.Args[1:] and the executable directory, not terminal cwd.
-	// main canonicalizes --repo before Wails constructs this notification.
-	request, err := parseLaunch(data.Args, data.WorkingDirectory)
-	if err != nil {
-		d.showError(err)
-		return
-	}
-	d.enqueue(request)
-}
-
-func (d *desktopApp) enqueue(request launch) {
+// enqueue queues a request for the window without waiting for it to open.
+func enqueue(requests chan<- launch, request launch) error {
 	select {
-	case d.requests <- request:
+	case requests <- request:
+		return nil
 	default:
-		d.showError(fmt.Errorf("too many pending openings; retry"))
+		return fmt.Errorf("too many pending openings; retry")
 	}
 }
 
@@ -175,7 +165,9 @@ func (d *desktopApp) chooseRepository() {
 		return
 	}
 	if path != "" {
-		d.enqueue(launch{repo: path})
+		if err := enqueue(d.requests, launch{repo: path}); err != nil {
+			d.showError(err)
+		}
 	}
 }
 

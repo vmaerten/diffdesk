@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/menu"
@@ -66,10 +67,20 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	// Wails changes cwd to the executable directory before sending a second
-	// instance notification. Preserve the terminal's cwd in canonical arguments.
-	os.Args = append([]string{os.Args[0]}, initial.arguments()...)
+	// Local acceptance tests may supply a probe; its path also keeps their app
+	// apart from the user's.
+	probePath := os.Getenv("GHL_DESKTOP_PROBE")
+	instanceID := "cf7c8359-dbb0-4c1c-a09f-301b26d2a917"
+	if probePath != "" {
+		instanceID = fmt.Sprintf("ghl-test-%x", sha256.Sum256([]byte(probePath)))
+	}
+	// Per user on macOS, and the socket path must stay short.
+	dir := os.TempDir()
 	if !windowMode {
+		// A running app takes the review at once.
+		if err := deliver(dir, instanceID, initial, 0); !errors.Is(err, errNoApp) {
+			return err
+		}
 		executable, err := os.Executable()
 		if err != nil {
 			return err
@@ -82,14 +93,38 @@ func run() error {
 		if filepath.Ext(bundle) != ".app" {
 			return fmt.Errorf("run ghl from its .app bundle (task desktop:run)")
 		}
-		// LaunchServices gives the window a Dock identity and lets the terminal
-		// return. -n delivers later requests through Wails' single-instance callback.
+		// LaunchServices gives the window a Dock identity. Concurrent launchers may
+		// each start one: a single app wins the lock and they all deliver to it.
 		openArgs := []string{"-n", "-a", bundle}
-		if probe := os.Getenv("GHL_DESKTOP_PROBE"); probe != "" {
-			openArgs = append(openArgs, "--env", "GHL_DESKTOP_PROBE="+probe)
+		if probePath != "" {
+			openArgs = append(openArgs, "--env", "GHL_DESKTOP_PROBE="+probePath)
 		}
-		openArgs = append(openArgs, "--args", "--desktop-window")
-		return exec.Command("/usr/bin/open", append(openArgs, os.Args[1:]...)...).Run()
+		if err := exec.Command("/usr/bin/open", append(openArgs, "--args", "--desktop-window")...).Run(); err != nil {
+			return err
+		}
+		if err := deliver(dir, instanceID, initial, 20*time.Second); errors.Is(err, errNoApp) {
+			return fmt.Errorf("the ghl app did not start")
+		} else {
+			return err
+		}
+	}
+	requests := make(chan launch, 16)
+	owner, err := claimInstance(dir, instanceID)
+	if err != nil {
+		return err
+	}
+	if owner == nil {
+		// Another app runs: hand it this window's review, if any, and leave.
+		if len(args) == 0 {
+			return nil
+		}
+		return deliver(dir, instanceID, initial, 5*time.Second)
+	}
+	defer owner.close()
+	// Listening before the backend starts: a request sent during startup waits in the queue.
+	go owner.serve(func(request launch) error { return enqueue(requests, request) })
+	if len(args) > 0 {
+		requests <- initial
 	}
 	assets, err := fs.Sub(embedded, "assets")
 	if err != nil {
@@ -102,23 +137,19 @@ func run() error {
 		return err
 	}
 	defer backend.close()
-	// Local acceptance tests may supply a probe; no test script runs by default.
+	// No test script runs by default.
 	var probe []byte
-	instanceID := "cf7c8359-dbb0-4c1c-a09f-301b26d2a917"
-	if path := os.Getenv("GHL_DESKTOP_PROBE"); path != "" {
-		probe, err = os.ReadFile(path)
+	if probePath != "" {
+		probe, err = os.ReadFile(probePath)
 		if err != nil {
 			return err
 		}
-		// Fixture windows must never join the user's running desktop app.
-		instanceID = fmt.Sprintf("ghl-test-%x", sha256.Sum256([]byte(path)))
 	}
 	settings, err := newSettingsStore()
 	if err != nil {
 		return err
 	}
-	desktop := &desktopApp{backend: backend, requests: make(chan launch, 16), settings: settings}
-	desktop.requests <- initial
+	desktop := &desktopApp{backend: backend, requests: requests, settings: settings}
 	// Every menu item reaches the page as one named command: the shell takes the
 	// window's, the mounted review the rest. Single-letter shortcuts stay in the
 	// page, since a key without a modifier would also capture typing.
@@ -204,9 +235,5 @@ func run() error {
 			desktop.ready.Do(func() { go desktop.process(ctx) })
 		},
 		OnShutdown: func(context.Context) { backend.close() },
-		SingleInstanceLock: &options.SingleInstanceLock{
-			UniqueId:               instanceID,
-			OnSecondInstanceLaunch: desktop.secondLaunch,
-		},
 	})
 }

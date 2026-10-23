@@ -9,6 +9,7 @@ ghl is now a macOS app. `ghl` opens or activates a review tab in one native wind
 - Install with Homebrew, `brew install --cask vmaerten/tap/ghl`, or keep mise's `github:vmaerten/ghl`, which moves to the app on upgrade. ([#173](https://github.com/vmaerten/ghl/pull/173))
 - Review in a macOS-style window: review tabs in a unified title bar holding the comparison controls, a translucent file sidebar, files as cards, a comments side panel beside the diff, a status bar and native menus. ([#155](https://github.com/vmaerten/ghl/pull/155)–[#164](https://github.com/vmaerten/ghl/pull/164))
 - Choose the appearance (System, Light or Dark), a syntax theme for each mode and the code font and size in Settings. ([#157](https://github.com/vmaerten/ghl/pull/157))
+- Open every review requested while the app is still starting, once each; a launch that cannot reach the app now fails with an error instead of returning silently. ([#136](https://github.com/vmaerten/ghl/issues/136))
 - Keep comments and Viewed in the same `.git/ghl/state.json`. Settings saved by the earlier `ghl Desktop` build are read until the first change.
 
 ## 0.2.0
