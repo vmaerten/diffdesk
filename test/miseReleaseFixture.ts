@@ -1,7 +1,6 @@
-import { archiveName, desktopArchiveName, releaseTarget, RELEASE_TARGETS } from './releaseTarget.ts'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { appendFileSync, copyFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { cpSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 
@@ -22,41 +21,44 @@ export interface Release {
 
 export const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
 
+export const archiveName = (version: string) => `ghl_${version}_darwin_arm64.zip`
+
+/** Where the command lives in the archive, which is where mise puts it on PATH. */
+export const EXECUTABLE = 'ghl.app/Contents/MacOS/ghl'
+
 /** Real mise client/backend, local release API; no tags or releases are created. */
-export async function miseReleaseFixture(
-  directory: string,
-  archive: string,
-  desktopArchive: string,
-) {
+export async function miseReleaseFixture(directory: string, archive: string) {
+  const candidate = readFileSync(archive)
   const extracted = join(directory, 'candidate')
-  mkdirSync(extracted)
-  execFileSync('tar', ['-xzf', archive, '-C', extracted])
-  const desktopBytes = readFileSync(desktopArchive)
+  execFileSync('ditto', ['-x', '-k', archive, extracted])
+  // A distinct predecessor that still runs: the same build with another bundle
+  // marker, signed again. This is not a historical release test.
+  const predecessor = join(directory, 'predecessor')
+  cpSync(extracted, predecessor, { recursive: true })
+  execFileSync('plutil', [
+    '-insert',
+    'GHLFixture',
+    '-string',
+    'predecessor',
+    join(predecessor, 'ghl.app/Contents/Info.plist'),
+  ])
+  execFileSync('codesign', ['--force', '--deep', '--sign', '-', join(predecessor, 'ghl.app')])
+  const predecessorArchive = join(directory, 'predecessor.zip')
+  execFileSync(
+    'zip',
+    ['-qry', predecessorArchive, 'ghl.app', 'LICENSE', 'THIRD_PARTY_NOTICES.txt'],
+    {
+      cwd: predecessor,
+    },
+  )
+  const executables = new Map<string, string>()
   const assets = new Map<string, Buffer>()
   const releases: Release[] = []
   const requested: string[] = []
   let available = ['v1.0.0']
-  const add = (version: string, previous = false, corrupt = false) => {
-    const contents = join(directory, version)
-    mkdirSync(contents)
-    for (const name of ['ghl', 'LICENSE', 'THIRD_PARTY_NOTICES.txt'])
-      copyFileSync(join(extracted, name), join(contents, name))
-    // Synthetic predecessor, as in goDaemon.ts: distinct executable identity,
-    // same production build metadata. This is not a historical release test.
-    if (previous) appendFileSync(join(contents, 'ghl'), '\nprevious mise fixture\n')
+  const add = (version: string, from: string, bytes: Buffer, corrupt = false) => {
+    executables.set(version, sha256(readFileSync(join(from, EXECUTABLE))))
     const name = archiveName(version)
-    const output = join(directory, name)
-    execFileSync('tar', [
-      '-czf',
-      output,
-      '-C',
-      contents,
-      'ghl',
-      'LICENSE',
-      'THIRD_PARTY_NOTICES.txt',
-    ])
-    const bytes = readFileSync(output)
-    const desktopName = desktopArchiveName(version)
     const digest = corrupt ? '0'.repeat(64) : sha256(bytes)
     const release: Release = {
       tag_name: `v${version}`,
@@ -65,24 +67,10 @@ export async function miseReleaseFixture(
       created_at: '2026-09-01T00:00:00Z',
       assets: [],
     }
-    // Distinct non-archives make choosing a different architecture fail loudly.
-    const archives = RELEASE_TARGETS.map((target): [string, Buffer] => [
-      archiveName(version, target),
-      target === releaseTarget() ? bytes : Buffer.from(`wrong target ${target}\n`),
-    ])
-    const sums = archives
-      .map(
-        ([filename, payload]) => `${filename === name ? digest : sha256(payload)}  ${filename}\n`,
-      )
-      .join('')
     for (const [filename, payload] of [
-      [desktopName, desktopBytes] as [string, Buffer],
-      ...archives,
-      ['checksums.txt', Buffer.from(`${sha256(desktopBytes)}  ${desktopName}\n${sums}`)] as [
-        string,
-        Buffer,
-      ],
-    ]) {
+      [name, bytes],
+      ['checksums.txt', Buffer.from(`${digest}  ${name}\n`)],
+    ] as [string, Buffer][]) {
       const download = `/vmaerten/ghl/releases/download/v${version}/${filename}`
       const api = `/repos/vmaerten/ghl/releases/assets/${assets.size + 1}`
       assets.set(download, payload)
@@ -92,15 +80,16 @@ export async function miseReleaseFixture(
         browser_download_url: `https://github.com${download}`,
         url: `https://api.github.com${api}`,
         // Exercise the published checksum file fallback for the predecessor.
-        digest: previous ? null : `sha256:${filename === name ? digest : sha256(payload)}`,
+        digest:
+          from === predecessor ? null : `sha256:${filename === name ? digest : sha256(payload)}`,
       })
     }
     releases.push(release)
   }
-  add('1.0.0', true)
-  add('1.0.1')
-  add('1.1.0-rc.1')
-  add('1.0.2', false, true)
+  add('1.0.0', predecessor, readFileSync(predecessorArchive))
+  add('1.0.1', extracted, candidate)
+  add('1.1.0-rc.1', extracted, candidate)
+  add('1.0.2', extracted, candidate, true)
   const server = createServer((request, response) => {
     const path = new URL(request.url ?? '/', 'http://fixture.invalid').pathname
     requested.push(path)
@@ -130,6 +119,8 @@ export async function miseReleaseFixture(
   return {
     origin: `http://127.0.0.1:${address.port}`,
     requested,
+    /** The executable each version installs, as a SHA-256. */
+    executables,
     publishNext: () => {
       available = ['v1.1.0-rc.1', 'v1.0.1', 'v1.0.0']
     },
