@@ -89,22 +89,22 @@ La release v0.2.0 ne contient pas de zip desktop. Le spike a donc reconditionné
 
 Les suites de `test/run.ts`, celles que rejoue `goRevisions.ts`, les tests d'images et `desktopTabs.ts` chargent l'UI desktop de production (`task desktop:assets`), servie par `vite preview` avec les appels d'API relayés au serveur Go, dans Chrome headless. Les bindings Wails sont simulés par `desktop/simulator.ts` et le vrai `bridge.js` est injecté. Les sélecteurs suivent les zones desktop (barre de titre, popover Options, barre d'état, panneau de commentaires). `task dev` sert la même UI avec le hot reload, sur la même simulation. Cette PR précède toute suppression, pour garder la couverture des commentaires, de l'arbre, de la recherche et du Viewed.
 
-### 02 · `desktop-release/02-remove-web-ui` — Supprimer l'interface navigateur
+### 02 · `desktop-release/02-go-runtime` — Serveur intégré seulement
 
-Supprimer le rendu `App` hors desktop dans `main.tsx`, les branches `GO_DESKTOP` et `GO_POC`, les composants réservés au navigateur (`RepoBar`, `ThemePicker`, contrôles d'en-tête GitHub, mise en page mobile), le thème lu dans le `localStorage` et le CSS GitHub de `styles.css`. Les modes Vite `go` et `go-poc` disparaissent ; `go-desktop` devient le seul build.
+Supprimer `go/cmd/ghl`, `go/cmd/ghl-go-poc`, l'ouverture du navigateur, le daemon partagé (port 7777, inactivité, découverte et remplacement du runtime) et l'hôte `ghl.localhost`. Exposer une entrée de bibliothèque, par exemple `app.Serve(ctx, listener, assets)`, que `desktop/backend.go` appelle à la place de `app.Main(--daemon --port 0 --idle 0)`. Garder l'API, l'état, les révisions, les images et l'export. Retirer les tests et tâches devenus sans objet : `goCLI`, `goDaemon`, `goLocalInstall`, `goPoc` et `poc:*`. `goDev` reste et suit le serveur de dev.
 
-### 03 · `desktop-release/03-fast-ui-tests` — Tests UI plus rapides
+### 03 · `desktop-release/03-remove-web-ui` — Supprimer l'interface navigateur
+
+Après la PR 02, plus rien ne sert l'interface navigateur : c'est du code mort. Supprimer le rendu `App` hors desktop dans `main.tsx`, les branches `GO_DESKTOP` et `GO_POC`, les composants réservés au navigateur (`RepoBar`, `ThemePicker`, contrôles d'en-tête GitHub, mise en page mobile), le thème lu dans le `localStorage` et le CSS GitHub de `styles.css`. Les modes Vite `go` et `go-poc` disparaissent ; `go-desktop` devient le seul build.
+
+### 04 · `desktop-release/04-fast-ui-tests` — Tests UI plus rapides
 
 `test/run.ts` prend 294 s, autant sur `main` qu'avec la PR 01, et `task test` environ 7 minutes. Le temps part dans des attentes fixes : environ 95 s de `sleep` dans les suites, 2,5 s après chacun des quelque 36 chargements de page, et les helpers de défilement qui parcourent tout l'arbre ou tout le diff par pas de 150 à 200 ms. Deux leviers :
 
 - un fixture, un serveur Go et une page par suite, quatre suites à la fois ;
 - des attentes sur l'état attendu (`waitForFunction`) à la place des `sleep`, en commençant par `comments` (58 s), `viewed` (56 s) et `pickers` (30 s).
 
-Examiner aussi les quatre suites que `goRevisions.ts` rejoue sur son propre fixture (56 s) : les garder seulement si ce fixture couvre un cas que `run.ts` ne couvre pas. Objectif : `test/run.ts` sous la minute. Cette PR vient après la PR 02, pour ne pas réécrire deux fois les mêmes attentes.
-
-### 04 · `desktop-release/04-go-runtime` — Serveur intégré seulement
-
-Supprimer `go/cmd/ghl`, `go/cmd/ghl-go-poc`, l'ouverture du navigateur, le daemon partagé (port 7777, inactivité, découverte et remplacement du runtime) et l'hôte `ghl.localhost`. Exposer une entrée de bibliothèque, par exemple `app.Serve(ctx, listener, assets)`, que `desktop/backend.go` appelle à la place de `app.Main(--daemon --port 0 --idle 0)`. Garder l'API, l'état, les révisions, les images et l'export. Retirer les tests et tâches devenus sans objet : `goCLI`, `goDaemon`, `goLocalInstall`, `goPoc` et `poc:*`. `goDev` reste et suit le serveur de dev.
+Examiner aussi les quatre suites que `goRevisions.ts` rejoue sur son propre fixture (56 s) : les garder seulement si ce fixture couvre un cas que `run.ts` ne couvre pas. Objectif : `test/run.ts` sous la minute. Cette PR vient après la PR 03, pour ne pas réécrire deux fois les mêmes attentes.
 
 ### 05 · `desktop-release/05-ghl-command` — L'app devient `ghl`
 
@@ -150,5 +150,6 @@ Prérequis : correction de [#136](https://github.com/vmaerten/ghl/issues/136). P
 | 00 | Le binaire desktop déclare `minos 26.0` (SDK 27.0, cgo sans cible de déploiement). | Cible macOS 13 et vérification du `minos` ajoutées à la PR 06 ; `depends_on macos` dans le cask. |
 | 01 | `themes`, `review-panel`, `comments` et `whitespace` testaient aussi le sélecteur de thème, le `localStorage` et la mise en page mobile du navigateur, absents du desktop. | `themes` réécrite autour de la feuille Settings (10 thèmes, choix transmis au côté natif, rechargement) ; checks mobiles retirés. |
 | 01 | Le desktop n'affiche pas le nombre de fichiers des `totals` à côté de celui de l'arbre. | Dans `untracked`, « les deux compteurs concordent » devient « la sidebar le compte » ; le `+3` des `totals` reste vérifié dans le pied de la sidebar. |
-| 01 | `test/goDev.ts` cherchait dans `App.tsx` un texte parti dans `RepoBar.tsx` avec #155 : `task test:dev` échouait déjà sur `main`. | Pointé sur le titre « Changes » de la sidebar desktop, qui reste après la PR 02. |
+| 01 | `test/goDev.ts` cherchait dans `App.tsx` un texte parti dans `RepoBar.tsx` avec #155 : `task test:dev` échouait déjà sur `main`. | Pointé sur le titre « Changes » de la sidebar desktop, qui reste après la PR 03. |
 | 01 | Le serveur de dev a besoin de la simulation des bindings Wails, pas seulement les tests. | Elle vit dans `desktop/simulator.ts`, à côté de `bridge.js`, plutôt que dans `test/`. |
+| 02 | Retirer l'UI navigateur avant le CLI laissait le CLI servir une page inutilisable, et `goDaemon.ts` comme `goPoc.ts` la pilotent dans Chrome. | Ordre inversé, validé : 02 retire le CLI, le daemon et le PoC ; 03 retire l'UI devenue du code mort ; 04 accélère les tests. |
