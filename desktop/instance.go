@@ -13,6 +13,9 @@ import (
 	"time"
 )
 
+// #include <unistd.h>
+import "C"
+
 // One app runs per user and instance ID. It holds a lock file and listens on a
 // Unix socket beside it; launchers hand it review requests over that socket and
 // wait until it has queued them. Wails' own single-instance lock is taken early
@@ -36,6 +39,17 @@ type receipt struct {
 var errNoApp = errors.New("no ghl app is running")
 
 // instancePaths stays short: macOS limits a Unix socket path to 104 bytes.
+// userTempDir is the per-user folder macOS gives every process. The app started
+// through LaunchServices does not inherit the launcher's TMPDIR, so both sides
+// must not depend on it.
+func userTempDir() string {
+	buf := make([]C.char, 1024)
+	if n := C.confstr(C._CS_DARWIN_USER_TEMP_DIR, &buf[0], C.size_t(len(buf))); n > 0 && int(n) <= len(buf) {
+		return C.GoString(&buf[0])
+	}
+	return os.TempDir()
+}
+
 func instancePaths(dir, id string) (lock, socket string) {
 	base := filepath.Join(dir, fmt.Sprintf("ghl-%x", sha256.Sum256([]byte(id)))[:16])
 	return base + ".lock", base + ".sock"
