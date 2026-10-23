@@ -53,8 +53,9 @@ tasks:
       - task: desktop:icon
       - mkdir -p '.task/desktop/ghl.app/Contents/MacOS' '.task/desktop/ghl.app/Contents/Resources'
       - cp .task/desktop/AppIcon.icns '.task/desktop/ghl.app/Contents/Resources/AppIcon.icns'
+      # Without a deployment target, cgo targets the installed SDK's macOS release.
       - >-
-        CGO_ENABLED=1 CGO_LDFLAGS='-framework UniformTypeIdentifiers'
+        CGO_ENABLED=1 CGO_LDFLAGS='-framework UniformTypeIdentifiers' MACOSX_DEPLOYMENT_TARGET=13.0
         go -C desktop build -tags production -trimpath -ldflags={{.LDFLAGS | shellQuote}}
         -o '../.task/desktop/ghl.app/Contents/MacOS/ghl' .
       - cp desktop/Info.plist '.task/desktop/ghl.app/Contents/Info.plist'
