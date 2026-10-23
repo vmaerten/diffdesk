@@ -118,11 +118,11 @@ GoReleaser : retirer les builds et archives CLI, produire `ghl_<version>_darwin_
 
 Template du cask, tâche `release:tap` appelée par `task release` après la publication, secret `HOMEBREW_TAP_TOKEN` dans `release.yml`, tests de l'ordre et des échecs dans `test/releaseTask.py` sans écriture réelle. `brew audit --cask --strict --online` sur le cask rendu fait partie de la vérification. Création du dépôt du tap et du secret à la main.
 
-### 08 · `desktop-release/08-docs` — Documentation
+### 08 · `desktop-release/08-docs` — Documentation — [#174](https://github.com/vmaerten/ghl/pull/174)
 
 README centré sur l'app ; `installation.md` couvre mise et Homebrew ; `releases.md` et `desktop/README.md` fusionnés là où ils se répètent. Supprimer `migration.md`, `go-poc.md` et les benchmarks du runtime navigateur. Entrée CHANGELOG v0.3.0 : app seule, Linux et Intel abandonnés, réglages repris, un daemon 0.2.0 encore en marche s'arrête seul après 30 minutes d'inactivité.
 
-### 09 · `desktop-release/09-cold-launches` — Lancements à froid concurrents
+### 09 · `desktop-release/09-cold-launches` — Lancements à froid concurrents — [#175](https://github.com/vmaerten/ghl/pull/175)
 
 Corriger [#136](https://github.com/vmaerten/ghl/issues/136) : deux `ghl` lancés pendant que la première fenêtre démarre ne doivent perdre aucun onglet. Diagnostiquer la livraison des demandes au démarrage avant de choisir la correction ; un test natif isolé couvre le cas.
 
@@ -177,3 +177,5 @@ Prérequis : la PR 09. Puis `package.json` à 0.3.0, tag `v0.3.0`, workflow. Ens
 | 07 | GoReleaser OSS a `homebrew_casks`, mais `app` y est réservé à Pro et limité aux DMG, `depends_on macos` manque, et la publication suit sa propre release GitHub, désactivée ici. | Gabarit `desktop/cask.rb` rempli depuis `checksums.txt` de la release publiée, poussé par `gh api`. |
 | 07 | Homebrew 7 déprécie `depends_on macos: ">= :ventura"`. | `depends_on macos: :ventura`, qui vaut minimum ; audit strict propre. |
 | 07 | Un secret de tap manquant n'aurait échoué qu'après la publication. | `release:tap:access` vérifie l'accès au tap avant de publier ; `task release:tap TAG=…` rejoue la poussée. |
+| 08 | `go/README.md` décrivait surtout le CLI, le daemon et le PoC. | Réécrit en guide du serveur de revue (runtime, API, export, état, sélection, images, dev) ; l'entrée 0.1.0 du changelog pointe le guide de migration à son tag. |
+| 09 | Cause vérifiée dans Wails v2.16 : `SetupSingleInstance` prend le verrou au début de `Frontend.Run`, mais l'observateur `NSDistributedNotificationCenter` n'est posé que dans `applicationDidFinishLaunching` ; une demande postée entre les deux est perdue et la seconde instance sort avec 0. Reproduit 0/5. | Verrou et socket Unix à nous, ouverts avant le backend ; le lanceur livre et attend l'accusé, démarre l'app si personne n'écoute. 5/5, une seule app ; `desktop/cold.py` dans `task desktop:smoke`. Wails v3 : non vérifié. |
