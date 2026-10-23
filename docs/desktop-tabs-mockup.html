@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ghl Desktop — onglets</title>
+<style>
+:root {
+  --page: #0e0f12; --bg: #141414; --raised: #1c1c1c; --chrome: #2b2c30; --chrome-2: #232427;
+  --border: rgb(230 230 230 / 10%); --wash: rgb(127 127 127 / 14%); --wash-2: rgb(127 127 127 / 26%);
+  --text: #ebebeb; --dim: rgb(230 230 230 / 56%); --accent: #3d87f5; --add: #6fd094; --del: #ee7e7e; --warn: #eb9a3d;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace; --sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 var(--sans); }
+.page { max-width: 1060px; margin: 0 auto; padding: 40px 24px 80px; }
+h1 { margin: 0 0 6px; font-size: 26px; }
+.lede { margin: 0 0 8px; color: var(--dim); max-width: 760px; }
+.case { margin: 0 0 36px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: #15171c; color: var(--dim); font-size: 13px; }
+.case b { color: var(--text); }
+section { margin: 56px 0 0; }
+h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 4px; font-size: 19px; }
+h2 .num { color: var(--dim); font: 600 14px var(--mono); }
+.tags { display: flex; gap: 6px; margin: 6px 0 10px; flex-wrap: wrap; }
+.tag { padding: 2px 8px; border-radius: 999px; font: 600 11px var(--sans); border: 1px solid var(--border); color: var(--dim); }
+.tag.ok { color: var(--add); border-color: rgb(111 208 148 / 40%); }
+.tag.v3 { color: #a8c7ff; border-color: rgb(61 135 245 / 45%); }
+.tag.el { color: #e9b4ff; border-color: rgb(202 158 230 / 45%); }
+.desc { margin: 0 0 14px; color: var(--dim); max-width: 820px; }
+.proscons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; font-size: 13px; }
+.proscons ul { margin: 6px 0 0; padding-left: 18px; color: var(--dim); }
+.proscons h4 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.pro h4 { color: var(--add); } .con h4 { color: var(--del); }
+
+/* Mini window */
+.win { position: relative; width: 100%; height: 400px; display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 11px; background: var(--bg); box-shadow: 0 24px 60px rgb(0 0 0 / 55%), 0 0 0 .5px rgb(255 255 255 / 18%);
+  font: 12px/1.4 var(--sans); user-select: none; }
+.tb { flex: none; display: flex; align-items: center; gap: 4px; height: 46px; padding: 0 10px 0 12px; background: var(--chrome); border-bottom: 1px solid var(--border); }
+.lights { display: flex; gap: 7px; margin-right: 10px; }
+.lights i { width: 11px; height: 11px; border-radius: 50%; }
+.lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.ib { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 7px; color: var(--dim); }
+.ib svg { width: 15px; height: 15px; }
+.tb-tabs { display: flex; gap: 2px; flex: 1; min-width: 0; overflow: hidden; }
+.path { font: 600 11.5px var(--mono); color: var(--text); white-space: nowrap; padding: 0 8px; }
+.path .d { color: var(--dim); }
+.pill { display: flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px; border-radius: 7px; font: 600 11.5px var(--mono); color: var(--dim); white-space: nowrap; min-width: 0; }
+.pill.on { background: var(--wash-2); color: var(--text); }
+.pill .x { opacity: .7; font-family: var(--sans); }
+.capsule { flex: none; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid var(--border); background: var(--wash); font: 600 11.5px var(--mono); white-space: nowrap; }
+.capsule .a, .capsule .c { color: var(--dim); font-weight: 400; }
+.capsule .c { font-family: var(--sans); }
+.capsule .sep { width: 1px; height: 13px; background: var(--border); }
+.acts { flex: none; display: flex; align-items: center; gap: 4px; margin-left: 10px; }
+.seg { display: flex; height: 26px; padding: 2px; gap: 2px; border-radius: 7px; border: 1px solid var(--border); background: var(--wash); font-size: 11px; }
+.seg span { padding: 0 8px; border-radius: 5px; line-height: 20px; color: var(--dim); }
+.seg .on { background: var(--raised); color: var(--text); }
+.tbtn { height: 26px; padding: 0 8px; display: flex; align-items: center; gap: 5px; border-radius: 7px; color: var(--dim); font-size: 11px; font-weight: 500; white-space: nowrap; }
+.cnt { min-width: 16px; padding: 0 5px; border-radius: 9px; background: var(--wash-2); color: var(--text); font-style: normal; font-size: 10px; text-align: center; }
+.body { flex: 1; min-height: 0; display: flex; }
+.side { flex: none; width: 210px; display: flex; flex-direction: column; background: var(--chrome); border-right: 1px solid var(--border); overflow: hidden; }
+.sec { display: flex; align-items: center; gap: 6px; padding: 10px 12px 4px; font: 700 9.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.sec .cnt { font-size: 9px; }
+.row { display: flex; align-items: center; gap: 6px; height: 21px; margin: 0 6px; padding: 0 6px 0 calc(6px + var(--d, 0) * 12px); border-radius: 5px; color: var(--text); white-space: nowrap; font-size: 11.5px; }
+.row .n { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.row .st { font: 600 10px var(--mono); }
+.st.A { color: var(--add); } .st.M { color: var(--warn); }
+.row.sel { background: rgb(61 135 245 / 22%); }
+.row .fi { width: 10px; height: 12px; border-radius: 2px; background: currentColor; opacity: .35; }
+.main { flex: 1; min-width: 0; padding: 10px 12px; overflow: hidden; }
+.card { border: 1px solid var(--border); border-radius: 10px; background: var(--raised); overflow: hidden; }
+.card-h { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border-bottom: 1px solid var(--border); font: 11.5px var(--mono); }
+.card-h .d { color: var(--dim); } .card-h .sp { flex: 1; }
+.card-h .viewed { padding: 2px 8px; border: 1px solid var(--border); border-radius: 6px; font: 500 11px var(--sans); }
+.ln { display: flex; gap: 10px; height: 18px; align-items: center; padding: 0 10px; font: 11px var(--mono); }
+.ln .no { width: 22px; text-align: right; color: var(--dim); }
+.ln .bar { height: 7px; border-radius: 4px; background: rgb(230 230 230 / 16%); }
+.ln.add { background: rgb(111 208 148 / 9%); } .ln.add .bar { background: rgb(111 208 148 / 45%); }
+.ln.del { background: rgb(238 126 126 / 9%); } .ln.del .bar { background: rgb(238 126 126 / 45%); }
+.foot { flex: none; display: flex; gap: 12px; align-items: center; height: 24px; padding: 0 12px; border-top: 1px solid var(--border); color: var(--dim); font-size: 10.5px; white-space: nowrap; }
+.foot .r { margin-left: auto; } .foot b { color: var(--text); font-weight: 600; }
+
+/* 2 · dedicated strip */
+.strip { flex: none; display: flex; align-items: stretch; gap: 0; height: 36px; background: var(--chrome-2); border-bottom: 1px solid var(--border); padding: 0 6px; }
+.stab { flex: 1; max-width: 250px; display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 0 12px; border-right: 1px solid var(--border); color: var(--dim); position: relative; min-width: 0; }
+.stab .t { display: flex; align-items: center; gap: 6px; font: 600 11.5px var(--sans); color: inherit; }
+.stab .s { font: 10px var(--mono); color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stab .cnt { margin-left: auto; }
+.stab.on { background: var(--bg); color: var(--text); }
+.stab.on::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--accent); }
+.strip .plus { display: grid; place-items: center; width: 34px; color: var(--dim); font-size: 16px; }
+
+/* 3 · sidebar list */
+.rv { display: grid; grid-template-columns: 8px 1fr auto; gap: 1px 8px; align-items: center; margin: 1px 6px; padding: 5px 8px; border-radius: 6px; }
+.rv .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); grid-row: span 2; }
+.rv .t { font: 600 11.5px var(--sans); }
+.rv .s { grid-column: 2; font: 10px var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv .m { grid-row: span 2; font: 10px var(--mono); color: var(--dim); text-align: right; }
+.rv.on { background: rgb(61 135 245 / 22%); }
+.rv.on .dot { background: var(--accent); }
+.divider { height: 1px; margin: 8px 12px 2px; background: var(--border); }
+
+/* 4 · selector menu */
+.selector { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px; background: var(--wash-2); font: 600 11.5px var(--mono); white-space: nowrap; }
+.selector .k { color: var(--dim); font: 10px var(--sans); }
+.menu { position: absolute; z-index: 5; top: 44px; left: 88px; width: 330px; padding: 5px; border-radius: 8px; background: rgb(44 44 46 / 97%); border: .5px solid rgb(255 255 255 / 16%); box-shadow: 0 18px 40px rgb(0 0 0 / 55%); font-size: 12px; }
+.mi { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 5px; }
+.mi .s { grid-column: 2; font: 10px var(--mono); color: var(--dim); margin-top: -2px; }
+.mi .k { color: var(--dim); font-size: 11px; }
+.mi.hl { background: var(--accent); } .mi.hl .s, .mi.hl .k { color: rgb(255 255 255 / 80%); }
+.msep { height: 1px; margin: 4px 8px; background: rgb(255 255 255 / 12%); }
+
+/* 5 · native macOS tabs */
+.ntabs { flex: none; display: flex; height: 28px; background: #1d1d1f; border-bottom: 1px solid rgb(0 0 0 / 50%); }
+.ntab { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; border-right: 1px solid rgb(0 0 0 / 45%); color: rgb(235 235 245 / 55%); font-size: 11.5px; white-space: nowrap; overflow: hidden; padding: 0 26px; }
+.ntab.on { background: #2c2c2e; color: #f5f5f7; }
+.ntab .x { position: absolute; left: 8px; opacity: .6; font-size: 11px; }
+.ntabs .plus { width: 30px; display: grid; place-items: center; color: rgb(235 235 245 / 55%); }
+.wintitle { flex: 1; min-width: 0; text-align: left; font: 600 12px var(--sans); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wintitle span { color: var(--dim); font-weight: 400; }
+
+/* 6 · rail */
+.rail { flex: none; width: 52px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px 0; background: #1e1f22; border-right: 1px solid var(--border); }
+.av { position: relative; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; font: 700 11px var(--sans); color: #fff; }
+.av.on::before { content: ''; position: absolute; left: -10px; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0; background: #fff; }
+.av .b { position: absolute; right: -5px; bottom: -4px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: var(--accent); font-size: 9px; display: grid; place-items: center; border: 2px solid #1e1f22; }
+.av.add { background: var(--wash); color: var(--dim); font-size: 16px; }
+
+table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { color: var(--dim); font-weight: 600; font-size: 12px; }
+td.y { color: var(--add); } td.n { color: var(--del); } td.m { color: var(--warn); }
+.reco { margin-top: 28px; padding: 16px 18px; border-radius: 12px; border: 1px solid rgb(61 135 245 / 40%); background: rgb(61 135 245 / 8%); }
+.reco h3 { margin: 0 0 6px; font-size: 15px; }
+.reco p { margin: 6px 0 0; color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Afficher les onglets</h1>
+  <p class="lede">Six façons d'afficher plusieurs reviews ouvertes dans ghl Desktop, dessinées dans le style actuel de l'app. Les zones hors onglets (sidebar, diff, barre d'état) sont simplifiées.</p>
+  <div class="case">Même scénario partout : trois reviews ouvertes, dont <b>deux du même repo</b> avec des comparaisons différentes —
+    <b>github-like</b> HEAD~3 → main (21 fichiers, 3 commentaires), <b>github-like</b> main → desktop-ui/08 (40 fichiers),
+    <b>dotfiles</b> main → zsh-prompt (4 fichiers, 1 commentaire). Un onglet identifie un repo <i>et</i> une comparaison : le nom du repo seul ne suffit pas.</div>
+  <div id="proposals"></div>
+  <section>
+    <h2><span class="num">—</span>Comparaison</h2>
+    <table>
+      <thead><tr><th></th><th>Hauteur prise</th><th>Reviews confortables</th><th>Comparaison visible</th><th>Natif macOS</th><th>Framework</th><th>Effort</th></tr></thead>
+      <tbody>
+        <tr><td>1 · Barre de titre (actuel)</td><td class="y">0</td><td class="m">3–5 (1 à 800 px)</td><td class="n">non (infobulle)</td><td class="m">moyen</td><td class="y">v2</td><td class="y">fait</td></tr>
+        <tr><td>2 · Barre d'onglets dédiée</td><td class="m">+36 px dès 2 reviews</td><td class="y">6–8</td><td class="y">oui</td><td class="m">moyen</td><td class="y">v2</td><td class="y">faible</td></tr>
+        <tr><td>3 · Liste dans la sidebar</td><td class="m">dans la sidebar</td><td class="y">10+</td><td class="y">oui + progression</td><td class="y">source list</td><td class="y">v2</td><td class="m">moyen</td></tr>
+        <tr><td>4 · Sélecteur de review</td><td class="y">0</td><td class="y">10+ (dans le menu)</td><td class="m">dans le menu</td><td class="y">menu (v3/Electron)</td><td class="y">v2 · natif en v3</td><td class="y">faible</td></tr>
+        <tr><td>5 · Fenêtres + onglets macOS</td><td class="m">+28 px dès 2 onglets</td><td class="y">6–8 + vue d'ensemble</td><td class="m">titre tronqué</td><td class="y">le plus natif</td><td class="n">v3 ou Electron</td><td class="n">élevé</td></tr>
+        <tr><td>6 · Rail de repos</td><td class="y">0 (colonne 52 px)</td><td class="y">10+</td><td class="n">non (initiales)</td><td class="n">non (Slack)</td><td class="y">v2</td><td class="m">moyen</td></tr>
+      </tbody>
+    </table>
+    <div class="reco">
+      <h3>Ma recommandation</h3>
+      <p><b>En Wails v2 : la 2 (barre dédiée), avec le sélecteur de la 4 comme raccourci.</b> La barre n'apparaît qu'à partir de deux reviews, libère la barre de titre et distingue enfin deux reviews du même repo. Le menu de la 4 sert de repli quand les onglets débordent, à la place du « … » actuel.</p>
+      <p><b>Si on passe en Wails v3 (ou Electron) : la 5.</b> Une fenêtre par review avec les onglets dessinés par macOS apporte gratuitement le glisser-déposer d'onglets, la vue d'ensemble (⇧⌘\) et les fenêtres côte à côte. C'est la plus native, mais elle demande de refaire le modèle d'onglets côté Go.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+const icon = {
+  sidebar: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>',
+  plus: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"/></svg>',
+  bubble: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"/></svg>',
+}
+const lights = '<div class="lights"><i></i><i></i><i></i></div>'
+const leftButtons = `<span class="ib">${icon.sidebar}</span><span class="ib">${icon.plus}</span>`
+const capsule = '<div class="capsule">HEAD~3 <span class="a">▾ →</span> main <span class="a">▾</span><span class="sep"></span><span class="c">All commits ▾</span></div>'
+const actions = `<div class="acts"><div class="seg"><span class="on">Unified</span><span>Split</span></div><span class="tbtn">Options ▾</span><span class="tbtn">Copy <i class="cnt">3</i></span><span class="ib">${icon.bubble}</span></div>`
+const tree = [
+  ['dir', 0, '.github/workflows'], ['file', 1, 'release.yml', 'A'], ['dir', 0, 'desktop'], ['file', 1, 'main.go', 'M', 'sel'],
+  ['file', 1, 'tabs.go', 'M'], ['file', 1, 'README.md', 'M'], ['dir', 0, 'web/src'], ['file', 1, 'DesktopApp.tsx', 'M'],
+  ['file', 1, 'App.tsx', 'M'], ['file', 1, 'desktop.css', 'M'], ['file', 0, 'Taskfile.yml', 'M'],
+]
+const changes = (limit = tree.length) => '<div class="sec">Changes <span class="cnt">21</span></div>' + tree.slice(0, limit).map(([kind, d, name, st, flag]) => kind === 'dir'
+  ? `<div class="row" style="--d:${d}"><span class="n" style="color:var(--dim)">▾ ${name}</span></div>`
+  : `<div class="row ${flag || ''}" style="--d:${d}"><span class="fi"></span><span class="n">${name}</span><span class="st ${st}">${st}</span></div>`).join('')
+const card = `<div class="card"><div class="card-h"><span><span class="d">desktop/</span>main.go</span><span class="sp"></span><span style="color:var(--add)">+7</span><span style="color:var(--del)">−2</span><span class="viewed">☐ Viewed</span></div>
+  ${[['', 114, 46], ['', 115, 70], ['del', 116, 58], ['del', 117, 64], ['add', 116, 30], ['add', 117, 62], ['add', 118, 34], ['add', 119, 54], ['add', 120, 44], ['add', 121, 42], ['', 122, 52], ['', 123, 66], ['', 124, 48], ['', 125, 38], ['', 126, 60]]
+    .map(([type, n, w]) => `<div class="ln ${type}"><span class="no">${n}</span><span class="bar" style="width:${w}%"></span></div>`).join('')}</div>`
+const foot = '<div class="foot"><span>base given on the command line</span><span>working tree included</span><span class="r">Next <b>desktop/tabs.go</b> j</span></div>'
+
+const win = ({ titleArea, strip = '', rail = '', sideTop = '', sideLimit, overlay = '', left = leftButtons }) => `
+  <div class="win">
+    <div class="tb">${lights}${left}${titleArea}${capsule}${actions}</div>
+    ${strip}
+    <div class="body">${rail}<aside class="side">${sideTop}${changes(sideLimit)}</aside><main class="main">${card}</main></div>
+    ${foot}${overlay}
+  </div>`
+
+const proposals = [
+  {
+    title: 'Onglets dans la barre de titre (actuel)',
+    tags: [['ok', 'Wails v2 — déjà en place']],
+    desc: 'Une review : le chemin du checkout. Plusieurs : des pastilles au nom du repo, à côté de la capsule de comparaison et des actions. Les onglets en trop passent dans un menu « … ».',
+    html: win({ titleArea: '<div class="tb-tabs"><span class="pill on">github-like <span class="x">×</span></span><span class="pill">github-like</span><span class="pill">dotfiles</span></div>' }),
+    pros: ['Aucune hauteur en plus', 'Déjà fait, tout en Wails v2', 'Avec une seule review, le chemin du checkout est très lisible'],
+    cons: ['Deux reviews du même repo sont indiscernables (« github-like » deux fois)', 'Partage la barre avec la capsule et les actions : 3–5 onglets à 1280 px, 1 seul à 800 px', 'Aucune info par review (comparaison, progression, commentaires)'],
+  },
+  {
+    title: "Barre d'onglets dédiée, à partir de deux reviews",
+    tags: [['ok', 'Wails v2']],
+    desc: "Avec une review, rien ne change. À partir de deux, une barre de 36 px apparaît sous la barre de titre (comme Xcode ou Safari). Chaque onglet montre le repo, la comparaison et ses compteurs. La barre de titre ne garde que le chemin de la review active, la capsule et les actions.",
+    html: win({
+      titleArea: '<div class="tb-tabs"><span class="path"><span class="d">~/dev/perso/</span>github-like</span></div>',
+      strip: `<div class="strip">
+        <div class="stab on"><span class="t">github-like <i class="cnt">3</i></span><span class="s">HEAD~3 → main · 21 fichiers</span></div>
+        <div class="stab"><span class="t">github-like</span><span class="s">main → desktop-ui/08 · 40 fichiers</span></div>
+        <div class="stab"><span class="t">dotfiles <i class="cnt">1</i></span><span class="s">main → zsh-prompt · 4 fichiers</span></div>
+        <span class="plus">+</span></div>`,
+    }),
+    pros: ['Distingue enfin deux reviews du même repo', 'Place pour la comparaison et le nombre de commentaires', 'Libère la barre de titre, qui reste lisible à 800 px', 'Faisable tout de suite en v2, en réutilisant le code actuel'],
+    cons: ['36 px de hauteur en plus dès deux reviews', 'Dessinée en HTML : proche du natif, mais pas AppKit', 'Au-delà de 6–8 onglets, il faut quand même un débordement'],
+  },
+  {
+    title: 'Liste « Reviews » dans la sidebar',
+    tags: [['ok', 'Wails v2']],
+    desc: "Les reviews ouvertes deviennent une section en tête de la sidebar, façon liste de sources (Mail, Xcode, Tower). Chaque ligne affiche la comparaison et la progression. La barre de titre ne porte plus d'onglets.",
+    html: win({
+      titleArea: '<div class="tb-tabs"><span class="path"><span class="d">~/dev/perso/</span>github-like</span></div>',
+      sideTop: `<div class="sec">Reviews <span class="cnt">3</span></div>
+        <div class="rv on"><span class="dot"></span><span class="t">github-like</span><span class="m">3/21<br>3 💬</span><span class="s">HEAD~3 → main</span></div>
+        <div class="rv"><span class="dot"></span><span class="t">github-like</span><span class="m">0/40</span><span class="s">main → desktop-ui/08</span></div>
+        <div class="rv"><span class="dot"></span><span class="t">dotfiles</span><span class="m">2/4<br>1 💬</span><span class="s">main → zsh-prompt</span></div>
+        <div class="divider"></div>`,
+      sideLimit: 7,
+    }),
+    pros: ['Passe à 10 reviews et plus sans effort', 'Infos riches : comparaison, fichiers vus, commentaires', 'Idiome macOS reconnu (liste de sources)', 'Barre de titre épurée'],
+    cons: ["Raccourcit l'arbre des fichiers", 'Invisible quand la sidebar est masquée (⌃⌘S) : il faut un repli (menu ou ⌃Tab)', "Changer de review se fait loin de l'endroit où l'on regarde le code"],
+  },
+  {
+    title: 'Sélecteur de review',
+    tags: [['ok', 'Wails v2 (menu via <select>)'], ['v3', 'menu natif en v3'], ['el', 'menu natif en Electron']],
+    desc: "Le chemin devient un bouton qui ouvre la liste des reviews ouvertes, comme le sélecteur de schéma de Xcode. Une seule review est visible à la fois ; on change par le menu ou par ⌃Tab.",
+    html: win({
+      titleArea: '<div class="tb-tabs"><span class="selector">github-like <span class="k">HEAD~3 → main</span> ▾</span></div>',
+      overlay: `<div class="menu">
+        <div class="mi hl"><span>✓</span><span>github-like</span><span class="k">⌃1</span><span class="s">HEAD~3 → main · 3 commentaires</span></div>
+        <div class="mi"><span></span><span>github-like</span><span class="k">⌃2</span><span class="s">main → desktop-ui/08</span></div>
+        <div class="mi"><span></span><span>dotfiles</span><span class="k">⌃3</span><span class="s">main → zsh-prompt · 1 commentaire</span></div>
+        <div class="msep"></div>
+        <div class="mi"><span></span><span>Open Repository…</span><span class="k">⌘O</span></div>
+        <div class="mi"><span></span><span>Close Review</span><span class="k">⌘W</span></div></div>`,
+    }),
+    pros: ['Le plus sobre : un seul bouton', 'Lisible à toutes les largeurs', 'Menu natif en v3 ou Electron ; en v2, la même astuce de <select> que le « … » actuel', 'Combinable avec la 2 comme menu de débordement'],
+    cons: ["On ne voit pas d'un coup d'œil ce qui est ouvert", 'Deux gestes pour changer de review (⌃Tab reste direct)', 'En v2, le menu natif ne peut pas afficher deux lignes par review'],
+  },
+  {
+    title: 'Fenêtres + onglets natifs macOS',
+    tags: [['v3', 'Wails v3 (multi-fenêtres + TabbingMode, vérifiés)'], ['el', 'Electron (tabbingIdentifier)']],
+    desc: "Une fenêtre par review, que macOS regroupe en onglets avec sa propre barre (Window ▸ Merge All Windows). Le titre de chaque fenêtre porte le repo et la comparaison.",
+    html: win({
+      left: leftButtons,
+      titleArea: '<div class="wintitle">github-like <span>— HEAD~3 → main</span></div>',
+      strip: `<div class="ntabs"><div class="ntab on"><span class="x">×</span>github-like — HEAD~3 → main</div><div class="ntab">github-like — main → desktop-ui/08</div><div class="ntab">dotfiles — main → zsh-prompt</div><span class="plus">+</span></div>`,
+    }),
+    pros: ['Le plus natif : onglets dessinés par AppKit', 'Gratuit : glisser un onglet hors de la fenêtre, vue d\'ensemble (⇧⌘\\), plein écran par onglet', 'Deux reviews côte à côte dans deux fenêtres', 'Résout au passage la fenêtre Settings séparée'],
+    cons: ['Demande Wails v3 (bêta) ou Electron', "Refonte du modèle : l'état d'onglets Go (tabs.go, vues sauvegardées) devient un état par fenêtre", 'Barre native de 28 px en plus dès deux onglets, sans compteur par review'],
+  },
+  {
+    title: 'Rail de repos',
+    tags: [['ok', 'Wails v2']],
+    desc: "Une colonne étroite à gauche, avec une pastille par review (initiales et couleur) et un badge de commentaires, comme Slack ou Discord pour les espaces de travail.",
+    html: win({
+      titleArea: '<div class="tb-tabs"><span class="path"><span class="d">~/dev/perso/</span>github-like <span class="d">· HEAD~3 → main</span></span></div>',
+      rail: `<div class="rail">
+        <span class="av on" style="background:#2f6fd6">GL<span class="b">3</span></span>
+        <span class="av" style="background:#6b4bb8">GL</span>
+        <span class="av" style="background:#2e8b57">DF<span class="b">1</span></span>
+        <span class="av add">+</span></div>`,
+    }),
+    pros: ['Très compact, passe à beaucoup de reviews', 'Badges visibles en permanence (commentaires, non vus)', 'Aucune concurrence avec la barre de titre'],
+    cons: ['Les initiales ne disent rien : deux « GL » pour le même repo', 'Idiome de messagerie plutôt que macOS', 'Une colonne de plus à côté de la sidebar'],
+  },
+]
+
+document.getElementById('proposals').innerHTML = proposals.map((p, i) => `
+  <section>
+    <h2><span class="num">${i + 1}</span>${p.title}</h2>
+    <div class="tags">${p.tags.map(([kind, label]) => `<span class="tag ${kind}">${label.replace(/</g, '&lt;')}</span>`).join('')}</div>
+    <p class="desc">${p.desc}</p>
+    ${p.html}
+    <div class="proscons">
+      <div class="pro"><h4>Pour</h4><ul>${p.pros.map((x) => `<li>${x.replace(/<select>/g, '&lt;select&gt;')}</li>`).join('')}</ul></div>
+      <div class="con"><h4>Contre</h4><ul>${p.cons.map((x) => `<li>${x}</li>`).join('')}</ul></div>
+    </div>
+  </section>`).join('')
+</script>
+</body>
+</html>
