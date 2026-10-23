@@ -110,7 +110,7 @@ Examiner aussi les quatre suites que `goRevisions.ts` rejoue sur son propre fixt
 
 Renommer le bundle en `ghl.app` et l'exécutable en `ghl` (`Info.plist`, Taskfile, `desktop/release.py`, smoke). Traiter `comments`, `--version` et `--help` avant le relancement via LaunchServices, sans fenêtre. Reprendre les réglages de l'ancien dossier `ghl Desktop`. `task install` remplace `desktop:install`.
 
-### 06 · `desktop-release/06-release-archive` — Archive unique
+### 06 · `desktop-release/06-release-archive` — Archive unique — [#172](https://github.com/vmaerten/ghl/pull/172)
 
 GoReleaser : retirer les builds et archives CLI, produire `ghl_<version>_darwin_arm64.zip`. Compiler avec `MACOSX_DEPLOYMENT_TARGET=13.0`, écrire `LSMinimumSystemVersion` 13.0 dans `Info.plist`, et faire vérifier par `release:verify` le `minos` du binaire (`otool -l`, `LC_BUILD_VERSION`). Adapter `release:verify`, `releaseGuards.ts`, `release:publish` et la fixture mise (`test/goMise.ts`) : installation de l'app, PATH, mise à jour depuis une archive 0.2.0 synthétique, retour arrière, désinstallation. Réduire `release:acceptance` et `release:bench` à ce qui a encore un sens sans daemon.
 
@@ -171,3 +171,6 @@ Prérequis : la PR 09. Puis `package.json` à 0.3.0, tag `v0.3.0`, workflow. Ens
 | 05 | `desktop/release.py` vérifie encore `ghl Desktop.app` dans l'archive. | Laissé à la PR 06, qui réécrit l'archive. |
 | 05 | `task install` refuse de remplacer un `~/.local/bin/ghl` qui n'est pas un lien, comme l'ancien CLI navigateur. | Gardé : on ne supprime pas un fichier inconnu ; à retirer à la main une fois. |
 | 05 | #136 demande un diagnostic à part, avec ses propres critères d'acceptation. | PR 09, juste avant la release, plutôt qu'au milieu de la PR 05. |
+| 06 | `goRelease.ts`, `releaseTarget.ts` et l'essentiel de `releaseGuards.ts` vérifiaient les quatre tarballs CLI. | Supprimés ; `release.py` vérifie seul l'archive et reprend leurs contrôles utiles (tag, notices, `ghl --version`) ; les tests de tag restants vivent dans `test/releaseTag.ts`. `release:smoke` disparaît avec les autres plateformes. |
+| 06 | Une version précédente synthétique ne peut plus être le binaire modifié : un exécutable ad hoc altéré ne se lance plus sur arm64. | Le bundle candidat avec une autre clé d'`Info.plist`, signé de nouveau. |
+| 06 | En mode publié 0.1.0 → 0.2.0, le test a lancé `ghl --repo …` sur le CLI navigateur 0.2.0 : il a remplacé le daemon de l'utilisateur sur 7777 et a pu ouvrir un onglet. | Daemon de remplacement arrêté, utilisateur prévenu ; la fenêtre ne s'ouvre que pour l'app, et `GHL_PORT=0` tient tout ancien CLI à l'écart du port de l'utilisateur. |
