@@ -8,15 +8,18 @@ import type { LoadedReviewDiff } from './useReviewDiff.tsx'
 export type Picker = 'base' | 'target' | 'commit'
 
 /** Why the diff is not simply the base against the working tree, when it is not. */
-export function revisionNote(data: LoadedReviewDiff | null, target: string | null): string | null {
+export function comparisonNote(
+  data: LoadedReviewDiff | null,
+  target: string | null,
+): string | null {
   if (data?.commit) return 'one commit — the base is not compared'
   if (data && !data.target.workingTree)
     return target ? 'reviewing a ref, working tree excluded' : 'working tree excluded'
   return null
 }
 
-/** The revision state and actions that both the browser header and the desktop title bar render. */
-export interface RevisionProps {
+/** The comparison state and actions that both the browser header and the desktop title bar render. */
+export interface ComparisonProps {
   repoId: string | null
   data: LoadedReviewDiff | null
   query: string
@@ -33,15 +36,14 @@ export interface RevisionProps {
   onToggleUntracked: () => void
 }
 
-/** Opens a picker, or closes it when it is the one already open. */
-export const togglePicker = (set: RevisionProps['onPickingChange'], picker: Picker) =>
+export const togglePicker = (set: ComparisonProps['onPickingChange'], picker: Picker) =>
   set((current) => (current === picker ? null : picker))
 
 export const commitLabel = (data: LoadedReviewDiff | null) =>
   data?.commit ? `${data.commit.short} ${data.commit.subject}` : 'All commits'
 
 /** The ref or commit list a revision button opens, while it is the open one. */
-export function RevisionSelector({
+export function ComparisonSelector({
   picker,
   repoId,
   data,
@@ -51,7 +53,7 @@ export function RevisionSelector({
   onPickBase,
   onPickTarget,
   onPickCommit,
-}: RevisionProps & { picker: Picker }) {
+}: ComparisonProps & { picker: Picker }) {
   if (picking !== picker || !data) return null
   const close = () => onPickingChange(null)
   if (picker === 'commit')
@@ -91,7 +93,7 @@ export function RevisionSelector({
   )
 }
 
-export default function RevisionControls(props: RevisionProps & { baseSource: string | null }) {
+export default function ComparisonControls(props: ComparisonProps & { baseSource: string | null }) {
   const {
     data,
     target,
@@ -104,7 +106,7 @@ export default function RevisionControls(props: RevisionProps & { baseSource: st
     onToggleCommitted,
     onToggleUntracked,
   } = props
-  const note = revisionNote(data, target)
+  const note = comparisonNote(data, target)
   return (
     <div className="revision">
       <div className="toolbar-group compare-group">
@@ -130,7 +132,7 @@ export default function RevisionControls(props: RevisionProps & { baseSource: st
               </button>
             )}
 
-            {!GO_POC && <RevisionSelector picker="base" {...props} />}
+            {!GO_POC && <ComparisonSelector picker="base" {...props} />}
           </span>
 
           <span className="arrow" aria-hidden="true">
@@ -155,7 +157,7 @@ export default function RevisionControls(props: RevisionProps & { baseSource: st
               </button>
             )}
 
-            {!GO_POC && <RevisionSelector picker="target" {...props} />}
+            {!GO_POC && <ComparisonSelector picker="target" {...props} />}
           </span>
         </div>
       </div>
@@ -178,7 +180,7 @@ export default function RevisionControls(props: RevisionProps & { baseSource: st
               {commitLabel(data)} <span className="caret">▾</span>
             </button>
 
-            <RevisionSelector picker="commit" {...props} />
+            <ComparisonSelector picker="commit" {...props} />
           </span>
         </div>
       )}

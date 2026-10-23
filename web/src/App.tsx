@@ -22,11 +22,11 @@ import { useViewedPersistence } from './viewedPersistence.ts'
 import { useTheme, type SyntaxTheme } from './theme.ts'
 import CommentsPanel from './CommentsPanel.tsx'
 import RepoBar from './RepoBar.tsx'
-import RevisionControls, {
-  revisionNote,
+import ComparisonControls, {
+  comparisonNote,
   type Picker,
-  type RevisionProps,
-} from './RevisionControls.tsx'
+  type ComparisonProps,
+} from './ComparisonControls.tsx'
 import { untrackedToggleable, workingTreeToggleable } from './ScopeControls.tsx'
 import DesktopToolbar from './DesktopToolbar.tsx'
 import ReviewFooter from './ReviewFooter.tsx'
@@ -54,7 +54,7 @@ const NOT_LISTENING = GO_POC
   ? 'ghl-go-poc is no longer listening — restart it in that repository'
   : 'ghl is no longer listening — run `ghl` again in that repository'
 
-/** The single-letter shortcuts, by review command. */
+/** Review commands, by their single-letter key. */
 const KEY_COMMANDS: Record<string, string> = {
   b: 'base',
   t: 'target',
@@ -476,7 +476,7 @@ export default function App({
 
   const stack = GO_POC ? null : (data?.base.stack ?? null)
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
-  const revision: RevisionProps = {
+  const comparison: ComparisonProps = {
     repoId,
     data,
     query,
@@ -535,7 +535,7 @@ export default function App({
       {toolbar &&
         createPortal(
           <DesktopToolbar
-            {...revision}
+            {...comparison}
             ignoreWhitespace={ignoreWhitespace}
             onToggleWhitespace={select.toggleWhitespace}
             diffStyle={diffStyle}
@@ -560,7 +560,7 @@ export default function App({
           />
 
           <div className="reviewbar">
-            <RevisionControls {...revision} baseSource={baseSource} />
+            <ComparisonControls {...comparison} baseSource={baseSource} />
 
             {data && (
               <span className="stats" aria-label="Diff statistics">
@@ -725,7 +725,7 @@ export default function App({
         <ReviewFooter
           data={data}
           baseSource={baseSource}
-          note={revisionNote(data, target)}
+          note={comparisonNote(data, target)}
           stack={stack}
           onPickTarget={pickTarget}
           nextPath={nextPath}
