@@ -49,10 +49,11 @@
 }
 :root[data-theme][data-color-mode],
 .settings-preview {
-  --diff-addition: color-mix(in srgb, var(--success) 9%, var(--bg));
-  --diff-addition-gutter: color-mix(in srgb, var(--success) 16%, var(--bg));
-  --diff-deletion: color-mix(in srgb, var(--danger) 9%, var(--bg));
-  --diff-deletion-gutter: color-mix(in srgb, var(--danger) 16%, var(--bg));
+  --diff-addition: color-mix(in srgb, var(--success) 9%, var(--bg-raised));
+  --diff-addition-gutter: color-mix(in srgb, var(--success) 16%, var(--bg-raised));
+  --diff-deletion: color-mix(in srgb, var(--danger) 9%, var(--bg-raised));
+  --diff-deletion-gutter: color-mix(in srgb, var(--danger) 16%, var(--bg-raised));
+  --diff-separator: color-mix(in srgb, var(--text) 5%, var(--bg-raised));
 }
 /* The window material follows macOS whatever Settings forces (see
    useAppearance): over a material of the other mode, translucency would only
@@ -66,8 +67,9 @@ body {
 :root {
   --mono: ui-monospace, 'SF Mono', Menlo, monospace;
 }
-/* The --code-* values come from Settings, set on .desktop-shell. The preview
-   is not a .diff, so it needs the colours styles.css gives the review too. */
+/* The --code-* values come from Settings, set on .desktop-shell. The review
+   and the Settings preview share this card surface; the preview is not a
+   .diff, so styles.css does not reach it. */
 .desktop-shell :is(.diff, .settings-preview) diffs-container {
   --diffs-font-family: var(--code-font);
   --diffs-font-size: var(--code-size);
@@ -76,8 +78,9 @@ body {
   --diffs-bg-addition-number-override: var(--diff-addition-gutter);
   --diffs-bg-deletion-override: var(--diff-deletion);
   --diffs-bg-deletion-number-override: var(--diff-deletion-gutter);
-  --diffs-bg-buffer-override: var(--bg);
-  --diffs-bg-context-override: var(--bg);
+  --diffs-bg-buffer-override: var(--bg-raised);
+  --diffs-bg-context-override: var(--bg-raised);
+  --diffs-bg-separator-override: var(--diff-separator);
   --diffs-fg-number-override: var(--text-dim);
 }
 /* macOS controls keep the arrow: the pointing hand is a web convention. */
@@ -497,7 +500,7 @@ body,
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--bg);
+  background: var(--bg-raised);
   color: var(--text);
 }
 .settings-preview-head {
@@ -688,4 +691,30 @@ body,
   color: var(--text);
   font-weight: 600;
   text-overflow: ellipsis;
+}
+
+/* Each file reads as a card raised from the pane, its header the card's top.
+   The variables reach into the diff's shadow DOM; clipping, unlike hiding,
+   keeps the headers sticky against the pane. */
+.desktop-review .diff diffs-container {
+  --diffs-header-font-family: var(--mono);
+  --file-header-radius: 12px 12px 0 0;
+  --file-header-bg: var(--bg-raised);
+  --file-header-border: 1px solid var(--border);
+  overflow: clip;
+  border-radius: 12px;
+}
+.desktop-review .viewed-toggle {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-weight: 500;
+}
+.desktop-review .viewed-toggle:hover {
+  background: var(--wash);
+}
+.desktop-review :is(.comment, .comment-composer) {
+  border-radius: 10px;
 }
