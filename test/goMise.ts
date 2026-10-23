@@ -1,7 +1,6 @@
-import { archiveName, desktopArchiveName, releaseTarget } from './releaseTarget.ts'
-import { findExecutable, loopbackURL } from './system.ts'
+import { findExecutable } from './system.ts'
 import assert from 'node:assert/strict'
-import { execFile, execFileSync } from 'node:child_process'
+import { execFile, execFileSync, spawnSync } from 'node:child_process'
 import {
   existsSync,
   mkdirSync,
@@ -12,13 +11,13 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
-import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
-import type { Comment, DiffPayload } from '../src/types.ts'
 import {
+  archiveName,
+  EXECUTABLE,
   miseReleaseFixture,
   sha256,
   type Release,
@@ -28,12 +27,10 @@ import {
 const root = fileURLToPath(new URL('..', import.meta.url))
 const args = process.argv.slice(2)
 const published = args[0] === '--published'
-const smoke = args.length === 1 && args[0] === '--smoke'
 assert.ok(
   args.length === 0 ||
-    smoke ||
     (published && (args.length === 2 || (args.length === 4 && args[2] === '--previous'))),
-  'Usage: node test/goMise.ts [--smoke | --published VERSION [--previous VERSION]]',
+  'Usage: node test/goMise.ts [--published VERSION [--previous VERSION]]',
 )
 const requestedVersion = args[1]?.replace(/^v/, '')
 const versionPattern = /^\d+\.\d+\.\d+(?:-[\da-zA-Z]+(?:[.-][\da-zA-Z]+)*)?$/
@@ -41,15 +38,11 @@ if (published)
   assert.ok(requestedVersion && versionPattern.test(requestedVersion), 'Expected a release version')
 if (args[3])
   assert.ok(versionPattern.test(args[3].replace(/^v/, '')), 'Expected a previous release version')
-const target = releaseTarget()
-const suffix = `_${target}.tar.gz`
-const machineArchitecture = process.env.GHL_TEST_ENGINE_ARCH ?? process.arch
-const executionArchitecture =
-  new Map([
-    ['aarch64', 'arm64'],
-    ['x86_64', 'amd64'],
-    ['x64', 'amd64'],
-  ]).get(machineArchitecture) ?? machineArchitecture
+assert.equal(
+  `${process.platform}-${process.arch}`,
+  'darwin-arm64',
+  'ghl ships for macOS on Apple Silicon',
+)
 const miseBinary = realpathSync(process.env.GHL_TEST_MISE ?? findExecutable('mise'))
 const miseVersion = execFileSync(miseBinary, ['--version'], { encoding: 'utf8' }).trim()
 assert.match(
@@ -58,38 +51,19 @@ assert.match(
   'Use mise 2026.10.2 for release acceptance (GHL_TEST_MISE can select it)',
 )
 const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-mise-')))
-const reportFile = join(
-  root,
-  '.task',
-  `${published ? 'go-mise-published' : 'go-mise-acceptance'}-${target}.json`,
-)
+const reportFile = join(root, '.task', published ? 'mise-published.json' : 'mise-acceptance.json')
 const report = {
   complete: false,
   mode: published ? 'github-release' : 'local-release-fixture',
-  scope: smoke ? 'smoke' : 'full',
   mise: miseVersion,
-  platform: target,
-  host: `${process.platform}-${process.arch}`,
-  engineArchitecture: process.env.GHL_TEST_ENGINE_ARCH,
-  execution: target.endsWith(`_${executionArchitecture}`) ? 'native' : 'translated',
   versions: [] as string[],
   checks: [] as string[],
   upgrade: false,
   latest: false,
+  window: false,
 }
 mkdirSync(dirname(reportFile), { recursive: true })
-const persistReport = () => {
-  const text = JSON.stringify(report, null, 2) + '\n'
-  writeFileSync(reportFile, text)
-  // Preserve existing native-host tooling paths without overwriting translated runs.
-  const hostTarget = `${process.platform}_${process.arch === 'x64' ? 'amd64' : process.arch}`
-  if (target === hostTarget) {
-    writeFileSync(
-      join(root, '.task', published ? 'go-mise-published.json' : 'go-mise-acceptance.json'),
-      text,
-    )
-  }
-}
+const persistReport = () => writeFileSync(reportFile, JSON.stringify(report, null, 2) + '\n')
 const record = (check: string) => {
   report.checks.push(check)
   persistReport()
@@ -102,6 +76,7 @@ symlinkSync(findExecutable('git'), join(onlyGit, 'git'))
 symlinkSync(miseBinary, join(onlyGit, 'mise'))
 const env: NodeJS.ProcessEnv = {
   PATH: `${onlyGit}:/usr/bin:/bin:/usr/sbin:/sbin`,
+  HOME: process.env.HOME,
   MISE_DATA_DIR: join(temporary, 'data'),
   MISE_CONFIG_DIR: join(temporary, 'config'),
   MISE_CACHE_DIR: join(temporary, 'cache'),
@@ -120,7 +95,9 @@ const env: NodeJS.ProcessEnv = {
   MISE_NETRC: '0',
   GIT_CONFIG_GLOBAL: '/dev/null',
   GIT_CONFIG_NOSYSTEM: '1',
-  GHL_PORT: '',
+  // Releases up to 0.2.0 are the browser CLI: should one start a daemon, it must
+  // not be on the user's port.
+  GHL_PORT: '0',
 }
 const execute = promisify(execFile)
 const run = async (binary: string, argv: string[], overrides: NodeJS.ProcessEnv = {}) =>
@@ -153,17 +130,17 @@ const download = async (asset: ReleaseAsset) => {
     ).arrayBuffer(),
   )
 }
+/** Releases up to 0.2.0 shipped a browser CLI tarball instead of the app. */
+const cliArchiveName = (version: string) => `ghl_${version}_darwin_arm64.tar.gz`
+/** The install directory: the archive root, above the app when it is one. */
+const installRoot = (binary: string) =>
+  binary.endsWith(`/${EXECUTABLE}`) ? binary.slice(0, -EXECUTABLE.length - 1) : dirname(binary)
 const repo = join(temporary, 'review with spaces')
+const statePath = join(repo, '.git/ghl/state.json')
 let mirror: Awaited<ReturnType<typeof miseReleaseFixture>> | undefined
-let port: number | undefined
-interface Health {
-  pid: number
-  instance: string
-  revision: string
-  version: string
-  commit: string
-  runtime: string
-}
+let window: string | undefined
+const windowRunning = (binary: string) =>
+  spawnSync('pgrep', ['-f', `${binary} --desktop-window`]).status === 0
 try {
   assert.equal(
     await run('/bin/sh', [
@@ -173,8 +150,11 @@ try {
     '',
   )
   let current = '1.0.1'
-  let previous: string | undefined = smoke ? undefined : '1.0.0'
-  const expected = new Map<string, { version: string; commit: string; hash: string }>()
+  let previous: string | undefined = '1.0.0'
+  const expected = new Map<
+    string,
+    { version: string; commit?: string; hash: string; app: boolean }
+  >()
   if (published) {
     current = requestedVersion!
     if (token) env.GITHUB_TOKEN = token
@@ -182,19 +162,25 @@ try {
     previous =
       args[3]?.replace(/^v/, '') ??
       releases
-        .find(
-          (release) =>
+        .find((release) => {
+          const version = release.tag_name.replace(/^v/, '')
+          return (
             !release.draft &&
             !release.prerelease &&
-            release.tag_name !== `v${current}` &&
-            versionPattern.test(release.tag_name.replace(/^v/, '')) &&
-            release.assets.some((asset) => asset.name.endsWith(suffix)),
-        )
+            version !== current &&
+            versionPattern.test(version) &&
+            release.assets.some((asset) =>
+              [archiveName(version), cliArchiveName(version)].includes(asset.name),
+            )
+          )
+        })
         ?.tag_name.replace(/^v/, '')
     for (const version of [current, ...(previous ? [previous] : [])]) {
       const release: Release = await (await github(`releases/tags/v${version}`)).json()
       assert.equal(release.draft, false)
-      const archive = release.assets.find((asset) => asset.name === archiveName(version, target))
+      const archive = release.assets.find((asset) =>
+        [archiveName(version), cliArchiveName(version)].includes(asset.name),
+      )
       const sums = release.assets.find((asset) => asset.name === 'checksums.txt')
       assert.ok(archive && sums, `Release v${version} lacks distribution assets`)
       const bytes = await download(archive)
@@ -207,57 +193,66 @@ try {
       if (archive.digest) assert.equal(archive.digest, `sha256:${checksum}`)
       const path = join(temporary, archive.name)
       writeFileSync(path, bytes)
-      const binary = execFileSync('tar', ['-xOzf', path, 'ghl'], {
-        maxBuffer: 32 * 1024 * 1024,
-      })
-      expected.set(version, { version, commit: '', hash: sha256(binary) })
+      const app = archive.name.endsWith('.zip')
+      const executable = execFileSync(
+        app ? 'unzip' : 'tar',
+        app ? ['-p', path, EXECUTABLE] : ['-xOzf', path, 'ghl'],
+        { maxBuffer: 64 * 1024 * 1024 },
+      )
+      expected.set(version, { version, hash: sha256(executable), app })
     }
     record('published archives match checksums.txt')
   } else {
-    // Verify the actual candidate before serving it through the fixture API.
-    execFileSync(process.execPath, ['test/goRelease.ts'], { cwd: root, stdio: 'inherit' })
     const dist = join(root, 'go/dist/release')
     const metadata = JSON.parse(readFileSync(join(dist, 'metadata.json'), 'utf8'))
-    mirror = await miseReleaseFixture(
-      temporary,
-      join(dist, archiveName(metadata.version, target)),
-      join(dist, desktopArchiveName(metadata.version)),
-    )
+    mirror = await miseReleaseFixture(temporary, join(dist, archiveName(metadata.version)))
     env.MISE_URL_REPLACEMENTS = JSON.stringify({
       'https://api.github.com/': `${mirror.origin}/`,
       'https://github.com/': `${mirror.origin}/`,
     })
-    if (smoke) mirror.publishNext()
-    for (const version of [...(previous ? [previous] : []), current]) {
+    for (const version of [previous, current])
       expected.set(version, {
         version: metadata.version,
         commit: metadata.commit,
-        hash: sha256(readFileSync(join(temporary, version, 'ghl'))),
+        hash: mirror.executables.get(version)!,
+        app: true,
       })
-    }
   }
   report.versions = [current, ...(previous ? [previous] : [])]
   if (previous) assert.notEqual(previous, current, 'Upgrade needs two distinct release versions')
   const installed = new Map<string, string>()
   const verify = async (version: string) => {
+    const want = expected.get(version)!
     const binary = realpathSync(await mise('which', '--tool', `${tool}@${version}`, 'ghl'))
     assert.ok(
       binary.startsWith(env.MISE_DATA_DIR + '/installs/'),
       'Executable must be installed in the isolated mise data directory',
     )
-    assert.equal(sha256(readFileSync(binary)), expected.get(version)?.hash)
+    if (want.app) assert.ok(binary.endsWith(`/${EXECUTABLE}`), 'mise must expose the app command')
+    assert.equal(sha256(readFileSync(binary)), want.hash)
     const info = JSON.parse(await run(binary, ['--version', '--json'], { PATH: onlyGit }))
-    assert.equal(info.runtime, 'go')
-    assert.equal(info.version, expected.get(version)?.version)
+    assert.equal(info.version, want.version)
+    if (want.commit) assert.equal(info.commit, want.commit)
     if (published && version === current && process.env.GHL_MISE_EXPECTED_COMMIT)
       assert.equal(info.commit, process.env.GHL_MISE_EXPECTED_COMMIT)
-    if (!published) assert.equal(info.commit, expected.get(version)?.commit)
     assert.equal(
       await mise('exec', `${tool}@${version}`, '--', 'ghl', '--version', '--json'),
       JSON.stringify(info),
     )
-    assert.equal(existsSync(join(dirname(binary), 'LICENSE')), true)
-    assert.equal(existsSync(join(dirname(binary), 'THIRD_PARTY_NOTICES.txt')), true)
+    const home = installRoot(binary)
+    for (const file of ['LICENSE', 'THIRD_PARTY_NOTICES.txt'])
+      assert.ok(existsSync(join(home, file)), `${file} must ship with the install`)
+    if (want.app) {
+      const bundle = join(home, 'ghl.app')
+      // Gatekeeper only stops a quarantined app; this one has no paid signature.
+      assert.ok(
+        !execFileSync('xattr', ['-lr', bundle], { encoding: 'utf8' }).includes(
+          'com.apple.quarantine',
+        ),
+        'mise must not quarantine the app',
+      )
+      execFileSync('codesign', ['--verify', '--deep', '--strict', bundle])
+    }
     installed.set(version, binary)
     return binary
   }
@@ -265,18 +260,18 @@ try {
   await mise('use', '-g', `${tool}@${initial}`)
   const firstBinary = await verify(initial)
   // Activation puts the selected executable on PATH. Shims are an alternative.
-  const shell = process.platform === 'darwin' ? 'zsh' : 'bash'
   const activated = JSON.parse(
-    await run(`/bin/${shell}`, [
+    await run('/bin/zsh', [
       '-f',
       '-c',
-      `eval "$(mise activate ${shell})"; eval "$(mise env -s ${shell})"; ghl --version --json`,
+      'eval "$(mise activate zsh)"; eval "$(mise env -s zsh)"; ghl --version --json',
     ]),
   )
   assert.equal(activated.version, expected.get(initial)?.version)
   const shim = join(env.MISE_DATA_DIR!, 'shims', 'ghl')
   assert.equal(JSON.parse(await run(shim, ['--version', '--json'])).version, activated.version)
   record('clean install, archive autodetection, extraction, activation, shims and mise exec')
+
   mkdirSync(repo)
   const git = (...argv: string[]) =>
     execFileSync(join(onlyGit, 'git'), ['-C', repo, ...argv], { env, encoding: 'utf8' }).trim()
@@ -289,94 +284,64 @@ try {
   git('checkout', '-qb', 'feature')
   writeFileSync(join(repo, 'sample.txt'), 'after\n')
   git('commit', '-qam', 'review')
-  const listener = createServer()
-  await new Promise<void>((resolve) => listener.listen(0, '127.0.0.1', resolve))
-  const address = listener.address()
-  assert.ok(address && typeof address !== 'string')
-  port = address.port
-  await new Promise<void>((resolve) => listener.close(() => resolve()))
-  const json = async <T>(path: string, method = 'GET', body?: unknown): Promise<T> => {
-    const response = await fetch(`http://127.0.0.1:${port}${path}`, {
-      method,
-      headers: { 'content-type': 'application/json', Connection: 'close' },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-      signal: AbortSignal.timeout(5000),
-    })
-    assert.equal(response.status, 200, await response.clone().text())
-    return response.json()
-  }
-  const launch = async (binary: string) =>
-    JSON.parse(
-      await run(
-        binary,
-        [
-          '--repo',
-          repo,
-          '--base',
-          'main',
-          '--port',
-          String(port),
-          '--idle',
-          '0',
-          '--no-open',
-          '--json',
-        ],
-        { PATH: onlyGit },
-      ),
-    )
-  const first = await launch(firstBinary)
-  const route = new URL(first.url).pathname
-  const original = await json<Health>('/api/health')
-  assert.equal(original.runtime, 'go')
-  const diff = await json<DiffPayload>(`${route}/api/diff?base=main`)
-  const file = diff.files.find((entry) => entry.path === 'sample.txt')
-  assert.ok(file?.hash)
-  const { comment } = await json<{ comment: Comment }>(`${route}/api/comments?base=main`, 'POST', {
-    id: 'mise-preserved',
-    range: diff.range,
-    path: file.path,
-    side: 'additions',
-    start: 1,
-    end: 1,
-    body: 'Keep this review across mise versions',
-  })
-  await json(`${route}/api/viewed`, 'POST', {
-    range: diff.range,
-    path: file.path,
-    hash: file.hash,
-    viewed: true,
-  })
-  const statePath = join(repo, '.git/ghl/state.json')
+  mkdirSync(dirname(statePath))
+  writeFileSync(
+    statePath,
+    JSON.stringify({
+      version: 1,
+      viewed: {},
+      comments: [
+        {
+          id: 'mise-preserved',
+          path: 'sample.txt',
+          side: 'additions',
+          start: 1,
+          end: 1,
+          body: 'Keep this review across mise versions',
+          anchor: ['after'],
+          range: 'main..feature',
+          createdAt: '2026-09-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  )
   const stored = readFileSync(statePath, 'utf8')
-  const preserved = async () => {
-    const review = await json<DiffPayload>(`${route}/api/diff?base=main`)
-    assert.deepEqual(
-      review.comments.find((entry) => entry.id === comment.id),
-      comment,
-    )
-    assert.equal(review.viewed[file.path], file.hash)
-    assert.equal(readFileSync(statePath, 'utf8'), stored)
-    const page = await fetch(loopbackURL(first.url), {
-      headers: { Connection: 'close' },
-      signal: AbortSignal.timeout(5000),
-    })
-    assert.equal(page.status, 200)
-    const html = await page.text()
-    assert.ok(html.includes('<div id="root">'))
-    const script = html.match(/src="([^"]+\.js)"/)?.[1]
-    assert.ok(script)
-    assert.equal(
-      (
-        await fetch(new URL(script, loopbackURL(first.url)), {
-          headers: { Connection: 'close' },
-          signal: AbortSignal.timeout(5000),
-        })
-      ).status,
-      200,
-    )
+  const exported = async () => {
+    const { comments } = JSON.parse(
+      await run(shim, ['comments', '--json', '--repo', repo, '--base', 'main'], { PATH: onlyGit }),
+    ) as { comments: { id: string; body: string; code: string[] }[] }
+    return comments.map(({ id, body, code }) => ({ id, body, code }))
   }
-  await preserved()
-  record('installed executable serves embedded React with only Git; comments and Viewed saved')
+  const review = await exported()
+  assert.deepEqual(review, [
+    { id: 'mise-preserved', body: 'Keep this review across mise versions', code: ['after'] },
+  ])
+  const preserved = async () => {
+    assert.deepEqual(await exported(), review)
+    assert.equal(readFileSync(statePath, 'utf8'), stored)
+  }
+  record('the installed command exports review comments with only Git on PATH')
+
+  const openWindow = async (binary: string) => {
+    assert.ok(binary.endsWith(`/${EXECUTABLE}`), 'Only the app opens a window')
+    // An empty probe keeps the app on an instance of its own, apart from the user's.
+    const probe = join(temporary, 'probe.js')
+    writeFileSync(probe, '')
+    await run(shim, ['--repo', repo, '--base', 'main'], { PATH: onlyGit, GHL_DESKTOP_PROBE: probe })
+    window = binary
+    for (let attempt = 0; attempt < 100 && !windowRunning(binary); attempt++)
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    assert.ok(windowRunning(binary), 'The app did not open its window from the mise install')
+    spawnSync('pkill', ['-TERM', '-f', `${binary} --desktop-window`])
+    for (let attempt = 0; attempt < 50 && windowRunning(binary); attempt++)
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    assert.ok(!windowRunning(binary), 'The app did not quit')
+    window = undefined
+    report.window = true
+    record('the app opens its window from the mise install and quits')
+  }
+  if (expected.get(initial)?.app) await openWindow(firstBinary)
+
   if (previous) {
     if (mirror) {
       await mise('use', '-g', `${tool}@latest`)
@@ -389,18 +354,9 @@ try {
     const nextBinary = await verify(current)
     assert.equal(realpathSync(await mise('which', 'ghl')), nextBinary)
     assert.ok(existsSync(firstBinary), 'Keep the previous version available for rollback')
-    assert.equal(
-      (await json<Health>('/api/health')).instance,
-      original.instance,
-      'Installing alone must not restart the daemon',
-    )
-    const next = await launch(nextBinary)
-    assert.equal(next.url, first.url)
-    const upgraded = await json<Health>('/api/health')
-    assert.notEqual(upgraded.pid, original.pid)
-    assert.notEqual(upgraded.instance, original.instance)
     await preserved()
-    record('upgrade keeps the old install; next launch replaces the daemon and preserves URL/state')
+    if (!expected.get(initial)?.app && expected.get(current)?.app) await openWindow(nextBinary)
+    record('upgrade keeps the previous install, and the review reads the same')
     await mise('use', '-g', `${tool}@${previous}`)
     await mise('upgrade', '--no-prune', tool)
     assert.equal(
@@ -408,15 +364,11 @@ try {
       firstBinary,
       'An exact pin must survive upgrade',
     )
-    await launch(firstBinary)
-    const rollback = await json<Health>('/api/health')
-    assert.notEqual(rollback.instance, upgraded.instance)
     await preserved()
     report.upgrade = true
-    record('rollback and exact pin preserve comments, anchors, timestamps and Viewed')
-  } else if (!smoke)
-    record('first published version: historical upgrade/rollback awaits a second release')
-  if (mirror && !smoke) {
+    record('rollback and exact pin keep the review')
+  } else record('first published version: historical upgrade/rollback awaits a second release')
+  if (mirror) {
     // Exercise the exact-version upgrade command used by published mode too.
     await mise('upgrade', '--bump', '--no-prune', `${tool}@${current}`)
     assert.equal(realpathSync(await mise('which', 'ghl')), await verify(current))
@@ -425,9 +377,7 @@ try {
     assert.equal(realpathSync(await mise('which', 'ghl')), firstBinary)
     await preserved()
     assert.ok(mirror.requested.some((path) => path.endsWith('/checksums.txt')))
-    assert.ok(mirror.requested.some((path) => path.endsWith(suffix)))
-    assert.ok(!mirror.requested.some((path) => path.endsWith('.zip')))
-    record('CLI archive selected alongside desktop ZIP')
+    assert.ok(mirror.requested.some((path) => path.endsWith(archiveName('1.0.1'))))
     const remote = await mise('ls-remote', tool)
     assert.ok(remote.includes('1.0.1'))
     assert.ok(!remote.includes('rc.1'), 'latest must exclude prereleases by default')
@@ -445,18 +395,6 @@ try {
     report.latest = true
     record('latest resolves the newly published stable release')
   }
-  const health = await json<Health>('/api/health')
-  await json('/api/shutdown', 'POST', { instance: health.instance })
-  for (let i = 0; i < 100; i++) {
-    try {
-      await json('/api/health')
-    } catch {
-      break
-    }
-    await new Promise((resolve) => setTimeout(resolve, 30))
-    if (i === 99) throw new Error('Daemon did not stop')
-  }
-  port = undefined
   await mise('unuse', '-g', '--no-prune', tool)
   await mise('uninstall', '--all', tool)
   for (const binary of installed.values()) assert.equal(existsSync(binary), false)
@@ -465,26 +403,7 @@ try {
   report.complete = true
   record('uninstall removes selection and executables while preserving repository state')
 } finally {
-  if (port) {
-    try {
-      const health: Health = await (
-        await fetch(`http://127.0.0.1:${port}/api/health`, {
-          headers: { Connection: 'close' },
-          signal: AbortSignal.timeout(2000),
-        })
-      ).json()
-      await fetch(`http://127.0.0.1:${port}/api/shutdown`, {
-        method: 'POST',
-        headers: { Connection: 'close' },
-        body: JSON.stringify({ instance: health.instance }),
-        signal: AbortSignal.timeout(2000),
-      })
-      // Wait before removing the executable and fixture paths used by the daemon.
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    } catch {
-      /* The daemon may already be stopped. */
-    }
-  }
+  if (window) spawnSync('pkill', ['-KILL', '-f', `${window} --desktop-window`])
   await mirror?.close()
   rmSync(temporary, { recursive: true, force: true })
 }
