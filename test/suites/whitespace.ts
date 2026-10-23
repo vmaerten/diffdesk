@@ -3,7 +3,15 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import type { DiffPayload } from '../../src/types.ts'
-import { allTreeRows, type Suite } from '../harness.ts'
+import {
+  allTreeRows,
+  closeOptions,
+  command,
+  COMMENTS_OPEN,
+  openOptions,
+  VIEWED_COUNT,
+  type Suite,
+} from '../harness.ts'
 
 export default {
   name: 'whitespace',
@@ -12,18 +20,29 @@ export default {
       execFileSync('git', args, { cwd: repoPath, encoding: 'utf8', stdio: 'pipe' }).trim()
     const original = git('branch', '--show-current')
     const query = '?base=whitespace-base&target=whitespace-review'
-    const toggle = '.whitespace-toggle input'
+    const toggle = '.options-popover label[title^="Hide changes"] input'
     const endpoint = new URL(url(query))
     const api = (route: string, suffix = '') =>
       `${endpoint.origin}${endpoint.pathname}/api/${route}${query}${suffix}`
     const waitForFiles = async (count: number) => {
       await page.waitForFunction(
         (expected) =>
-          document.querySelector('.review-tools-title > .counter')?.textContent ===
-          String(expected),
+          document.querySelector('.sidebar-head .counter')?.textContent === String(expected),
         {},
         count,
       )
+    }
+    // The checkbox lives in the Options popover, whose backdrop would swallow any other click.
+    const filtered = async () => {
+      await openOptions(page)
+      const checked = await page.$eval(toggle, (input) => input.checked)
+      await closeOptions(page)
+      return checked
+    }
+    const toggleFilter = async () => {
+      await openOptions(page)
+      await page.click(toggle)
+      await closeOptions(page)
     }
     const ticked = () =>
       page.$$eval(
@@ -51,10 +70,7 @@ export default {
       git('commit', '-qm', 'format and edit')
 
       await load(query)
-      check(
-        'whitespace filtering starts disabled',
-        !(await page.$eval(toggle, (input) => input.checked)),
-      )
+      check('whitespace filtering starts disabled', !(await filtered()))
       const initial = (await (await fetch(api('diff'))).json()) as DiffPayload
       const seeded = await fetch(api('comments'), {
         method: 'POST',
@@ -71,7 +87,7 @@ export default {
       })
       check('comment on a whitespace-only file is saved', seeded.ok)
 
-      await page.click(toggle)
+      await toggleFilter()
       await waitForFiles(1)
       check('the URL carries GitHub-style w=1', new URL(page.url()).searchParams.get('w') === '1')
       const files = (await allTreeRows(page)).filter((row) => row.kind === 'file')
@@ -79,22 +95,19 @@ export default {
         'the tree hides the whitespace-only file',
         files.length === 1 && files[0]?.path === 'whitespace-mixed.txt',
       )
-      const filtered = (await (await fetch(api('diff', '&w=1'))).json()) as DiffPayload
+      const payload = (await (await fetch(api('diff', '&w=1'))).json()) as DiffPayload
       check(
         'counts describe only the substantive edit',
-        filtered.totals.files === 1 &&
-          filtered.totals.additions === 1 &&
-          filtered.totals.deletions === 1,
+        payload.totals.files === 1 &&
+          payload.totals.additions === 1 &&
+          payload.totals.deletions === 1,
       )
 
-      await page.click('.view-toggle button:last-child')
-      check('split view retains the filter', await page.$eval(toggle, (input) => input.checked))
+      await page.click('.segmented button[title^="Split"]')
+      check('split view retains the filter', await filtered())
       await page.reload({ waitUntil: 'networkidle0' })
       await waitForFiles(1)
-      check(
-        'reload restores the filter from the URL',
-        await page.$eval(toggle, (input) => input.checked),
-      )
+      check('reload restores the filter from the URL', await filtered())
 
       // Context expansion must load the two real files without restoring hidden hunks.
       const expandedResponse = page.waitForResponse(
@@ -116,13 +129,11 @@ export default {
       }
 
       await page.click('.viewed-toggle input')
-      await page.waitForFunction(() =>
-        document.querySelector('.review-progress')?.textContent?.includes('1/1'),
-      )
-      await page.click(toggle)
+      await page.waitForFunction(`(${VIEWED_COUNT})?.startsWith('1 of 1 ')`)
+      await toggleFilter()
       await waitForFiles(2)
       check('filtered Viewed does not mark the full diff read', (await ticked()) === 0)
-      await page.click(toggle)
+      await toggleFilter()
       await waitForFiles(1)
       await page.waitForFunction(() =>
         document.querySelector('.viewed-toggle input')?.matches(':checked'),
@@ -145,13 +156,7 @@ export default {
       const resetResponse = page.waitForResponse((response) =>
         response.url().includes('/api/viewed'),
       )
-      await page.evaluate(() => {
-        const reset = [
-          ...document.querySelectorAll<HTMLButtonElement>('.sidebar-head button'),
-        ].find((button) => button.textContent === 'Reset')
-        if (!reset) throw new Error('missing Viewed Reset')
-        reset.click()
-      })
+      await command(page, 'reset-viewed')
       const reset = await resetResponse
       check(
         'filtered Reset sends its whitespace scope',
@@ -166,7 +171,7 @@ export default {
       )
 
       await page.click('.comments-trigger')
-      await page.waitForSelector('.comments-panel[open] [data-comment-id="whitespace-hidden"]')
+      await page.waitForSelector(`${COMMENTS_OPEN} [data-comment-id="whitespace-hidden"]`)
       check(
         'comments on hidden files remain accessible',
         await page.$eval(
@@ -187,11 +192,7 @@ export default {
           (message) => message.textContent?.includes('whitespace changes hidden') === true,
         ),
       )
-      await page.setViewport({ width: 390, height: 844 })
-      check(
-        'the setting remains available on mobile',
-        await page.$eval(toggle, (input) => input.getBoundingClientRect().width > 0),
-      )
+      check('the setting stays available on an empty diff', await filtered())
     } finally {
       await fetch(`${endpoint.origin}${endpoint.pathname}/api/comments?id=whitespace-hidden`, {
         method: 'DELETE',

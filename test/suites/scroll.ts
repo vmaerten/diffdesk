@@ -2,6 +2,7 @@ import {
   DIFF_ON_SCREEN as ON_SCREEN,
   DIFF_SCROLLER as SCROLLER,
   sleep,
+  titlebar,
   type Suite,
 } from '../harness.ts'
 
@@ -46,9 +47,7 @@ export default {
     const mounted = (await page.evaluate(
       `${SCROLLER}.querySelectorAll('diffs-container').length`,
     )) as number
-    const claimed = (await page.evaluate(
-      `parseInt(document.querySelector('.sidebar-head span').textContent, 10)`,
-    )) as number
+    const claimed = (await titlebar(page)).files ?? NaN
     check(
       'the diff stays virtualised to the end',
       mounted > 0 && mounted < claimed,

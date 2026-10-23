@@ -65,10 +65,10 @@ See the [reviewing guide](./docs/reviewing.md) for comparisons, comments and sta
 After `pnpm install`:
 
 ```bash
-task dev      # React hot reload and Go restart
+task dev      # desktop UI in a browser, React hot reload and Go restart
 task build    # build go/dist/ghl with the UI embedded
 task check    # types, lint, formatting and Go vet
-task test     # Go, CLI, API and browser tests
+task test     # Go, CLI, API and desktop UI tests
 ```
 
 See the [development guide](./go/README.md#development) for prerequisites, ports and reviewing another checkout.

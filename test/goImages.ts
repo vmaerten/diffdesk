@@ -6,6 +6,7 @@ import { realpathSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { launch } from 'puppeteer-core'
 
+import { installDesktopRuntime, serveDesktopUI } from './desktopRuntime.ts'
 import { findChrome, sleep } from './harness.ts'
 import { runImages, type ImageTestRuntime, type ImageTestServer } from './images.ts'
 
@@ -64,6 +65,7 @@ const runtime: ImageTestRuntime = {
   withHarness: async (repo, body) => {
     const server = active
     assert.ok(server, 'image API server must be running before browser checks')
+    const ui = await serveDesktopUI(server.origin)
     const browser = await launch({
       executablePath: findChrome(),
       headless: 'shell',
@@ -73,13 +75,14 @@ const runtime: ImageTestRuntime = {
     try {
       return await body(async (target) => {
         const page = await browser.newPage()
+        await installDesktopRuntime(page)
         const errors: string[] = []
         page.on('pageerror', (error) => errors.push(String(error)))
         page.on('console', (message) => {
           if (message.type() === 'error') errors.push(message.text())
         })
         const url = (query?: string) =>
-          `${server.origin}/r/${server.repoId}${query ?? (target ? '?target=' + encodeURIComponent(target) : '')}`
+          `${ui.origin}/r/${server.repoId}${query ?? (target ? '?target=' + encodeURIComponent(target) : '')}`
         return {
           page,
           repoPath: repo,
@@ -94,6 +97,7 @@ const runtime: ImageTestRuntime = {
       }, browser)
     } finally {
       await browser.close()
+      await ui.close()
     }
   },
 }

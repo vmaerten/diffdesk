@@ -1,0 +1,90 @@
+// Simulated Wails bindings, so the desktop UI runs in a browser: the dev server and the UI tests.
+import { readFileSync } from 'node:fs'
+
+export interface DesktopTab {
+  id: string
+  name: string
+  path: string
+  route: string
+}
+
+/**
+ * The bindings the Go side registers, then the bridge Wails injects, for one document.
+ *
+ * Without `given` tabs, a document loaded on a review route opens as the only
+ * tab, so a review is reached by URL as in a browser. `window.desktopFixture`
+ * records what the page asked of the native side; its settings outlive a
+ * reload, as the Go side's file does. Runs in the page: it must stay self-contained.
+ */
+export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource: string) {
+  const route = location.pathname + location.search
+  const repoId = decodeURIComponent(location.pathname.split('/')[2] ?? '')
+  const opened =
+    given ??
+    (location.pathname.startsWith('/r/') ? [{ id: '1', name: repoId, path: '', route }] : [])
+  const state = { revision: 1, active: opened[0]?.id ?? '', tabs: opened }
+  const fixture = {
+    clipboard: '',
+    settings: sessionStorage.getItem('desktopFixture.settings') ?? '',
+    revealed: [] as string[],
+  }
+  type Snapshot = typeof state
+  const listeners = new Set<(state: Snapshot) => void>()
+  const snapshot = (): Snapshot => structuredClone(state)
+  const publish = () => {
+    state.revision++
+    for (const listener of listeners) listener(snapshot())
+    return snapshot()
+  }
+  const runtime = {
+    EventsOn: (_name: string, callback: (state: Snapshot) => void) => {
+      listeners.add(callback)
+      return () => listeners.delete(callback)
+    },
+    WindowSetTitle: () => {},
+    ClipboardSetText: async (text: string) => {
+      fixture.clipboard = text
+      return true
+    },
+    ClipboardGetText: async () => fixture.clipboard,
+  }
+  Object.assign(window, { desktopFixture: fixture, runtime })
+  window.go = {
+    main: {
+      desktopApp: {
+        Tabs: async () => snapshot(),
+        ActivateTab: async (id) => {
+          state.active = id
+          return publish()
+        },
+        CloseTab: async (id) => {
+          const index = state.tabs.findIndex((tab) => tab.id === id)
+          if (index < 0) return snapshot()
+          state.tabs.splice(index, 1)
+          if (state.active === id)
+            state.active = state.tabs[Math.min(index, state.tabs.length - 1)]?.id ?? ''
+          return publish()
+        },
+        UpdateTabURL: async (id, next) => {
+          const tab = state.tabs.find((candidate) => candidate.id === id)
+          if (!tab || id !== state.active) return snapshot()
+          tab.route = next
+          return publish()
+        },
+        OpenRepository: async () => {},
+        SaveTabView: async () => {},
+        Settings: async () => fixture.settings,
+        SaveSettings: async (raw) => {
+          fixture.settings = raw
+          sessionStorage.setItem('desktopFixture.settings', raw)
+        },
+        RevealInFinder: async (_tab, path) => {
+          fixture.revealed.push(path)
+        },
+      },
+    },
+  }
+  new Function(bridgeSource)()
+}
+
+export const BRIDGE = readFileSync(new URL('./bridge.js', import.meta.url), 'utf8')

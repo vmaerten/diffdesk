@@ -2,10 +2,10 @@ import { execFileSync } from 'node:child_process'
 import { rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { sleep, topbar, type Suite } from '../harness.ts'
+import { openOptions, sleep, titlebar, type Suite } from '../harness.ts'
 
-/** Named, since the revision group holds a second checkbox beside it. */
-const BUTTON = `document.querySelector('.revision .scope-check input.worktree')`
+/** Named, since the Options popover holds other checkboxes beside it. */
+const BUTTON = `document.querySelector('.options-popover .scope-check input.worktree')`
 
 export default {
   name: 'worktree',
@@ -19,16 +19,13 @@ export default {
         const b = ${BUTTON}
         return b ? { pressed: String(b.checked), off: b.disabled } : null
       })()`) as Promise<{ pressed: string; off: boolean } | null>
-    const files = () =>
-      page.evaluate(
-        `document.querySelector('.sidebar-head span')?.textContent?.trim() ?? null`,
-      ) as Promise<string | null>
+    const files = async () => (await titlebar(page)).files
     const message = () =>
       page.evaluate(`document.querySelector('.message')?.textContent?.trim() ?? null`) as Promise<
         string | null
       >
     /** The checkbox beside it, which the working tree controls without changing. */
-    const untrackedButton = async () => (await topbar(page)).toggles.at(-1)
+    const untrackedButton = async () => (await titlebar(page)).toggles.at(-1)
 
     try {
       // The fixture sits on `main`, which is its own trunk, so the bare URL
@@ -39,11 +36,12 @@ export default {
 
       await load('')
       await sleep(1500)
+      await openOptions(page)
 
       check(
         'the working tree is what the bare URL shows',
-        (await files())?.includes('1 file') === true,
-        (await files()) ?? 'nothing',
+        (await files()) === 1,
+        String(await files()),
       )
       check(
         '  and the checkbox says so',
@@ -59,11 +57,7 @@ export default {
       await page.evaluate(`${BUTTON}.click()`)
       await sleep(1500)
 
-      check(
-        'releasing it empties the diff',
-        (await files()) === null,
-        (await files()) ?? 'no file list',
-      )
+      check('releasing it empties the diff', (await files()) === null, String(await files()))
       // "matches the base" would be a lie: the work is there, uncommitted.
       check(
         '  saying nothing is committed rather than nothing changed',
@@ -77,30 +71,27 @@ export default {
         (await untrackedButton())?.label === 'Untracked' && (await untrackedButton())?.off === true,
         JSON.stringify(await untrackedButton()),
       )
-      const notes = (await topbar(page)).notes.join(' | ')
+      const notes = (await titlebar(page)).notes.join(' | ')
       check(
-        '  and the topbar says the working tree is excluded',
+        '  and the status bar says the working tree is excluded',
         notes.includes('working tree excluded'),
         notes,
       )
       check(
         '  which the URL carries',
-        (await topbar(page)).search.includes('committed=1'),
-        (await topbar(page)).search,
+        (await titlebar(page)).search.includes('committed=1'),
+        (await titlebar(page)).search,
       )
 
       await page.evaluate(`${BUTTON}.click()`)
       await sleep(1500)
-      check(
-        'pressing it again brings the work back',
-        (await files())?.includes('1 file') === true,
-        (await files()) ?? 'nothing',
-      )
+      check('pressing it again brings the work back', (await files()) === 1, String(await files()))
 
       // Reviewing a ref: the working tree is out whatever the checkbox says, so it
       // must neither claim otherwise nor invite a click.
       await load('?target=feature')
       await sleep(1500)
+      await openOptions(page)
       const onRef = await button()
       check('reviewing a ref disables the button', onRef?.off === true, JSON.stringify(onRef))
       check('  and shows it unpressed', onRef?.pressed === 'false', JSON.stringify(onRef))

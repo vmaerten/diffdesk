@@ -1,17 +1,17 @@
 import { rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { sleep, topbar, TREE_ROWS, type Suite, type TreeRow } from '../harness.ts'
+import { openOptions, sleep, titlebar, TREE_ROWS, type Suite, type TreeRow } from '../harness.ts'
 
-const BUTTON = `document.querySelector('.revision .scope-check input.untracked')`
+const BUTTON = `document.querySelector('.options-popover .scope-check input.untracked')`
 
 export default {
   name: 'untracked',
   async run({ page, load, repoPath }, check) {
     const stray = join(repoPath, 'ut-stray.ts')
 
-    /** The second scope checkbox in the revision group, which is this one. */
-    const button = async () => (await topbar(page)).toggles.at(-1)
+    /** The second scope checkbox in the Options popover, which is this one. */
+    const button = async () => (await titlebar(page)).toggles.at(-1)
     const row = async () => {
       const { rows } = (await page.evaluate(TREE_ROWS)) as { rows: TreeRow[] }
       return rows.find((r) => r.path === 'ut-stray.ts') ?? null
@@ -24,12 +24,6 @@ export default {
       page.evaluate(
         `[...document.querySelectorAll('.warning')].map((e) => e.textContent.trim()).join(' | ')`,
       ) as Promise<string>
-    /** The topbar's count, from `totals`, against the sidebar's, from the rows. */
-    const counts = () =>
-      page.evaluate(`[
-        document.querySelector('.stats')?.textContent?.trim().split(' ')[0] ?? null,
-        document.querySelector('.sidebar-head span')?.textContent?.trim().split(' ')[0] ?? null,
-      ]`) as Promise<[string | null, string | null]>
 
     try {
       // Three lines, so a row reading `+0` is a failure and not a coincidence.
@@ -41,6 +35,7 @@ export default {
       // for, which is what `load` waits on.
       await load('?untracked=1')
       await sleep(1000)
+      await openOptions(page)
 
       check(
         'the file is in the diff with the flag on',
@@ -52,13 +47,13 @@ export default {
       check(
         '  carrying the counts git gives it, and the untracked status',
         (await row())?.status === 'untracked' &&
-          (await page.evaluate(() => document.querySelector('.stats .add')?.textContent === '+3')),
+          (await page.evaluate(
+            () => document.querySelector('.footer-stats .add')?.textContent === '+3',
+          )),
         JSON.stringify(await row()),
       )
-      // The topbar counts `totals`, the sidebar counts the rows on screen: they
-      // agree only if the untracked file reached `files` as well as the patch.
-      const [head, side] = await counts()
-      check('  and the two file counts agree', head === side && head === '1', `${head} vs ${side}`)
+      const files = (await titlebar(page)).files
+      check('  and the sidebar counts it', files === 1, String(files))
       check(
         '  which the checkbox says with its label',
         (await button())?.label === 'Untracked (1)',
@@ -87,14 +82,15 @@ export default {
       )
       check(
         '  and the URL dropping the parameter, which is where the state lives',
-        !(await topbar(page)).search.includes('untracked'),
-        (await topbar(page)).search || 'no query',
+        !(await titlebar(page)).search.includes('untracked'),
+        (await titlebar(page)).search || 'no query',
       )
 
       // Bare, as it is typed by hand: `get` would return the empty string here,
       // which is falsy, and the flag would be inert without saying so.
       await load('?untracked')
       await sleep(1000)
+      await openOptions(page)
       check(
         'the flag works written bare',
         (await button())?.pressed === true && (await row()) !== null,
@@ -105,6 +101,7 @@ export default {
       // flag says — and a checked checkbox there would claim otherwise.
       await load('?target=feature&untracked=1')
       await sleep(1000)
+      await openOptions(page)
       const onRef = await button()
       check(
         'reviewing a ref disables it, unpressed and without a count',

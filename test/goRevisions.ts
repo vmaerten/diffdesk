@@ -10,6 +10,7 @@ import { launch } from 'puppeteer-core'
 
 import type { DiffPayload, DiffFiles } from '../src/types.ts'
 import { createFixture } from './fixture.ts'
+import { installDesktopRuntime, serveDesktopUI } from './desktopRuntime.ts'
 import { findChrome, sleep, type Harness } from './harness.ts'
 import pickers from './suites/pickers.ts'
 import commits from './suites/commits.ts'
@@ -45,6 +46,7 @@ const git = (...args: string[]) =>
 const binary = goBinary()
 let child: ChildProcess | undefined
 let browser: Awaited<ReturnType<typeof launch>> | undefined
+let ui: Awaited<ReturnType<typeof serveDesktopUI>> | undefined
 let checks = 0
 
 async function json<T>(url: string, body?: unknown): Promise<T> {
@@ -263,15 +265,21 @@ try {
     defaultViewport: { width: 1600, height: 1000 },
   })
   const page = await browser.newPage()
+  await installDesktopRuntime(page)
   const pageErrors: string[] = []
   page.on('pageerror', (error) => pageErrors.push(String(error)))
+  const goOrigin = new URL(goURL).origin
+  ui = await serveDesktopUI(goOrigin)
+  const reviewURL = ui.origin + goURL.slice(goOrigin.length)
   const harness: Harness = {
     page,
     repoPath: repo,
     errors: pageErrors,
-    url: (selectionQuery) => goURL + (selectionQuery ?? '?target=feature'),
+    url: (selectionQuery) => reviewURL + (selectionQuery ?? '?target=feature'),
     load: async (selectionQuery) => {
-      await page.goto(goURL + (selectionQuery ?? '?target=feature'), { waitUntil: 'networkidle0' })
+      await page.goto(reviewURL + (selectionQuery ?? '?target=feature'), {
+        waitUntil: 'networkidle0',
+      })
       await page.waitForSelector('file-tree-container')
       await sleep(500)
     },
@@ -282,12 +290,13 @@ try {
   }
   for (const suite of [pickers, commits, stack, untracked]) {
     await suite.run(harness, check)
-    console.log(`  ok existing browser suite against Go: ${suite.name}`)
+    console.log(`  ok existing UI suite against Go: ${suite.name}`)
   }
   assert.deepEqual(pageErrors, [])
   console.log(`  ok ${checks} revision contracts and browser checks`)
 } finally {
   await browser?.close()
+  await ui?.close()
   if (child && child.exitCode === null && child.signalCode === null) {
     const exited = once(child, 'exit')
     child.kill('SIGINT')

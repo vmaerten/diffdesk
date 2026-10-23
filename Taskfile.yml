@@ -49,8 +49,7 @@ tasks:
       - sh: '{{and (regexMatch `^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$` .BUILD_VERSION) (regexMatch `^[a-f0-9]{40}(-dirty)?$` .BUILD_COMMIT) (regexMatch `^[0-9T:+.Z-]+$` .BUILD_DATE)}}'
         msg: Invalid desktop build metadata
     cmds:
-      - pnpm exec vite build --mode go-desktop --outDir ../desktop/assets
-      - touch desktop/assets/.gitkeep
+      - task: desktop:assets
       - task: desktop:icon
       - mkdir -p '.task/desktop/ghl Desktop.app/Contents/MacOS' '.task/desktop/ghl Desktop.app/Contents/Resources'
       - cp .task/desktop/AppIcon.icns '.task/desktop/ghl Desktop.app/Contents/Resources/AppIcon.icns'
@@ -70,6 +69,13 @@ tasks:
         plutil -replace GHLCommit -string {{.BUILD_COMMIT | shellQuote}}
         '.task/desktop/ghl Desktop.app/Contents/Info.plist'
       - codesign --force --deep --sign - '.task/desktop/ghl Desktop.app'
+
+  desktop:assets:
+    desc: Build the desktop UI, embedded by the app and driven by the UI tests
+    cmds:
+      - pnpm exec vite build --mode go-desktop --outDir ../desktop/assets
+      # Vite removes the tracked placeholder while cleaning its output.
+      - touch desktop/assets/.gitkeep
 
   desktop:icon:
     internal: true
@@ -148,6 +154,7 @@ tasks:
     desc: Test desktop tab comments and context restoration in an isolated headless browser
     cmds:
       - task: build
+      - task: desktop:assets
       - node test/desktopTabs.ts
 
   default:
@@ -185,7 +192,7 @@ tasks:
       - ../.task/bin/air -c .air.toml
 
   dev:web:
-    desc: Serve React with Vite, proxying to the development Go backend
+    desc: Serve the desktop UI with Vite in a browser, proxying to the development Go backend
     vars:
       DEV_REPO: '{{if .REPO}}{{if isAbs .REPO}}{{.REPO}}{{else}}{{.USER_WORKING_DIR}}/{{.REPO}}{{end}}{{else}}{{.USER_WORKING_DIR}}{{end}}'
       DEV_PORT: '{{.PORT | default "5180"}}'
@@ -204,7 +211,7 @@ tasks:
           until curl --noproxy '*' --fail --silent --max-time 1 "$GHL_DEV_API/api/health" >/dev/null; do sleep 0.1; done
         timeout: 30s
       - >-
-        pnpm exec vite --mode go --host 127.0.0.1 --strictPort --port {{.DEV_PORT | shellQuote}}
+        pnpm exec vite --mode go-desktop --host 127.0.0.1 --strictPort --port {{.DEV_PORT | shellQuote}}
         {{if and (ne (.OPEN | default "true") "false") (ne (.OPEN | default "true") "0")}}--open {{.REVIEW_PATH | shellQuote}}{{end}}
 
   dev:tools:
@@ -281,9 +288,10 @@ tasks:
         -o {{printf "../%s" .OUTPUT | shellQuote}} {{printf "./cmd/%s" .COMMAND | shellQuote}}
 
   test:
-    desc: Test the Go runtime, API contracts and embedded UI
+    desc: Test the Go runtime, API contracts and the desktop UI
     cmds:
       - task: build
+      - task: desktop:assets
       - task: test:go
       - node test/goCLI.ts
       - node test/goDaemon.ts

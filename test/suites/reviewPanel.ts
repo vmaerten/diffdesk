@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DiffPayload, StoredState } from '../../src/types.ts'
-import { clickTreeRow, sleep, type Suite } from '../harness.ts'
+import { clickTreeRow, COMMENTS_OPEN, sleep, type Suite } from '../harness.ts'
 
 export default {
   name: 'review-panel',
@@ -71,7 +71,7 @@ export default {
     })
     const payload = (await (await fetch(api('diff'))).json()) as DiffPayload
     await page.click('.comments-trigger')
-    await page.waitForSelector('.comments-panel[open]')
+    await page.waitForSelector(COMMENTS_OPEN)
     check(
       'all comments are listed, including a file outside the diff',
       (await page.$$eval('.comments-panel .comment', (cards) => cards.length)) === 3,
@@ -139,16 +139,14 @@ export default {
     })
     await page.click('.comments-panel-toolbar button')
     await page.waitForSelector('.comments-panel [role="alert"]')
+    const copyLabel = await page.$eval('.comments-panel-toolbar button', (el) => el.textContent)
     check(
       'copy failures are visible inside the panel without claiming success',
-      (await page.$eval('.comments-panel-toolbar button', (el) => el.textContent)) === 'Copy all',
+      copyLabel?.startsWith('Copy all') === true,
+      copyLabel ?? '',
     )
-    await page.keyboard.press('Escape')
-    await page.waitForSelector('.comments-panel[open]', { hidden: true })
-    check(
-      'closing returns focus to the trigger',
-      await page.$eval('.comments-trigger', (el) => el === document.activeElement),
-    )
+    await page.click('[aria-label="Close comments"]')
+    await page.waitForSelector(COMMENTS_OPEN, { hidden: true })
 
     await clickTreeRow(page, first.path)
     await sleep(500)
@@ -164,7 +162,6 @@ export default {
     )
     await page.click('.comments-trigger')
     await page.click('.comments-panel [data-comment-id="panel-first"] .comment-navigation button')
-    await page.waitForSelector('.comments-panel[open]', { hidden: true })
     await page.waitForSelector('.diff [data-comment-id="panel-first"]')
     await sleep(700)
     const position = await page.$eval('.diff [data-comment-id="panel-first"]', (el) => {
@@ -185,6 +182,8 @@ export default {
       ),
     )
     check('revealing a comment preserves Viewed state', first.path in afterReveal.viewed)
+    // A side panel, not a drawer: it stays beside the diff it navigated.
+    check('the comments panel stays open', (await page.$(COMMENTS_OPEN)) !== null)
     const clickRevealed = (label: string) =>
       page.evaluate((text) => {
         const buttons = document.querySelectorAll<HTMLButtonElement>(
@@ -223,34 +222,6 @@ export default {
       JSON.stringify(folded),
     )
 
-    await page.setViewport({ width: 390, height: 844 })
-    await sleep(500)
-    check(
-      'mobile dedicates its width to the diff',
-      (await page.$eval('.diff', (el) => el.getBoundingClientRect().width)) === 390,
-    )
-    check(
-      'mobile has no page overflow',
-      await page.evaluate(() => document.documentElement.scrollWidth === innerWidth),
-    )
-    await page.click('.files-toggle')
-    check(
-      'mobile file list can be opened',
-      (await page.$eval('.sidebar', (el) => el.getBoundingClientRect().width)) > 0,
-    )
-    await clickTreeRow(page, second.path)
-    await sleep(300)
-    check(
-      'selecting a mobile file closes the drawer',
-      (await page.$eval('.sidebar', (el) => el.getBoundingClientRect().width)) === 0,
-    )
-    await page.click('.comments-trigger')
-    check(
-      'mobile comments panel fills the viewport',
-      (await page.$eval('.comments-panel', (el) => el.getBoundingClientRect().width)) === 390,
-    )
-    await page.keyboard.press('Escape')
-
     // Keep the shared fixture clean for subsequent suites.
     for (const id of [first.id, second.id, 'panel-outside']) {
       await fetch(`${api('comments')}&id=${id}`, { method: 'DELETE' })
@@ -260,6 +231,5 @@ export default {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ range: payload.range, clear: true }),
     })
-    await page.setViewport({ width: 1600, height: 1000 })
   },
 } satisfies Suite

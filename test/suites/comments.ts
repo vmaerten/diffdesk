@@ -168,11 +168,11 @@ export default {
     check('  and no composer is left open', (await count('.comment-composer')) === 0)
     const copyLabel = () =>
       page.evaluate(
-        `([...document.querySelectorAll('.review-tools .copy-all')].find((b) => b.textContent.startsWith('Copy')) || {}).textContent || null`,
+        `(() => { const b = document.querySelector('.titlebar-actions .copy-all'); return b && !b.disabled ? b.textContent : null })()`,
       )
     check(
-      '  and a copy button appears',
-      (await copyLabel()) === 'Copy all',
+      '  and the copy button counts it',
+      (await copyLabel()) === 'Copy 1',
       String(await copyLabel()),
     )
     check(
@@ -193,9 +193,7 @@ export default {
           configurable: true,
           value: { writeText: async (value) => { text = value } },
         })
-        const button = [...document.querySelectorAll('.review-tools .copy-all')]
-          .find((b) => b.textContent.startsWith('Copy'))
-        button.click()
+        document.querySelector('.titlebar-actions .copy-all').click()
         await Promise.resolve()
         return text
       })()`)
@@ -204,7 +202,7 @@ export default {
       check(
         '  and confirms the copy',
         (await page.evaluate(
-          `[...document.querySelectorAll('.review-tools .copy-all')].some((b) => b.textContent === 'Copied')`,
+          `document.querySelector('.titlebar-actions .copy-all').textContent.startsWith('Copied')`,
         )) === true,
       )
     }
@@ -264,12 +262,6 @@ export default {
       ),
     )
     await page.screenshot({ path: join(tmpdir(), 'ghl-comment-collapsed.png') })
-    const viewport = page.viewport()!
-    await page.setViewport({ width: 390, height: 844 })
-    await sleep(500)
-    check('collapsed comment fits the mobile diff', (await commentSize()).width <= 390)
-    await page.screenshot({ path: join(tmpdir(), 'ghl-comment-mobile.png') })
-    await page.setViewport(viewport)
     await ready()
     await page.waitForSelector('.comment-collapse[aria-expanded="false"]')
     check(
