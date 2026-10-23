@@ -615,7 +615,8 @@ body,
 .titlebar-button:disabled {
   opacity: 0.45;
 }
-.titlebar-button[aria-expanded='true'] {
+.titlebar-button[aria-expanded='true'],
+.comments-trigger[aria-pressed='true'] {
   background: var(--wash);
   color: var(--text);
 }
@@ -717,4 +718,22 @@ body,
 }
 .desktop-review :is(.comment, .comment-composer) {
   border-radius: 10px;
+}
+
+/* The comments sit beside the diff and push it aside: a panel, not a modal
+   drawer, so the review stays usable while they are open. */
+.desktop-review .comments-panel.inline:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 320px;
+  border-left: 1px solid var(--border);
+  background: var(--chrome-bg);
+}
+.desktop-review .comments-panel.inline .comments-panel-list {
+  flex: 1;
+  padding: 8px;
+}
+.desktop-review .comments-panel.inline .comment {
+  background: var(--bg-raised);
 }

@@ -18,7 +18,7 @@ export default function DesktopToolbar(
     onDiffStyleChange: (style: SavedView['diffStyle']) => void
     commentCount: number
     commentsOpen: boolean
-    onOpenComments: () => void
+    onToggleComments: () => void
     copiedAll: boolean
     onCopyAll: () => void
   },
@@ -39,7 +39,7 @@ export default function DesktopToolbar(
     onDiffStyleChange,
     commentCount,
     commentsOpen,
-    onOpenComments,
+    onToggleComments,
     copiedAll,
     onCopyAll,
   } = props
@@ -158,11 +158,10 @@ export default function DesktopToolbar(
           className="titlebar-button comments-trigger"
           title="Comments (⌥⌘0)"
           aria-label="Comments"
-          aria-haspopup="dialog"
-          aria-expanded={commentsOpen}
+          aria-pressed={commentsOpen}
           aria-controls="comments-panel"
           disabled={!data}
-          onClick={onOpenComments}
+          onClick={onToggleComments}
         >
           <Icon name="comment" />
         </button>

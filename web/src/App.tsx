@@ -405,7 +405,9 @@ export default function App({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (commentsOpen) return
+      // A modal dialog owns the keyboard: the browser's comments drawer, a
+      // desktop sheet. The desktop comments panel is not one, so keys still work.
+      if (document.querySelector('dialog:modal')) return
       if (event.key === 'Escape' && filesOpen) {
         setFilesOpen(false)
         return
@@ -448,7 +450,6 @@ export default function App({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [
-    commentsOpen,
     filesOpen,
     entries.length,
     picking,
@@ -494,6 +495,41 @@ export default function App({
   const nextPath =
     entries[entries.findIndex((entry) => entry.path === activePath) + 1]?.path ?? null
 
+  const commentsPanel = (
+    <CommentsPanel
+      savedEditor={panelEditor}
+      open={commentsOpen}
+      comments={comments}
+      currentRange={data?.range ?? ''}
+      saving={saving}
+      copied={copied}
+      copyError={copyError}
+      onClose={() => setCommentsOpen(false)}
+      onCopy={copyComments}
+      canView={canRevealComment}
+      onView={(comment) => {
+        if (!desktop) setCommentsOpen(false)
+        setFilesOpen(false)
+        revealComment(comment)
+      }}
+      onUpdate={(comment, body) =>
+        submitComment({
+          path: comment.path,
+          side: comment.side,
+          start: comment.start,
+          end: comment.end,
+          editing: comment.id,
+          body,
+        })
+      }
+      onDelete={deleteComment}
+      onRetry={(comment) => {
+        void commentPersistence.retry(comment.id)
+      }}
+      inline={desktop}
+    />
+  )
+
   return (
     <div className="app" data-repo={repoName}>
       {toolbar &&
@@ -506,7 +542,7 @@ export default function App({
             onDiffStyleChange={setDiffStyle}
             commentCount={comments.length}
             commentsOpen={commentsOpen}
-            onOpenComments={() => setCommentsOpen(true)}
+            onToggleComments={() => setCommentsOpen((open) => !open)}
             copiedAll={copied === 'all'}
             onCopyAll={() => copyComments()}
           />,
@@ -564,37 +600,7 @@ export default function App({
       <span className="visually-hidden" role="status">
         {copied ? 'Comments copied to clipboard' : ''}
       </span>
-      <CommentsPanel
-        savedEditor={panelEditor}
-        open={commentsOpen}
-        comments={comments}
-        currentRange={data?.range ?? ''}
-        saving={saving}
-        copied={copied}
-        copyError={copyError}
-        onClose={() => setCommentsOpen(false)}
-        onCopy={copyComments}
-        canView={canRevealComment}
-        onView={(comment) => {
-          setCommentsOpen(false)
-          setFilesOpen(false)
-          revealComment(comment)
-        }}
-        onUpdate={(comment, body) =>
-          submitComment({
-            path: comment.path,
-            side: comment.side,
-            start: comment.start,
-            end: comment.end,
-            editing: comment.id,
-            body,
-          })
-        }
-        onDelete={deleteComment}
-        onRetry={(comment) => {
-          void commentPersistence.retry(comment.id)
-        }}
-      />
+      {(!desktop || entries.length === 0) && commentsPanel}
 
       {copyError && !commentsOpen && (
         <div className="warning" role="alert">
@@ -712,6 +718,7 @@ export default function App({
           <Resizer containerRef={bodyRef} onCommit={resizeSidebar} />
 
           {view}
+          {desktop && commentsPanel}
         </div>
       )}
       {desktop && (

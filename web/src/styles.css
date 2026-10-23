@@ -1541,7 +1541,7 @@ button:disabled {
 .comment-navigation .link:hover {
   text-decoration: underline;
 }
-.comments-panel {
+dialog.comments-panel {
   position: fixed;
   inset: 0 0 0 auto;
   width: min(460px, 100vw);
@@ -1556,7 +1556,7 @@ button:disabled {
   color: var(--text);
   box-shadow: -12px 0 40px var(--panel-shadow-color);
 }
-.comments-panel[open] {
+dialog.comments-panel[open] {
   display: flex;
   flex-direction: column;
 }
@@ -1806,7 +1806,7 @@ button:disabled {
   .comment-composer footer .hint {
     flex-basis: 100%;
   }
-  .comments-panel {
+  dialog.comments-panel {
     width: 100vw;
     border-left: 0;
   }
