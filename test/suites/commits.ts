@@ -1,4 +1,13 @@
-import { allTreeRows, openPicker, sleep, titlebar, waitForRows, type Suite } from '../harness.ts'
+import {
+  allTreeRows,
+  openPicker,
+  pickerShows,
+  titlebar,
+  titlebarWhen,
+  until,
+  VIEWED_COUNT,
+  type Suite,
+} from '../harness.ts'
 
 /** The subjects the fixture's branch carries, newest first. */
 const NEWEST = 'move things around'
@@ -36,12 +45,12 @@ export default {
     check('  and the newest commit above the rest', listed[1] === NEWEST, listed[1])
 
     await page.keyboard.type('widen')
-    await sleep(400)
+    await pickerShows(page, CORE)
     await page.keyboard.press('Enter')
-    await waitForRows(page)
-    await sleep(1500)
-
-    const state = await titlebar(page)
+    const state = await titlebarWhen(
+      page,
+      (shown) => shown.search.includes('commit=') && shown.files === 3,
+    )
     check('picking one shows that commit', state.search.includes('commit='), state.search)
     check(
       '  and says the base is not compared',
@@ -59,7 +68,7 @@ export default {
     )
 
     await page.keyboard.press('v')
-    await sleep(1200)
+    await until(page, `(${VIEWED_COUNT})?.startsWith('1 of ')`)
     const tickedHere = (await allTreeRows(page)).filter((r) => r.decoration.includes('✓'))
     check('a file can be marked read on a commit', tickedHere.length === 1, tickedHere[0]?.path)
 
@@ -67,9 +76,10 @@ export default {
     // not counted as read of the branch.
     await openPicker(page, 'l')
     await page.keyboard.press('Enter')
-    await waitForRows(page)
-    await sleep(1500)
-    const back = await titlebar(page)
+    const back = await titlebarWhen(
+      page,
+      (shown) => !shown.search.includes('commit=') && (shown.files ?? 0) > 3,
+    )
     check(
       'going back to all commits drops the parameter',
       !back.search.includes('commit='),
@@ -84,10 +94,10 @@ export default {
 
     await openPicker(page, 'l')
     await page.keyboard.type('widen')
-    await sleep(400)
+    await pickerShows(page, CORE)
     await page.keyboard.press('Enter')
-    await waitForRows(page)
-    await sleep(1500)
+    await titlebarWhen(page, (shown) => shown.search.includes('commit=') && shown.files === 3)
+    await until(page, `(${VIEWED_COUNT})?.startsWith('1 of ')`)
     const tickedAgain = (await allTreeRows(page)).filter((r) => r.decoration.includes('✓'))
     check('  while the commit keeps it', tickedAgain.length === 1, tickedAgain[0]?.path)
 

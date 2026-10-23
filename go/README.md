@@ -236,9 +236,10 @@ Viewed state uses that parent/commit pair. An unavailable commit falls back to
 the whole range with a notice. Invalid bases or targets fail explicitly.
 
 `task test` checks Go payloads, context and anchors against Git across these scopes,
-then runs the existing picker, commit, stack, untracked and image browser checks against Go.
+then runs the image browser checks against Go.
 The shared UI suites in `test/run.ts` drive the built desktop UI against Go in headless Chrome,
-with the Wails bindings simulated by `desktop/simulator.ts`.
+with the Wails bindings simulated by `desktop/simulator.ts`. Each suite gets its own fixture and
+browser context, and several run at once: half the cores, at most 8; `GHL_TEST_JOBS` overrides it.
 The isolated PoC keeps its explicit-base checkout scope and hidden pickers.
 
 The **Untracked** checkbox includes files returned by Git's ignore-aware listing;

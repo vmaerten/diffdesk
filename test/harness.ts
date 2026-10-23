@@ -36,8 +36,8 @@ export interface Harness {
    * The fixture being served.
    *
    * Exposed so a suite can change the repository under the UI — the only way to
-   * exercise anything that reacts to the code moving. A suite that dirties it
-   * owes the next one a clean tree, since the fixture is built once per run.
+   * exercise anything that reacts to the code moving. A suite given its own
+   * fixture may leave it dirty; one sharing the server's owes the next a clean tree.
    */
   repoPath: string
   /** URL of the served repository, with an optional query string. */
@@ -59,29 +59,96 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 export { sleep }
 
 /**
+ * Wait until `expression` is truthy in the page.
+ *
+ * Resolves false after `timeoutMs` instead of throwing, so the check that
+ * follows reports what the page shows rather than a timeout.
+ */
+export async function until(page: Page, expression: string, timeoutMs = 10_000) {
+  try {
+    await page.waitForFunction(expression, { timeout: timeoutMs, polling: 50 })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Let the page lay out and paint what the last gesture changed. */
+export const frames = (page: Page) =>
+  page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  )
+
+/**
+ * Let any request the last gesture started finish, for up to five seconds.
+ *
+ * For checks that something did *not* happen: there is no state to wait for,
+ * only the absence of a write. A page that never goes quiet is not a failure here.
+ */
+export const settled = (page: Page) =>
+  until(
+    page,
+    `(({ inflight, last }) => inflight === 0 && performance.now() - last >= 300)(window.requestActivity)`,
+    5_000,
+  )
+
+/** Some mounted file shows its lines, or every one is folded as viewed. */
+const DIFF_RENDERED = `(() => {
+  const roots = [...document.querySelectorAll('.diff diffs-container')].map((host) => host.shadowRoot)
+  return roots.some((root) => root?.querySelector('[data-line]')) ||
+    (roots.length > 0 && roots.every((root) => root?.querySelector('[data-title]')))
+})()`
+
+/**
  * Serve `repoPath` and drive it with one browser, reused across suites.
  *
- * The suites drive the built desktop UI against the production Go executable's API.
+ * The suites drive the built desktop UI against the Go API. `make` opens a page
+ * on `repoPath`, or on another repository it registers on the same server.
  */
 export async function withHarness<T>(
   repoPath: string,
-  body: (make: (target?: string) => Promise<Harness>, browser: Browser) => Promise<T>,
+  body: (
+    make: (target?: string, repo?: string) => Promise<Harness>,
+    browser: Browser,
+  ) => Promise<T>,
 ): Promise<T> {
   const server = await serveGo(repoPath)
   let ui: Awaited<ReturnType<typeof serveDesktopUI>> | undefined
   let browser: Browser | undefined
   try {
     ui = await serveDesktopUI(server.origin)
-    const base = `${ui.origin}/r/${server.repoId}`
+    const origin = ui.origin
     browser = await launch({
       executablePath: findChrome(),
       headless: 'shell',
-      args: ['--no-sandbox'],
+      // Suites run side by side: a page that is not in front must still paint,
+      // or the virtualised tree and diff never render what a suite scrolls to.
+      args: [
+        '--no-sandbox',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+      ],
       defaultViewport: { width: 1600, height: 1000 },
     })
 
-    const make = async (target?: string): Promise<Harness> => {
-      const page = await browser!.newPage()
+    const make = async (target?: string, repo = repoPath): Promise<Harness> => {
+      let repoId = server.repoId
+      if (repo !== repoPath) {
+        const response = await fetch(`${server.origin}/api/repos`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ repoPath: repo }),
+        })
+        if (!response.ok) throw new Error(`could not register ${repo}: ${await response.text()}`)
+        repoId = ((await response.json()) as { id: string }).id
+      }
+      const base = `${origin}/r/${repoId}`
+      // Its own context, hence its own renderer and storage: pages of one origin
+      // would otherwise share a single process and run one at a time.
+      const context = await browser!.createBrowserContext()
+      const page = await context.newPage()
+      page.once('close', () => void context.close())
       await installDesktopRuntime(page)
       const errors: string[] = []
       page.on('pageerror', (error) => {
@@ -99,11 +166,13 @@ export async function withHarness<T>(
       const load = async (query?: string) => {
         await page.goto(url(query), { waitUntil: 'networkidle0' })
         await page.waitForSelector('file-tree-container', { timeout: 30_000 })
-        // The tree mounts before Shiki has finished with the diff pane.
-        await sleep(2500)
+        // The tree mounts before the diff pane, and the pane before its syntax
+        // grammars and themes have loaded.
+        await until(page, DIFF_RENDERED, 30_000)
+        await settled(page)
       }
 
-      return { page, repoPath, url, errors, load }
+      return { page, repoPath: repo, url, errors, load }
     }
 
     return await body(make, browser)
@@ -189,6 +258,45 @@ export function titlebar(page: Page): Promise<TitlebarState> {
     })),
     search: location.search,
   }))()`) as Promise<TitlebarState>
+}
+
+/**
+ * Read until `ready` holds, or `timeoutMs` runs out.
+ *
+ * Returns the last reading either way, so the check that follows reports what
+ * the page actually showed rather than a timeout.
+ */
+export async function poll<T>(
+  read: () => Promise<T>,
+  ready: (value: T) => boolean,
+  timeoutMs = 10_000,
+) {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const value = await read()
+    if (ready(value) || Date.now() > deadline) return value
+    await sleep(100)
+  }
+}
+
+/** Read the title bar once `ready` holds; see `poll`. */
+export const titlebarWhen = (
+  page: Page,
+  ready: (state: TitlebarState) => boolean,
+  timeoutMs = 15_000,
+) => poll(() => titlebar(page), ready, timeoutMs)
+
+/** Wait until the open picker's first entry matches what was typed. */
+export function pickerShows(page: Page, text: string): Promise<unknown> {
+  return page.waitForFunction(
+    (wanted) =>
+      document
+        .querySelector('.picker-item .picker-name')
+        ?.textContent?.toLowerCase()
+        .includes(wanted.toLowerCase()),
+    { timeout: 10_000 },
+    text,
+  )
 }
 
 /** Open the title bar's Options popover, which holds the scope and whitespace checkboxes. */
@@ -350,6 +458,17 @@ const DIFF_FILES = `(() => {
     spans: host.shadowRoot?.querySelectorAll('span[style]').length ?? 0,
   }))
 })()`
+
+/**
+ * One file of the diff pane, read where it is mounted, or found by walking the
+ * scroll when it is not.
+ */
+export async function diffFile(page: Page, name: string): Promise<DiffFile | undefined> {
+  const mounted = ((await page.evaluate(DIFF_FILES)) as DiffFile[]).find((file) =>
+    file.name.includes(name),
+  )
+  return mounted ?? (await allDiffFiles(page)).find((file) => file.name.includes(name))
+}
 
 export interface DiffFile {
   name: string

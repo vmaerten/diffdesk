@@ -1,11 +1,13 @@
 import {
-  allDiffFiles,
   allTreeRows,
   clickTreeRow,
   command,
   DIFF_ON_SCREEN as ON_SCREEN,
   DIFF_SCROLLER as SCROLLER,
-  sleep,
+  diffFile,
+  poll,
+  settled,
+  until,
   VIEWED_COUNT,
   type Suite,
 } from '../harness.ts'
@@ -31,13 +33,23 @@ export default {
     )) as number
     check('files carry a Viewed control', controls > 0, `${controls} headers rendered`)
 
+    // The counter moves before the write lands; a reload must not cut it short.
+    const counted = async (viewed: number) => {
+      await until(page, `(${VIEWED_COUNT})?.startsWith('${viewed} of ')`)
+      await settled(page)
+    }
+    const visible = (file: string, shown = true) =>
+      until(
+        page,
+        `${shown ? '' : '!'}${ON_SCREEN}.some((n) => n.includes(${JSON.stringify(file)}))`,
+      )
     const boxes = () =>
       page.evaluate(
         `[...document.querySelectorAll('.viewed-toggle input')].map((b) => b.checked)`,
       ) as Promise<boolean[]>
 
     await page.evaluate(`document.querySelector('.viewed-toggle input').click()`)
-    await sleep(1200)
+    await counted(1)
     const marked = await ticked()
     check(
       'marking updates the counter',
@@ -54,18 +66,24 @@ export default {
     // the version is not bumped alongside — silently, with nothing in the DOM to
     // say the flag was refused.
     const first = marked[0]?.path.split('/').at(-1) ?? ''
-    const shut = (await allDiffFiles(page)).find((f) => f.name.includes(first))
+    const shut = await poll(
+      () => diffFile(page, first),
+      (file) => file?.spans === 0,
+    )
     check('  and the file folds shut', shut?.spans === 0, `${shut?.spans ?? -1} coloured tokens`)
 
     await page.evaluate(`document.querySelector('.viewed-toggle input').click()`)
-    await sleep(1200)
+    await counted(0)
     check(
       'clicking the box again un-views it',
       (await ticked()).length === 0,
       (await counter()) ?? '',
     )
     check('  and the box clears', (await boxes())[0] === false, JSON.stringify(await boxes()))
-    const reopened = (await allDiffFiles(page)).find((f) => f.name.includes(first))
+    const reopened = await poll(
+      () => diffFile(page, first),
+      (file) => (file?.spans ?? 0) > 0,
+    )
     check(
       '  and the file opens again',
       (reopened?.spans ?? 0) > 0,
@@ -74,7 +92,7 @@ export default {
 
     // Back to one viewed file, for the reload check below.
     await page.evaluate(`document.querySelector('.viewed-toggle input').click()`)
-    await sleep(1200)
+    await counted(1)
 
     // The decisive one: the tick lives in .git/ghl/state.json, not in memory.
     await ready()
@@ -84,7 +102,7 @@ export default {
     // After a reload the active file is the first one, which is the one just
     // marked — so `v` clears it rather than marking a second.
     await page.keyboard.press('v')
-    await sleep(1200)
+    await counted(0)
     check('v toggles the active file', (await ticked()).length === 0, (await counter()) ?? '')
 
     // Clicking a viewed row brings the file back, and takes the reader to it.
@@ -98,7 +116,7 @@ export default {
     const onScreen = async () => (await page.evaluate(ON_SCREEN)) as string[]
 
     const clicked = await clickTreeRow(page, RESTORE)
-    await sleep(1200)
+    await visible(name)
     check('the deep file has a row to click', clicked, RESTORE)
     check(
       'a deep file can be reached from the tree',
@@ -106,9 +124,13 @@ export default {
     )
 
     await page.keyboard.press('v')
-    await sleep(1200)
-    // Read the position first: allDiffFiles walks the whole scroll and parks the
-    // pane back at the top, so asking afterwards would measure the helper.
+    await counted(1)
+    // As GitHub does it: the file stays in the list and folds shut. It used to
+    // be dropped from the array, which rebuilt the pane's virtual window.
+    const deep = await poll(
+      () => diffFile(page, name),
+      (file) => file?.spans === 0,
+    )
     const afterMark = await onScreen()
     check('  and marked viewed from there', (await ticked()).length === 1, (await counter()) ?? '')
     // Marking must not throw the reader back to the top: the neighbours it was
@@ -118,15 +140,12 @@ export default {
       afterMark.some((n) => n.includes('Widget')),
       afterMark.join(', ') || 'nothing on screen',
     )
-    // As GitHub does it: the file stays in the list and folds shut. It used to
-    // be dropped from the array, which rebuilt the pane's virtual window.
-    const deep = (await allDiffFiles(page)).find((f) => f.name.includes(name))
     check('  and the file stays in the diff', Boolean(deep), RESTORE)
     check('  folded shut, not removed', deep?.spans === 0, `${deep?.spans ?? -1} coloured tokens`)
 
     // Away from it, so being on screen afterwards can only come from the click.
     await page.evaluate(`(() => { ${SCROLLER}.scrollTop = 0 })()`)
-    await sleep(900)
+    await visible(name, false)
     const away = await onScreen()
     check(
       '  with the pane scrolled elsewhere',
@@ -135,7 +154,7 @@ export default {
     )
 
     await clickTreeRow(page, RESTORE)
-    await sleep(1200)
+    await visible(name)
     // The reported bug: this click did nothing at all.
     const shown = await onScreen()
     check(
@@ -146,7 +165,7 @@ export default {
     check('  and it is still marked viewed', (await ticked()).length === 1, (await counter()) ?? '')
 
     await command(page, 'reset-viewed')
-    await sleep(1200)
+    await counted(0)
     await ready()
     check('reset clears the state for good', (await ticked()).length === 0)
 
