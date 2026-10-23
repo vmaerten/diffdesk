@@ -45,7 +45,7 @@ cask "ghl" do
   homepage "https://github.com/vmaerten/ghl"
 
   depends_on arch: :arm64
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   app "ghl.app"
   binary "#{appdir}/ghl.app/Contents/MacOS/ghl"
@@ -114,7 +114,7 @@ Renommer le bundle en `ghl.app` et l'exécutable en `ghl` (`Info.plist`, Taskfil
 
 GoReleaser : retirer les builds et archives CLI, produire `ghl_<version>_darwin_arm64.zip`. Compiler avec `MACOSX_DEPLOYMENT_TARGET=13.0`, écrire `LSMinimumSystemVersion` 13.0 dans `Info.plist`, et faire vérifier par `release:verify` le `minos` du binaire (`otool -l`, `LC_BUILD_VERSION`). Adapter `release:verify`, `releaseGuards.ts`, `release:publish` et la fixture mise (`test/goMise.ts`) : installation de l'app, PATH, mise à jour depuis une archive 0.2.0 synthétique, retour arrière, désinstallation. Réduire `release:acceptance` et `release:bench` à ce qui a encore un sens sans daemon.
 
-### 07 · `desktop-release/07-homebrew-tap` — Tap Homebrew
+### 07 · `desktop-release/07-homebrew-tap` — Tap Homebrew — [#173](https://github.com/vmaerten/ghl/pull/173)
 
 Template du cask, tâche `release:tap` appelée par `task release` après la publication, secret `HOMEBREW_TAP_TOKEN` dans `release.yml`, tests de l'ordre et des échecs dans `test/releaseTask.py` sans écriture réelle. `brew audit --cask --strict --online` sur le cask rendu fait partie de la vérification. Création du dépôt du tap et du secret à la main.
 
@@ -174,3 +174,6 @@ Prérequis : la PR 09. Puis `package.json` à 0.3.0, tag `v0.3.0`, workflow. Ens
 | 06 | `goRelease.ts`, `releaseTarget.ts` et l'essentiel de `releaseGuards.ts` vérifiaient les quatre tarballs CLI. | Supprimés ; `release.py` vérifie seul l'archive et reprend leurs contrôles utiles (tag, notices, `ghl --version`) ; les tests de tag restants vivent dans `test/releaseTag.ts`. `release:smoke` disparaît avec les autres plateformes. |
 | 06 | Une version précédente synthétique ne peut plus être le binaire modifié : un exécutable ad hoc altéré ne se lance plus sur arm64. | Le bundle candidat avec une autre clé d'`Info.plist`, signé de nouveau. |
 | 06 | En mode publié 0.1.0 → 0.2.0, le test a lancé `ghl --repo …` sur le CLI navigateur 0.2.0 : il a remplacé le daemon de l'utilisateur sur 7777 et a pu ouvrir un onglet. | Daemon de remplacement arrêté, utilisateur prévenu ; la fenêtre ne s'ouvre que pour l'app, et `GHL_PORT=0` tient tout ancien CLI à l'écart du port de l'utilisateur. |
+| 07 | GoReleaser OSS a `homebrew_casks`, mais `app` y est réservé à Pro et limité aux DMG, `depends_on macos` manque, et la publication suit sa propre release GitHub, désactivée ici. | Gabarit `desktop/cask.rb` rempli depuis `checksums.txt` de la release publiée, poussé par `gh api`. |
+| 07 | Homebrew 7 déprécie `depends_on macos: ">= :ventura"`. | `depends_on macos: :ventura`, qui vaut minimum ; audit strict propre. |
+| 07 | Un secret de tap manquant n'aurait échoué qu'après la publication. | `release:tap:access` vérifie l'accès au tap avant de publier ; `task release:tap TAG=…` rejoue la poussée. |
