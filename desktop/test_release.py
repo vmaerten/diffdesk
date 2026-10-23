@@ -46,7 +46,7 @@ class ReleaseGuards(unittest.TestCase):
         self.assertTrue((self.root / 'out' / EXECUTABLE).stat().st_mode & 0o111)
 
     def test_unsafe_or_extra_members_rejected_before_extraction(self):
-        for name in ['../escape', '/absolute', 'ghl Desktop.app/../escape', 'node_modules/package.json']:
+        for name in ['../escape', '/absolute', 'ghl.app/../escape', 'node_modules/package.json']:
             with self.subTest(name=name):
                 self.bundle(extra=name)
                 with self.assertRaisesRegex(ValueError, 'Unexpected'):
@@ -60,23 +60,20 @@ class ReleaseGuards(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, error):
                     extract_bundle(self.archive, self.root / 'out')
 
-    def test_checksums_cover_all_archives_and_reject_corruption(self):
-        names = [f'ghl_1.2.3_{target}.tar.gz' for target in ('darwin_arm64', 'darwin_amd64', 'linux_arm64', 'linux_amd64')]
-        names.append('ghl-desktop_1.2.3_darwin_arm64.zip')
-        lines = []
-        for name in names:
-            (self.root / name).write_bytes(b'candidate')
-            lines.append(f'{hashlib.sha256(b"candidate").hexdigest()}  {name}')
+    def test_checksum_covers_the_archive_and_rejects_corruption(self):
+        name = 'ghl_1.2.3_darwin_arm64.zip'
+        (self.root / name).write_bytes(b'candidate')
+        line = f'{hashlib.sha256(b"candidate").hexdigest()}  {name}'
         sums = self.root / 'checksums.txt'
-        sums.write_text('\n'.join(lines) + '\n')
-        self.assertEqual(verify_checksums(self.root, '1.2.3').name, names[-1])
-        for content, error in [(lines[0] + '\n', 'All'), ('\n'.join(lines + [lines[0]]), 'duplicate')]:
+        sums.write_text(line + '\n')
+        self.assertEqual(verify_checksums(self.root, '1.2.3').name, name)
+        for content, error in [('', 'must be checksummed'), (f'{line}\n{line}\n', 'duplicate')]:
             with self.subTest(error=error):
                 sums.write_text(content)
                 with self.assertRaisesRegex(ValueError, error):
                     verify_checksums(self.root, '1.2.3')
-        sums.write_text('\n'.join(lines))
-        (self.root / names[-1]).write_bytes(b'corrupted')
+        sums.write_text(line + '\n')
+        (self.root / name).write_bytes(b'corrupted')
         with self.assertRaisesRegex(ValueError, 'Checksum mismatch'):
             verify_checksums(self.root, '1.2.3')
 

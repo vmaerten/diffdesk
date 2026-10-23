@@ -40,27 +40,18 @@ folder = Path('go/dist/release')
 folder.mkdir(parents=True)
 metadata = {'version': version, 'tag': os.environ['RELEASE_TAG'], 'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()}
 (folder / 'metadata.json').write_text(json.dumps(metadata))
-sums = []
-names = [f'ghl_{version}_{target}.tar.gz' for target in ['darwin_arm64', 'darwin_amd64', 'linux_arm64', 'linux_amd64']]
-names.append(f'ghl-desktop_{version}_darwin_arm64.zip')
-for name in names:
-    (folder / name).write_bytes(b'fixture asset')
-    sums.append(hashlib.sha256(b'fixture asset').hexdigest() + '  ' + name)
-(folder / 'checksums.txt').write_text('\\n'.join(sums) + '\\n')
+name = f'ghl_{version}_darwin_arm64.zip'
+(folder / name).write_bytes(b'fixture asset')
+(folder / 'checksums.txt').write_text(hashlib.sha256(b'fixture asset').hexdigest() + '  ' + name + '\\n')
 ''')
         self.tool('gh', '''log(sys.argv[2], args=sys.argv[1:])
 if sys.argv[1:3] == ['release', 'create'] and os.environ.get('GHL_TEST_CREATE_FAIL'): sys.exit(26)
 ''')
-        (self.root / 'test/goRelease.ts').write_text('''import {appendFileSync,writeFileSync} from 'node:fs'
-appendFileSync(process.env.GHL_TEST_EVENTS, JSON.stringify({event:'verify-cli',tag:process.env.RELEASE_TAG})+'\\n')
-if(process.env.GHL_TEST_VERIFY_FAIL) process.exit(27)
-if(process.env.GHL_TEST_TAMPER) writeFileSync(`go/dist/release/ghl_${process.env.RELEASE_TAG.slice(1)}_darwin_arm64.tar.gz`,'tampered')
-''')
-        (self.root / 'test/releaseGuards.ts').write_text('''import {appendFileSync} from 'node:fs'
-appendFileSync(process.env.GHL_TEST_EVENTS, JSON.stringify({event:'guards'})+'\\n')
-''')
-        (self.root / 'desktop/release.py').write_text('''import json,os
-with open(os.environ['GHL_TEST_EVENTS'],'a') as f: f.write(json.dumps({'event':'verify-desktop'})+'\\n')
+        (self.root / 'desktop/release.py').write_text('''import json,os,sys
+with open(os.environ['GHL_TEST_EVENTS'],'a') as f: f.write(json.dumps({'event':'verify','tag':os.environ['RELEASE_TAG']})+'\\n')
+if os.environ.get('GHL_TEST_VERIFY_FAIL'): sys.exit(27)
+if os.environ.get('GHL_TEST_TAMPER'):
+    with open(f"go/dist/release/ghl_{os.environ['RELEASE_TAG'][1:]}_darwin_arm64.zip",'w') as f: f.write('tampered')
 ''')
         self.git('init', '-b', 'main')
         self.git('config', 'user.name', 'Release fixture')
@@ -90,11 +81,11 @@ def log(event, **fields):
     def test_stable_release_builds_verifies_uploads_then_publishes(self):
         result, events = self.run_release()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([e['event'] for e in events], ['build', 'verify-cli', 'guards', 'verify-desktop', 'create', 'edit'])
+        self.assertEqual([e['event'] for e in events], ['build', 'verify', 'create', 'edit'])
         self.assertEqual(events[0]['tag'], 'v1.2.3')
         self.assertEqual(events[1]['tag'], 'v1.2.3')
         self.assertEqual(events[0]['args'], ['release', '--skip=publish', '--clean'])
-        for flag in ['--draft', '--verify-tag', 'go/dist/release/ghl_1.2.3_darwin_arm64.tar.gz', 'go/dist/release/ghl_1.2.3_darwin_amd64.tar.gz', 'go/dist/release/ghl_1.2.3_linux_arm64.tar.gz', 'go/dist/release/ghl_1.2.3_linux_amd64.tar.gz', 'go/dist/release/ghl-desktop_1.2.3_darwin_arm64.zip', 'go/dist/release/checksums.txt']:
+        for flag in ['--draft', '--verify-tag', 'go/dist/release/ghl_1.2.3_darwin_arm64.zip', 'go/dist/release/checksums.txt']:
             self.assertIn(flag, events[-2]['args'])
         self.assertIn('--draft=false', events[-1]['args'])
 
@@ -116,7 +107,7 @@ def log(event, **fields):
     def test_failed_validation_does_not_publish(self):
         result, events = self.run_release(GHL_TEST_VERIFY_FAIL='1')
         self.assertNotEqual(result.returncode, 0)
-        self.assertEqual([e['event'] for e in events], ['build', 'verify-cli'])
+        self.assertEqual([e['event'] for e in events], ['build', 'verify'])
 
     def test_changed_asset_does_not_publish(self):
         result, events = self.run_release(GHL_TEST_TAMPER='1')

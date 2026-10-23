@@ -309,15 +309,15 @@ tasks:
         case "$release_version" in *-*) set -- --prerelease;; esac
         gh release create "$RELEASE_TAG" --verify-tag --draft \
           --title "$RELEASE_TAG" --notes-file CHANGELOG.md "$@" \
-          "go/dist/release/ghl_${release_version}_"*.tar.gz \
-          "go/dist/release/ghl-desktop_${release_version}_darwin_arm64.zip" \
+          "go/dist/release/ghl_${release_version}_darwin_arm64.zip" \
           go/dist/release/checksums.txt
         gh release edit "$RELEASE_TAG" --verify-tag --draft=false
 
   test:release:
-    desc: Test release orchestration without publishing or creating repository tags
+    desc: Test release orchestration and tag validation without publishing or creating repository tags
     cmds:
       - python3 -m unittest discover -s test -p 'releaseTask.py'
+      - node test/releaseTag.ts
 
   release:check:
     desc: Validate the GoReleaser configuration
@@ -341,23 +341,16 @@ tasks:
         vars: { RELEASE_TAG: '{{.RELEASE_TAG | default (env "RELEASE_TAG")}}' }
 
   release:verify:
-    desc: Verify checksums, archive contents, build metadata and embedded UI
+    desc: Verify the checksum, archive contents, bundle metadata and the extracted app
     env:
       RELEASE_TAG: '{{.RELEASE_TAG | default (env "RELEASE_TAG")}}'
     cmds:
-      - node test/goRelease.ts
-      - node test/releaseGuards.ts
       - python3 desktop/release.py verify
 
   release:mise:
     desc: Verify mise installation, PATH, upgrades and rollback against a local release fixture
     cmds:
       - node test/goMise.ts
-
-  release:smoke:
-    desc: Smoke-test the target archive and mise installation without browser or upgrade suites
-    cmds:
-      - node test/goMise.ts --smoke
 
   release:mise:published:
     desc: Verify a published GitHub Release through mise (VERSION=X.Y.Z, optional PREVIOUS=X.Y.Z)

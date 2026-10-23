@@ -1,8 +1,9 @@
-"""License material and acceptance checks for the GoReleaser desktop archive."""
+"""License material and acceptance checks for the GoReleaser release archive."""
 import argparse
 from datetime import datetime
 import hashlib
 import json
+import os
 from pathlib import Path
 import plistlib
 import re
@@ -14,9 +15,11 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
-APP = 'ghl Desktop.app'
+APP = 'ghl.app'
 ICON = f'{APP}/Contents/Resources/AppIcon.icns'
-EXECUTABLE = f'{APP}/Contents/MacOS/ghl-desktop'
+EXECUTABLE = f'{APP}/Contents/MacOS/ghl'
+# The oldest macOS the app declares and is built for; the binary's minos must match.
+MINIMUM_MACOS = '13.0'
 FILES = {
     'LICENSE',
     'THIRD_PARTY_NOTICES.txt',
@@ -70,13 +73,12 @@ def notices():
     print(f'Desktop notices: existing frontend/Go material and {count} linked Go dependencies')
 
 
-def desktop_archive_name(version):
-    return f'ghl-desktop_{version}_darwin_arm64.zip'
+def archive_name(version):
+    return f'ghl_{version}_darwin_arm64.zip'
 
 
 def verify_checksums(dist, version):
-    expected = {f'ghl_{version}_{target}.tar.gz' for target in ('darwin_arm64', 'darwin_amd64', 'linux_arm64', 'linux_amd64')}
-    expected.add(desktop_archive_name(version))
+    expected = {archive_name(version)}
     seen = set()
     for line in (dist / 'checksums.txt').read_text().splitlines():
         match = re.fullmatch(r'([a-f0-9]{64})  ([\w.+-]+)', line)
@@ -85,8 +87,8 @@ def verify_checksums(dist, version):
         require(name in expected and name not in seen, f'Unexpected or duplicate checksum: {name}')
         seen.add(name)
         require(hashlib.sha256((dist / name).read_bytes()).hexdigest() == digest, f'Checksum mismatch: {name}')
-    require(seen == expected, 'All CLI and desktop archives must be checksummed')
-    return dist / desktop_archive_name(version)
+    require(seen == expected, 'The release archive must be checksummed')
+    return dist / archive_name(version)
 
 
 def extract_bundle(archive, destination):
@@ -102,8 +104,8 @@ def extract_bundle(archive, destination):
             kind = stat.S_IFMT(mode)
             require(kind in {0, stat.S_IFDIR if info.is_dir() else stat.S_IFREG}, f'Only regular files/directories may ship: {name}')
             if name == EXECUTABLE:
-                require(mode & 0o111, 'Desktop executable lost its executable mode')
-        require({info.filename for info in zipped.infolist() if not info.is_dir()} == FILES, 'Incomplete desktop bundle or license material')
+                require(mode & 0o111, 'The executable lost its executable mode')
+        require({info.filename for info in zipped.infolist() if not info.is_dir()} == FILES, 'Incomplete bundle or license material')
         for info in zipped.infolist():
             path = destination / info.filename
             if info.is_dir():
@@ -116,26 +118,46 @@ def extract_bundle(archive, destination):
     return destination / APP
 
 
+def minimum_macos(binary):
+    """The minos of the executable's LC_BUILD_VERSION load command."""
+    lines = command('otool', '-l', str(binary)).splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() == 'cmd LC_BUILD_VERSION':
+            for detail in lines[index:index + 6]:
+                if detail.split()[:1] == ['minos']:
+                    return detail.split()[1]
+    raise ValueError('The executable declares no minimum macOS')
+
+
 def verify(dist):
     metadata = json.loads((dist / 'metadata.json').read_text())
     require(metadata['project_name'] == 'ghl', 'Wrong release project')
     require(metadata['commit'] == command('git', 'rev-parse', 'HEAD'), 'Release must match the current commit')
+    tag = os.environ.get('RELEASE_TAG')
+    if tag:
+        require(metadata['tag'] == tag and metadata['version'] == tag[1:], 'Release must match its tag')
     archive = verify_checksums(dist, metadata['version'])
-    with tempfile.TemporaryDirectory(prefix='ghl-desktop-release-') as directory:
+    with tempfile.TemporaryDirectory(prefix='ghl-release-') as directory:
         folder = Path(directory)
         bundle = extract_bundle(archive, folder)
         binary = folder / EXECUTABLE
         require((folder / 'LICENSE').read_bytes() == (ROOT / 'LICENSE').read_bytes(), 'Wrong project license')
         text = (folder / 'THIRD_PARTY_NOTICES.txt').read_text()
-        for marker in ['Go standard library', '@pierre/diffs@', 'react@', 'github.com/wailsapp/wails/v2@']:
+        for marker in [
+            'Go standard library', '@pierre/diffs@', '@pierre/trees@', 'react@', 'react-dom@', 'cmdk@',
+            'Permission is hereby granted', 'Apache License', 'VS Code Oniguruma Bindings',
+            'oniguruma version 6.9.5_rev1', 'tm-grammars-1.32.0.NOTICE', 'tm-themes-1.12.3.NOTICE',
+            'github.com/wailsapp/wails/v2@',
+        ]:
             require(marker in text, f'Missing notice: {marker}')
         for path, version in linked_modules(binary):
             if path != 'github.com/vmaerten/ghl':
                 require(f'{path}@{version}' in text, f'Missing linked Go notice: {path}')
         info = plistlib.loads((bundle / 'Contents/Info.plist').read_bytes())
         for key, value in {
-            'CFBundleName': 'ghl Desktop', 'CFBundleIdentifier': 'dev.ghl.desktop',
-            'CFBundleExecutable': 'ghl-desktop', 'CFBundleIconFile': 'AppIcon',
+            'CFBundleName': 'ghl', 'CFBundleIdentifier': 'dev.ghl.desktop',
+            'CFBundleExecutable': 'ghl', 'CFBundleIconFile': 'AppIcon',
+            'LSMinimumSystemVersion': MINIMUM_MACOS,
             'GHLReleaseVersion': metadata['version'],
             'GHLCommit': metadata['commit'], 'CFBundleShortVersionString': metadata['version'].split('-')[0],
         }.items():
@@ -144,7 +166,13 @@ def verify(dist):
         require(icon[:4] == b'icns' and int.from_bytes(icon[4:8], 'big') == len(icon), 'Invalid macOS icon container')
         settings = command('go', 'version', '-m', str(binary))
         for setting in ['CGO_ENABLED=1', 'GOOS=darwin', 'GOARCH=arm64', '-trimpath=true', '-tags=production']:
-            require(setting in settings, f'Wrong desktop build setting: {setting}')
+            require(setting in settings, f'Wrong build setting: {setting}')
+        require(minimum_macos(binary) == MINIMUM_MACOS, f'The executable must run from macOS {MINIMUM_MACOS}')
+        # The terminal side, outside the checkout and with only system tools on PATH.
+        info = json.loads(subprocess.check_output(
+            [str(binary), '--version', '--json'], cwd=folder, text=True,
+            env={'PATH': '/usr/bin:/bin', 'HOME': os.environ['HOME']}))
+        require(info == {'version': metadata['version'], 'commit': metadata['commit'], 'buildDate': info['buildDate']}, 'ghl --version reports another build')
         subprocess.run(['codesign', '--verify', '--deep', '--strict', str(bundle)], check=True)
         subprocess.run([sys.executable, str(ROOT / 'desktop/smoke.py'), '--bundle', str(bundle), '--standalone'], cwd=ROOT, check=True)
         report = json.loads((ROOT / '.task/desktop/validation.json').read_text())
@@ -154,7 +182,7 @@ def verify(dist):
         for build in builds:
             require(build['version'] == metadata['version'] and build['commit'] == metadata['commit'], 'Native runtime has wrong release metadata')
             require(datetime.fromisoformat(build['buildDate'].replace('Z', '+00:00')) == commit_date, 'Native runtime has wrong build date')
-    print(f'Desktop release verified: {archive.name} (checksums, bundle, notices, signature, standalone native UI and metadata)')
+    print(f'Release verified: {archive.name} (checksum, bundle, notices, minimum macOS, signature, terminal, standalone native UI and metadata)')
 
 
 def main():
