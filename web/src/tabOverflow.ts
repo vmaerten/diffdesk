@@ -1,7 +1,21 @@
-/** A tab's minimum width plus the gap after it, as desktop.css lays them out. */
-export const TAB_SLOT = 112
+import type { CSSProperties } from 'react'
+
+const TAB_MIN_WIDTH = 110
+const TAB_GAP = 2
+const TAB_SLOT = TAB_MIN_WIDTH + TAB_GAP
 /** Room kept for the » menu once some tabs no longer fit. */
-export const MORE_WIDTH = 32
+const MORE_WIDTH = 32
+
+/** The sizes the split assumes, handed to desktop.css so the two cannot drift. */
+export const tabSizes = {
+  '--tab-min-width': `${TAB_MIN_WIDTH}px`,
+  '--tab-gap': `${TAB_GAP}px`,
+} as CSSProperties
+
+/** Whether two widths fit the same tabs, so a resize between them needs no render. */
+export const sameCapacity = (a: number, b: number) =>
+  Math.floor(a / TAB_SLOT) === Math.floor(b / TAB_SLOT) &&
+  Math.floor((a - MORE_WIDTH) / TAB_SLOT) === Math.floor((b - MORE_WIDTH) / TAB_SLOT)
 
 /** Which tabs fit in the title bar; the active one always does, the rest go to ». */
 export function splitTabs(

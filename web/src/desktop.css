@@ -145,23 +145,24 @@ body,
   inset: 0;
   opacity: 0;
 }
+/* Tab sizes come from tabOverflow.ts, which splits the tabs by them. */
 .desktop-tabs-area {
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 2px;
+  gap: var(--tab-gap);
   min-width: 0;
 }
 .desktop-tabs {
   display: flex;
-  gap: 2px;
+  gap: var(--tab-gap);
   min-width: 0;
   overflow: hidden;
 }
 .desktop-tab {
   display: flex;
   align-items: center;
-  min-width: 110px;
+  min-width: var(--tab-min-width);
   max-width: 240px;
   height: 28px;
   padding-right: 4px;
@@ -189,11 +190,7 @@ body,
   border: 0;
   background: none;
   color: inherit;
-  font:
-    600 12px/1 ui-monospace,
-    'SF Mono',
-    Menlo,
-    monospace;
+  font: 600 12px/1 var(--mono);
   white-space: nowrap;
 }
 .desktop-tab :is(.tab-dir, .tab-name) {

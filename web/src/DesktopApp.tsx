@@ -3,7 +3,7 @@ import { useStableCallback } from '@pierre/diffs/react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
 import { releaseUrl } from './reviewSelection.ts'
-import { splitTabs } from './tabOverflow.ts'
+import { sameCapacity, splitTabs, tabSizes } from './tabOverflow.ts'
 import { useAppearance } from './appearance.ts'
 import SettingsSheet from './SettingsSheet.tsx'
 import {
@@ -198,7 +198,10 @@ export default function DesktopApp() {
   useEffect(() => {
     const area = tabsArea.current
     if (!area) return
-    const observer = new ResizeObserver(([entry]) => setTabsWidth(entry!.contentRect.width))
+    const observer = new ResizeObserver(([entry]) => {
+      const width = entry!.contentRect.width
+      setTabsWidth((current) => (sameCapacity(current, width) ? current : width))
+    })
     observer.observe(area)
     return () => observer.disconnect()
   }, [])
@@ -240,14 +243,14 @@ export default function DesktopApp() {
       <style>{desktopStyles}</style>
       <header className="desktop-titlebar">
         <button
-          className="titlebar-button desktop-open"
+          className="titlebar-button"
           aria-label="Open repository"
           title="Open repository (⌘O)"
           onClick={open}
         >
           <Icon name="plus" />
         </button>
-        <div className="desktop-tabs-area" ref={tabsArea}>
+        <div className="desktop-tabs-area" ref={tabsArea} style={tabSizes}>
           <div
             role="tablist"
             aria-label="Open reviews"
