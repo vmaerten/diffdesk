@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+// Compare takes the base as given, without Resolve's automatic base.
+func (r Repository) Compare(ctx context.Context, base string, committed bool) (*Review, error) {
+	return r.compare(ctx, Selection{Base: base, Committed: committed}, false)
+}
+
 func gitFixture(t *testing.T, path string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", path}, args...)...)

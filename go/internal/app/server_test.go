@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -14,31 +12,9 @@ import (
 
 func testServer(t *testing.T) *Server {
 	r := fixture(t)
-	return &Server{repo: r, id: repoID(r.Path), base: "main", store: Options{PoC: true}.store(r), assets: fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html>embedded</html>")}}}
+	return &Server{repo: r, id: repoID(r.Path), store: storeFor(r), assets: fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html>embedded</html>")}}}
 }
 
-func TestHealthDistinguishesRuntimeAndBuild(t *testing.T) {
-	s := testServer(t)
-	for _, poc := range []bool{false, true} {
-		s.poc = poc
-		w := httptest.NewRecorder()
-		s.ServeHTTP(w, httptest.NewRequest("GET", "http://localhost/api/health", nil))
-		requireStatus(t, w, 200)
-		var health struct {
-			BuildInfo
-			Go       bool   `json:"ghlGo"`
-			PoC      bool   `json:"ghlGoPoc"`
-			Node     bool   `json:"ghl"`
-			Revision string `json:"revision"`
-		}
-		if err := json.Unmarshal(w.Body.Bytes(), &health); err != nil {
-			t.Fatal(err)
-		}
-		if health.BuildInfo != buildInfo() || !health.Go || health.PoC != poc || health.Node || health.Revision != version+"/"+commit {
-			t.Fatalf("wrong runtime identity: %s", w.Body.String())
-		}
-	}
-}
 func api(t *testing.T, s *Server, method, route string, body any) *httptest.ResponseRecorder {
 	t.Helper()
 	raw := ""
@@ -127,14 +103,12 @@ func TestAPICommentsViewedAndRestart(t *testing.T) {
 }
 func TestAPIValidationAndSecurity(t *testing.T) {
 	s := testServer(t)
-	s.poc = true
-	for _, q := range []string{"target=HEAD", "commit=HEAD", "untracked", "includeUntracked=false", "base="} {
+	for _, q := range []string{"includeUntracked=false", "base=", "target=", "commit="} {
 		requireStatus(t, api(t, s, "GET", "diff?"+q, nil), 400)
 		requireStatus(t, api(t, s, "DELETE", "comments?id=test&"+q, nil), 400)
 	}
 	requireStatus(t, api(t, s, "GET", "diff?base=missing", nil), 422)
 	requireStatus(t, api(t, s, "GET", "diff-files", nil), 400)
-	requireStatus(t, api(t, s, "GET", "refs", nil), 404)
 	for _, body := range []any{map[string]any{"range": "r", "path": "../escape", "viewed": true}, map[string]any{"range": "r", "path": "ok", "viewed": "true"}} {
 		requireStatus(t, api(t, s, "POST", "viewed", body), 400)
 	}
@@ -143,7 +117,7 @@ func TestAPIValidationAndSecurity(t *testing.T) {
 	for _, test := range []struct {
 		host, origin string
 		status       int
-	}{{"evil.example", "", 403}, {"127.0.0.1", "https://evil.example", 403}, {"localhost", "null", 403}, {"ghl.localhost:1234", "http://localhost:1234", 200}} {
+	}{{"evil.example", "", 403}, {"127.0.0.1", "https://evil.example", 403}, {"localhost", "null", 403}, {"ghl.localhost", "", 403}, {"localhost:1234", "http://localhost:1234", 200}} {
 		r := httptest.NewRequest("POST", "http://127.0.0.1/r/"+s.id+"/api/viewed", strings.NewReader(`{"range":"r","clear":true}`))
 		r.Host = test.host
 		if test.origin != "" {
@@ -170,23 +144,12 @@ func TestAPIValidationAndSecurity(t *testing.T) {
 	}
 }
 
-func TestIsolatedStateAndCorruptionNotice(t *testing.T) {
+func TestCorruptStateIsReported(t *testing.T) {
 	s := testServer(t)
-	other := filepath.Join(s.repo.GitDir, "ghl", "state.json")
-	writeFixture(t, s.repo.GitDir, "ghl/state.json", `{"version":1,"viewed":{},"comments":[{"id":"node-only"}]}`)
-	w := api(t, s, "GET", "diff", nil)
-	requireStatus(t, w, 200)
-	if strings.Contains(w.Body.String(), "node-only") {
-		t.Fatal("imported Node state")
-	}
-	writeFixture(t, s.repo.GitDir, "ghl-go-poc/state.json", "{")
-	w = api(t, s, "GET", "diff", nil)
+	writeFixture(t, s.repo.GitDir, "ghl/state.json", "{")
+	w := api(t, s, "GET", "diff?base=main", nil)
 	requireStatus(t, w, 200)
 	if !strings.Contains(w.Body.String(), "corrupt") {
 		t.Fatal("corruption notice not served")
-	}
-	raw, err := os.ReadFile(other)
-	if err != nil || !strings.Contains(string(raw), "node-only") {
-		t.Fatal("Node state altered")
 	}
 }

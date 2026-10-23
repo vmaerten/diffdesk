@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,44 +23,25 @@ import (
 type reviewBackend struct {
 	port   int
 	cancel context.CancelFunc
-	done   chan int
+	done   chan struct{}
 	once   sync.Once
 }
 
-// Reuse the existing runtime in this process; no external binary or daemon.
+// Serve the review runtime in this process, on a private loopback port.
 func startBackend(ctx context.Context, assets fs.FS) (*reviewBackend, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	read, write := io.Pipe()
-	backend := &reviewBackend{cancel: cancel, done: make(chan int, 1)}
-	var stderr bytes.Buffer
-	go func() {
-		code := app.Main(ctx, []string{"--daemon", "--port", "0", "--idle", "0"}, write, &stderr, app.Options{Assets: assets})
-		write.Close()
-		backend.done <- code
-	}()
-	ready := make(chan error, 1)
-	go func() {
-		defer read.Close()
-		var announcement struct{ Port int }
-		err := json.NewDecoder(read).Decode(&announcement)
-		if err == nil && (announcement.Port <= 0 || announcement.Port > 65535) {
-			err = fmt.Errorf("invalid server port")
-		}
-		backend.port = announcement.Port
-		ready <- err
-	}()
-	select {
-	case err := <-ready:
-		if err == nil {
-			return backend, nil
-		}
-		backend.close()
-		return nil, fmt.Errorf("server startup failed: %s (%w)", strings.TrimSpace(stderr.String()), err)
-	case <-time.After(10 * time.Second):
-		read.Close()
-		backend.close()
-		return nil, fmt.Errorf("server startup timed out")
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		return nil, fmt.Errorf("server startup failed: %w", err)
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	backend := &reviewBackend{port: listener.Addr().(*net.TCPAddr).Port, cancel: cancel, done: make(chan struct{})}
+	go func() {
+		defer close(backend.done)
+		if err := app.NewRuntime(assets).Serve(ctx, listener); err != nil {
+			fmt.Fprintln(os.Stderr, "ghl-desktop: review server stopped:", err)
+		}
+	}()
+	return backend, nil
 }
 
 func (b *reviewBackend) close() {

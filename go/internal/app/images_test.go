@@ -149,13 +149,6 @@ func TestImageHTTPAndUnsafeSources(t *testing.T) {
 			t.Fatalf("unavailable %s dropped from the diff", path)
 		}
 	}
-	s.poc = true
-	requireStatus(t, get("worktree", "modified.svg"), 404)
-	w = api(t, s, "GET", "diff?base=main", nil)
-	requireStatus(t, w, 200)
-	if strings.Contains(w.Body.String(), `"image":`) {
-		t.Fatal("PoC image scope changed")
-	}
 }
 
 func TestImageSourceSnapshotAndOversizedGitBlob(t *testing.T) {

@@ -8,17 +8,15 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 )
 
 type Server struct {
-	repo     Repository
-	id, base string
-	store    *Store
-	assets   fs.FS
-	poc      bool
+	repo   Repository
+	id     string
+	store  *Store
+	assets fs.FS
 }
 
 func reply(w http.ResponseWriter, status int, body any) {
@@ -46,7 +44,7 @@ func allowedName(raw string) bool {
 		return false
 	}
 	switch strings.ToLower(u.Hostname()) {
-	case "ghl.localhost", "localhost", "127.0.0.1", "::1":
+	case "localhost", "127.0.0.1", "::1":
 		return true
 	}
 	return false
@@ -64,25 +62,15 @@ func decode(w http.ResponseWriter, r *http.Request, body any) error {
 }
 func (s *Server) selection(r *http.Request) (Selection, error) {
 	q := r.URL.Query()
-	excluded := []string{"includeUntracked"}
-	if s.poc {
-		excluded = append(excluded, "target", "commit", "untracked", "w")
-	}
-	for _, key := range excluded {
-		if q.Has(key) {
-			return Selection{}, fmt.Errorf("%s is not supported by this Go runtime", key)
-		}
+	if q.Has("includeUntracked") {
+		return Selection{}, fmt.Errorf("includeUntracked is not supported by this Go runtime")
 	}
 	for _, key := range []string{"base", "target", "commit"} {
 		if q.Has(key) && !validRef(q.Get(key)) {
 			return Selection{}, fmt.Errorf("Invalid %s ref", key)
 		}
 	}
-	base := q.Get("base")
-	if s.poc && !q.Has("base") {
-		base = s.base
-	}
-	return Selection{Base: base, Target: q.Get("target"), Commit: q.Get("commit"), Committed: q.Has("committed"), IncludeUntracked: q.Has("untracked"), IgnoreWhitespace: q.Get("w") == "1"}, nil
+	return Selection{Base: q.Get("base"), Target: q.Get("target"), Commit: q.Get("commit"), Committed: q.Has("committed"), IncludeUntracked: q.Has("untracked"), IgnoreWhitespace: q.Get("w") == "1"}, nil
 }
 func allowedRequest(w http.ResponseWriter, r *http.Request) bool {
 	if !allowedName("http://" + r.Host) {
@@ -97,20 +85,6 @@ func allowedRequest(w http.ResponseWriter, r *http.Request) bool {
 }
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !allowedRequest(w, r) {
-		return
-	}
-	if r.URL.Path == "/api/health" && r.Method == "GET" {
-		info := buildInfo()
-		health := map[string]any{
-			"ghlGo": true, "version": info.Version, "commit": info.Commit,
-			"buildDate": info.BuildDate, "runtime": info.Runtime, "protocolVersion": info.ProtocolVersion,
-			"revision": info.Version + "/" + info.Commit,
-			"pid":      os.Getpid(), "repos": []any{map[string]string{"id": s.id, "path": s.repo.Path}},
-		}
-		if s.poc {
-			health["ghlGoPoc"] = true
-		}
-		reply(w, 200, health)
 		return
 	}
 	prefix := "/r/" + s.id
@@ -137,18 +111,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Only routes that read a comparison pay for Git. Every reader uses this result.
 	var review *Review
 	if (r.Method == "GET" && (route == "diff" || route == "diff-files")) || (route == "comments" && (r.Method == "POST" || r.Method == "PATCH")) {
-		if s.poc {
-			review, err = s.repo.Compare(r.Context(), selection.Base, selection.Committed)
-		} else {
-			review, err = s.repo.Resolve(r.Context(), selection)
-		}
+		review, err = s.repo.Resolve(r.Context(), selection)
 		if err != nil {
 			fail(w, 422, err)
 			return
 		}
 	}
 	switch {
-	case !s.poc && route == "image" && r.Method == "GET":
+	case route == "image" && r.Method == "GET":
 		q := r.URL.Query()
 		source, err := s.repo.imageSource(r.Context(), q.Get("revision"), q.Get("path"))
 		var data []byte
@@ -166,7 +136,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
 		w.WriteHeader(200)
 		_, _ = w.Write(data)
-	case !s.poc && route == "refs" && r.Method == "GET":
+	case route == "refs" && r.Method == "GET":
 		refs, err := s.repo.refs(r.Context())
 		if err != nil {
 			fail(w, 422, err)
@@ -183,7 +153,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		reply(w, 200, map[string]any{"refs": refs, "trunk": trunk, "branch": branch})
-	case !s.poc && route == "commits" && r.Method == "GET":
+	case route == "commits" && r.Method == "GET":
 		base, err := s.repo.resolveBase(r.Context(), selection.Base, selection.Target)
 		if err != nil {
 			fail(w, 422, err)
@@ -199,7 +169,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		reply(w, 200, map[string]any{"commits": commits})
-	case !s.poc && route == "base" && r.Method == "POST":
+	case route == "base" && r.Method == "POST":
 		var body struct {
 			Base   string  `json:"base"`
 			Target *string `json:"target"`
@@ -231,11 +201,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		reply(w, 200, map[string]any{"ok": true, "branch": branch, "base": body.Base})
 	case route == "diff" && r.Method == "GET":
-		if !s.poc {
-			if err := review.attachImages(r.Context(), s.id); err != nil {
-				fail(w, 422, err)
-				return
-			}
+		if err := review.attachImages(r.Context(), s.id); err != nil {
+			fail(w, 422, err)
+			return
 		}
 		state, notice, err := s.store.Snapshot(r.Context())
 		if err != nil {
@@ -367,7 +335,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (s *Server) static(w http.ResponseWriter, r *http.Request, name string) {
-	if !fs.ValidPath(name) {
+	if s.assets == nil || !fs.ValidPath(name) {
 		fail(w, 404, fmt.Errorf("not found"))
 		return
 	}

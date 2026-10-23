@@ -12,7 +12,7 @@ import (
 func TestRepositoryCommentLifecycle(t *testing.T) {
 	ctx := context.Background()
 	repo := fixture(t)
-	store := Options{}.store(repo)
+	store := storeFor(repo)
 	comments := repositoryComments{store: store}
 	review := compare(t, repo, false)
 	draft := Comment{ID: "remark", Path: "context.txt", Side: "additions", Start: 90, End: 91, Range: review.Range, Body: "original"}
@@ -46,7 +46,7 @@ func TestRepositoryCommentLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	restarted := repositoryComments{store: Options{}.store(repo)}
+	restarted := repositoryComments{store: storeFor(repo)}
 	edited, err := restarted.edit(ctx, outside, draft.ID, "  edited outside  ")
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +89,7 @@ func TestRepositoryCommentLifecycle(t *testing.T) {
 func TestRepositoryCommentValidation(t *testing.T) {
 	ctx := context.Background()
 	repo := fixture(t)
-	comments := repositoryComments{store: Options{}.store(repo)}
+	comments := repositoryComments{store: storeFor(repo)}
 	review := compare(t, repo, false)
 	for _, draft := range []Comment{
 		{ID: "invalid", Path: "../outside", Side: "additions", Start: 1, End: 1, Range: "range"},
@@ -130,7 +130,7 @@ func TestConcurrentCommentCreationKeepsFirstProvenance(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			comments := repositoryComments{store: Options{}.store(repo)}
+			comments := repositoryComments{store: storeFor(repo)}
 			draft := Comment{ID: "same", Path: "context.txt", Side: "additions", Start: 90 + i, End: 90 + i, Range: fmt.Sprint(i), Body: fmt.Sprint(i)}
 			created, err := comments.create(ctx, reviews[i], draft)
 			if err != nil {
@@ -151,7 +151,7 @@ func TestConcurrentCommentCreationKeepsFirstProvenance(t *testing.T) {
 			t.Fatalf("concurrent retry replaced provenance: %+v != %+v", *first, result.Comment)
 		}
 	}
-	state, _, err := Options{}.store(repo).Snapshot(ctx)
+	state, _, err := storeFor(repo).Snapshot(ctx)
 	if err != nil || len(state.Comments) != 1 || first == nil {
 		t.Fatalf("concurrent creation duplicated or lost the comment: %+v %v", state, err)
 	}

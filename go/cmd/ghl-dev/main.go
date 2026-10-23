@@ -1,7 +1,13 @@
+// The review server without the desktop window: `task dev` and the tests.
 package main
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,16 +16,45 @@ import (
 )
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	// Vite serves the live frontend; no generated embedded UI is needed in dev.
-	// Environment values preserve paths with spaces through Air's shell runner.
-	args := []string{
-		"--repo", os.Getenv("GHL_DEV_REPO"),
-		"--base", os.Getenv("GHL_DEV_BASE"),
-		"--port", os.Getenv("GHL_DEV_BACKEND_PORT"),
-		"--no-open", "--no-daemon", "--json",
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, "ghl-dev:", err)
+		os.Exit(1)
 	}
-	code := app.Main(ctx, args, os.Stdout, os.Stderr, app.Options{Assets: os.DirFS("../web")})
-	cancel()
-	os.Exit(code)
+}
+
+func run() error {
+	// Environment defaults preserve paths with spaces through Air's shell runner.
+	repo := flag.String("repo", env("GHL_DEV_REPO", "."), "repository to register")
+	base := flag.String("base", os.Getenv("GHL_DEV_BASE"), "base ref carried by the announced URL")
+	port := flag.String("port", env("GHL_DEV_BACKEND_PORT", "0"), "loopback port, 0 for an ephemeral one")
+	flag.Parse()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	listener, err := net.Listen("tcp4", net.JoinHostPort("127.0.0.1", *port))
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+	// Vite serves the live frontend, and the tests the built one: no UI here.
+	runtime := app.NewRuntime(nil)
+	entry, err := runtime.Open(ctx, *repo)
+	if err != nil {
+		return err
+	}
+	actual := listener.Addr().(*net.TCPAddr).Port
+	address := fmt.Sprintf("http://127.0.0.1:%d/r/%s", actual, url.PathEscape(entry.ID))
+	if *base != "" {
+		address += "?" + url.Values{"base": {*base}}.Encode()
+	}
+	if err := json.NewEncoder(os.Stdout).Encode(map[string]any{"port": actual, "repoId": entry.ID, "url": address}); err != nil {
+		return err
+	}
+	return runtime.Serve(ctx, listener)
+}
+
+func env(name, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
 }
