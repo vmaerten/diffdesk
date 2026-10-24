@@ -59,6 +59,8 @@ See the [reviewing guide](./docs/reviewing.md) for comparisons, comments and sta
 | `c` | Comment selected lines |
 | `b` / `t` | Pick a base / target revision |
 | `l` | Pick a commit |
+| `s` | Pick a stack layer |
+| `[` / `]` | Review the stack layer below / above |
 | `r` | Refresh |
 | `Cmd+f` | Search the diff |
 | `Cmd+1` / `Cmd+2` | Unified / split diff |
