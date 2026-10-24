@@ -90,7 +90,7 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 - Sans base dans l'URL, chaque requête lance deux processus git par branche locale. Un PATCH de commentaire refait un `Resolve` complet.
 - Ouvrir une review calcule le diff deux fois, à cause de la vérification préalable de `backend.open`.
 
-### 10 · `hardening/10-tests` — Tests
+### 10 · `hardening/10-tests` — Tests — [#193](https://github.com/vmaerten/ghl/pull/193)
 
 - Aucun garde rapide pour la régression TMPDIR de 0.3.0 : tester `userTempDir`.
 - Les suites UI contiennent environ 45 `sleep` fixes avant des assertions. Attendre plutôt la condition, avec les helpers existants.
@@ -157,3 +157,8 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 | 09 | Le PATCH d'un commentaire renvoie son code et son état stale, qui dépendent de la comparaison. | Son `Resolve` reste ; le cache de la base devinée en réduit le coût. |
 | 09 | « Écrire la base résolue dans l'URL » aurait fait passer chaque base devinée pour une base imposée. | Remplacé par un cache par dépôt, indexé sur le HEAD, le trunk et les pointes de branche. |
 | 09 | Avec les workers, le re-rendu d'un fichier après la fermeture d'un composer peut effacer une sélection faite juste après : deux exécutions complètes sur quatre échouaient dans `comments`. | Le test reclique jusqu'à ce que la sélection tienne. La fenêtre réelle est de quelques dizaines de millisecondes après Escape. |
+| 10 | Le `sleep(600)` avant le zoom d'image masquait un vrai délai : juste après la sélection du fichier, le point visé n'appartient pas encore au bouton et le clic tombe sur le panneau. | Le test attend que `elementFromPoint` au centre du bouton tombe dans le bouton. |
+| 10 | Des parcours plus rapides chargent davantage les suites parallèles : le clic de gouttière de `comments` échouait trois fois sur cinq sans le pool de workers. | Correctif de test de #192 repris à l'identique par cherry-pick. |
+| 10 | La suite complète est passée de 33 s à 19 s. | Seuls les intervalles de sondage de `poll` et `waitForRows` gardent un délai fixe. |
+| 10 | Les tests ne touchent pas l'utilisateur. | Pas d'entrée au CHANGELOG. |
+| 10 | Le commentaire sur la longueur du socket était au-dessus de `userTempDir` depuis #178. | Remis sur `instancePaths`, dans un commit à part. |
