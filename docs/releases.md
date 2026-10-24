@@ -37,14 +37,14 @@ git tag v0.3.0
 git push origin refs/tags/v0.3.0
 ```
 
-The `Release` GitHub workflow runs only when a stable `vX.Y.Z` tag is pushed. A single `macos-26` ARM64 job checks out the tag's commit, installs the locked tools through mise 2026.10.2 and runs `task release`. Actions are pinned by commit, only the release job receives `contents: write`, and reruns of the same tag cannot cancel an ongoing release. On this repository, the hosted job consumes the account's included minutes.
+The `Release` GitHub workflow runs only when a stable `vX.Y.Z` tag is pushed. A single `macos-26` ARM64 job checks out the tag's commit, installs the locked tools through mise 2026.10.2 and runs `task release`. Actions are pinned by commit, only the release job receives `contents: write`, and releases run one at a time: a second tag waits instead of racing the first to the cask. On this repository, the hosted job consumes the account's included minutes.
 
 `task release` resolves the tag from `RELEASE_TAG`, an explicit `TAG` or the exact tag on HEAD, then:
 
 1. builds and verifies the archive, as above;
-2. checks that the Homebrew tap is reachable, so a missing token fails before anything is published;
+2. checks that the Homebrew tap is reachable and, in the workflow, that `HOMEBREW_TAP_TOKEN` is set, so a missing token fails before anything is published;
 3. creates a draft release with the archive and `checksums.txt`, and publishes it only once both uploads succeed;
-4. renders `desktop/cask.rb` from the published `checksums.txt` and pushes it to `Casks/ghl.rb` in [vmaerten/homebrew-tap](https://github.com/vmaerten/homebrew-tap).
+4. renders `desktop/cask.rb` from the published `checksums.txt` and pushes it to `Casks/ghl.rb` in [vmaerten/homebrew-tap](https://github.com/vmaerten/homebrew-tap), unless the tap already offers a newer version.
 
 An existing release is never overwritten; a failed upload leaves a draft to inspect. Prereleases are published by running `task release TAG=vX.Y.Z-rc.N` locally; they are marked as such and leave the cask on the last stable release.
 
