@@ -119,20 +119,25 @@ export function createViewedPersistence(transport: ViewedTransport) {
   }
 }
 
-export function useViewedPersistence(repoId: string | null) {
+export type ViewedPersistence = ReturnType<typeof createViewedPersistence>
+
+export function createRepositoryViewedPersistence(repoId: string | null): ViewedPersistence {
+  return createViewedPersistence({
+    write: async ({ query, ...change }) => {
+      const response = await fetch(`/r/${repoId}/api/viewed${query}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(change),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    },
+  })
+}
+
+export function useViewedPersistence(repoId: string | null, retained?: ViewedPersistence) {
   const persistence = useMemo(
-    () =>
-      createViewedPersistence({
-        write: async ({ query, ...change }) => {
-          const response = await fetch(`/r/${repoId}/api/viewed${query}`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(change),
-          })
-          if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        },
-      }),
-    [repoId],
+    () => retained ?? createRepositoryViewedPersistence(repoId),
+    [repoId, retained],
   )
   return [
     useSyncExternalStore(persistence.subscribe, persistence.getSnapshot),

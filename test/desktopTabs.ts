@@ -59,6 +59,21 @@ try {
     await ready(id)
   }
   await ready('1')
+  // Requests a test holds back or fails; everything else goes through.
+  const held = { comments: false, viewed: false, diff: false }
+  await page.setRequestInterception(true)
+  page.on('request', (request) => {
+    if (held.comments && request.method() === 'POST' && request.url().includes('/api/comments'))
+      return
+    if (held.viewed && request.method() === 'POST' && request.url().includes('/api/viewed')) return
+    if (held.diff && /\/api\/diff(\?|$)/.test(request.url()))
+      return void request.respond({
+        status: 500,
+        contentType: 'application/json',
+        body: '{"error":"fixture failure"}',
+      })
+    void request.continue()
+  })
   let failures = 0
   const test = async (name: string, run: () => Promise<void>) => {
     try {
@@ -70,13 +85,7 @@ try {
     }
   }
   await test('failed comment survives switching while its save is pending, then retries', async () => {
-    let intercept = true
-    await page.setRequestInterception(true)
-    page.on('request', (request) => {
-      if (intercept && request.method() === 'POST' && request.url().includes('/api/comments'))
-        return
-      void request.continue()
-    })
+    held.comments = true
     await page.evaluate(() => {
       const cell = document
         .querySelector('diffs-container')
@@ -121,7 +130,7 @@ try {
       true,
     )
     await page.waitForSelector('.comment-state.failed')
-    intercept = false
+    held.comments = false
     await page.evaluate(() => {
       const retry = [...document.querySelectorAll<HTMLButtonElement>('.comment button')].find(
         (button) => button.textContent === 'Retry',
@@ -197,6 +206,55 @@ try {
       ),
       false,
     )
+  })
+  await test('a failed refresh leaves the shown comparison expandable', async () => {
+    await page.goto(origin, { waitUntil: 'networkidle0' })
+    await ready('1')
+    held.diff = true
+    await page.evaluate(() =>
+      window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'refresh' })),
+    )
+    await page.waitForFunction(() =>
+      document.querySelector('.message')?.textContent?.includes('fixture failure'),
+    )
+    held.diff = false
+    await page.evaluate(() => {
+      const control = document
+        .querySelector('diffs-container')
+        ?.shadowRoot?.querySelector<HTMLElement>('[data-expand-index="1"] [data-expand-all-button]')
+      if (!control) throw new Error('Missing Expand all')
+      control.click()
+    })
+    await page.waitForFunction(
+      () =>
+        !!document
+          .querySelector('diffs-container')
+          ?.shadowRoot?.querySelector('[data-column-number="20"]'),
+      { timeout: 5000 },
+    )
+  })
+  await test('a Viewed tick survives switching while its save is pending', async () => {
+    await page.goto(origin, { waitUntil: 'networkidle0' })
+    await ready('1')
+    held.viewed = true
+    const saving = page.waitForRequest(
+      (request) => request.method() === 'POST' && request.url().includes('/api/viewed'),
+    )
+    await page.click('.viewed-toggle input')
+    const pending = await saving
+    // The ticked file folds, so the tab shows no line to wait for.
+    const show = async (id: string) => {
+      await page.click(`#review-tab-${id}`)
+      await page.waitForSelector(`.desktop-review[data-active-tab="${id}"] .viewed-toggle input`)
+    }
+    await show('2')
+    await show('1')
+    await page.waitForFunction(
+      () => document.querySelector<HTMLInputElement>('.viewed-toggle input')?.checked === true,
+      { timeout: 5000 },
+    )
+    held.viewed = false
+    await pending.continue()
   })
   assert.deepEqual(errors, [])
   assert.equal(failures, 0, 'Desktop tab regressions')

@@ -14,6 +14,8 @@ export interface RefSelectorExtra {
 
 interface RefSelectorProps {
   repoId: string | null
+  /** What the picked ref becomes, which names the list and the current ref's badge. */
+  kind: 'base' | 'target'
   current: string
   source?: string
   extra?: RefSelectorExtra
@@ -30,6 +32,7 @@ interface RefSelectorProps {
  */
 export default function RefSelector({
   repoId,
+  kind,
   current,
   source,
   extra,
@@ -78,7 +81,7 @@ export default function RefSelector({
     <>
       <div className="picker-backdrop" onMouseDown={onClose} />
       <div className="picker" onMouseDown={(event) => event.stopPropagation()}>
-        <Command label="Choose a base" loop>
+        <Command label={`Choose a ${kind}`} loop>
           <Command.Input autoFocus placeholder="Search branches…" className="picker-input" />
 
           <Command.List className="picker-list">
@@ -107,7 +110,7 @@ export default function RefSelector({
                 <span className="picker-name">{ref.name}</span>
                 {ref.name === meta.trunk && <span className="badge">trunk</span>}
                 {ref.name === meta.branch && <span className="badge">current</span>}
-                {ref.name === current && <span className="badge on">base</span>}
+                {ref.name === current && <span className="badge on">{kind}</span>}
                 <span className="picker-when">{ref.when}</span>
               </Command.Item>
             ))}

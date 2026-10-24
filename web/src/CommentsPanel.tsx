@@ -3,6 +3,7 @@ import type { ServedComment } from '../../src/types.ts'
 import type { SaveState } from './commentPersistence.ts'
 import CommentCard, { lineLabel } from './CommentCard.tsx'
 import Icon from './Icon.tsx'
+import { treeOrder } from './fileOrder.ts'
 
 export default function CommentsPanel({
   savedEditor,
@@ -42,9 +43,13 @@ export default function CommentsPanel({
   }, [savedEditor, editing, draft])
   const groups = useMemo(() => {
     const result = new Map<string, ServedComment[]>()
+    // Files in the tree's order, so the panel reads in the same sequence.
+    const order = treeOrder([...new Set(comments.map((comment) => comment.path))])
     for (const comment of comments.toSorted(
       (a, b) =>
-        a.path.localeCompare(b.path) || a.start - b.start || a.createdAt.localeCompare(b.createdAt),
+        order.get(a.path)! - order.get(b.path)! ||
+        a.start - b.start ||
+        a.createdAt.localeCompare(b.createdAt),
     )) {
       const group = result.get(comment.path) ?? []
       group.push(comment)

@@ -17,7 +17,7 @@ import {
   type CommentPersistence,
   type CommentSubmission,
 } from './commentPersistence.ts'
-import { useViewedPersistence } from './viewedPersistence.ts'
+import { useViewedPersistence, type ViewedPersistence } from './viewedPersistence.ts'
 
 import type { SyntaxTheme } from './theme.ts'
 import CommentsPanel from './CommentsPanel.tsx'
@@ -66,6 +66,7 @@ export default function App({
   savedView,
   viewHandle,
   commentStore,
+  viewedStore,
   onRouteChange,
   syntaxTheme,
   codeLineHeight,
@@ -76,6 +77,7 @@ export default function App({
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
   commentStore?: CommentPersistence
+  viewedStore?: ViewedPersistence
   /** Receives every selection URL the review writes. */
   onRouteChange?: (route: string) => void
   syntaxTheme: SyntaxTheme
@@ -91,10 +93,13 @@ export default function App({
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
   const loadRef = useRef(0)
-  const controllerRef = useRef<AbortController | null>(null)
+  const requestRef = useRef<AbortController | null>(null)
+  // The shown comparison's context requests live until it is replaced, not
+  // until the next refresh starts: a failed refresh leaves it on screen.
+  const shownRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(savedView?.diffStyle ?? 'unified')
-  const [viewed, viewedPersistence] = useViewedPersistence(repoId)
+  const [viewed, viewedPersistence] = useViewedPersistence(repoId, viewedStore)
   const [picking, setPicking] = useState<Picker | null>(null)
   const [selection, select] = useReviewSelection(repoId, onRouteChange)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
@@ -128,9 +133,9 @@ export default function App({
       return
     }
     const loadId = ++loadRef.current
-    controllerRef.current?.abort()
+    requestRef.current?.abort()
     const controller = new AbortController()
-    controllerRef.current = controller
+    requestRef.current = controller
     const receiveComments = commentPersistence.refresh()
     const receiveViewed = viewedPersistence.refresh()
     try {
@@ -140,7 +145,10 @@ export default function App({
       const body: DiffPayload & { error?: string } = await response.json()
       if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
       if (controller.signal.aborted) return
-      setData({ ...body, loadId, query: selection.query, signal: controller.signal })
+      shownRef.current?.abort()
+      const shown = new AbortController()
+      shownRef.current = shown
+      setData({ ...body, loadId, query: selection.query, signal: shown.signal })
       receiveViewed({ ...body, query: selection.query })
       receiveComments(body.comments ?? [], body.commentBranch)
       setError(null)
@@ -152,8 +160,9 @@ export default function App({
 
   useEffect(() => {
     refresh()
-    return () => controllerRef.current?.abort()
+    return () => requestRef.current?.abort()
   }, [refresh])
+  useEffect(() => () => shownRef.current?.abort(), [])
 
   const pickTarget = useCallback(
     (ref: string | null) => {
@@ -244,7 +253,6 @@ export default function App({
     view,
     entries,
     activePath,
-    isComposing,
     searchOpen,
     selectFile,
     revealComment,
@@ -382,10 +390,12 @@ export default function App({
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
       if (picking) return // the picker owns the keyboard while open
-      // And so does the composer. The guard above only covers a focused field,
-      // and the pane hands focus back to its own root whenever it re-renders an
-      // item — so a composer can be open with the focus nowhere near it.
-      if (isComposing) return
+      // And so does a composer on screen. The guard above only covers a focused
+      // field, and the pane hands focus back to its own root whenever it
+      // re-renders an item — so a composer can be open with the focus nowhere
+      // near it. One whose line left the comparison renders nowhere, and must
+      // not hold the keys.
+      if (document.querySelector('.comment-composer')) return
 
       const name = KEY_COMMANDS[event.key]
       if (!name) return
@@ -395,7 +405,7 @@ export default function App({
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [entries.length, picking, isComposing, searchOpen, openSearch, stepSearch, runCommand])
+  }, [entries.length, picking, searchOpen, openSearch, stepSearch, runCommand])
 
   useEffect(() => {
     const listener = (event: Event) => runCommand(commandOf(event))

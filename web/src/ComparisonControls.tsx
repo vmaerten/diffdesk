@@ -68,6 +68,7 @@ export function ComparisonSelector({
     return (
       <RefSelector
         repoId={repoId}
+        kind="base"
         current={data.base.ref}
         source={data.base.source}
         onPick={onPickBase}
@@ -77,6 +78,7 @@ export function ComparisonSelector({
   return (
     <RefSelector
       repoId={repoId}
+      kind="target"
       current={data.target.ref}
       source={data.target.workingTree ? 'working tree' : 'ref'}
       extra={{

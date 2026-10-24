@@ -1,9 +1,12 @@
 import {
   allTreeRows,
+  clickTreeRow,
   openPicker,
   pickerShows,
+  poll,
   titlebar,
   titlebarWhen,
+  TREE_ROWS,
   until,
   VIEWED_COUNT,
   type Suite,
@@ -29,6 +32,8 @@ export default {
       explicitBase.join(' | '),
     )
     await load('?target=feature')
+    // Active far down the branch, beyond the three files the commit below touches.
+    await clickTreeRow(page, 'web/components/Widget10.tsx')
 
     await openPicker(page, 'l')
     const listed = (await page.evaluate(
@@ -65,6 +70,18 @@ export default {
       '  narrowing the files to the ones it touches',
       narrowed.length === 3 && narrowed.every((p) => p.startsWith('src/')),
       narrowed.join(', '),
+    )
+    await page.keyboard.press('j')
+    const selected = await poll(
+      async () =>
+        ((await page.evaluate(TREE_ROWS)) as { selected: { path: string }[] }).selected[0]?.path,
+      (path) => path === narrowed[1],
+      5_000,
+    )
+    check(
+      'j after a narrower comparison moves to its second file, not its last',
+      selected === narrowed[1],
+      `${selected} (files: ${narrowed.join(', ')})`,
     )
 
     await page.keyboard.press('v')
