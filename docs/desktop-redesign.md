@@ -225,6 +225,7 @@ Chaque écart avec ce plan et chaque particularité de Wails v2 rencontrée en r
 | Review | Valeurs de réglages hors bornes testées en TS, pas en Go : Go ne connaît pas le schéma. | Écart (test) | — | — | — |
 | Review | Raccourcis clavier affichés dans une feuille (menu Help), non prévue par le spec. | Ajout | Seule surface possible avec une fenêtre unique. | Fenêtre ou popover natif. | Seconde fenêtre possible. |
 | Review | Commits `refactor` qui changent un comportement (`3eb28ca`, `7c74f76`) : historique déjà publié, non réécrit. Les corrections de la review vont dans une PR 09 en haut de la pile. | Constat | — | — | — |
+| Barre compacte | Wails v2 crée une barre d'outils macOS sans jamais régler son `toolbarStyle` : macOS prend le style unifié de 52 px. Vérifié dans `WailsContext.m`. | Contrainte v2 | Essai en Objective-C (`NSWindowToolbarStyleUnifiedCompact` au démarrage) : barre de 38 px, boutons centrés, vérifié par capture. Non retenu, la barre reste à 52 px. | `trafficLightPosition` (vérifié dans codiff). | `MacToolbarStyleUnifiedCompact` (vérifié). |
 
 ## Onglets : propositions
 
@@ -245,6 +246,10 @@ Maquette : [desktop-tabs-mockup.html](./desktop-tabs-mockup.html), six propositi
 - En Wails v2 : la 2, avec le sélecteur de la 4 comme menu de débordement à la place du « … » actuel. Elle corrige l'ambiguïté des reviews du même repo et ne coûte de la hauteur que quand plusieurs reviews sont ouvertes.
 - Si on passe en Wails v3 ou en Electron : la 5, la plus native, à condition d'accepter de refaire le modèle d'onglets côté Go.
 - À écarter : la 6 (peu lisible) et la 1 telle quelle (ambiguë).
+
+## Barre compacte : propositions
+
+Maquette : [desktop-titlebar-mockup.html](./desktop-titlebar-mockup.html), quatre hauteurs de barre (A à D) et trois façons de se passer de la barre d'état (E à G), du 24 octobre 2026.
 
 ## Hors périmètre
 
