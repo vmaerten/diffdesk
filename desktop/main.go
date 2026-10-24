@@ -245,6 +245,11 @@ func run() error {
 			}
 			desktop.ready.Do(func() { go desktop.process(ctx) })
 		},
-		OnShutdown: func(context.Context) { backend.close() },
+		// Stop taking reviews first: a launcher that finds no app starts a new one,
+		// instead of getting a receipt for a review this app will never open.
+		OnShutdown: func(context.Context) {
+			owner.close()
+			backend.close()
+		},
 	})
 }

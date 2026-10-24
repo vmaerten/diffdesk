@@ -32,6 +32,11 @@ func TestOneAppClaimsTheInstance(t *testing.T) {
 	if third, err := claimInstance(dir, "app"); err != nil || third == nil {
 		t.Fatalf("claim after the app quit: %v, %v", third, err)
 	} else {
+		// The quitting app closes again from its deferred cleanup.
+		first.close()
+		if _, err := os.Stat(third.socket); err != nil {
+			t.Fatalf("next app's socket removed: %v", err)
+		}
 		third.close()
 	}
 }
