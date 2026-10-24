@@ -3,7 +3,15 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DiffPayload, StoredState } from '../../src/types.ts'
-import { clickTreeRow, COMMENTS_OPEN, sleep, type Suite } from '../harness.ts'
+import {
+  clickTreeRow,
+  COMMENTS_OPEN,
+  frames,
+  poll,
+  settled,
+  until,
+  type Suite,
+} from '../harness.ts'
 
 export default {
   name: 'review-panel',
@@ -149,25 +157,32 @@ export default {
     await page.waitForSelector(COMMENTS_OPEN, { hidden: true })
 
     await clickTreeRow(page, first.path)
-    await sleep(500)
-    await page.click('.diff [data-comment-id="panel-first"] .comment-collapse')
+    await page.waitForSelector('.diff [data-comment-id="panel-first"] .comment-collapse')
+    // A DOM click: the pane is still settling on the selected file, and a click
+    // by coordinates could land beside the button.
+    await page.$eval('.diff [data-comment-id="panel-first"] .comment-collapse', (button) =>
+      (button as HTMLButtonElement).click(),
+    )
     await page.waitForSelector(
       '.diff [data-comment-id="panel-first"] .comment-collapse[aria-expanded="false"]',
     )
     await page.keyboard.press('v')
-    await sleep(500)
-    check(
-      'the file is marked Viewed',
-      ((await (await fetch(api('diff'))).json()) as DiffPayload).viewed[first.path] !== undefined,
+    const viewed = await poll(
+      async () => ((await (await fetch(api('diff'))).json()) as DiffPayload).viewed,
+      (map) => map[first.path] !== undefined,
     )
+    check('the file is marked Viewed', viewed[first.path] !== undefined)
     await page.click('.comments-trigger')
     await page.click('.comments-panel [data-comment-id="panel-first"] .comment-navigation button')
     await page.waitForSelector('.diff [data-comment-id="panel-first"]')
-    await sleep(700)
-    const position = await page.$eval('.diff [data-comment-id="panel-first"]', (el) => {
-      const r = el.getBoundingClientRect()
-      return { top: r.top, bottom: r.bottom, viewport: innerHeight }
-    })
+    const position = await poll(
+      () =>
+        page.$eval('.diff [data-comment-id="panel-first"]', (el) => {
+          const r = el.getBoundingClientRect()
+          return { top: r.top, bottom: r.bottom, viewport: innerHeight }
+        }),
+      (at) => at.top > 0 && at.bottom < at.viewport,
+    )
     check(
       'View in diff opens the folded file and reveals the comment',
       position.top > 0 && position.bottom < position.viewport,
@@ -195,7 +210,9 @@ export default {
     await page.waitForSelector('.diff .comment-composer textarea')
     await clickRevealed('Cancel')
     await page.waitForSelector('.diff .comment-composer', { hidden: true })
-    await sleep(500)
+    // Nothing to wait for: the file must simply stay open once the page is quiet.
+    await settled(page)
+    await frames(page)
     check(
       'closing an edit keeps the revealed file open',
       await page.$eval(
@@ -203,19 +220,24 @@ export default {
         (card) => card.getBoundingClientRect().height > 0,
       ),
     )
+    const revealedViewed = `document.querySelector('.diff [data-comment-id="panel-first"]')
+      ?.closest('diffs-container')?.querySelector('.viewed-toggle input')?.checked`
     await page.keyboard.press('v')
-    await sleep(250)
+    await until(page, `${revealedViewed} === false`)
     await page.keyboard.press('v')
-    await sleep(400)
-    const folded = await page.evaluate(() => {
-      const card = document.querySelector('.diff [data-comment-id="panel-first"]')
-      const host = card?.closest('diffs-container')
-      return {
-        height: card?.getBoundingClientRect().height ?? 0,
-        viewed: host?.querySelector<HTMLInputElement>('.viewed-toggle input')?.checked,
-        text: host?.shadowRoot?.querySelector('[data-title]')?.textContent,
-      }
-    })
+    const folded = await poll(
+      () =>
+        page.evaluate(() => {
+          const card = document.querySelector('.diff [data-comment-id="panel-first"]')
+          const host = card?.closest('diffs-container')
+          return {
+            height: card?.getBoundingClientRect().height ?? 0,
+            viewed: host?.querySelector<HTMLInputElement>('.viewed-toggle input')?.checked,
+            text: host?.shadowRoot?.querySelector('[data-title]')?.textContent,
+          }
+        }),
+      (shown) => shown.height === 0,
+    )
     check(
       'marking the revealed file Viewed again folds it',
       folded.height === 0,

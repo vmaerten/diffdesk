@@ -1,6 +1,6 @@
 import type { ElementHandle } from 'puppeteer-core'
 
-import { clickTreeRow, command, DIFF_SCROLLER, sleep, type Suite } from '../harness.ts'
+import { clickTreeRow, command, DIFF_SCROLLER, frames, poll, type Suite } from '../harness.ts'
 
 /** The review's syntax colours, not those of the Settings preview. */
 const TOKENS = `[...(document.querySelector('.diff diffs-container')?.shadowRoot
@@ -39,12 +39,32 @@ export default {
         )
       ).asElement() as ElementHandle<HTMLSelectElement>
     const tokens = () => page.evaluate(TOKENS) as Promise<string>
+    /** A value once two readings a couple of frames apart agree: a repaint spreads over frames. */
+    const steady = async <T>(read: () => Promise<T>, ready: (value: T) => boolean = () => true) => {
+      let previous = await read()
+      return poll(
+        async () => {
+          await frames(page)
+          const value = await read()
+          const settled = value === previous ? value : undefined
+          previous = value
+          return settled
+        },
+        (value) => value !== undefined && ready(value),
+      ) as Promise<T>
+    }
+    const savedSettings = async () =>
+      JSON.parse(
+        ((await page.evaluate(
+          () =>
+            (window as unknown as { desktopFixture: { settings: string } }).desktopFixture.settings,
+        )) as string) || '{}',
+      ) as { appearance?: string; light?: string; dark?: string }
     /** Wait for the syntax colours to move away from `previous`, then settle. */
     const repainted = async (previous: string) => {
       await page.waitForFunction(`(${TOKENS}) !== ${JSON.stringify(previous)}`, { timeout: 15_000 })
       await page.waitForNetworkIdle()
-      await sleep(300)
-      return tokens()
+      return steady(tokens)
     }
 
     // Each step changes the active theme, so each one has new colours to wait for.
@@ -88,24 +108,25 @@ export default {
       tokenColors.size === steps.length && !tokenColors.has(''),
       `${tokenColors.size} distinct of ${steps.length}`,
     )
-    await sleep(500)
-    const saved = (await page.evaluate(
-      () => (window as unknown as { desktopFixture: { settings: string } }).desktopFixture.settings,
-    )) as string
-    const chosen = saved ? JSON.parse(saved) : {}
+    const chosen = await poll(
+      savedSettings,
+      (saved) =>
+        saved.appearance === 'dark' &&
+        saved.light === 'solarized-light' &&
+        saved.dark === 'catppuccin-mocha',
+    )
     check(
       'the choice reaches the native side',
       chosen.appearance === 'dark' &&
         chosen.light === 'solarized-light' &&
         chosen.dark === 'catppuccin-mocha',
-      saved,
+      JSON.stringify(chosen),
     )
     await closeSettings()
 
     await clickTreeRow(page, 'web/components/Widget40.tsx')
-    await sleep(500)
     const scroll = () => page.evaluate(`${DIFF_SCROLLER}.scrollTop`) as Promise<number>
-    const before = await scroll()
+    const before = await steady(scroll, (top) => top > 0)
     await openSettings()
     await (await themeSelect('Dark')).select('github-dark')
     await repainted(current)
@@ -117,10 +138,10 @@ export default {
     )
     // Read at the top, where the reloaded review opens.
     await page.evaluate(`${DIFF_SCROLLER}.scrollTop = 0`)
-    await sleep(900)
-    const chosenTheme = await tokens()
+    await steady(scroll, (top) => top === 0)
+    const chosenTheme = await steady(tokens, (colors) => colors !== '')
 
-    await sleep(500)
+    await poll(savedSettings, (saved) => saved.dark === 'github-dark')
     await load()
     await page.waitForSelector('.viewed-toggle input', { timeout: 30_000 })
     await page.waitForNetworkIdle()

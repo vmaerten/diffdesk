@@ -1,4 +1,4 @@
-import { sleep, TREE_ROWS, type Suite } from '../harness.ts'
+import { frames, poll, TREE_ROWS, type Suite } from '../harness.ts'
 
 const MIN = 180
 const DEFAULT = 272
@@ -33,10 +33,10 @@ export default {
       await page.mouse.down()
       for (let i = 1; i <= 5; i++) {
         await page.mouse.move(from.x + (dx * i) / 5, from.y)
-        await sleep(40)
+        await frames(page)
       }
       await page.mouse.up()
-      await sleep(400)
+      await frames(page)
     }
 
     /**
@@ -48,7 +48,7 @@ export default {
       const at = await handle()
       await page.mouse.move(at.x, at.y)
       await page.mouse.click(at.x, at.y, { count: 2 })
-      await sleep(400)
+      await frames(page)
     }
 
     const start = await widths()
@@ -86,18 +86,20 @@ export default {
 
     await page.focus('.resizer')
     await page.keyboard.press('ArrowRight')
-    await sleep(300)
-    check('arrow keys nudge it', (await widths()).sidebar === DEFAULT + 10)
+    const nudged = await poll(widths, (width) => width.sidebar === DEFAULT + 10)
+    check('arrow keys nudge it', nudged.sidebar === DEFAULT + 10, `${nudged.sidebar}px`)
     await page.keyboard.down('Shift')
     await page.keyboard.press('ArrowLeft')
     await page.keyboard.up('Shift')
-    await sleep(300)
-    check('shift moves further', (await widths()).sidebar === DEFAULT - 40)
+    const further = await poll(widths, (width) => width.sidebar === DEFAULT - 40)
+    check('shift moves further', further.sidebar === DEFAULT - 40, `${further.sidebar}px`)
 
     // The divider must not swallow the keys the rest of the UI listens for.
     await page.keyboard.press('j')
-    await sleep(600)
-    const selected = (await page.evaluate(TREE_ROWS)) as { selected: unknown[] }
+    const selected = await poll(
+      () => page.evaluate(TREE_ROWS) as Promise<{ selected: unknown[] }>,
+      (tree) => tree.selected.length === 1,
+    )
     check('j still works with the divider focused', selected.selected.length === 1)
 
     await page.evaluate(`localStorage.removeItem('ghl.sidebarWidth')`)

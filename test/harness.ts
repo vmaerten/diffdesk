@@ -375,12 +375,12 @@ export async function allTreeRows(page: Page): Promise<TreeRow[]> {
   const seen = new Map<string, TreeRow>()
   for (let top = 0; top <= height; top += 400) {
     await page.evaluate(`${TREE_SCROLLER}.scrollTop = ${top}`)
-    await sleep(150)
+    await frames(page)
     const { rows } = (await page.evaluate(TREE_ROWS)) as { rows: TreeRow[] }
     for (const row of rows) seen.set(row.path, row)
   }
   await page.evaluate(`${TREE_SCROLLER}.scrollTop = 0`)
-  await sleep(200)
+  await frames(page)
   return [...seen.values()]
 }
 
@@ -427,7 +427,7 @@ export async function clickTreeRow(page: Page, path: string): Promise<boolean> {
   const step = Math.max(100, Math.round(box.viewport * 0.8))
   for (let top = 0; top <= box.height; top += step) {
     await page.evaluate(`(() => { ${TREE_SCROLLER}.scrollTop = ${top} })()`)
-    await sleep(120)
+    await frames(page)
     if (await attempt()) return true
   }
   return false
@@ -448,6 +448,10 @@ export const DIFF_SCROLLER = `(() => {
            el.scrollHeight > el.clientHeight + 20
   }) ?? null
 })()`
+
+/** Every mounted file that shows lines has its coloured tokens. */
+const DIFF_PAINTED = `[...document.querySelectorAll('.diff diffs-container')].every((host) =>
+  !host.shadowRoot?.querySelector('[data-line]') || host.shadowRoot.querySelector('span[style]'))`
 
 /** Each mounted file, read from its own shadow root, with its coloured spans. */
 const DIFF_FILES = `(() => {
@@ -532,10 +536,12 @@ export async function allDiffFiles(page: Page): Promise<DiffFile[]> {
   const step = Math.max(200, Math.round(box.viewport * 0.8))
   for (let top = 0; top <= box.height; top += step) {
     await page.evaluate(`(() => { const el = ${DIFF_SCROLLER}; if (el) el.scrollTop = ${top} })()`)
-    await sleep(200)
+    await frames(page)
+    // Highlighting lands after the rows; a file without tokens stops it after a second.
+    await until(page, DIFF_PAINTED, 1_000)
     await collect()
   }
   await page.evaluate(`(() => { const el = ${DIFF_SCROLLER}; if (el) el.scrollTop = 0 })()`)
-  await sleep(200)
+  await frames(page)
   return [...seen.values()]
 }
