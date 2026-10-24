@@ -5,7 +5,18 @@ import { tmpdir } from 'node:os'
 
 import { asMarkdown } from '../../src/export.ts'
 import type { DiffPayload } from '../../src/types.ts'
-import { allTreeRows, DIFF_SCROLLER, frames, poll, settled, until, type Suite } from '../harness.ts'
+import {
+  allTreeRows,
+  command,
+  DIFF_SCROLLER,
+  frames,
+  pickerShows,
+  poll,
+  settled,
+  TREE_ROWS,
+  until,
+  type Suite,
+} from '../harness.ts'
 
 /**
  * The gutter cell of the first mounted file, and the "+" the library puts in it
@@ -153,6 +164,30 @@ export default {
       (await count('.comment-composer')) === 1 && (await pencilled()).length === 0,
       `${await count('.comment-composer')} composer(s), ${(await pencilled()).length} pencilled`,
     )
+
+    // A commit that leaves the composer's file out gives it no line to render on.
+    // Invisible, it must not hold the keys; back on the full range, it returns.
+    const activeRow = async () =>
+      ((await page.evaluate(TREE_ROWS)) as { selected: { path: string }[] }).selected[0]?.path
+    await command(page, 'commit')
+    await page.waitForSelector('.picker-item')
+    await page.keyboard.type('widen')
+    await pickerShows(page, 'widen the core')
+    await page.keyboard.press('Enter')
+    await until(page, `new URLSearchParams(location.search).has('commit')`)
+    await until(page, `!document.querySelector('.comment-composer')`)
+    const beforeNext = await poll(activeRow, (path) => path !== undefined)
+    await page.keyboard.press('j')
+    const afterNext = await poll(activeRow, (path) => path !== beforeNext, 5_000)
+    check(
+      'a composer whose line left the comparison releases the keys',
+      (await count('.comment-composer')) === 0 && afterNext !== beforeNext,
+      `${beforeNext} -> ${afterNext}`,
+    )
+    await command(page, 'commit')
+    await pickerShows(page, 'All commits')
+    await page.keyboard.press('Enter')
+    check('  and comes back with the comparison', await composers(1))
 
     // ---- saving ------------------------------------------------------------
 

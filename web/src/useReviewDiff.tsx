@@ -944,7 +944,6 @@ export function useReviewDiff({
     view,
     entries,
     activePath: items[activeIndex]?.path,
-    isComposing: composer !== null,
     searchOpen,
     selectFile: selectByPath,
     revealComment,

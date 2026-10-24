@@ -244,7 +244,6 @@ export default function App({
     view,
     entries,
     activePath,
-    isComposing,
     searchOpen,
     selectFile,
     revealComment,
@@ -382,10 +381,12 @@ export default function App({
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
       if (picking) return // the picker owns the keyboard while open
-      // And so does the composer. The guard above only covers a focused field,
-      // and the pane hands focus back to its own root whenever it re-renders an
-      // item — so a composer can be open with the focus nowhere near it.
-      if (isComposing) return
+      // And so does a composer on screen. The guard above only covers a focused
+      // field, and the pane hands focus back to its own root whenever it
+      // re-renders an item — so a composer can be open with the focus nowhere
+      // near it. One whose line left the comparison renders nowhere, and must
+      // not hold the keys.
+      if (document.querySelector('.comment-composer')) return
 
       const name = KEY_COMMANDS[event.key]
       if (!name) return
@@ -395,7 +396,7 @@ export default function App({
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [entries.length, picking, isComposing, searchOpen, openSearch, stepSearch, runCommand])
+  }, [entries.length, picking, searchOpen, openSearch, stepSearch, runCommand])
 
   useEffect(() => {
     const listener = (event: Event) => runCommand(commandOf(event))
