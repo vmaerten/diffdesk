@@ -67,7 +67,7 @@ A running window keeps the version it started with: quit ghl (`Cmd+Q`) to use th
 ## Moving from the 0.2.0 browser CLI
 
 - `mise upgrade` or `mise use -g github:vmaerten/ghl@latest` moves from the CLI to the app: same tool, new archive. Linux and macOS Intel are not served after 0.2.0; stay on `github:vmaerten/ghl@0.2.0` there.
-- A 0.2.0 daemon still running on port 7777 stops on its own after 30 minutes without an open tab. Open its reviews in the app with `ghl` in each checkout.
+- When it starts, the app stops a 0.1 or 0.2 daemon still running on port 7777 and removes its lock folder. Open its reviews in the app with `ghl` in each checkout.
 - Comments and Viewed carry over unchanged: the app uses the same `.git/ghl/state.json`.
 - `--port`, `--no-open`, `--no-daemon`, `--idle`, `--print`, `--import-state` and `GHL_PORT` are gone.
 - A CLI installed from source with `task install` is a plain file in `~/.local/bin/ghl`, which `task install` now refuses to replace: remove it once.
