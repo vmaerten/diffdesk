@@ -6,6 +6,10 @@
 
 - Clean up after the browser CLI when the app starts: stop the daemon ghl 0.1 or 0.2 left on port 7777, remove its lock folder, and remove a CLI installed from source in `~/.local/bin/ghl` that would shadow the app's `ghl`. ([#180](https://github.com/vmaerten/ghl/pull/180))
 
+### 🐛 Fixes
+
+- Read the review whatever diff prefixes Git is configured with (`diff.mnemonicPrefix`, `diff.noprefix`, `diff.srcPrefix`), instead of losing Viewed, comments and context on every file; with `diff.suppressBlankEmpty`, comments after a blank line now anchor on the right code. ([#184](https://github.com/vmaerten/ghl/pull/184))
+
 ## 0.3.1
 
 ### 🐛 Fixes
