@@ -18,7 +18,7 @@ The app is signed ad hoc, without Apple notarisation. Homebrew quarantines what 
 ```bash
 brew upgrade --cask ghl              # follow stable releases
 brew uninstall --cask ghl            # remove the app, keep its settings
-brew uninstall --cask --zap ghl      # also remove its settings
+brew uninstall --cask --zap ghl      # also remove its settings, caches and web data
 ```
 
 ## mise
