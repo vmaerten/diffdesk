@@ -44,10 +44,13 @@ func run() error {
 		return err
 	}
 	args := os.Args[1:]
-	windowMode := len(args) > 0 && args[0] == "--desktop-window"
-	if windowMode {
+	// The Finder, Spotlight and the Dock start the app through launchd, from /
+	// and without arguments: open the window rather than a review of /.
+	windowMode := len(args) == 0 && os.Getppid() == 1
+	if len(args) > 0 && args[0] == "--desktop-window" {
+		windowMode = true
 		args = args[1:]
-	} else {
+	} else if !windowMode {
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		handled, err := runTerminal(ctx, args, cwd, os.Stdout, os.Stderr)
 		cancel()
