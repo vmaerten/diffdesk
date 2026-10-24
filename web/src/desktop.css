@@ -15,6 +15,7 @@
   --success: #1f7a44;
   --danger: #b8312f;
   --warn: #a85d0b;
+  --merged: #8250df;
   --primary-bg: #2a66c9;
   --primary-hover: #245ab3;
   --primary-text: #ffffff;
@@ -38,6 +39,7 @@
   --success: #6fd094;
   --danger: #ee7e7e;
   --warn: #eb9a3d;
+  --merged: #a371f7;
   --primary-bg: #2f6fd6;
   --primary-hover: #3d7be0;
   --primary-text: #ffffff;
@@ -604,6 +606,178 @@ body,
   right: 0;
   left: auto;
 }
+/* Tinted, so a branch in a stack shows at a glance. */
+.compare-capsule button.capsule-stack {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: 600 12px/24px var(--mono);
+  white-space: nowrap;
+}
+.compare-capsule button.capsule-stack:is(:hover, [aria-expanded='true']) {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+}
+.capsule-stack .icon {
+  width: 14px;
+  height: 14px;
+}
+.stack-picker {
+  width: 320px;
+  padding: 6px 6px 0;
+}
+.stack-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 8px;
+  color: var(--text-dim);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.stack-head code {
+  font: 600 11px var(--mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.stack-list {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+/* The layers hang on one rail, from the top of the stack down to the trunk. */
+.stack-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px 0 4px;
+  border-radius: 7px;
+  color: var(--text-dim);
+  font: 600 12px var(--mono);
+}
+.stack-row::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 13px;
+  width: 2px;
+  background: var(--wash-strong);
+  content: '';
+}
+.stack-row:first-child::before {
+  top: 50%;
+}
+.stack-trunk::before {
+  bottom: 50%;
+}
+.stack-node {
+  position: relative;
+  justify-self: center;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--text-dim);
+  border-radius: 50%;
+  background: var(--bg-raised);
+}
+.stack-row.merged .stack-node {
+  border-color: var(--merged);
+  background: var(--merged);
+}
+.stack-row.current .stack-node {
+  width: 11px;
+  height: 11px;
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.stack-trunk .stack-node {
+  border-radius: 3px;
+}
+.stack-row:has(.stack-branch:enabled:hover) {
+  background: var(--wash);
+}
+.stack-row.current {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.stack-branch {
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The whole row opens the layer; the pull request link stays above it. */
+button.stack-branch::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  content: '';
+}
+.desktop-shell button.stack-branch:focus-visible {
+  box-shadow: none;
+}
+button.stack-branch:focus-visible::after {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+/* Merged and pruned: part of the story, with nothing left to diff. */
+.stack-branch:disabled {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+.stack-pr {
+  position: relative;
+  color: var(--text-dim);
+  font-size: 11.5px;
+  text-decoration: none;
+}
+.stack-pr:hover {
+  color: var(--accent);
+}
+.stack-note {
+  color: var(--text-dim);
+  font:
+    500 11px -apple-system,
+    system-ui,
+    sans-serif;
+}
+.stack-picker .badge {
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--wash);
+  font:
+    600 10px/1 -apple-system,
+    system-ui,
+    sans-serif;
+}
+.stack-picker .badge.reviewing {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.stack-picker .badge.merged {
+  background: color-mix(in srgb, var(--merged) 14%, transparent);
+  color: var(--merged);
+}
+.stack-picker .picker-foot {
+  margin: 6px -6px 0;
+}
 .titlebar-actions {
   grid-column: 3;
   justify-self: end;
@@ -700,12 +874,6 @@ body,
   white-space: nowrap;
   -webkit-user-select: none;
   user-select: none;
-}
-.review-footer .stack {
-  flex-wrap: nowrap;
-  padding: 0;
-  border: 0;
-  background: none;
 }
 .footer-next {
   display: flex;

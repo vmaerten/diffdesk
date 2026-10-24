@@ -3,7 +3,7 @@ import RefSelector from './RefSelector.tsx'
 import CommitSelector from './CommitSelector.tsx'
 import type { LoadedReviewDiff } from './useReviewDiff.tsx'
 
-export type Picker = 'base' | 'target' | 'commit'
+export type Picker = 'base' | 'target' | 'commit' | 'stack'
 
 /** Why the diff is not simply the base against the working tree, when it is not. */
 export function comparisonNote(
@@ -51,7 +51,7 @@ export function ComparisonSelector({
   onPickBase,
   onPickTarget,
   onPickCommit,
-}: ComparisonProps & { picker: Picker }) {
+}: ComparisonProps & { picker: Exclude<Picker, 'stack'> }) {
   if (picking !== picker || !data) return null
   const close = () => onPickingChange(null)
   if (picker === 'commit')

@@ -1,22 +1,16 @@
-import StackNav from './StackNav.tsx'
-import type { StackChain } from '../../src/types.ts'
 import type { LoadedReviewDiff } from './useReviewDiff.tsx'
 
-/** The desktop status bar: what the diff covers, the stack, and what comes next. */
+/** The desktop status bar: what the diff covers and what comes next. */
 export default function ReviewFooter({
   data,
   baseSource,
   note,
-  stack,
-  onPickTarget,
   nextPath,
   onNext,
 }: {
   data: LoadedReviewDiff | null
   baseSource: string | null
   note: string | null
-  stack: StackChain | null
-  onPickTarget: (ref: string | null) => void
   nextPath: string | null
   onNext: () => void
 }) {
@@ -31,9 +25,6 @@ export default function ReviewFooter({
       {status.map((item) => (
         <span key={item as string}>{item}</span>
       ))}
-      {stack && (
-        <StackNav stack={stack} headBranch={data?.head.branch} onPickTarget={onPickTarget} />
-      )}
       {nextPath && (
         <button type="button" className="footer-next" title="Next file (j)" onClick={onNext}>
           Next <b>{nextPath}</b> <kbd>j</kbd>

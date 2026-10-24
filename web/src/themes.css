@@ -1,7 +1,6 @@
 /* Colours derived from the palette desktop.css sets for each colour mode. */
 :root {
   color-scheme: dark;
-  --text-subtle: var(--text-dim);
   --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
   --border-hover: var(--text-dim);
   --counter-bg: color-mix(in srgb, var(--text-dim) 20%, transparent);
