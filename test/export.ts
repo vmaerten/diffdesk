@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 
-import { asExport, asMarkdown, type CommentExport } from '../src/export.ts'
+import { asMarkdown } from '../src/export.ts'
 import type { ServedComment } from '../src/types.ts'
 import type { Check } from './harness.ts'
 
@@ -10,7 +10,6 @@ export async function runExport(check: Check): Promise<void> {
     range: string
     comments: ServedComment[]
     markdown: string
-    export: CommentExport
   }[] = JSON.parse(
     readFileSync(
       new URL('../go/internal/app/testdata/comment-export.json', import.meta.url),
@@ -19,10 +18,6 @@ export async function runExport(check: Check): Promise<void> {
   )
   for (const [i, golden] of goldens.entries()) {
     check(`shared Markdown golden ${i}`, asMarkdown(golden.comments, golden) === golden.markdown)
-    check(
-      `shared JSON golden ${i}`,
-      JSON.stringify(asExport(golden.comments, golden)) === JSON.stringify(golden.export),
-    )
   }
   const comment: ServedComment = {
     id: 'e1a',
@@ -62,44 +57,16 @@ export async function runExport(check: Check): Promise<void> {
   ]
 
   const paths = ['\ue000.txt', '😀.txt', 'a.txt', 'A.txt', 'A.txt']
+  const headings = (
+    asMarkdown(
+      paths.map((path, i) => ({ ...comment, path, id: String(i) })),
+      { range: 'main..HEAD' },
+    ).match(/^## .*/gm) ?? []
+  ).join(' | ')
   check(
     'export ordering is stable across Unicode paths and locales',
-    asExport(
-      paths.map((path, i) => ({ ...comment, path, id: String(i) })),
-      {
-        repo: '/tmp/repo',
-        range: 'main..HEAD',
-      },
-    )
-      .comments.map((c) => c.id)
-      .join(',') === '3,4,2,1,0',
-  )
-
-  const shape = asExport(forExport, { repo: '/tmp/repo', range: 'main..HEAD' })
-  // Path then line, not the order they were written: the export is read as a
-  // list of places, and the tree's order exists for a pane there is none of here.
-  check(
-    'the export is ordered by path then line',
-    shape.comments.map((c) => c.id).join(',') === 'e1a,e1b,e2',
-    shape.comments.map((c) => c.id).join(','),
-  )
-  // Quoted from the current patch, not from the anchor: the agent is about to
-  // edit what is there now, not what was there when the remark was written.
-  check(
-    '  quoting the lines as they read now',
-    JSON.stringify(shape.comments[0]?.code) ===
-      JSON.stringify(['  const added = 2', '  const alsoAdded = 3']),
-    JSON.stringify(shape.comments[0]?.code),
-  )
-  // Only where it says something. A `was` on every entry, equal to `code`, is
-  // noise that reads as meaningful.
-  check(
-    '  and carrying `was` only where the lines moved',
-    shape.comments
-      .filter((c) => c.was !== undefined)
-      .map((c) => c.id)
-      .join(',') === 'e1b',
-    shape.comments.map((c) => `${c.id}:${c.was ? 'was' : '-'}`).join(' '),
+    headings === '## A.txt | ## a.txt | ## 😀.txt | ## \ue000.txt',
+    headings,
   )
 
   const md = asMarkdown(forExport, { range: 'main..HEAD' })

@@ -23,7 +23,7 @@ task build
 
 `ghl comments [target]` calls `app.ExportComments`: Markdown, or the `{repo, range, comments}` JSON contract with `--json`. Only comments on files in the comparison are included, whatever their saved range. Checkout exports include untracked files; revision exports exclude checkout edits and untracked files. Lines come from the selected side, including context outside displayed hunks and previous paths of renamed files. JSON adds `was` only for stale anchors; Markdown explains changed or unavailable code and keeps the original lines. The comments panel can also copy comments on files outside the comparison.
 
-Go and React share a set of export goldens. Order is stable and independent of the machine's locale: UTF-16 path order, then starting line, ties keeping input order. A recovered corrupt-state notice goes to stderr without touching the JSON. During a merge, rebase, cherry-pick or revert, the review and the export still show the diff, conflict markers included; the UI warns with the operation and its conflicted files.
+Go and React share the Markdown export goldens; the JSON export is written by Go alone. Order is stable and independent of the machine's locale: UTF-16 path order, then starting line, ties keeping input order. A recovered corrupt-state notice goes to stderr without touching the JSON. During a merge, rebase, cherry-pick or revert, the review and the export still show the diff, conflict markers included; the UI warns with the operation and its conflicted files.
 
 ## State
 

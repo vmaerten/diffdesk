@@ -1,30 +1,11 @@
 /**
  * Turning comments into something to hand over.
  *
- * Browser-side formatter. Shared golden fixtures keep its Markdown and JSON
- * output aligned with the Go CLI for the same review.
+ * The review panel's Markdown. Shared golden fixtures keep it identical to what
+ * `ghl comments` prints for the same review.
  */
 
 import type { ServedComment } from './types.ts'
-
-/** What `ghl comments --json` writes. */
-export interface CommentExport {
-  repo: string
-  /** What was being compared when the export was taken. */
-  range: string
-  comments: {
-    id: string
-    path: string
-    side: 'deletions' | 'additions'
-    start: number
-    end: number
-    body: string
-    /** The commented lines as they read now. */
-    code: string[]
-    /** Only when those lines have moved: what they read when it was written. */
-    was?: string[]
-  }[]
-}
 
 /**
  * Path first, then line: the order a reader would take the file in.
@@ -41,28 +22,6 @@ const inReadingOrder = (comments: ServedComment[]): ServedComment[] =>
 
 const lineLabel = (comment: ServedComment) =>
   comment.start === comment.end ? `L${comment.start}` : `L${comment.start}–L${comment.end}`
-
-export function asExport(
-  comments: ServedComment[],
-  { repo, range }: { repo: string; range: string },
-): CommentExport {
-  return {
-    repo,
-    range,
-    comments: inReadingOrder(comments).map((comment) => ({
-      id: comment.id,
-      path: comment.path,
-      side: comment.side,
-      start: comment.start,
-      end: comment.end,
-      body: comment.body,
-      code: comment.code,
-      // Present only when it says something. A `was` equal to `code` on every
-      // entry is noise that reads as meaningful.
-      ...(comment.stale ? { was: comment.anchor } : {}),
-    })),
-  }
-}
 
 /**
  * The same thing to read rather than to parse.
