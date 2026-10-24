@@ -25,7 +25,7 @@ ghl comments --json            # this comparison's comments, without a window
 ghl --help
 ```
 
-Installation creates a symlink in `~/.local/bin` pointing to the local bundle; that directory must be on PATH. `BIN_DIR` overrides the command directory. Keep the bundle at its build location while using that link. `task install` refuses to replace a file that is not a link, such as a 0.2.0 browser CLI; `task uninstall` removes only the link. Released builds install through [Homebrew or mise](../docs/installation.md).
+Installation creates a symlink in `~/.local/bin` pointing to the local bundle; that directory must be on PATH. `BIN_DIR` overrides the command directory. Keep the bundle at its build location while using that link. `task install` replaces the browser CLI that 0.1 and 0.2 copied there, and refuses to replace any other file that is not a link; `task uninstall` removes only the link. Released builds install through [Homebrew or mise](../docs/installation.md).
 
 `ghl comments` and `ghl --version` answer in the terminal and never reach the window. Any other invocation delivers its review to the running app, or starts the app first, and returns once the app has queued it.
 
@@ -56,7 +56,6 @@ One app runs per user. It holds a lock file and listens on a Unix socket beside 
 ```bash
 task desktop:test
 task desktop:smoke
-task desktop:memory
 # Verify a relocated bundle without Node/pnpm/Go in PATH, after building:
 python3 desktop/smoke.py --standalone
 ```
@@ -67,16 +66,8 @@ Race tests exercise argument handling, caller-directory preservation, invalid re
 
 The native suite also checks restoration of an inline draft on expanded context, scroll, panel editing, `Ctrl+Tab` and reload with drafts. Go tests check view-copy isolation, version/size validation and late saves for closed tabs.
 
-## Navigation memory sample
-
-Three local runs on the Apple M5 Pro/macOS ARM64 machine each warm two tabs and then switch ten times. Both temporary fixtures contain 100 text lines and two modified lines. The [raw report](./tab-memory.json) keeps every process and intermediate sample. This is deliberately smaller than the earlier 40,000-line desktop-envelope workload.
-
-The median physical footprint is **116.6 MiB after warming both tabs**, then **143.6 MiB after ten switches**; paired growth is 25.7–27.9 MiB. There is always one mounted review, and the two saved views total only **366 JSON bytes** in this workload. Unmounting views does not make their allocations disappear immediately: caches and collection timing still matter. These measurements do not isolate the cause of the growth and do not establish a leak or a stable long-term plateau. They do not promise a RAM saving on large diffs.
-
-`desktop:memory` measures app descendants plus attributed WebKit/network/GPU tasks with the same macOS footprint/Mach-time sampler as the envelope benchmark. WindowServer and the driver are excluded. Run it without concurrent tests or other benchmark loads; no forced garbage collection is requested.
-
-The optional `GHL_DESKTOP_PROBE` path is a local acceptance-test script injected into the native document; it is unused in normal launches. Its unique path also isolates the test's instance lock, so fixture opens cannot join a user's running app. Smoke and memory runs point `GHL_DESKTOP_SETTINGS` at a temporary file, so they never read or change your settings. Tests do not open your personal Chrome or mutate a real repository. The clipboard check writes fixture Markdown to the system clipboard.
+The optional `GHL_DESKTOP_PROBE` path is a local acceptance-test script injected into the native document; it is unused in normal launches. Its unique path also isolates the test's instance lock, so fixture opens cannot join a user's running app. Smoke runs point `GHL_DESKTOP_SETTINGS` at a temporary file, so they never read or change your settings. Tests do not open your personal Chrome or mutate a real repository. The clipboard check writes fixture Markdown to the system clipboard.
 
 `desktop/cold.py`, part of `task desktop:smoke`, launches two reviews and a duplicate at once on a cold app, three times: every review opens once, in one app.
 
-Builds are manual/local with ad hoc signing. Release signing, notarisation and automatic updates are not configured. Stable release tags run a hosted macOS job through `task release`; PRs and branch pushes do not run CI. Native hot reload is not configured; `task dev` runs the UI in a browser, on the Wails bindings simulated by `simulator.ts`, with React hot reload. Quit the app before rebuilding to load new embedded UI/server code. The envelope benchmark's RAM measurements do not measure this in-process integration; no memory saving is asserted here. Linux/Windows, native image interactions and restoration against a substantially changed diff remain outside this validation.
+Builds are manual/local with ad hoc signing. Release signing, notarisation and automatic updates are not configured. Stable release tags run a hosted macOS job through `task release`; PRs and branch pushes do not run CI. Native hot reload is not configured; `task dev` runs the UI in a browser, on the Wails bindings simulated by `simulator.ts`, with React hot reload. Quit the app before rebuilding to load new embedded UI/server code. Linux/Windows, native image interactions and restoration against a substantially changed diff remain outside this validation.

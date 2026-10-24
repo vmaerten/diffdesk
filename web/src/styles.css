@@ -54,15 +54,6 @@ textarea:focus-visible {
   user-select: none;
 }
 
-.scope-check:hover:not(:has(input:disabled)) {
-  border-color: var(--border-hover);
-  color: var(--text);
-}
-
-.scope-check:has(input:checked) {
-  color: var(--text);
-}
-
 .scope-check:has(input:disabled) {
   cursor: default;
   opacity: 0.48;
@@ -198,49 +189,6 @@ button.ref:hover:not(:disabled) {
   flex: 1;
 }
 
-.toggle {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  overflow: hidden;
-  background: var(--bg);
-}
-
-.toggle button {
-  min-height: 28px;
-  padding: 4px 10px;
-  border: 0;
-  background: var(--bg);
-  color: var(--text-dim);
-  cursor: pointer;
-  font-size: 12px;
-  transition:
-    background 0.12s ease,
-    color 0.12s ease;
-}
-
-.toggle button + button {
-  border-left: 1px solid var(--border);
-}
-
-.toggle button:hover:not(:disabled):not([aria-pressed='true']) {
-  background: var(--bg-overlay);
-  color: var(--text);
-}
-
-.toggle button[aria-pressed='true'] {
-  background: var(--bg-overlay);
-  color: var(--text);
-  font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--text-dim);
-  border-radius: 5px;
-}
-
-.toggle button:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
 .warning {
   padding: 9px 16px;
   background: var(--warning-bg);
@@ -270,50 +218,9 @@ button.ref:hover:not(:disabled) {
   text-align: center;
 }
 
-.refresh {
-  display: inline-flex;
-  min-height: 30px;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--bg);
-  color: var(--text);
-  cursor: pointer;
-  font-size: 12px;
-  transition:
-    border-color 0.12s ease,
-    background 0.12s ease;
-}
-
-.refresh:hover:not(:disabled),
 .icon-button:hover {
   border-color: var(--border-hover);
   background: var(--bg-overlay);
-}
-
-.refresh:disabled {
-  color: var(--text-dim);
-  cursor: default;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.shortcuts {
-  position: relative;
-}
-
-.shortcuts > summary {
-  list-style: none;
-}
-
-.shortcuts > summary::-webkit-details-marker {
-  display: none;
 }
 
 .icon-button {
@@ -614,10 +521,6 @@ body.resizing * {
 /* Recessed, not alarmed: lines that moved usually mean the remark was acted on. */
 .comment.stale {
   border-left-color: var(--text-dim);
-}
-
-.comment-state.stale {
-  color: var(--text-dim);
 }
 
 .comment-anchor {

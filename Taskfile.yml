@@ -150,19 +150,6 @@ tasks:
       - python3 desktop/smoke.py
       - python3 desktop/cold.py
 
-  desktop:memory:
-    desc: Measure three local passes of ten warm tab switches (macOS)
-    cmds:
-      - task: desktop:build
-      - python3 desktop/memory.py
-
-  test:desktop-tabs:
-    desc: Test desktop tab comments and context restoration in an isolated headless browser
-    cmds:
-      - task: build
-      - task: desktop:assets
-      - node test/desktopTabs.ts
-
   default:
     cmds:
       - task --list

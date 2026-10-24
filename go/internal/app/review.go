@@ -594,7 +594,7 @@ func (r *Review) source(ctx context.Context, path, side string) (*TextFile, erro
 }
 func (r *Review) Context(ctx context.Context, path, hash string) (*DiffFiles, error) {
 	// Check identity before requiring a text source: a disappeared file is a
-	// stale request too, matching the Node context contract.
+	// stale request too.
 	current := false
 	for _, file := range r.Files {
 		if file.Path == path && file.Hash != nil && *file.Hash == hash {

@@ -184,13 +184,6 @@ export interface StoredState {
   comments: Comment[]
 }
 
-/** The state, and anything reading it had to report. */
-export interface StateRead {
-  state: StoredState
-  /** Set when the file had to be moved aside. Shown, not swallowed. */
-  notice: string | null
-}
-
 export interface Comparison {
   before: string
   after: string | null
@@ -199,15 +192,6 @@ export interface Comparison {
 export interface DiffFiles {
   oldFile: { name: string; contents: string; cacheKey: string } | null
   newFile: { name: string; contents: string; cacheKey: string }
-}
-
-export interface PatchResult {
-  comparison: Comparison
-  patch: string
-  untracked: string[]
-  untrackedIncluded: boolean
-  files: FileStat[]
-  totals: Totals
 }
 
 /** The body of `GET /r/:repoId/api/diff`. */

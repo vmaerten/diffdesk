@@ -52,7 +52,7 @@ func TestRuntimeRegistryAndHealth(t *testing.T) {
 	requireStatus(t, request("GET", "/r/"+data.Repos[0].ID, "", ""), 200)
 	requireStatus(t, request("POST", "/api/repos", `{"repoPath":"relative"}`, ""), 400)
 	requireStatus(t, request("POST", "/api/repos", `{"repoPath":"/missing"}`, ""), 422)
-	requireStatus(t, request("GET", "/api/repos", "", "attacker.invalid"), 403)
+	requireStatus(t, request("GET", "/api/health", "", "attacker.invalid"), 403)
 }
 
 func TestRuntimeWithoutAssetsServesTheAPIOnly(t *testing.T) {
