@@ -41,7 +41,8 @@ func failComment(w http.ResponseWriter, err error) {
 }
 func allowedName(raw string) bool {
 	u, err := url.Parse(raw)
-	if err != nil {
+	// The desktop document's wails://localhost names localhost too.
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
 		return false
 	}
 	switch strings.ToLower(u.Hostname()) {
