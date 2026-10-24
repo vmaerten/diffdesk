@@ -25,6 +25,7 @@ import { comparisonNote, type Picker, type ComparisonProps } from './ComparisonC
 import { untrackedToggleable, workingTreeToggleable } from './ScopeControls.tsx'
 import DesktopToolbar from './DesktopToolbar.tsx'
 import ReviewFooter from './ReviewFooter.tsx'
+import { layerTarget, neighbourLayer } from './StackPicker.tsx'
 import { DesktopSidebarFoot, DesktopSidebarHead } from './DesktopSidebar.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
@@ -47,6 +48,9 @@ const KEY_COMMANDS: Record<string, ReviewCommand> = {
   l: 'commit',
   j: 'next-file',
   k: 'previous-file',
+  s: 'stack',
+  '[': 'layer-below',
+  ']': 'layer-above',
   r: 'refresh',
   R: 'refresh',
   c: 'comment',
@@ -304,6 +308,16 @@ export default function App({
       case 'commit':
         setPicking(command)
         break
+      case 'stack':
+        if (data?.base.stack) setPicking(command)
+        break
+      case 'layer-below':
+      case 'layer-above': {
+        const stack = data?.base.stack
+        const layer = stack && neighbourLayer(stack, command === 'layer-above' ? 1 : -1)
+        if (layer) pickTarget(layerTarget(layer, data?.head.branch))
+        break
+      }
       case 'next-file':
         navigate(1)
         break
@@ -420,7 +434,6 @@ export default function App({
 
   const baseSource = data ? BASE_SOURCES[data.base.source] : null
 
-  const stack = data?.base.stack ?? null
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
   const comparison: ComparisonProps = {
     repoId,
@@ -446,8 +459,6 @@ export default function App({
       data={data}
       baseSource={baseSource}
       note={comparisonNote(data, target)}
-      stack={stack}
-      onPickTarget={pickTarget}
       nextPath={nextPath}
       onNext={() => navigate(1)}
     />

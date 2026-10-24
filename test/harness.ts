@@ -222,7 +222,9 @@ export interface TitlebarState {
   files: number | null
   /** The status bar's items: base source, scope, untracked files. */
   notes: string[]
-  /** The stack chain: its trunk, then one entry per layer. Empty without one. */
+  /** The capsule's stack button, such as `2/3`: the reviewed layer of how many. */
+  stack: string | null
+  /** The open stack list: its trunk, then one entry per layer, top first. Empty when closed. */
   trunk: string | null
   layers: { name: string; pr: string | null; current: boolean; merged: boolean; gone: boolean }[]
   /** The scope checkboxes, in order. Empty until `openOptions` shows them. */
@@ -243,13 +245,14 @@ export function titlebar(page: Page): Promise<TitlebarState> {
     target: document.querySelector('[aria-label^="Target:"]')?.textContent?.replace('▾', '').trim() ?? null,
     files: Number(document.querySelector('.sidebar-head .counter')?.textContent ?? NaN) || null,
     notes: [...document.querySelectorAll('.review-footer > span')].map((e) => e.textContent.trim()),
-    trunk: document.querySelector('.stack > span')?.textContent?.trim() ?? null,
-    layers: [...document.querySelectorAll('.stack-layer')].map((e) => ({
-      name: e.querySelector('.stack-name')?.textContent?.trim() ?? '',
+    stack: document.querySelector('.capsule-stack')?.textContent?.replace('▾', '').trim() ?? null,
+    trunk: document.querySelector('.stack-trunk .stack-branch')?.textContent?.trim() ?? null,
+    layers: [...document.querySelectorAll('.stack-row[data-branch]')].map((e) => ({
+      name: e.dataset.branch,
       pr: e.querySelector('.stack-pr')?.textContent?.trim() ?? null,
       current: e.classList.contains('current'),
       merged: e.classList.contains('merged'),
-      gone: e.querySelector('.stack-name')?.disabled === true,
+      gone: e.querySelector('.stack-branch')?.disabled === true,
     })),
     toggles: [...document.querySelectorAll('.options-popover .scope-check input:is(.worktree, .untracked)')].map((e) => ({
       label: e.closest('label')?.textContent?.trim() ?? '',

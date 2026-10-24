@@ -21,6 +21,18 @@ export default function KeyboardShortcuts() {
       </div>
       <div>
         <dt>
+          <kbd>s</kbd>
+        </dt>
+        <dd>Choose stack layer</dd>
+      </div>
+      <div>
+        <dt>
+          <kbd>[</kbd> <kbd>]</kbd>
+        </dt>
+        <dd>Layer below or above</dd>
+      </div>
+      <div>
+        <dt>
           <kbd>j</kbd> <kbd>k</kbd>
         </dt>
         <dd>Move between files</dd>

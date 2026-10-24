@@ -9,6 +9,8 @@ export type ReviewCommand =
   | Picker
   | 'next-file'
   | 'previous-file'
+  | 'layer-below'
+  | 'layer-above'
   | 'refresh'
   | 'comment'
   | 'viewed'

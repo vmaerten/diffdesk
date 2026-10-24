@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Icon from './Icon.tsx'
 import ScopeControls from './ScopeControls.tsx'
+import StackPicker from './StackPicker.tsx'
 import {
   commitLabel,
   ComparisonSelector,
@@ -32,6 +33,7 @@ export default function DesktopToolbar(
     ignoreWhitespace,
     picking,
     onPickingChange,
+    onPickTarget,
     onToggleCommitted,
     onToggleUntracked,
     onToggleWhitespace,
@@ -44,9 +46,36 @@ export default function DesktopToolbar(
     onCopyAll,
   } = props
   const [optionsOpen, setOptionsOpen] = useState(false)
+  const stack = data?.base.stack
   return (
     <>
       <div className="compare-capsule" role="group" aria-label="Comparison">
+        {stack && (
+          <>
+            <span className="base-anchor">
+              <button
+                type="button"
+                className="capsule-stack"
+                title="Choose a stack layer (s)"
+                aria-label={`Stack: layer ${stack.current + 1} of ${stack.layers.length}`}
+                aria-expanded={picking === 'stack'}
+                onClick={() => togglePicker(onPickingChange, 'stack')}
+              >
+                <Icon name="stack" />
+                {stack.current + 1}/{stack.layers.length} <span className="caret">▾</span>
+              </button>
+              {picking === 'stack' && (
+                <StackPicker
+                  stack={stack}
+                  headBranch={data?.head.branch}
+                  onPick={onPickTarget}
+                  onClose={() => onPickingChange(null)}
+                />
+              )}
+            </span>
+            <span className="capsule-separator" aria-hidden="true" />
+          </>
+        )}
         <span className="base-anchor">
           <button
             type="button"
