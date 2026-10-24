@@ -514,8 +514,10 @@ export default function App({
 
       {data?.state?.operation && (
         <div className="warning">
-          {data.state.operation} in progress — {data.state.conflicted.length} conflicted file(s).
-          This diff may not mean what you expect.
+          {data.state.operation} in progress
+          {data.state.conflicted.length > 0 &&
+            ` — ${data.state.conflicted.length} conflicted file(s)`}
+          . This diff may not mean what you expect.
         </div>
       )}
 

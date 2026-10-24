@@ -83,7 +83,7 @@ export interface StackChain {
   current: number
 }
 
-export type RepoOperation = 'merge' | 'rebase' | 'cherry-pick'
+export type RepoOperation = 'merge' | 'rebase' | 'cherry-pick' | 'revert'
 
 export interface RepoState {
   operation: RepoOperation | null

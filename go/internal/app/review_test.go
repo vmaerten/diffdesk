@@ -334,21 +334,48 @@ func TestPatchFormatIgnoresUserConfig(t *testing.T) {
 		}
 	}
 }
+func TestReviewDuringAMergeConflict(t *testing.T) {
+	ctx := context.Background()
+	path := t.TempDir()
+	gitFixture(t, path, "init", "-q", "-b", "main")
+	gitFixture(t, path, "config", "user.name", "Fixture")
+	gitFixture(t, path, "config", "user.email", "fixture@example.invalid")
+	writeFixture(t, path, "a.txt", "one\ntwo\n")
+	gitFixture(t, path, "add", ".")
+	gitFixture(t, path, "commit", "-qm", "base")
+	gitFixture(t, path, "checkout", "-qb", "feature")
+	writeFixture(t, path, "a.txt", "feature\ntwo\n")
+	gitFixture(t, path, "commit", "-qam", "feature")
+	gitFixture(t, path, "checkout", "-q", "main")
+	writeFixture(t, path, "a.txt", "main\ntwo\n")
+	gitFixture(t, path, "commit", "-qam", "main")
+	gitFixture(t, path, "checkout", "-q", "feature")
+	merge := exec.Command("git", "-C", path, "merge", "main")
+	merge.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+	if out, err := merge.CombinedOutput(); err == nil {
+		t.Fatalf("merge did not conflict: %s", out)
+	}
+	r, err := openRepository(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	review, err := r.Compare(ctx, "main", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if review.Operation == nil || *review.Operation != "merge" || strings.Join(review.Conflicted, ",") != "a.txt" {
+		t.Fatalf("operation: %v %v", review.Operation, review.Conflicted)
+	}
+	if f := statFor(t, review, "a.txt"); f.Hash == nil || !strings.Contains(review.Patch, "+<<<<<<< HEAD") {
+		t.Fatalf("conflicted file not reviewable: %+v", f)
+	}
+}
 func TestInvalidComparisonsAndCancellation(t *testing.T) {
 	r := fixture(t)
 	ctx := context.Background()
 	for _, base := range []string{"", "--help", "missing-ref", "HEAD\x00"} {
 		if _, err := r.Compare(ctx, base, false); err == nil {
 			t.Fatalf("accepted %q", base)
-		}
-	}
-	for _, operation := range []string{"MERGE_HEAD", "rebase-merge", "CHERRY_PICK_HEAD"} {
-		writeFixture(t, r.GitDir, operation, "in progress")
-		if _, err := r.Compare(ctx, "main", false); err == nil || !strings.Contains(err.Error(), "scope") {
-			t.Fatal("operation accepted")
-		}
-		if err := os.Remove(filepath.Join(r.GitDir, operation)); err != nil {
-			t.Fatal(err)
 		}
 	}
 	cancelled, cancel := context.WithCancel(ctx)
