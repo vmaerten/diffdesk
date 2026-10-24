@@ -1,6 +1,6 @@
 # The ghl app
 
-ghl opens the Go review server and the React interface in one reusable native window with review tabs. It is built with Wails v2 for macOS 13 or later on Apple Silicon.
+ghl opens the Go review server and the React interface in one reusable native window. It is built with Wails v2 for macOS 13 or later on Apple Silicon.
 
 ## Run
 
@@ -11,7 +11,9 @@ task desktop:run -- --repo .
 task desktop:run -- --repo /path/to/another/repository --base main
 ```
 
-The task builds an embedded React release and a locally signed application in `.task/desktop/ghl.app`. The terminal returns after opening the window. Later launches open or activate a review tab in the same window and bring it back from a minimised state. A tab identifies a canonical checkout and its base/target parameters; repeated commands activate an existing matching tab. Commit, Working tree and Untracked selections belong to that tab's view and survive switching. Repeating the active comparison does not reload its page.
+The task builds an embedded React release and a locally signed application in `.task/desktop/ghl.app`. The terminal returns after opening the window. Later launches replace the shown review in the same window and bring it back from a minimised state; repeating the shown comparison does not reload its page. `Cmd+W` closes the review and leaves the welcome screen open.
+
+Review tabs are off for now: `GHL_DESKTOP_TABS=1` turns them back on, and the smoke tests run with it. A tab identifies a canonical checkout and its base/target parameters; repeated commands activate an existing matching tab. Commit, Working tree and Untracked selections belong to that tab's view and survive switching.
 
 The tab strip supplies selection, per-tab close buttons and **+** to open a repository. Arrow keys, Home and End navigate the focused tab strip. `Cmd+W` closes the active tab; closing the last tab leaves the welcome screen open. Only the active React review is mounted. Inactive tabs retain their route and label, not their parsed patch, DOM or a hidden review component. Each tab also keeps a small, versioned saved view: unified/split mode, scroll position, selected lines, inline composer text, comment-panel edits and context-expansion coordinates. These survive switching and `Cmd+R`; `Ctrl+Tab` and `Ctrl+Shift+Tab` cycle reviews. A user interaction cancels a pending scroll restoration. Expansion replay checks each file's diff hash before applying it. Saved views remain in memory, with a 2 MiB per-tab limit. Closing a tab discards its unsaved drafts; quitting the application discards all saved views and the tab list. Saved comments and Viewed remain durable in repository state.
 
@@ -66,7 +68,7 @@ Race tests exercise argument handling, caller-directory preservation, invalid re
 
 The native suite also checks restoration of an inline draft on expanded context, scroll, panel editing, `Ctrl+Tab` and reload with drafts. Go tests check view-copy isolation, version/size validation and late saves for closed tabs.
 
-The optional `GHL_DESKTOP_PROBE` path is a local acceptance-test script injected into the native document; it is unused in normal launches. Its unique path also isolates the test's instance lock, so fixture opens cannot join a user's running app. Smoke runs point `GHL_DESKTOP_SETTINGS` at a temporary file, so they never read or change your settings. Tests do not open your personal Chrome or mutate a real repository. The clipboard check writes fixture Markdown to the system clipboard.
+The optional `GHL_DESKTOP_PROBE` path is a local acceptance-test script injected into the native document; it is unused in normal launches. Its unique path also isolates the test's instance lock, so fixture opens cannot join a user's running app. Smoke runs point `GHL_DESKTOP_SETTINGS` at a temporary file, so they never read or change your settings, and set `GHL_DESKTOP_TABS=1` to check the tabs. Tests do not open your personal Chrome or mutate a real repository. The clipboard check writes fixture Markdown to the system clipboard.
 
 `desktop/cold.py`, part of `task desktop:smoke`, launches two reviews and a duplicate at once on a cold app, three times: every review opens once, in one app.
 
