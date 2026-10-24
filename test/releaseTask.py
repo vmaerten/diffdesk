@@ -26,9 +26,12 @@ class ReleaseTask(unittest.TestCase):
         shutil.copyfile(ROOT / 'Taskfile.yml', self.root / 'Taskfile.yml')
         shutil.copyfile(ROOT / 'scripts/release-tag.ts', self.root / 'scripts/release-tag.ts')
         shutil.copyfile(ROOT / 'scripts/release-cask.ts', self.root / 'scripts/release-cask.ts')
+        shutil.copyfile(ROOT / 'scripts/release-notes.ts', self.root / 'scripts/release-notes.ts')
         shutil.copyfile(ROOT / 'desktop/cask.rb', self.root / 'desktop/cask.rb')
         (self.root / 'package.json').write_text(json.dumps({'version': '1.2.3', 'type': 'module'}))
-        (self.root / 'CHANGELOG.md').write_text('Fixture release notes\n')
+        (self.root / 'CHANGELOG.md').write_text(
+            '# Changelog\n\n## Unreleased\n\n- Next\n\n## 1.2.3-rc.1\n\n- Candidate\n\n'
+            '## 1.2.3\n\n### 🐛 Fixes\n\n- Fixture fix\n\n## 1.2.2\n\n- Older\n')
         self.events = self.root / 'events.jsonl'
         self.env = {**os.environ, 'PATH': str(self.root / 'tools') + os.pathsep + os.environ['PATH'],
                     'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1',
@@ -62,7 +65,8 @@ if args[0] == 'api':
         print(os.environ['GHL_TEST_CASK_SHA'])
     elif os.environ.get('GHL_TEST_TAP_FAIL'): sys.exit(28)
     sys.exit(0)
-log(args[1], args=args)
+notes = Path(args[args.index('--notes-file') + 1]).read_text() if '--notes-file' in args else None
+log(args[1], args=args, notes=notes)
 if args[:2] == ['release', 'create'] and os.environ.get('GHL_TEST_CREATE_FAIL'): sys.exit(26)
 if args[:2] == ['release', 'download']:
     version = args[2][1:]
@@ -117,6 +121,16 @@ def log(event, **fields):
         for flag in ['--draft', '--verify-tag', 'go/dist/release/ghl_1.2.3_darwin_arm64.zip', 'go/dist/release/checksums.txt']:
             self.assertIn(flag, events[3]['args'])
         self.assertIn('--draft=false', events[4]['args'])
+        self.assertEqual(events[3]['notes'], '### 🐛 Fixes\n\n- Fixture fix\n')
+
+    def test_missing_changelog_section_does_not_build(self):
+        (self.root / 'CHANGELOG.md').write_text('# Changelog\n\n## Unreleased\n\n- Fixture fix\n')
+        self.git('commit', '-qam', 'unreleased notes')
+        self.git('tag', '-f', 'v1.2.3')
+        result, events = self.run_release()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('no "## 1.2.3" section', result.stderr)
+        self.assertEqual(events, [])
 
     def test_workflow_tag_takes_precedence_over_the_head_tag(self):
         result, events = self.run_release(RELEASE_TAG='v1.2.4')

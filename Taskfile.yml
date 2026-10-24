@@ -362,8 +362,11 @@ tasks:
         (cd go/dist/release && shasum -a 256 -c checksums.txt)
         set --
         case "$release_version" in *-*) set -- --prerelease;; esac
+        notes=$(mktemp)
+        trap 'rm -f "$notes"' EXIT
+        node scripts/release-notes.ts > "$notes"
         gh release create "$RELEASE_TAG" --verify-tag --draft \
-          --title "$RELEASE_TAG" --notes-file CHANGELOG.md "$@" \
+          --title "$RELEASE_TAG" --notes-file "$notes" "$@" \
           "go/dist/release/ghl_${release_version}_darwin_arm64.zip" \
           go/dist/release/checksums.txt
         gh release edit "$RELEASE_TAG" --verify-tag --draft=false
@@ -391,6 +394,8 @@ tasks:
       RELEASE_TAG: '{{.RELEASE_TAG | default (env "RELEASE_TAG")}}'
     cmds:
       - node scripts/release-tag.ts
+      # The notes come from CHANGELOG.md: a missing section fails before the build.
+      - node scripts/release-notes.ts > /dev/null
       - goreleaser release --skip=publish --clean
       - task: release:verify
         vars: { RELEASE_TAG: '{{.RELEASE_TAG | default (env "RELEASE_TAG")}}' }
