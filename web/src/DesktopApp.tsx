@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
-import { useStableCallback } from '@pierre/diffs/react'
+import { useStableCallback, useWorkerPool } from '@pierre/diffs/react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
 import { releaseUrl } from './reviewSelection.ts'
@@ -86,6 +86,11 @@ export default function DesktopApp() {
     })
   })
   const syntaxTheme = useAppearance(settings ?? DEFAULT_SETTINGS)
+  // The pool highlights with its own theme, which nothing else updates.
+  const pool = useWorkerPool()
+  useEffect(() => {
+    void pool?.setRenderOptions({ theme: syntaxTheme })
+  }, [pool, syntaxTheme])
   const latest = useRef(EMPTY)
   const [error, setError] = useState<string | null>(null)
   const accept = useRef<(state: Tabs) => void>(() => {})
