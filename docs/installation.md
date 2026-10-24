@@ -60,6 +60,16 @@ mise uninstall --all github:vmaerten/ghl
 
 Remove any project selection too.
 
+## From the release page
+
+A browser download of `ghl_<version>_darwin_arm64.zip` is quarantined, and Gatekeeper refuses to open the ad hoc signed app. Compare `shasum -a 256 ghl_<version>_darwin_arm64.zip` with the release's `checksums.txt`, unzip it, then remove the attribute before the first launch:
+
+```bash
+xattr -dr com.apple.quarantine ghl.app
+```
+
+Move `ghl.app` to `/Applications` and link `ghl.app/Contents/MacOS/ghl` into a folder on PATH. Homebrew and mise do all of this for you.
+
 ## After installing, upgrading or rolling back
 
 A running window keeps the version it started with: quit ghl (`Cmd+Q`) to use the new one. Comments and Viewed stay in each checkout's version-1 `.git/ghl/state.json` across upgrades, rollbacks and uninstalls; rollback requires releases that read that schema. Settings live in `~/Library/Application Support/ghl/settings.json`.
