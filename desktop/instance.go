@@ -40,7 +40,6 @@ type receipt struct {
 // errNoApp means no app listens yet: start one, then deliver again.
 var errNoApp = errors.New("no ghl app is running")
 
-// instancePaths stays short: macOS limits a Unix socket path to 104 bytes.
 // userTempDir is the per-user folder macOS gives every process. The app started
 // through LaunchServices does not inherit the launcher's TMPDIR, so both sides
 // must not depend on it.
@@ -52,6 +51,7 @@ func userTempDir() string {
 	return os.TempDir()
 }
 
+// instancePaths stays short: macOS limits a Unix socket path to 104 bytes.
 func instancePaths(dir, id string) (lock, socket string) {
 	base := filepath.Join(dir, fmt.Sprintf("ghl-%x", sha256.Sum256([]byte(id)))[:16])
 	return base + ".lock", base + ".sock"
