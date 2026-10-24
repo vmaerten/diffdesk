@@ -231,16 +231,16 @@ func TestEditedRename(t *testing.T) {
 func TestPathsAndReadLimits(t *testing.T) {
 	ctx := context.Background()
 	r := fixture(t)
-	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt"} {
+	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt", "back\\slash.txt"} {
 		writeFixture(t, r.Path, path, "original\n")
 		gitFixture(t, r.Path, "add", "--", path)
 	}
 	gitFixture(t, r.Path, "commit", "-qm", "names")
-	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt"} {
+	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt", "back\\slash.txt"} {
 		writeFixture(t, r.Path, path, "edited\n")
 	}
 	review := compare(t, r, false)
-	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt"} {
+	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt", "back\\slash.txt"} {
 		f := statFor(t, review, path)
 		if f.Hash == nil {
 			t.Fatalf("unparsed name %q", path)
@@ -254,7 +254,7 @@ func TestPathsAndReadLimits(t *testing.T) {
 	if statFor(t, unquoted, "é\tname.txt").Hash == nil {
 		t.Fatal("mixed Unicode/control path not parsed")
 	}
-	for _, path := range []string{"../escape", "/etc/passwd", ".git/config", "a/../context.txt", "a\\b", "a//b"} {
+	for _, path := range []string{"../escape", "/etc/passwd", ".git/config", "a/../context.txt", "a//b"} {
 		if _, err := r.readText(ctx, nil, path); err == nil {
 			t.Fatalf("accepted %q", path)
 		}

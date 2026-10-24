@@ -88,7 +88,8 @@ func validRef(ref string) bool {
 	return ref != "" && !strings.HasPrefix(ref, "-") && !strings.ContainsAny(ref, "\x00\r\n") && len(ref) <= 1024
 }
 func validPath(path string) bool {
-	if path == "" || filepath.IsAbs(path) || strings.ContainsAny(path, "\\\x00") {
+	// A backslash is an ordinary character in macOS and Git names.
+	if path == "" || filepath.IsAbs(path) || strings.ContainsRune(path, 0) {
 		return false
 	}
 	for _, part := range strings.Split(path, "/") {
