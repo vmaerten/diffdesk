@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -180,6 +181,27 @@ func TestContextAndAnchors(t *testing.T) {
 		if path == "renamed é.txt" && files.OldFile != nil {
 			t.Fatal("pure rename must hydrate as one file")
 		}
+	}
+}
+
+func TestNonUTF8LinesKeepTheirAnchor(t *testing.T) {
+	ctx := context.Background()
+	r := fixture(t)
+	writeFixture(t, r.Path, "latin.txt", "caf\xe9\ncaf\xe9\xe8\n")
+	gitFixture(t, r.Path, "add", "latin.txt")
+	review := compare(t, r, false)
+	c := Comment{Path: "latin.txt", Side: "additions", Start: 1, End: 2}
+	lines, err := review.Lines(ctx, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The anchor is stored as JSON, which replaces each invalid byte.
+	raw, _ := json.Marshal(lines)
+	if err := json.Unmarshal(raw, &c.Anchor); err != nil {
+		t.Fatal(err)
+	}
+	if served := review.Comments(ctx, []Comment{c})[0]; served.Stale {
+		t.Fatalf("unchanged lines read as stale: %q against %q", served.Code, c.Anchor)
 	}
 }
 

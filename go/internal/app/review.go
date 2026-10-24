@@ -598,7 +598,31 @@ func (r *Review) Context(ctx context.Context, path, hash string) (*DiffFiles, er
 	}
 	return &DiffFiles{OldFile: old, NewFile: now}, nil
 }
+
+// Lines returns the commented code as JSON stores anchors: each invalid UTF-8
+// byte becomes U+FFFD, so unchanged non-UTF-8 lines still match their anchor.
 func (r *Review) Lines(ctx context.Context, c Comment) ([]string, error) {
+	lines, err := r.rawLines(ctx, c)
+	for i, line := range lines {
+		lines[i] = validText(line)
+	}
+	return lines, err
+}
+
+func validText(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	}
+	var text strings.Builder
+	for len(s) > 0 {
+		r, size := utf8.DecodeRuneInString(s)
+		text.WriteRune(r)
+		s = s[size:]
+	}
+	return text.String()
+}
+
+func (r *Review) rawLines(ctx context.Context, c Comment) ([]string, error) {
 	if !validLocation(c) {
 		return nil, fmt.Errorf("Invalid line range")
 	}
