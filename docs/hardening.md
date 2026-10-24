@@ -49,7 +49,7 @@ Préfixe `hardening/`. Les PRs sont indépendantes : chacune part de `main`, san
 - Un tick Viewed encore en cours d'envoi est perdu au changement d'onglet. Il faut un store Viewed par onglet, comme pour les commentaires.
 - Le sélecteur de cible est libellé « base », et le panneau des commentaires ne trie pas les fichiers comme l'arbre.
 
-### 05 · `hardening/05-local-api` — API locale
+### 05 · `hardening/05-local-api` — API locale — [#188](https://github.com/vmaerten/ghl/pull/188)
 
 - Le contrôle d'`Origin` accepte tous les ports de `localhost`, et un POST `text/plain` passe sans preflight.
 - Une page servie sur `localhost:3000` peut donc créer ou supprimer des commentaires, changer Viewed ou réécrire `branch.*.ghlBase`.
@@ -140,3 +140,4 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 | 04 | Suivre le scroll sans garde fait boucler `j` sur un dernier fichier trop court pour monter en haut du panneau. | Le fichier actif reste tant qu'une partie est visible, puis passe à celui sous le bord haut. |
 | 04 | `desktopTabs.ts` n'avait qu'un seul écouteur d'interception, propre au test des commentaires. | Écouteur commun, avec un drapeau par type de requête retenue ou en échec. |
 | 04 | Libellé du sélecteur de cible et ordre du panneau de commentaires : correctifs d'une ligne. | Sans test dédié. |
+| 05 | `DELETE` n'a pas de corps, mais c'est une méthode qui impose un preflight. | L'exigence porte sur `POST`, `PATCH` et `PUT` ; le contrôle d'`Origin` existant reste en place. |
