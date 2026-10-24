@@ -80,7 +80,7 @@ Préfixe `hardening/`. Les PRs sont indépendantes : chacune part de `main`, san
 - **Gatekeeper.** Ajouter une ligne pour qui télécharge le zip à la main (signature ad hoc, pas de notarisation).
 - **Option.** Séparer le build, sans secret et en `contents: read`, de la publication, pour qu'une dépendance de build compromise ne voie pas les tokens.
 
-### 09 · `hardening/09-performance` — Performance
+### 09 · `hardening/09-performance` — Performance — [#192](https://github.com/vmaerten/ghl/pull/192)
 
 Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 
@@ -152,3 +152,8 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 | 08 | `brew style` refusait déjà l'ordre de la liste `zap` sur `main` (`ghl Desktop` avant `ghl`). | Ordre corrigé avec les nouveaux chemins. |
 | 08 | Séparer le build, sans secret, de la publication reste une option. | Non fait : à décider, cela double les jobs et le transfert d'artefacts. |
 | 08 | Aucune release n'est faite dans cette PR, à la demande de l'utilisateur. | Le contrôle du token et le groupe de concurrence ne se verront qu'au prochain tag. |
+| 09 | `structuredClone` de l'instantané de recherche : 4 à 6 ms sur 8,4 Mo de patch, contre 20 ms pour le parse. | Laissé tel quel. |
+| 09 | Le double calcul du diff à l'ouverture coûte environ 0,2 s sur 558 fichiers ; l'éviter demande de couper `compare` en deux. | Laissé tel quel. |
+| 09 | Le PATCH d'un commentaire renvoie son code et son état stale, qui dépendent de la comparaison. | Son `Resolve` reste ; le cache de la base devinée en réduit le coût. |
+| 09 | « Écrire la base résolue dans l'URL » aurait fait passer chaque base devinée pour une base imposée. | Remplacé par un cache par dépôt, indexé sur le HEAD, le trunk et les pointes de branche. |
+| 09 | Avec les workers, le re-rendu d'un fichier après la fermeture d'un composer peut effacer une sélection faite juste après : deux exécutions complètes sur quatre échouaient dans `comments`. | Le test reclique jusqu'à ce que la sélection tienne. La fenêtre réelle est de quelques dizaines de millisecondes après Escape. |
