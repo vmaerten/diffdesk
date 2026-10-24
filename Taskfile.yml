@@ -110,6 +110,10 @@ tasks:
       - |
         ghl_bin={{printf "%s/ghl" .INSTALL_DIR | shellQuote}}
         mkdir -p {{.INSTALL_DIR | shellQuote}}
+        # The 0.1 and 0.2 install copied the browser CLI here.
+        if [ -f "$ghl_bin" ] && [ ! -L "$ghl_bin" ] && go version -m "$ghl_bin" 2>/dev/null | grep -q '^[[:space:]]*path[[:space:]]*github.com/vmaerten/ghl/cmd/ghl$'; then
+          rm "$ghl_bin"
+        fi
         if [ -e "$ghl_bin" ] && [ ! -L "$ghl_bin" ]; then
           echo "Cannot replace existing file or directory: $ghl_bin" >&2
           exit 1

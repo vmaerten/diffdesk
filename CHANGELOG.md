@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Clean up after the browser CLI when the app starts: stop the daemon ghl 0.1 or 0.2 left on port 7777, remove its lock folder, and remove a CLI installed from source in `~/.local/bin/ghl` that would shadow the app's `ghl`. ([#180](https://github.com/vmaerten/ghl/pull/180))
+
 ## 0.3.1
 
 - Open the review when `ghl` runs with another or no `TMPDIR`, as in some tool environments, instead of failing with "the ghl app did not start". ([#178](https://github.com/vmaerten/ghl/pull/178))

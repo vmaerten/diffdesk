@@ -123,6 +123,14 @@ func run() error {
 	defer owner.close()
 	// Listening before the backend starts: a request sent during startup waits in the queue.
 	go owner.serve(func(request launch) error { return enqueue(requests, request) })
+	if probePath == "" {
+		go func() {
+			stopLegacyDaemon(legacyDaemon, dir)
+			if home, err := os.UserHomeDir(); err == nil {
+				removeSourceCLI(home)
+			}
+		}()
+	}
 	if len(args) > 0 {
 		requests <- initial
 	}
