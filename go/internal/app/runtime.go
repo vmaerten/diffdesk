@@ -20,7 +20,7 @@ func statePath(gitDir string) string {
 }
 
 func storeFor(repo Repository) *Store {
-	return &Store{path: statePath(repo.GitDir), gitDir: repo.GitDir}
+	return &Store{path: statePath(repo.GitDir)}
 }
 
 func repoID(path string) string {

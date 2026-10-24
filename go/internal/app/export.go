@@ -107,7 +107,7 @@ func ExportComments(ctx context.Context, repoPath string, selection Selection, j
 }
 
 func writeComments(ctx context.Context, review *Review, store *Store, jsonOutput bool, stdout, stderr io.Writer) error {
-	state, notice, err := store.Snapshot(ctx)
+	state, notice, err := store.Snapshot()
 	if err != nil {
 		return err
 	}
