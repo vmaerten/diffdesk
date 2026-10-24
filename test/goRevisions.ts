@@ -1,11 +1,8 @@
-import { loopbackURL } from './system.ts'
-import { goBinary } from './goBinary.ts'
+import { isolatedGit, serveGo } from './goBinary.ts'
 import assert from 'node:assert/strict'
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
-import { once } from 'node:events'
+import { execFileSync } from 'node:child_process'
 import { realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { createInterface } from 'node:readline'
 
 import type { DiffPayload, DiffFiles } from '../src/types.ts'
 import { createFixture } from './fixture.ts'
@@ -34,10 +31,9 @@ const repo = realpathSync(fixture.path)
 const git = (...args: string[]) =>
   execFileSync('git', ['-C', repo, ...args], {
     encoding: 'utf8',
-    env: { ...process.env, ...commitDates },
+    env: { ...isolatedGit, ...commitDates },
   }).trim()
-const binary = goBinary()
-let child: ChildProcess | undefined
+let server: Awaited<ReturnType<typeof serveGo>> | undefined
 let checks = 0
 
 async function json<T>(url: string, body?: unknown): Promise<T> {
@@ -52,29 +48,8 @@ async function json<T>(url: string, body?: unknown): Promise<T> {
 }
 
 try {
-  child = spawn(binary, ['--repo', repo, '--base', 'HEAD', '--port', '0'], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
-  let errors = ''
-  child.stderr!.on('data', (chunk) => {
-    errors += String(chunk)
-  })
-  const lines = createInterface({ input: child.stdout! })
-  const startupTimer = setTimeout(() => child!.kill('SIGTERM'), 20_000)
-  let announcement: { url: string }
-  try {
-    const raw = await Promise.race([
-      once(lines, 'line').then(([line]) => String(line)),
-      once(child, 'exit').then(() => {
-        throw new Error(`Go startup failed: ${errors}`)
-      }),
-    ])
-    announcement = JSON.parse(raw)
-  } finally {
-    clearTimeout(startupTimer)
-    lines.close()
-  }
-  const goURL = loopbackURL(announcement.url).href.split('?')[0]!
+  server = await serveGo(repo, ['--base', 'HEAD'])
+  const goURL = server.base
 
   const review = async (query = '') => {
     const payload = await json<DiffPayload>(goURL + '/api/diff' + query)
@@ -247,15 +222,6 @@ try {
 
   console.log(`  ok ${checks} revision contracts`)
 } finally {
-  if (child && child.exitCode === null && child.signalCode === null) {
-    const exited = once(child, 'exit')
-    child.kill('SIGINT')
-    const timer = setTimeout(() => child!.kill('SIGKILL'), 6000)
-    try {
-      await exited
-    } finally {
-      clearTimeout(timer)
-    }
-  }
+  await server?.close()
   fixture.cleanup()
 }

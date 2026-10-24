@@ -17,8 +17,9 @@ export function goBinary(): string {
   return realpathSync(fileURLToPath(new URL('../go/dist/ghl-dev', import.meta.url)))
 }
 
-export async function serveGo(repoPath: string) {
-  const child = spawn(goBinary(), ['--repo', repoPath, '--port', '0'], {
+/** Serve `repoPath` on a free port; `args` adds options such as `--base`. */
+export async function serveGo(repoPath: string, args: readonly string[] = []) {
+  const child = spawn(goBinary(), ['--repo', repoPath, ...args, '--port', '0'], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...isolatedGit,
@@ -40,9 +41,12 @@ export async function serveGo(repoPath: string) {
       }),
     ])
     const info: { port: number; repoId: string } = JSON.parse(line)
+    const origin = `http://127.0.0.1:${info.port}`
     return {
-      origin: `http://127.0.0.1:${info.port}`,
+      origin,
       repoId: info.repoId,
+      /** The repository's routes, as in `${base}/api/diff`. */
+      base: `${origin}/r/${info.repoId}`,
       close: async () => {
         if (child.exitCode !== null || child.signalCode !== null) return
         child.kill('SIGINT')

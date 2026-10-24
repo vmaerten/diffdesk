@@ -1,22 +1,11 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, symlinkSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { DiffPayload } from '../src/types.ts'
 import { clickTreeRow, sleep, withHarness, type Check } from './harness.ts'
-import { isolatedGit } from './goBinary.ts'
-
-export interface ImageTestServer {
-  origin: string
-  repoId: string
-  close: () => Promise<void>
-}
-
-export interface ImageTestRuntime {
-  serve: (repo: string) => Promise<ImageTestServer>
-  withHarness: typeof withHarness
-}
+import { isolatedGit, serveGo } from './goBinary.ts'
 
 const git = (cwd: string, args: string[]) =>
   execFileSync('git', args, { cwd, encoding: 'utf8', env: isolatedGit }).trim()
@@ -28,9 +17,9 @@ const png = Buffer.from(
   'base64',
 )
 
-export async function runImages(check: Check, runtime: ImageTestRuntime): Promise<void> {
-  const path = mkdtempSync(join(tmpdir(), 'ghl-images-'))
-  let running: ImageTestServer | undefined
+export async function runImages(check: Check): Promise<void> {
+  const path = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-images-')))
+  let running: Awaited<ReturnType<typeof serveGo>> | undefined
   try {
     git(path, ['init', '-q', '--initial-branch=main'])
     git(path, ['config', 'user.name', 'Image tests'])
@@ -67,7 +56,7 @@ export async function runImages(check: Check, runtime: ImageTestRuntime): Promis
     writeFileSync(join(path, 'changed.svg'), svg('yellow', 200))
     writeFileSync(join(path, 'untracked.png'), png)
 
-    running = await runtime.serve(path)
+    running = await serveGo(path, ['--base', 'main'])
     const { origin, repoId } = running
     const base = `${origin}/r/${repoId}`
     const diff = async (query: string): Promise<DiffPayload> => {
@@ -253,7 +242,7 @@ export async function runImages(check: Check, runtime: ImageTestRuntime): Promis
     rmSync(join(path, 'oversized.png'))
     writeFileSync(join(path, 'broken.png'), 'not an image')
 
-    await runtime.withHarness(path, async (make) => {
+    await withHarness(path, async (make) => {
       const harness = await make()
       const { page, load } = harness
       await load('?base=main&target=feature')
@@ -282,9 +271,6 @@ export async function runImages(check: Check, runtime: ImageTestRuntime): Promis
           sizes[0].y === sizes[1].y,
         JSON.stringify(sizes),
       )
-      await page.screenshot({
-        path: '/tmp/ghl-go-image-previews.png',
-      })
       const zoomTrigger =
         '[data-image-path="changed.svg"] .image-side:last-child .image-zoom-trigger'
       await sleep(600)
