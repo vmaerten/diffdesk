@@ -114,7 +114,6 @@ func (d *desktopApp) startup(ctx context.Context) {
 	d.mu.Lock()
 	d.ctx = ctx
 	d.mu.Unlock()
-	compactToolbar()
 }
 
 func (d *desktopApp) runtimeContext() context.Context {

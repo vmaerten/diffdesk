@@ -225,7 +225,6 @@ Chaque écart avec ce plan et chaque particularité de Wails v2 rencontrée en r
 | Review | Valeurs de réglages hors bornes testées en TS, pas en Go : Go ne connaît pas le schéma. | Écart (test) | — | — | — |
 | Review | Raccourcis clavier affichés dans une feuille (menu Help), non prévue par le spec. | Ajout | Seule surface possible avec une fenêtre unique. | Fenêtre ou popover natif. | Seconde fenêtre possible. |
 | Review | Commits `refactor` qui changent un comportement (`3eb28ca`, `7c74f76`) : historique déjà publié, non réécrit. Les corrections de la review vont dans une PR 09 en haut de la pile. | Constat | — | — | — |
-| Barre compacte | Wails v2 crée une barre d'outils macOS sans jamais régler son `toolbarStyle` : macOS prend le style unifié de 52 px. Vérifié dans `WailsContext.m`. | Contrainte v2 | Quelques lignes d'Objective-C (`toolbar.go`) passent la barre en `NSWindowToolbarStyleUnifiedCompact` au démarrage : barre de 38 px, boutons centrés (vérifié par capture). | `trafficLightPosition` (vérifié dans codiff). | `MacToolbarStyleUnifiedCompact` (vérifié). |
 
 ## Onglets : propositions
 
