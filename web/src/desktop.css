@@ -715,10 +715,12 @@ body,
 
 /* Each file reads as a card raised from the pane, its header the card's top.
    The variables reach into the diff's shadow DOM; clipping, unlike hiding,
-   keeps the headers sticky against the pane. */
+   keeps the headers sticky against the pane. The card's clip rounds the header
+   at rest; the header stays square, or the code would show through its
+   corners while it sticks over the lines scrolling under it. */
 .desktop-review .diff diffs-container {
   --diffs-header-font-family: var(--mono);
-  --file-header-radius: 12px 12px 0 0;
+  --file-header-radius: 0;
   --file-header-bg: var(--bg-raised);
   --file-header-border: 1px solid var(--border);
   overflow: clip;
