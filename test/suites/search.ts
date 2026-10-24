@@ -1,4 +1,13 @@
-import { DIFF_ON_SCREEN, DIFF_SCROLLER, type Suite } from '../harness.ts'
+import {
+  DIFF_ON_SCREEN,
+  DIFF_SCROLLER,
+  frames,
+  poll,
+  settled,
+  until,
+  VIEWED_COUNT,
+  type Suite,
+} from '../harness.ts'
 
 const SELECTED_TEXT = `(() => {
   for (const host of document.querySelectorAll('.diff diffs-container')) {
@@ -8,6 +17,8 @@ const SELECTED_TEXT = `(() => {
   }
   return ''
 })()`
+
+const onMatch = (names: string[]) => names.some((name) => name.includes('Widget43.tsx'))
 
 export default {
   name: 'search',
@@ -98,6 +109,31 @@ export default {
       replacement,
     )
     await page.waitForFunction(`(${SELECTED_TEXT}).includes('widget43_27')`)
+
+    // Ticking Viewed elsewhere recomputes the matches; the pane stays put.
+    await page.evaluate(`(() => {
+      const scroller = ${DIFF_SCROLLER}
+      scroller.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: -1 }))
+      scroller.scrollTop = 0
+    })()`)
+    await poll(
+      () => page.evaluate(DIFF_ON_SCREEN) as Promise<string[]>,
+      (names) => !onMatch(names),
+    )
+    await page.evaluate(`document.activeElement && document.activeElement.blur()`)
+    await page.keyboard.press('v')
+    await until(page, `(${VIEWED_COUNT})?.startsWith('1 of ')`)
+    await settled(page)
+    await frames(page)
+    const afterTick = (await page.evaluate(DIFF_ON_SCREEN)) as string[]
+    check(
+      'ticking Viewed with search open leaves the pane where the reader put it',
+      !onMatch(afterTick),
+      afterTick.join(' | '),
+    )
+    await page.keyboard.press('v')
+    await until(page, `(${VIEWED_COUNT})?.startsWith('0 of ')`)
+    await page.focus('.diff-search-input')
 
     await page.keyboard.press('Escape')
     const closed = await page.$eval('.diff-search', (element) => element.hasAttribute('hidden'))

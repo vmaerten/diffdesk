@@ -532,8 +532,12 @@ export function useReviewDiff({
     searchInputRef.current?.select()
   }, [searchOpen])
 
-  useEffect(() => {
-    if (!searchOpen) return
+  /**
+   * Show the active match, on the reader's own search steps only. A Viewed tick
+   * or a published comment recomputes the matches, and must neither pull the
+   * pane back to one nor select its line again.
+   */
+  const showSearchMatch = useStableCallback(() => {
     if (!activeSearchMatch) {
       viewRef.current?.clearSelectedLines()
       return
@@ -566,7 +570,10 @@ export function useReviewDiff({
       side: activeSearchMatch.side,
       align: 'center',
     })
-  }, [searchOpen, activeSearchMatch, items, revealFile])
+  })
+  useEffect(() => {
+    if (searchOpen) showSearchMatch()
+  }, [searchOpen, searchQuery, searchIndex, showSearchMatch])
 
   const submitComment = useStableCallback((body: string) => {
     if (!composer || !data) return
