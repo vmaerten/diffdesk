@@ -193,7 +193,7 @@ try {
   checks += 2
   // Reads leave a corrupt file in place; the next write moves it aside.
   const write = () =>
-    request(a.url + '/api/viewed', 'POST', {
+    request(a.base + '/api/viewed', 'POST', {
       range: 'corrupt',
       path: 'context.txt',
       hash,
