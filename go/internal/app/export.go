@@ -111,7 +111,10 @@ func writeComments(ctx context.Context, review *Review, store *Store, jsonOutput
 	if err != nil {
 		return err
 	}
-	if notice != nil {
+	for _, notice := range []*string{notice, review.Notice} {
+		if notice == nil {
+			continue
+		}
 		if _, err := fmt.Fprintln(stderr, "ghl:", *notice); err != nil {
 			return err
 		}

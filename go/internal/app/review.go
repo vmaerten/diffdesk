@@ -301,9 +301,16 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 				}
 			}
 			if selection.IncludeUntracked && len(review.Untracked) > 0 {
-				patch, files, err := r.untrackedPatch(ctx, review.Untracked)
+				patch, files, left, err := r.untrackedPatch(ctx, review.Untracked)
 				if err != nil {
 					return nil, err
+				}
+				if len(left) > 0 {
+					notice := "Untracked files left out: " + strings.Join(left, ", ")
+					if review.Notice != nil {
+						notice = *review.Notice + " — " + notice
+					}
+					review.Notice = &notice
 				}
 				review.Patch += patch
 				review.Files = append(review.Files, files...)

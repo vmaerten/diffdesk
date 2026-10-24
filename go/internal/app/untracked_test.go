@@ -114,14 +114,18 @@ func TestUntrackedDefaultDoesNotReadLargeOrUnsafeFiles(t *testing.T) {
 	if err != nil || len(review.Untracked) != 503 || review.UntrackedIncluded || review.Totals.Files != 6 {
 		t.Fatalf("large default listing: %v %v", review, err)
 	}
-	for _, path := range []string{"large.txt", "link.txt", "pipe", "disappeared.txt"} {
-		if _, _, err := r.untrackedPatch(context.Background(), []string{path}); err == nil {
-			t.Fatalf("accepted unsafe or unavailable %s", path)
-		}
+	// Git never reads these; they stay out, named, and a vanished one goes unmentioned.
+	patch, files, left, err := r.untrackedPatch(context.Background(), []string{"large.txt", "link.txt", "pipe", "disappeared.txt", "untracked.txt"})
+	if err != nil || len(files) != 1 || !strings.Contains(patch, "+excluded") || strings.Join(left, ", ") != "large.txt (over 20 MB), link.txt (not a regular file), pipe (not a regular file)" {
+		t.Fatalf("unsafe files: %v %+v %v", err, files, left)
+	}
+	included, err := r.Resolve(context.Background(), Selection{Base: "main", IncludeUntracked: true})
+	if err != nil || included.Notice == nil || !strings.Contains(*included.Notice, "link.txt (not a regular file)") {
+		t.Fatalf("review with unsafe untracked files: %v %v", err, included)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, _, err := r.untrackedPatch(ctx, []string{"untracked.txt"}); err != context.Canceled {
+	if _, _, _, err := r.untrackedPatch(ctx, []string{"untracked.txt"}); err != context.Canceled {
 		t.Fatalf("cancellation: %v", err)
 	}
 }
