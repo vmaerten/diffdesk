@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -110,7 +111,11 @@ func (b *reviewBackend) call(ctx context.Context, client *http.Client, method, p
 	if response.StatusCode != 200 {
 		defer response.Body.Close()
 		text, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
-		return nil, fmt.Errorf("%s", strings.TrimSpace(string(text)))
+		var reply struct{ Error string }
+		if json.Unmarshal(text, &reply) != nil || reply.Error == "" {
+			reply.Error = strings.TrimSpace(string(text))
+		}
+		return nil, errors.New(reply.Error)
 	}
 	return response, nil
 }

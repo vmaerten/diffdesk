@@ -89,8 +89,9 @@ func TestSharedBackendNativeOriginAndShutdown(t *testing.T) {
 	if _, _, err := b.open(ctx, launch{repo: first, base: "does-not-exist"}); err == nil {
 		t.Fatal("invalid base accepted")
 	}
-	if _, _, err := b.open(ctx, launch{repo: t.TempDir(), base: "HEAD"}); err == nil {
-		t.Fatal("invalid repo accepted")
+	// The dialog shows the runtime's message, not its JSON reply.
+	if _, _, err := b.open(ctx, launch{repo: t.TempDir(), base: "HEAD"}); err == nil || !strings.HasPrefix(err.Error(), "Invalid repository: ") {
+		t.Fatalf("invalid repo: %v", err)
 	}
 	handler := b.handler()
 	request := func(method, path, origin, body string) *httptest.ResponseRecorder {
