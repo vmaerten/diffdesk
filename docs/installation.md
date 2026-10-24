@@ -18,7 +18,7 @@ The app is signed ad hoc, without Apple notarisation. Homebrew quarantines what 
 ```bash
 brew upgrade --cask ghl              # follow stable releases
 brew uninstall --cask ghl            # remove the app, keep its settings
-brew uninstall --cask --zap ghl      # also remove its settings
+brew uninstall --cask --zap ghl      # also remove its settings, caches and web data
 ```
 
 ## mise
@@ -59,6 +59,16 @@ mise uninstall --all github:vmaerten/ghl
 ```
 
 Remove any project selection too.
+
+## From the release page
+
+A browser download of `ghl_<version>_darwin_arm64.zip` is quarantined, and Gatekeeper refuses to open the ad hoc signed app. Compare `shasum -a 256 ghl_<version>_darwin_arm64.zip` with the release's `checksums.txt`, unzip it, then remove the attribute before the first launch:
+
+```bash
+xattr -dr com.apple.quarantine ghl.app
+```
+
+Move `ghl.app` to `/Applications` and link `ghl.app/Contents/MacOS/ghl` into a folder on PATH. Homebrew and mise do all of this for you.
 
 ## After installing, upgrading or rolling back
 

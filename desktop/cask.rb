@@ -19,7 +19,10 @@ cask "ghl" do
   end
 
   zap trash: [
-    "~/Library/Application Support/ghl",
     "~/Library/Application Support/ghl Desktop",
+    "~/Library/Application Support/ghl",
+    "~/Library/Caches/dev.ghl.desktop",
+    "~/Library/Preferences/dev.ghl.desktop.plist",
+    "~/Library/WebKit/dev.ghl.desktop",
   ]
 end

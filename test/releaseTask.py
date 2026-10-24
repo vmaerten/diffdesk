@@ -40,6 +40,7 @@ class ReleaseTask(unittest.TestCase):
         self.env.pop('TAG', None)
         self.env.pop('RELEASE_REF', None)
         self.env.pop('HOMEBREW_TAP_TOKEN', None)
+        self.env.pop('GITHUB_ACTIONS', None)
         self.tool('goreleaser', '''import hashlib
 log('build', tag=os.environ['RELEASE_TAG'], args=sys.argv[1:])
 if os.environ.get('GHL_TEST_BUILD_FAIL'): sys.exit(25)
@@ -55,12 +56,20 @@ name = f'ghl_{version}_darwin_arm64.zip'
         self.tool('gh', '''import hashlib
 args = sys.argv[1:]
 if args[0] == 'api':
-    method = args[2] if args[1] == '--method' else 'GET'
-    path = args[3] if args[1] == '--method' else args[1]
-    log('api', method=method, path=path, args=args, token=os.environ.get('GH_TOKEN'))
+    method, path, raw, rest = 'GET', None, False, args[1:]
+    while rest:
+        flag = rest.pop(0)
+        if flag == '--method': method = rest.pop(0)
+        elif flag == '-H': raw = 'raw' in rest.pop(0)
+        elif flag in ('-f', '--jq'): rest.pop(0)
+        elif path is None: path = flag
+    log('api', method=method, path=path, raw=raw, args=args, token=os.environ.get('GH_TOKEN'))
     if path == 'repos/vmaerten/homebrew-tap':
         sys.exit(1 if os.environ.get('GHL_TEST_TAP_DENIED') else 0)
-    if method == 'GET':
+    if method == 'GET' and raw:
+        if not os.environ.get('GHL_TEST_CASK_VERSION'): sys.exit(1)
+        print(f'cask "ghl" do\\n  version "{os.environ["GHL_TEST_CASK_VERSION"]}"\\nend')
+    elif method == 'GET':
         if not os.environ.get('GHL_TEST_CASK_SHA'): sys.exit(1)
         print(os.environ['GHL_TEST_CASK_SHA'])
     elif os.environ.get('GHL_TEST_TAP_FAIL'): sys.exit(28)
@@ -107,7 +116,7 @@ def log(event, **fields):
     def test_stable_release_builds_verifies_uploads_publishes_then_updates_the_cask(self):
         result, events = self.run_release(HOMEBREW_TAP_TOKEN='tap-token', GH_TOKEN='repo-token')
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([e['event'] for e in events], ['build', 'verify', 'api', 'create', 'edit', 'download', 'api', 'api'])
+        self.assertEqual([e['event'] for e in events], ['build', 'verify', 'api', 'create', 'edit', 'download', 'api', 'api', 'api'])
         push = events[-1]
         self.assertEqual((push['method'], push['path'], push['token']), ('PUT', 'repos/vmaerten/homebrew-tap/contents/Casks/ghl.rb', 'tap-token'))
         self.assertEqual(events[3]['args'][:2], ['release', 'create'])
@@ -153,6 +162,18 @@ def log(event, **fields):
         self.assertIn('HOMEBREW_TAP_TOKEN', result.stderr)
         self.assertNotIn('create', [e['event'] for e in events])
 
+    def test_missing_tap_token_in_the_workflow_stops_before_publishing(self):
+        result, events = self.run_release(GITHUB_ACTIONS='true')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('HOMEBREW_TAP_TOKEN is not set', result.stderr)
+        self.assertNotIn('create', [e['event'] for e in events])
+
+    def test_older_release_leaves_a_newer_cask(self):
+        result, events = self.run_release(GHL_TEST_CASK_VERSION='1.10.0', GHL_TEST_CASK_SHA='newer-blob')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('already offers ghl 1.10.0', result.stdout)
+        self.assertNotIn('PUT', [e.get('method') for e in events])
+
     def test_failed_cask_push_leaves_the_release_published(self):
         result, events = self.run_release(GHL_TEST_TAP_FAIL='1')
         self.assertNotEqual(result.returncode, 0)
@@ -160,7 +181,7 @@ def log(event, **fields):
         self.assertEqual(events[-1]['method'], 'PUT')
 
     def test_existing_cask_is_replaced_in_place(self):
-        result, events = self.run_release(GHL_TEST_CASK_SHA='previous-blob')
+        result, events = self.run_release(GHL_TEST_CASK_VERSION='1.2.2', GHL_TEST_CASK_SHA='previous-blob')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('sha=previous-blob', events[-1]['args'])
 

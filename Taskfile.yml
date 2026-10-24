@@ -327,6 +327,13 @@ tasks:
         # The workflow token reaches only this repository; the tap needs its own.
         if [ -n "${HOMEBREW_TAP_TOKEN:-}" ]; then export GH_TOKEN="$HOMEBREW_TAP_TOKEN"; fi
         cask=repos/vmaerten/homebrew-tap/contents/Casks/ghl.rb
+        # Concurrent tags, or a rerun of an older one, must not move the cask back.
+        offered=$(gh api -H 'Accept: application/vnd.github.raw' "$cask" 2>/dev/null | sed -n 's/^  version "\(.*\)"$/\1/p' || true)
+        if [ -n "$offered" ] && [ "$offered" != "$version" ] &&
+          [ "$(printf '%s\n%s\n' "$offered" "$version" | sort -V | tail -n 1)" = "$offered" ]; then
+          printf 'The tap already offers ghl %s; leaving it\n' "$offered"
+          exit 0
+        fi
         set -- -f message="ghl $version" -f content="$(base64 < "$work/ghl.rb")"
         if sha=$(gh api "$cask" --jq .sha 2>/dev/null); then set -- "$@" -f sha="$sha"; fi
         gh api --method PUT "$cask" "$@" > /dev/null
@@ -341,6 +348,11 @@ tasks:
       - |
         set -eu
         case "$RELEASE_TAG" in *-*) exit 0;; esac
+        # The tap is public: the workflow's own token reads it, then cannot push.
+        if [ -n "${GITHUB_ACTIONS:-}" ] && [ -z "${HOMEBREW_TAP_TOKEN:-}" ]; then
+          echo "HOMEBREW_TAP_TOKEN is not set: the workflow could not push the cask" >&2
+          exit 1
+        fi
         if [ -n "${HOMEBREW_TAP_TOKEN:-}" ]; then export GH_TOKEN="$HOMEBREW_TAP_TOKEN"; fi
         gh api repos/vmaerten/homebrew-tap --jq .full_name > /dev/null || {
           echo "Cannot reach vmaerten/homebrew-tap: set HOMEBREW_TAP_TOKEN" >&2

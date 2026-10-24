@@ -8,8 +8,9 @@ on:
 permissions:
   contents: read
 
+# One release at a time: two tags pushed together would race for the cask.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:

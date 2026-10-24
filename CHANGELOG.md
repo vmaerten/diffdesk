@@ -16,6 +16,10 @@
 - Review and export comments during a merge, rebase, cherry-pick or revert, with a warning naming the conflicted files; a stopped rebase keeps the branch's comments. Untracked symlinks, special files and files over 20 MB are left out with a notice instead of failing the review, comments on non-UTF-8 lines no longer turn stale, file names with a backslash can be commented on, and image previews work in folders whose name holds `#`, `?` or `%`. ([#189](https://github.com/vmaerten/ghl/pull/189))
 - Expand context and keep comments fresh on files with a textconv driver or a CRLF checkout (`eol=crlf`, `core.autocrlf`), instead of asking for a refresh every time. Files are shown as Git stores them, without textconv, and files other filters such as Git LFS rewrite say context is unavailable. ([#190](https://github.com/vmaerten/ghl/pull/190))
 
+### 📦 Distribution
+
+- Build with Go 1.27.3, which fixes standard library vulnerabilities in `net/http`, `crypto/x509` and `os`. `brew uninstall --cask --zap ghl` also removes the app's caches and web data, and the installation guide covers downloading the zip from the release page. Releases run one at a time and never move the cask back to an older version. ([#191](https://github.com/vmaerten/ghl/pull/191))
+
 ## 0.3.1
 
 ### 🐛 Fixes
