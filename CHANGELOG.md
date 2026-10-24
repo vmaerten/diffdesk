@@ -85,4 +85,4 @@ The `ghl` backend and CLI now run exclusively on Go. React is embedded in the ex
 
 - Use native Task, Air and Vite for build, installation and hot reload.
 
-Stop an old Node daemon before starting Go on the same port. Read the [migration guide](https://github.com/vmaerten/ghl/blob/v0.1.0/docs/migration.md) for PATH precedence, backups and rollback, and the [installation guide](./docs/installation.md) for mise commands. Other platforms and the optional URL without a port remain follow-up work.
+Stop an old Node daemon before starting Go on the same port. Read the [migration guide](https://github.com/vmaerten/ghl/blob/v0.1.0/docs/migration.md) for PATH precedence, backups and rollback, and the [installation guide](https://github.com/vmaerten/ghl/blob/v0.1.0/docs/go-installation.md) for mise commands. Other platforms and the optional URL without a port remain follow-up work.
