@@ -243,8 +243,9 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 	if selection.Committed || selection.Target != "" || review.Commit != nil {
 		review.Comparison.After = &tip
 	}
-	// Explicit prefixes override diff.noprefix, diff.mnemonicPrefix and diff.srcPrefix.
-	args := []string{"diff", "-M", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", before}
+	// Explicit prefixes override diff.noprefix, diff.mnemonicPrefix and diff.srcPrefix;
+	// raw content, not a textconv driver's rendering, is what context and anchors read.
+	args := []string{"diff", "-M", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", before}
 	if selection.IgnoreWhitespace {
 		args = append(args, "--ignore-all-space")
 	}
@@ -517,6 +518,11 @@ func (r Repository) readText(ctx context.Context, revision *string, path string)
 	h1, h2 := blobHash(data)
 	return &TextFile{Name: path, Contents: string(data), CacheKey: h2, sha1: h1}, nil
 }
+
+// is reports whether the file is the blob a patch's index line names.
+func (f *TextFile) is(oid string) bool {
+	return oid == "" || strings.Trim(oid, "0") == "" || strings.HasPrefix(f.sha1, oid) || strings.HasPrefix(f.CacheKey, oid)
+}
 func (r *Review) describe(path string) (*FileStat, *section, error) {
 	for i := range r.Files {
 		f := &r.Files[i]
@@ -552,7 +558,23 @@ func (r *Review) source(ctx context.Context, path, side string) (*TextFile, erro
 	if old {
 		oid, expected = section.oldID, section.oldLines
 	}
-	if oid != "" && strings.Trim(oid, "0") != "" && !strings.HasPrefix(file.sha1, oid) && !strings.HasPrefix(file.CacheKey, oid) {
+	if !file.is(oid) && !old && r.Comparison.After == nil {
+		// Git diffs a checkout through its clean filter: with eol=crlf or
+		// core.autocrlf, the LF text it stores.
+		if lf := strings.ReplaceAll(file.Contents, "\r\n", "\n"); lf != file.Contents {
+			h1, h2 := blobHash([]byte(lf))
+			if converted := (&TextFile{Name: file.Name, Contents: lf, CacheKey: h2, sha1: h1}); converted.is(oid) {
+				file = converted
+			}
+		}
+		// Other clean filters, such as Git LFS, store content this cannot rebuild.
+		if !file.is(oid) {
+			if stored, err := r.repo.text(ctx, "hash-object", "--", path); err == nil && strings.HasPrefix(stored, oid) {
+				return nil, fmt.Errorf("Context is unavailable for files Git filters")
+			}
+		}
+	}
+	if !file.is(oid) {
 		return nil, changed()
 	}
 	lines := strings.Split(file.Contents, "\n")
