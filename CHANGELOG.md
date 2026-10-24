@@ -12,6 +12,7 @@
 - Open the window when ghl is launched from the Finder, Spotlight or the Dock, instead of failing with "Could not open repository"; error dialogs show the message rather than the server's JSON, and a `ghl` run while the app quits opens in a new window instead of being lost. ([#185](https://github.com/vmaerten/ghl/pull/185))
 - Keep reviews and `ghl comments` working after a crash left the state lock behind, and in reftable repositories: only writes lock the state now, with a lock the system releases when a process dies. Reading a corrupt state no longer moves it aside; the next comment or Viewed change does. ([#186](https://github.com/vmaerten/ghl/pull/186))
 - Keep the review's keys and position right when the comparison changes: an open comment whose line leaves the diff no longer blocks the single-letter shortcuts, `j`, `k` and `v` follow the file you scrolled to, search no longer jumps back to a match when you tick Viewed, context still expands after a failed refresh, and a Viewed tick survives switching tabs while it saves. The target picker is labelled as such, and the comments panel lists files in the tree's order. ([#187](https://github.com/vmaerten/ghl/pull/187))
+- Refuse review writes that are not JSON, so a web page served on another localhost port can no longer add or delete comments, change Viewed or change the remembered base. ([#188](https://github.com/vmaerten/ghl/pull/188))
 
 ## 0.3.1
 

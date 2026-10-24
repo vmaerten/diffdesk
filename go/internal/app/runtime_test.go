@@ -19,6 +19,9 @@ func TestRuntimeRegistryAndHealth(t *testing.T) {
 	server := NewRuntime(fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("embedded")}})
 	request := func(method, path, body, host string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, "http://localhost"+path, strings.NewReader(body))
+		if body != "" {
+			req.Header.Set("Content-Type", "application/json")
+		}
 		if host != "" {
 			req.Host = host
 		}
