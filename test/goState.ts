@@ -1,5 +1,5 @@
 import { loopbackURL } from './system.ts'
-import { goBinary } from './goBinary.ts'
+import { goBinary, isolatedGit } from './goBinary.ts'
 import assert from 'node:assert/strict'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
@@ -24,7 +24,7 @@ const repo = join(root, 'repo')
 mkdirSync(repo)
 const binary = goBinary()
 const git = (...args: string[]) =>
-  execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim()
+  execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', env: isolatedGit }).trim()
 const stateFile = join(repo, '.git', 'ghl', 'state.json')
 const servers: ChildProcess[] = []
 let checks = 0

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 
 import type { DiffPayload } from '../src/types.ts'
 import { clickTreeRow, sleep, withHarness, type Check } from './harness.ts'
+import { isolatedGit } from './goBinary.ts'
 
 export interface ImageTestServer {
   origin: string
@@ -18,7 +19,7 @@ export interface ImageTestRuntime {
 }
 
 const git = (cwd: string, args: string[]) =>
-  execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+  execFileSync('git', args, { cwd, encoding: 'utf8', env: isolatedGit }).trim()
 const svg = (color: string, width = 80) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="60"><rect width="100%" height="100%" fill="${color}"/></svg>`
 const gif = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
