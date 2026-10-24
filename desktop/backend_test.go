@@ -96,7 +96,7 @@ func TestSharedBackendNativeOriginAndShutdown(t *testing.T) {
 	handler := b.handler()
 	request := func(method, path, origin, body string) *httptest.ResponseRecorder {
 		t.Helper()
-		r, err := http.NewRequest(method, "wails://wails"+path, strings.NewReader(body))
+		r, err := http.NewRequest(method, "wails://localhost"+path, strings.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -119,12 +119,12 @@ func TestSharedBackendNativeOriginAndShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	comment, _ := json.Marshal(map[string]any{"id": "desktop-test", "path": "hello.txt", "start": 1, "end": 1, "side": "additions", "range": diff.Range, "body": "persistent native comment"})
-	w = request("POST", prefix+"/api/comments?base=HEAD", "wails://wails", string(comment))
+	w = request("POST", prefix+"/api/comments?base=HEAD", "wails://localhost", string(comment))
 	if w.Code != 200 {
 		t.Fatalf("comment: %d %s", w.Code, w.Body.String())
 	}
 	reopen, _ := json.Marshal(map[string]string{"repoPath": first})
-	for _, origin := range []string{"null", "wails://wails", ""} {
+	for _, origin := range []string{"null", "wails://localhost", ""} {
 		if w := request("POST", "/api/repos", origin, string(reopen)); w.Code != 200 {
 			t.Fatalf("native origin %q: %d", origin, w.Code)
 		}
@@ -134,7 +134,7 @@ func TestSharedBackendNativeOriginAndShutdown(t *testing.T) {
 	}
 	// The public listener still rejects Wails' custom origin.
 	req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/api/repos", b.port), strings.NewReader(string(reopen)))
-	req.Header.Set("Origin", "wails://wails")
+	req.Header.Set("Origin", "wails://localhost")
 	client := &http.Client{Transport: &http.Transport{Proxy: nil}}
 	res, err := client.Do(req)
 	if err != nil {

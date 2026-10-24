@@ -142,9 +142,14 @@ func (b *reviewBackend) handler() http.Handler {
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if len(r.Header.Values("Origin")) > 1 || (origin != "" && origin != "null" && origin != "wails://wails") {
+		if len(r.Header.Values("Origin")) > 1 || (origin != "" && origin != "null" && origin != "wails://localhost") {
 			http.Error(w, "unexpected desktop origin", http.StatusForbidden)
 			return
+		}
+		// Wails v3 can hand over a request stream with a zero length and no
+		// Content-Length header, which ReverseProxy would forward without its body.
+		if r.Body != nil && r.Body != http.NoBody && r.ContentLength == 0 {
+			r.ContentLength = -1
 		}
 		proxy.ServeHTTP(w, r)
 	})

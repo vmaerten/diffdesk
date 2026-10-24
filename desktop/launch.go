@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 const help = `ghl — review the PR you are about to open, without opening it (macOS)
@@ -101,7 +101,8 @@ func parseLaunch(args []string, cwd string) (launch, error) {
 }
 
 type desktopApp struct {
-	ctx      context.Context
+	app      *application.App
+	window   *application.WebviewWindow
 	mu       sync.RWMutex
 	backend  *reviewBackend
 	requests chan launch
@@ -110,16 +111,25 @@ type desktopApp struct {
 	settings *settingsStore
 }
 
-func (d *desktopApp) startup(ctx context.Context) {
+func (d *desktopApp) startup(app *application.App, window *application.WebviewWindow) {
 	d.mu.Lock()
-	d.ctx = ctx
+	d.app, d.window = app, window
 	d.mu.Unlock()
 }
 
-func (d *desktopApp) runtimeContext() context.Context {
+func (d *desktopApp) native() (*application.App, *application.WebviewWindow) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	return d.ctx
+	return d.app, d.window
+}
+
+// reveal brings the window back from the Dock or behind other apps.
+func (d *desktopApp) reveal() {
+	if _, window := d.native(); window != nil {
+		window.UnMinimise()
+		window.Show()
+		window.Focus()
+	}
 }
 
 // enqueue queues a request for the window without waiting for it to open.
@@ -143,20 +153,24 @@ func (d *desktopApp) process(ctx context.Context) {
 			continue
 		}
 		d.publish(d.tabs.open(route, checkout))
-		runtime.WindowUnminimise(ctx)
-		runtime.Show(ctx)
+		d.reveal()
 	}
 }
 
 func (d *desktopApp) publish(state tabSnapshot) tabSnapshot {
-	if ctx := d.runtimeContext(); ctx != nil {
-		runtime.EventsEmit(ctx, "desktop:tabs", state)
+	if app, _ := d.native(); app != nil {
+		app.Event.Emit("desktop:tabs", state)
 	}
 	return state
 }
 
 func (d *desktopApp) chooseRepository() {
-	path, err := runtime.OpenDirectoryDialog(d.runtimeContext(), runtime.OpenDialogOptions{Title: "Open a Git repository"})
+	app, window := d.native()
+	if app == nil {
+		return
+	}
+	path, err := app.Dialog.OpenFile().SetTitle("Open a Git repository").CanChooseFiles(false).
+		CanChooseDirectories(true).AttachToWindow(window).PromptForSingleSelection()
 	if err != nil {
 		d.showError(err)
 		return
@@ -170,11 +184,8 @@ func (d *desktopApp) chooseRepository() {
 
 func (d *desktopApp) showError(err error) {
 	fmt.Println("ghl:", err)
-	if ctx := d.runtimeContext(); ctx != nil {
-		runtime.WindowUnminimise(ctx)
-		runtime.Show(ctx)
-		_, _ = runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
-			Type: runtime.ErrorDialog, Title: "Could not open repository", Message: err.Error(),
-		})
+	if app, window := d.native(); app != nil {
+		d.reveal()
+		app.Dialog.Error().SetTitle("Could not open repository").SetMessage(err.Error()).AttachToWindow(window).Show()
 	}
 }
