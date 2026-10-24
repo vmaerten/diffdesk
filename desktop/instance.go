@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -25,6 +26,7 @@ type instance struct {
 	lock     *os.File
 	listener net.Listener
 	socket   string
+	closed   sync.Once
 }
 
 type delivery struct {
@@ -107,10 +109,14 @@ func (i *instance) serve(accept func(launch) error) {
 	}
 }
 
+// close runs once: a second call could remove the socket of the app that
+// started after this one released the lock.
 func (i *instance) close() {
-	i.listener.Close()
-	os.Remove(i.socket)
-	i.lock.Close()
+	i.closed.Do(func() {
+		i.listener.Close()
+		os.Remove(i.socket)
+		i.lock.Close()
+	})
 }
 
 // deliver hands request to the app and waits until it is queued. It retries

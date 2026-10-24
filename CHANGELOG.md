@@ -9,6 +9,7 @@
 ### 🐛 Fixes
 
 - Read the review whatever diff prefixes Git is configured with (`diff.mnemonicPrefix`, `diff.noprefix`, `diff.srcPrefix`), instead of losing Viewed, comments and context on every file; with `diff.suppressBlankEmpty`, comments after a blank line now anchor on the right code. ([#184](https://github.com/vmaerten/ghl/pull/184))
+- Open the window when ghl is launched from the Finder, Spotlight or the Dock, instead of failing with "Could not open repository"; error dialogs show the message rather than the server's JSON, and a `ghl` run while the app quits opens in a new window instead of being lost. ([#185](https://github.com/vmaerten/ghl/pull/185))
 
 ## 0.3.1
 

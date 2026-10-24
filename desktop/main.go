@@ -44,10 +44,13 @@ func run() error {
 		return err
 	}
 	args := os.Args[1:]
-	windowMode := len(args) > 0 && args[0] == "--desktop-window"
-	if windowMode {
+	// The Finder, Spotlight and the Dock start the app through launchd, from /
+	// and without arguments: open the window rather than a review of /.
+	windowMode := len(args) == 0 && os.Getppid() == 1
+	if len(args) > 0 && args[0] == "--desktop-window" {
+		windowMode = true
 		args = args[1:]
-	} else {
+	} else if !windowMode {
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		handled, err := runTerminal(ctx, args, cwd, os.Stdout, os.Stderr)
 		cancel()
@@ -138,9 +141,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
-	backend, err := startBackend(ctx, assets)
+	backend, err := startBackend(context.Background(), assets)
 	if err != nil {
 		return err
 	}
@@ -225,16 +226,8 @@ func run() error {
 		},
 		AssetServer: &assetserver.Options{Handler: backend.handler()},
 		Bind:        []interface{}{desktop},
-		OnStartup: func(windowCtx context.Context) {
-			desktop.startup(windowCtx)
-			go func() {
-				select {
-				case <-ctx.Done():
-					runtime.Quit(windowCtx)
-				case <-windowCtx.Done():
-				}
-			}()
-		},
+		// Wails quits on SIGINT and SIGTERM itself, through OnShutdown.
+		OnStartup: desktop.startup,
 		OnDomReady: func(ctx context.Context) {
 			runtime.WindowExecJS(ctx, bridge)
 			if len(probe) > 0 {
@@ -242,6 +235,11 @@ func run() error {
 			}
 			desktop.ready.Do(func() { go desktop.process(ctx) })
 		},
-		OnShutdown: func(context.Context) { backend.close() },
+		// Stop taking reviews first: a launcher that finds no app starts a new one,
+		// instead of getting a receipt for a review this app will never open.
+		OnShutdown: func(context.Context) {
+			owner.close()
+			backend.close()
+		},
 	})
 }

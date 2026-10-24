@@ -131,23 +131,19 @@ func enqueue(requests chan<- launch, request launch) error {
 	}
 }
 
+// process runs until the app exits: Wails never cancels its context.
 func (d *desktopApp) process(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case request := <-d.requests:
-			work, cancel := context.WithTimeout(ctx, 30*time.Second)
-			route, checkout, err := d.backend.open(work, request)
-			cancel()
-			if err != nil {
-				d.showError(err)
-				continue
-			}
-			d.publish(d.tabs.open(route, checkout))
-			runtime.WindowUnminimise(ctx)
-			runtime.Show(ctx)
+	for request := range d.requests {
+		work, cancel := context.WithTimeout(ctx, 30*time.Second)
+		route, checkout, err := d.backend.open(work, request)
+		cancel()
+		if err != nil {
+			d.showError(err)
+			continue
 		}
+		d.publish(d.tabs.open(route, checkout))
+		runtime.WindowUnminimise(ctx)
+		runtime.Show(ctx)
 	}
 }
 
