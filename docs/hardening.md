@@ -14,7 +14,7 @@ Les défauts sont aux bords : la config git de l'utilisateur, les dépôts dans 
 
 ## Découpage en PRs
 
-Préfixe `hardening/`. Les PRs sont indépendantes : chacune part de `main`, sans pile. Seule la 11 vient en dernier, parce qu'elle touche les mêmes fichiers que la 04 et la 06.
+Préfixe `hardening/`, en pile `gh stack` (#195) dans l'ordre ci-dessous : chaque PR a pour base la précédente.
 
 ### 01 · `hardening/01-git-format` — Sortie git indépendante de la config utilisateur — [#184](https://github.com/vmaerten/ghl/pull/184)
 
@@ -167,3 +167,4 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 | 11 | Le bandeau d'opération en cours et `RepoState` sont utilisés depuis #189, et `loopbackURL` a été retiré par #193. | Laissés à ces PR. |
 | 11 | `smoke.py --standalone` a échoué sur « Scroll not restored » ; la référence qui passait avait été compilée avec Go 1.27.3, la branche avec 1.27.1. L'UI de la branche, CSS annulé, est identique octet pour octet à celle de `main` et échouait aussi. | Aucun commit de la PR n'est en cause à l'analyse ; trois exécutions standalone sur `main` trancheront, au moment choisi par l'utilisateur. |
 | 11 | Les smoke natifs lancés à répétition ont affiché des fenêtres au premier plan pendant que l'utilisateur travaillait. | Plus de test natif sans le demander ; ils sont listés dans les PR. |
+| toutes | Ouvertes d'abord comme PRs indépendantes depuis `main`, elles se chevauchaient : sections du CHANGELOG, arguments de `git diff`, tests ajoutés au même endroit. | Converties en pile (#195) à la demande de l'utilisateur : conflits résolus une fois au rebase, commit repris de #192 retiré de #193, `goState.ts` corrigé dans #193 pour l'appel ajouté par #186. |
