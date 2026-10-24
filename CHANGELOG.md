@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Stop the browser daemon left on port 7777 by ghl 0.1 or 0.2, and remove its lock folder, when the app starts. ([#180](https://github.com/vmaerten/ghl/pull/180))
+
 ## 0.3.1
 
 - Open the review when `ghl` runs with another or no `TMPDIR`, as in some tool environments, instead of failing with "the ghl app did not start". ([#178](https://github.com/vmaerten/ghl/pull/178))
