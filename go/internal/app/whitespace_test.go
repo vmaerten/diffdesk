@@ -119,7 +119,6 @@ func TestIgnoreWhitespaceAPICommentsAndViewed(t *testing.T) {
 	s := testServer(t)
 	s.repo = whitespaceFixture(t)
 	s.store = storeFor(s.repo)
-	ctx := context.Background()
 	read := func(query string) struct {
 		Files    []FileStat
 		Patch    string
@@ -185,7 +184,7 @@ func TestIgnoreWhitespaceAPICommentsAndViewed(t *testing.T) {
 	requireStatus(t, api(t, s, "GET", strings.Replace(contextQuery, "w=1", "w=0", 1), nil), 409)
 	// Restarts keep the independent Viewed scopes and all original comment data.
 	s.store = storeFor(s.repo)
-	state, _, err := s.store.Snapshot(ctx)
+	state, _, err := s.store.Snapshot()
 	if err != nil || len(state.Comments) != 3 || len(read("").Viewed) != 1 {
 		t.Fatal("restart lost state")
 	}

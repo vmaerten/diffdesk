@@ -216,18 +216,29 @@ try {
   assert.match(await unsupported.text(), /Unsupported review state version/)
   assert.equal(readFileSync(stateFile, 'utf8'), future)
   checks += 2
+  // Reads leave a corrupt file in place; the next write moves it aside.
+  const write = () =>
+    request(a.url + '/api/viewed', 'POST', {
+      range: 'corrupt',
+      path: 'context.txt',
+      hash,
+      viewed: true,
+    })
   writeFileSync(stateFile, '{corrupt-one')
   const corrupt = await request<DiffPayload>(a.url + '/api/diff')
   assert.match(corrupt.notice ?? '', /\.corrupt/)
   assert.deepEqual(corrupt.comments, [])
+  assert.equal(readFileSync(stateFile, 'utf8'), '{corrupt-one')
+  await write()
   writeFileSync(stateFile, '{corrupt-two')
   const recovered = await request<DiffPayload>(a.url + '/api/diff')
   assert.match(recovered.notice ?? '', /\.corrupt/)
+  await write()
   const backups = readdirSync(join(repo, '.git', 'ghl'))
     .filter((file) => file.endsWith('.corrupt'))
     .map((file) => readFileSync(join(repo, '.git', 'ghl', file), 'utf8'))
   assert.deepEqual(backups.toSorted(), ['{corrupt-one', '{corrupt-two'])
-  checks += 2
+  checks += 3
   console.log(
     `Go state: ${checks} checks passed (Go process concurrency, worktrees and schema compatibility)`,
   )

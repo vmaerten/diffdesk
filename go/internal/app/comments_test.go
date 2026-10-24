@@ -80,7 +80,7 @@ func TestRepositoryCommentLifecycle(t *testing.T) {
 	if _, err := restarted.remove(ctx, draft.ID); err != nil {
 		t.Fatalf("repeated deletion failed: %v", err)
 	}
-	state, _, err := store.Snapshot(ctx)
+	state, _, err := store.Snapshot()
 	if err != nil || len(state.Viewed[review.Range]) != 1 {
 		t.Fatalf("comment deletion affected Viewed: %+v %v", state, err)
 	}
@@ -110,7 +110,7 @@ func TestRepositoryCommentValidation(t *testing.T) {
 	if _, err := comments.remove(ctx, ""); err == nil {
 		t.Fatal("empty deletion accepted")
 	}
-	state, _, err := comments.store.Snapshot(ctx)
+	state, _, err := comments.store.Snapshot()
 	if err != nil || len(state.Comments) != 0 {
 		t.Fatalf("rejected operations changed persisted comments: %+v %v", state, err)
 	}
@@ -151,7 +151,7 @@ func TestConcurrentCommentCreationKeepsFirstProvenance(t *testing.T) {
 			t.Fatalf("concurrent retry replaced provenance: %+v != %+v", *first, result.Comment)
 		}
 	}
-	state, _, err := storeFor(repo).Snapshot(ctx)
+	state, _, err := storeFor(repo).Snapshot()
 	if err != nil || len(state.Comments) != 1 || first == nil {
 		t.Fatalf("concurrent creation duplicated or lost the comment: %+v %v", state, err)
 	}

@@ -16,7 +16,7 @@ func TestAPICommentsDoNotLeakToAnotherBranchAfterRestart(t *testing.T) {
 	requireStatus(t, api(t, s, "POST", "comments?target=feature", comment), 200)
 
 	// Restart with a fresh server and Store reading the same persisted state.
-	restarted := &Server{repo: s.repo, id: s.id, store: &Store{path: s.store.path, gitDir: s.repo.GitDir}}
+	restarted := &Server{repo: s.repo, id: s.id, store: &Store{path: s.store.path}}
 	for _, branch := range []string{"feature", "other", "feature"} {
 		w := api(t, restarted, "GET", "diff?target="+branch, nil)
 		requireStatus(t, w, 200)
@@ -86,11 +86,11 @@ func TestBranchCommentsSurviveComparisonChangesAndCheckout(t *testing.T) {
 
 	gitFixture(t, s.repo.Path, "stash", "push", "-qu")
 	gitFixture(t, s.repo.Path, "checkout", "-q", "other")
-	s.store = &Store{path: s.store.path, gitDir: s.repo.GitDir}
+	s.store = &Store{path: s.store.path}
 	assertComments("diff", "other", 0)
 	gitFixture(t, s.repo.Path, "checkout", "-q", "feature")
 	assertComments("diff", "feature", 2)
-	state, _, err := s.store.Snapshot(ctx)
+	state, _, err := s.store.Snapshot()
 	if err != nil || len(state.Comments) != 2 || state.Comments[0].Branch != "feature" || state.Comments[1].Range != "old-base..feature" {
 		t.Fatalf("branch switching changed stored comments: %+v %v", state, err)
 	}

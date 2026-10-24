@@ -57,7 +57,7 @@ func TestAPICommentsViewedAndRestart(t *testing.T) {
 	requireStatus(t, api(t, s, "PATCH", "comments", map[string]string{"id": "c1", "body": " edited "}), 200)
 	requireStatus(t, api(t, s, "POST", "viewed", map[string]any{"range": r.Range, "path": f.Path, "hash": f.Hash, "viewed": true}), 200)
 	// New server/store instance reads the isolated file rather than process state.
-	s.store = &Store{path: s.store.path, gitDir: s.repo.GitDir}
+	s.store = &Store{path: s.store.path}
 	w = api(t, s, "GET", "diff", nil)
 	requireStatus(t, w, 200)
 	var payload struct {
@@ -95,7 +95,7 @@ func TestAPICommentsViewedAndRestart(t *testing.T) {
 		t.Fatal("outside anchor changed")
 	}
 	requireStatus(t, api(t, s, "DELETE", "comments?id=c1", nil), 200)
-	state, _, err := s.store.Snapshot(context.Background())
+	state, _, err := s.store.Snapshot()
 	if err != nil || len(state.Comments) != 0 || len(state.Viewed[r.Range]) != 1 {
 		t.Fatal("delete affected viewed state")
 	}

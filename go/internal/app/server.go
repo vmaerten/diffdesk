@@ -205,7 +205,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(w, 422, err)
 			return
 		}
-		state, notice, err := s.store.Snapshot(r.Context())
+		state, notice, err := s.store.Snapshot()
 		if err != nil {
 			fail(w, 500, err)
 			return

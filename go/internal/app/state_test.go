@@ -17,11 +17,10 @@ import (
 func stateFixture(t *testing.T) *Store {
 	t.Helper()
 	root := t.TempDir()
-	gitFixture(t, root, "init", "-q", "--bare")
 	if err := os.MkdirAll(filepath.Join(root, "ghl"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	return &Store{gitDir: root, path: filepath.Join(root, "ghl", "state.json")}
+	return &Store{path: filepath.Join(root, "ghl", "state.json")}
 }
 
 func TestIndependentStoresSerializeTransactions(t *testing.T) {
@@ -31,7 +30,7 @@ func TestIndependentStoresSerializeTransactions(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			other := &Store{path: s.path, gitDir: s.gitDir}
+			other := &Store{path: s.path}
 			_, err := other.Mutate(context.Background(), func(state *StoredState) error {
 				state.Comments = append(state.Comments, Comment{ID: fmt.Sprint(i), Path: "file.txt", Side: "deletions", Start: 1, End: 1, Range: "main..feature", Anchor: []string{"original"}, CreatedAt: "original"})
 				return nil
@@ -42,7 +41,7 @@ func TestIndependentStoresSerializeTransactions(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	state, _, err := s.Snapshot(context.Background())
+	state, _, err := s.Snapshot()
 	if err != nil || len(state.Comments) != 20 {
 		t.Fatalf("lost concurrent writes: %+v %v", state, err)
 	}
@@ -54,7 +53,7 @@ func TestFutureSchemaIsLeftUntouched(t *testing.T) {
 	if err := os.WriteFile(s.path, raw, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.Snapshot(context.Background()); err == nil {
+	if _, _, err := s.Snapshot(); err == nil {
 		t.Fatal("future schema accepted")
 	}
 	if _, err := s.Mutate(context.Background(), func(state *StoredState) error { return nil }); err == nil {
@@ -66,17 +65,20 @@ func TestFutureSchemaIsLeftUntouched(t *testing.T) {
 	}
 }
 
-func TestLockWaitHonorsCancellation(t *testing.T) {
+func TestWriterLockHoldsWritersOnly(t *testing.T) {
 	s := stateFixture(t)
-	release, err := stateLock(context.Background(), s.gitDir, "ghl")
+	release, err := stateLock(context.Background(), s.path+".lock")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer release()
+	if _, _, err := s.Snapshot(); err != nil {
+		t.Fatalf("read waited for the writer: %v", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	if _, _, err := s.Snapshot(ctx); err == nil {
-		t.Fatal("read bypassed the writer lock")
+	if _, err := s.Mutate(ctx, func(*StoredState) error { return nil }); err == nil {
+		t.Fatal("write bypassed the writer lock")
 	}
 }
 
@@ -91,7 +93,7 @@ func TestInterruptedWriterLeavesCompleteStateAndReleasesLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=^TestStateCrashWorker$")
-	cmd.Env = append(os.Environ(), "GHL_STATE_CRASH_DIR="+s.gitDir)
+	cmd.Env = append(os.Environ(), "GHL_STATE_CRASH_PATH="+s.path)
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -116,9 +118,11 @@ func TestInterruptedWriterLeavesCompleteStateAndReleasesLock(t *testing.T) {
 	_ = cmd.Wait()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	if _, _, err := s.Snapshot(ctx); err != nil {
-		t.Fatalf("crash stranded a lock: %v", err)
+	release, err := stateLock(ctx, s.path+".lock")
+	if err != nil {
+		t.Fatalf("crash stranded the lock: %v", err)
 	}
+	release()
 	after, err := os.ReadFile(s.path)
 	if err != nil || !bytes.Equal(before, after) || !json.Valid(after) {
 		t.Fatal("interrupted write damaged state")
@@ -126,11 +130,11 @@ func TestInterruptedWriterLeavesCompleteStateAndReleasesLock(t *testing.T) {
 }
 
 func TestStateCrashWorker(t *testing.T) {
-	root := os.Getenv("GHL_STATE_CRASH_DIR")
-	if root == "" {
+	path := os.Getenv("GHL_STATE_CRASH_PATH")
+	if path == "" {
 		return
 	}
-	s := &Store{gitDir: root, path: filepath.Join(root, "ghl", "state.json")}
+	s := &Store{path: path}
 	_, err := s.Mutate(context.Background(), func(state *StoredState) error {
 		// A process can die while writing a new temporary file. Readers must
 		// keep the previous complete state and ignore this unfinished write.
@@ -163,14 +167,14 @@ func TestConcurrentStateAndPersistence(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			if _, _, err := s.Snapshot(context.Background()); err != nil {
+			if _, _, err := s.Snapshot(); err != nil {
 				t.Error(err)
 			}
 		}(i)
 	}
 	wg.Wait()
-	restarted := &Store{path: s.path, gitDir: s.gitDir}
-	state, notice, err := restarted.Snapshot(context.Background())
+	restarted := &Store{path: s.path}
+	state, notice, err := restarted.Snapshot()
 	if err != nil || notice != nil || len(state.Comments) != 32 || len(state.Viewed["base..head"]) != 32 {
 		t.Fatalf("lost writes: %+v %v", state, err)
 	}
@@ -188,7 +192,7 @@ func TestConcurrentStateAndPersistence(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	state, _, err = s.Snapshot(context.Background())
+	state, _, err = s.Snapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +203,7 @@ func TestConcurrentStateAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state, _, err = s.Snapshot(context.Background())
+	state, _, err = s.Snapshot()
 	if err != nil || len(state.Comments) != 31 || len(state.Viewed["base..head"]) != 32 {
 		t.Fatal("delete affected other state")
 	}
@@ -210,15 +214,25 @@ func TestCorruptionNotice(t *testing.T) {
 		if err := os.WriteFile(s.path, []byte(raw), 0600); err != nil {
 			t.Fatal(err)
 		}
-		state, notice, err := s.Snapshot(context.Background())
+		state, notice, err := s.Snapshot()
 		if err != nil || notice == nil || len(state.Comments) != 0 {
 			t.Fatalf("corruption swallowed: %+v %v %v", state, notice, err)
+		}
+		// A read, such as `ghl comments`, leaves the file for the user to repair.
+		if actual, err := os.ReadFile(s.path); err != nil || string(actual) != raw {
+			t.Fatalf("read changed the corrupt file: %q %v", actual, err)
+		}
+		if _, err := s.Mutate(context.Background(), func(*StoredState) error { return nil }); err != nil {
+			t.Fatal(err)
 		}
 		files, _ := filepath.Glob(s.path + ".*.corrupt")
 		if len(files) != 1 {
 			t.Fatal("missing backup")
 		}
-		if _, notice, err := s.Snapshot(context.Background()); err != nil || notice == nil {
+		if backup, err := os.ReadFile(files[0]); err != nil || string(backup) != raw {
+			t.Fatalf("backup differs: %q %v", backup, err)
+		}
+		if _, notice, err := s.Snapshot(); err != nil || notice == nil {
 			t.Fatal("notice lost before UI read")
 		}
 	}

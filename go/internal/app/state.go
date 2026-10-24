@@ -11,12 +11,11 @@ import (
 	"time"
 )
 
-// mu protects notices in memory; Git serializes complete disk transactions
-// across Store instances, foreground servers, CLI commands and Node processes.
+// mu protects the notice; stateLock serializes writers across Store instances
+// and processes. Readers take no lock: every write renames a complete file.
 type Store struct {
 	mu     sync.Mutex
 	path   string
-	gitDir string
 	notice *string
 }
 
@@ -33,6 +32,10 @@ func viewedRange(comparison string, ignoreWhitespace bool) string {
 	return comparison
 }
 
+type corruptState struct{ err error }
+
+func (c corruptState) Error() string { return c.err.Error() }
+
 func (s *Store) read() (StoredState, error) {
 	raw, err := os.ReadFile(s.path)
 	if os.IsNotExist(err) {
@@ -42,20 +45,22 @@ func (s *Store) read() (StoredState, error) {
 		return StoredState{}, err
 	}
 	state, err := decodeState(raw)
-	if err == nil {
-		return state, nil
-	}
 	var unsupported unsupportedStateVersion
-	if errors.As(err, &unsupported) {
-		return state, err
+	if err != nil && !errors.As(err, &unsupported) {
+		return emptyState(), corruptState{err}
 	}
+	return state, err
+}
+
+// quarantine moves a corrupt file aside before a write replaces it.
+func (s *Store) quarantine() error {
 	aside := fmt.Sprintf("%s.%d.corrupt", s.path, time.Now().UnixNano())
 	if err := os.Rename(s.path, aside); err != nil {
-		return StoredState{}, err
+		return err
 	}
 	notice := fmt.Sprintf("%s could not be read and was moved to %s; starting from an empty state", s.path, aside)
 	s.notice = &notice
-	return emptyState(), nil
+	return nil
 }
 
 type unsupportedStateVersion int
@@ -104,26 +109,24 @@ func decodeState(raw []byte) (StoredState, error) {
 	return state, nil
 }
 
-func (s *Store) Snapshot(ctx context.Context) (state StoredState, notice *string, err error) {
+// Snapshot never changes the disk: a corrupt file stays in place, reported as
+// empty state with a notice, until a write moves it aside.
+func (s *Store) Snapshot() (StoredState, *string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	unlock, err := stateLock(ctx, s.gitDir, filepath.Base(filepath.Dir(s.path)))
-	if err != nil {
-		return state, nil, err
+	state, err := s.read()
+	var corrupt corruptState
+	if errors.As(err, &corrupt) {
+		notice := fmt.Sprintf("%s could not be read (%v); showing an empty state until the next change moves it to a .corrupt backup", s.path, corrupt.err)
+		return state, &notice, nil
 	}
-	defer func() {
-		if release := unlock(); err == nil {
-			err = release
-		}
-	}()
-	state, err = s.read()
 	return state, s.notice, err
 }
 
 func (s *Store) Mutate(ctx context.Context, change func(*StoredState) error) (state StoredState, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	unlock, err := stateLock(ctx, s.gitDir, filepath.Base(filepath.Dir(s.path)))
+	unlock, err := stateLock(ctx, s.path+".lock")
 	if err != nil {
 		return state, err
 	}
@@ -133,6 +136,9 @@ func (s *Store) Mutate(ctx context.Context, change func(*StoredState) error) (st
 		}
 	}()
 	state, err = s.read()
+	if errors.As(err, new(corruptState)) {
+		err = s.quarantine()
+	}
 	if err != nil {
 		return state, err
 	}
