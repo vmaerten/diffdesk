@@ -213,6 +213,8 @@ func run() error {
 	helpMenu.AddText("Keyboard Shortcuts", nil, command("shortcuts"))
 	return wails.Run(&options.App{
 		Title: "ghl", Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
+		// Width and Height are the size the window's zoom button returns to.
+		WindowStartState: options.Maximised,
 		// The runtime limits this menu to fields and selected text; disabling it
 		// would also remove Copy and Paste there.
 		Menu: appMenu, EnableDefaultContextMenu: true,
