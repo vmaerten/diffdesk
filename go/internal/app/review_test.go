@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -183,6 +184,27 @@ func TestContextAndAnchors(t *testing.T) {
 	}
 }
 
+func TestNonUTF8LinesKeepTheirAnchor(t *testing.T) {
+	ctx := context.Background()
+	r := fixture(t)
+	writeFixture(t, r.Path, "latin.txt", "caf\xe9\ncaf\xe9\xe8\n")
+	gitFixture(t, r.Path, "add", "latin.txt")
+	review := compare(t, r, false)
+	c := Comment{Path: "latin.txt", Side: "additions", Start: 1, End: 2}
+	lines, err := review.Lines(ctx, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The anchor is stored as JSON, which replaces each invalid byte.
+	raw, _ := json.Marshal(lines)
+	if err := json.Unmarshal(raw, &c.Anchor); err != nil {
+		t.Fatal(err)
+	}
+	if served := review.Comments(ctx, []Comment{c})[0]; served.Stale {
+		t.Fatalf("unchanged lines read as stale: %q against %q", served.Code, c.Anchor)
+	}
+}
+
 func TestEditedRename(t *testing.T) {
 	r := fixture(t)
 	gitFixture(t, r.Path, "mv", "context.txt", "context moved.txt")
@@ -209,16 +231,16 @@ func TestEditedRename(t *testing.T) {
 func TestPathsAndReadLimits(t *testing.T) {
 	ctx := context.Background()
 	r := fixture(t)
-	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt"} {
+	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt", "back\\slash.txt"} {
 		writeFixture(t, r.Path, path, "original\n")
 		gitFixture(t, r.Path, "add", "--", path)
 	}
 	gitFixture(t, r.Path, "commit", "-qm", "names")
-	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt"} {
+	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt", "back\\slash.txt"} {
 		writeFixture(t, r.Path, path, "edited\n")
 	}
 	review := compare(t, r, false)
-	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt"} {
+	for _, path := range []string{"space name.txt", "日本語.txt", "tab\tname.txt", "line\nname.txt", "has b/name.txt", "quote\"name.txt", "é\tname.txt", "back\\slash.txt"} {
 		f := statFor(t, review, path)
 		if f.Hash == nil {
 			t.Fatalf("unparsed name %q", path)
@@ -232,7 +254,7 @@ func TestPathsAndReadLimits(t *testing.T) {
 	if statFor(t, unquoted, "é\tname.txt").Hash == nil {
 		t.Fatal("mixed Unicode/control path not parsed")
 	}
-	for _, path := range []string{"../escape", "/etc/passwd", ".git/config", "a/../context.txt", "a\\b", "a//b"} {
+	for _, path := range []string{"../escape", "/etc/passwd", ".git/config", "a/../context.txt", "a//b"} {
 		if _, err := r.readText(ctx, nil, path); err == nil {
 			t.Fatalf("accepted %q", path)
 		}
@@ -334,21 +356,62 @@ func TestPatchFormatIgnoresUserConfig(t *testing.T) {
 		}
 	}
 }
+func TestReviewDuringAMergeConflict(t *testing.T) {
+	ctx := context.Background()
+	path := t.TempDir()
+	gitFixture(t, path, "init", "-q", "-b", "main")
+	gitFixture(t, path, "config", "user.name", "Fixture")
+	gitFixture(t, path, "config", "user.email", "fixture@example.invalid")
+	writeFixture(t, path, "a.txt", "one\ntwo\n")
+	gitFixture(t, path, "add", ".")
+	gitFixture(t, path, "commit", "-qm", "base")
+	gitFixture(t, path, "checkout", "-qb", "feature")
+	writeFixture(t, path, "a.txt", "feature\ntwo\n")
+	gitFixture(t, path, "commit", "-qam", "feature")
+	gitFixture(t, path, "checkout", "-q", "main")
+	writeFixture(t, path, "a.txt", "main\ntwo\n")
+	gitFixture(t, path, "commit", "-qam", "main")
+	gitFixture(t, path, "checkout", "-q", "feature")
+	merge := exec.Command("git", "-C", path, "merge", "main")
+	merge.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+	if out, err := merge.CombinedOutput(); err == nil {
+		t.Fatalf("merge did not conflict: %s", out)
+	}
+	r, err := openRepository(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	review, err := r.Compare(ctx, "main", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if review.Operation == nil || *review.Operation != "merge" || strings.Join(review.Conflicted, ",") != "a.txt" {
+		t.Fatalf("operation: %v %v", review.Operation, review.Conflicted)
+	}
+	if f := statFor(t, review, "a.txt"); f.Hash == nil || !strings.Contains(review.Patch, "+<<<<<<< HEAD") {
+		t.Fatalf("conflicted file not reviewable: %+v", f)
+	}
+	// A stopped rebase detaches HEAD, but the comments stay the branch's.
+	gitFixture(t, path, "merge", "--abort")
+	rebase := exec.Command("git", "-C", path, "rebase", "main")
+	rebase.Env = merge.Env
+	if out, err := rebase.CombinedOutput(); err == nil {
+		t.Fatalf("rebase did not stop: %s", out)
+	}
+	review, err = r.Compare(ctx, "main", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *review.Operation != "rebase" || review.Branch == nil || *review.Branch != "feature" || review.CommentBranch != "feature" {
+		t.Fatalf("rebase review: %v %v %s", *review.Operation, review.Branch, review.CommentBranch)
+	}
+}
 func TestInvalidComparisonsAndCancellation(t *testing.T) {
 	r := fixture(t)
 	ctx := context.Background()
 	for _, base := range []string{"", "--help", "missing-ref", "HEAD\x00"} {
 		if _, err := r.Compare(ctx, base, false); err == nil {
 			t.Fatalf("accepted %q", base)
-		}
-	}
-	for _, operation := range []string{"MERGE_HEAD", "rebase-merge", "CHERRY_PICK_HEAD"} {
-		writeFixture(t, r.GitDir, operation, "in progress")
-		if _, err := r.Compare(ctx, "main", false); err == nil || !strings.Contains(err.Error(), "scope") {
-			t.Fatal("operation accepted")
-		}
-		if err := os.Remove(filepath.Join(r.GitDir, operation)); err != nil {
-			t.Fatal(err)
 		}
 	}
 	cancelled, cancel := context.WithCancel(ctx)

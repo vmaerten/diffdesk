@@ -54,7 +54,7 @@ func (r Repository) imageVersion(ctx context.Context, repoID, revision, path str
 	encode := func(value string) string {
 		return strings.NewReplacer("~", "%7E", "%2A", "*").Replace(url.QueryEscape(value))
 	}
-	uri := "/r/" + repoID + "/api/image?revision=" + encode(revision) + "&path=" + encode(path) + "&v=" + hash
+	uri := "/r/" + url.PathEscape(repoID) + "/api/image?revision=" + encode(revision) + "&path=" + encode(path) + "&v=" + hash
 	// Keep only metadata; a pointer into source would retain its image bytes.
 	size := source.size
 	return &ImageVersion{URL: &uri, Bytes: &size, Hash: hash}

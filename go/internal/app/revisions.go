@@ -24,10 +24,12 @@ type Selection struct {
 	IgnoreWhitespace     bool
 }
 
+// optionalText reads a value Git may report absent with exit code 1. Code 128
+// is a fatal error, such as a moved checkout, and stays one.
 func (r Repository) optionalText(ctx context.Context, args ...string) (string, error) {
 	value, err := r.text(ctx, args...)
 	var exited *exec.ExitError
-	if ctx.Err() == nil && errors.As(err, &exited) && (exited.ExitCode() == 1 || exited.ExitCode() == 128) {
+	if ctx.Err() == nil && errors.As(err, &exited) && exited.ExitCode() == 1 {
 		return "", nil
 	}
 	return value, err
@@ -40,10 +42,25 @@ func (r Repository) resolveRef(ctx context.Context, ref string) (string, error) 
 }
 func (r Repository) currentBranch(ctx context.Context) (*string, error) {
 	name, err := r.optionalText(ctx, "symbolic-ref", "--quiet", "--short", "HEAD")
+	if name == "" && err == nil {
+		name = r.rebasedBranch()
+	}
 	if name == "" {
 		return nil, err
 	}
 	return &name, err
+}
+
+// rebasedBranch is the branch a stopped rebase is rewriting: HEAD is detached
+// meanwhile, but the review, its base and its comments are still that branch's.
+func (r Repository) rebasedBranch() string {
+	for _, dir := range []string{"rebase-merge", "rebase-apply"} {
+		raw, err := os.ReadFile(filepath.Join(r.GitDir, dir, "head-name"))
+		if name, ok := strings.CutPrefix(strings.TrimSpace(string(raw)), "refs/heads/"); err == nil && ok {
+			return name
+		}
+	}
+	return ""
 }
 func (r Repository) refs(ctx context.Context) ([]RefDetail, error) {
 	raw, err := r.text(ctx, "for-each-ref", "--sort=-committerdate", "--format=%(refname:short)%09%(committerdate:relative)", "refs/heads")

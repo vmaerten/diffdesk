@@ -241,7 +241,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"comparison": review.Comparison, "repo": map[string]string{"id": s.id, "path": s.repo.Path},
 			"base": review.Resolution,
 			"head": map[string]any{"branch": review.Branch, "sha": review.Head}, "target": map[string]any{"ref": review.Target, "workingTree": review.Comparison.After == nil},
-			"commit": review.Commit, "range": review.Range, "state": map[string]any{"operation": nil, "conflicted": []string{}},
+			"commit": review.Commit, "range": review.Range, "state": map[string]any{"operation": review.Operation, "conflicted": review.Conflicted},
 			"untracked": review.Untracked, "untrackedIncluded": review.UntrackedIncluded, "files": review.Files, "totals": review.Totals,
 			"viewed": viewed, "comments": review.Comments(r.Context(), review.branchComments(state.Comments)), "commentBranch": review.CommentBranch, "notice": notice, "patch": review.Patch,
 		})

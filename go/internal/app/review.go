@@ -88,7 +88,8 @@ func validRef(ref string) bool {
 	return ref != "" && !strings.HasPrefix(ref, "-") && !strings.ContainsAny(ref, "\x00\r\n") && len(ref) <= 1024
 }
 func validPath(path string) bool {
-	if path == "" || filepath.IsAbs(path) || strings.ContainsAny(path, "\\\x00") {
+	// A backslash is an ordinary character in macOS and Git names.
+	if path == "" || filepath.IsAbs(path) || strings.ContainsRune(path, 0) {
 		return false
 	}
 	for _, part := range strings.Split(path, "/") {
@@ -104,15 +105,17 @@ func validLocation(c Comment) bool {
 func changed() error {
 	return fmt.Errorf("Comparison changed; refresh the diff before expanding context")
 }
-func (r Repository) checkOperation() error {
-	for _, entry := range []struct{ path, operation string }{{"MERGE_HEAD", "merge"}, {"rebase-merge", "rebase"}, {"rebase-apply", "rebase"}, {"CHERRY_PICK_HEAD", "cherry-pick"}} {
+
+// operation names the merge, rebase, cherry-pick or revert in progress, if any.
+func (r Repository) operation() (*string, error) {
+	for _, entry := range []struct{ path, operation string }{{"MERGE_HEAD", "merge"}, {"rebase-merge", "rebase"}, {"rebase-apply", "rebase"}, {"CHERRY_PICK_HEAD", "cherry-pick"}, {"REVERT_HEAD", "revert"}} {
 		if _, err := os.Stat(filepath.Join(r.GitDir, entry.path)); err == nil {
-			return fmt.Errorf("%s in progress is outside the Go PoC scope", entry.operation)
+			return &entry.operation, nil
 		} else if !os.IsNotExist(err) {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 type section struct {
@@ -134,9 +137,13 @@ type Review struct {
 	Totals            Totals
 	Untracked         []string
 	UntrackedIncluded bool
-	ignoreWhitespace  bool
-	sections          map[string]*section
-	sources           map[string]*TextFile
+	// The operation in progress and its unmerged paths: the diff still shows,
+	// conflict markers included, under a warning.
+	Operation        *string
+	Conflicted       []string
+	ignoreWhitespace bool
+	sections         map[string]*section
+	sources          map[string]*TextFile
 }
 
 // Resolve once. Patch, statistics, hashes and context all describe these versions.
@@ -151,9 +158,6 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 		if ref != "" && !validRef(ref) {
 			return nil, fmt.Errorf("Invalid revision %q", ref)
 		}
-	}
-	if err := r.checkOperation(); err != nil {
-		return nil, err
 	}
 	head, err := r.text(ctx, "rev-parse", "--verify", "HEAD^{commit}")
 	if err != nil {
@@ -196,7 +200,7 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 	if baseSHA == "" {
 		return nil, fmt.Errorf("Invalid base %q: does not resolve to a revision", resolution.Ref)
 	}
-	review := &Review{repo: r, Base: resolution.Ref, Resolution: resolution, Head: head, Branch: branch, Target: target, Files: []FileStat{}, Untracked: []string{}, ignoreWhitespace: selection.IgnoreWhitespace, sections: map[string]*section{}, sources: map[string]*TextFile{}}
+	review := &Review{repo: r, Base: resolution.Ref, Resolution: resolution, Head: head, Branch: branch, Target: target, Files: []FileStat{}, Untracked: []string{}, Conflicted: []string{}, ignoreWhitespace: selection.IgnoreWhitespace, sections: map[string]*section{}, sources: map[string]*TextFile{}}
 	// Commit selection and base changes keep the reviewed branch's comments.
 	// Detached checkouts use their revision rather than sharing a global HEAD scope.
 	review.CommentBranch = strings.TrimPrefix(target, "refs/heads/")
@@ -264,8 +268,19 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 			return nil, err
 		}
 	}
-	if err := r.checkOperation(); err != nil {
+	if review.Operation, err = r.operation(); err != nil {
 		return nil, err
+	}
+	if review.Operation != nil {
+		unmerged, err := r.git(ctx, 64*1024*1024, "diff", "--name-only", "--diff-filter=U", "-z")
+		if err != nil {
+			return nil, err
+		}
+		for _, path := range strings.Split(string(unmerged), "\x00") {
+			if path != "" {
+				review.Conflicted = append(review.Conflicted, path)
+			}
+		}
 	}
 	review.Patch = string(outputs[0])
 	statuses, previous := parseStatuses(string(outputs[2]))
@@ -287,9 +302,16 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 				}
 			}
 			if selection.IncludeUntracked && len(review.Untracked) > 0 {
-				patch, files, err := r.untrackedPatch(ctx, review.Untracked)
+				patch, files, left, err := r.untrackedPatch(ctx, review.Untracked)
 				if err != nil {
 					return nil, err
+				}
+				if len(left) > 0 {
+					notice := "Untracked files left out: " + strings.Join(left, ", ")
+					if review.Notice != nil {
+						notice = *review.Notice + " — " + notice
+					}
+					review.Notice = &notice
 				}
 				review.Patch += patch
 				review.Files = append(review.Files, files...)
@@ -577,7 +599,31 @@ func (r *Review) Context(ctx context.Context, path, hash string) (*DiffFiles, er
 	}
 	return &DiffFiles{OldFile: old, NewFile: now}, nil
 }
+
+// Lines returns the commented code as JSON stores anchors: each invalid UTF-8
+// byte becomes U+FFFD, so unchanged non-UTF-8 lines still match their anchor.
 func (r *Review) Lines(ctx context.Context, c Comment) ([]string, error) {
+	lines, err := r.rawLines(ctx, c)
+	for i, line := range lines {
+		lines[i] = validText(line)
+	}
+	return lines, err
+}
+
+func validText(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	}
+	var text strings.Builder
+	for len(s) > 0 {
+		r, size := utf8.DecodeRuneInString(s)
+		text.WriteRune(r)
+		s = s[size:]
+	}
+	return text.String()
+}
+
+func (r *Review) rawLines(ctx context.Context, c Comment) ([]string, error) {
 	if !validLocation(c) {
 		return nil, fmt.Errorf("Invalid line range")
 	}

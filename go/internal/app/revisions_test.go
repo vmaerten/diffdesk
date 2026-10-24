@@ -243,3 +243,18 @@ func TestOutdatedLocalTrunk(t *testing.T) {
 	gitFixture(t, r.Path, "update-ref", "-d", "refs/remotes/origin/main")
 	assertTrunk("main")
 }
+
+func TestGitFailuresAreNotAbsentValues(t *testing.T) {
+	ctx := context.Background()
+	r := fixture(t)
+	if sha, err := r.resolveRef(ctx, "missing"); sha != "" || err != nil {
+		t.Fatalf("missing ref: %q %v", sha, err)
+	}
+	// A moved or deleted checkout is a failure, not a ref that does not exist.
+	if err := os.RemoveAll(r.GitDir); err != nil {
+		t.Fatal(err)
+	}
+	if sha, err := r.resolveRef(ctx, "main"); err == nil {
+		t.Fatalf("broken repository read as a missing ref: %q", sha)
+	}
+}
