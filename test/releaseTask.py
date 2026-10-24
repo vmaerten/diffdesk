@@ -144,11 +144,13 @@ def log(event, **fields):
     def test_workflow_tag_takes_precedence_over_the_head_tag(self):
         result, events = self.run_release(RELEASE_TAG='v1.2.4')
         self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Release tag must match package.json version', result.stderr)
         self.assertEqual(events, [])
 
     def test_mismatched_tag_cannot_build_or_publish(self):
         result, events = self.run_release('TAG=v1.2.4')
         self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Release tag must match package.json version', result.stderr)
         self.assertEqual(events, [])
 
     def test_failed_build_does_not_publish(self):

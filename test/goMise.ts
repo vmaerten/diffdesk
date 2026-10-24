@@ -327,8 +327,9 @@ try {
     // An empty probe keeps the app on an instance of its own, apart from the user's.
     const probe = join(temporary, 'probe.js')
     writeFileSync(probe, '')
-    await run(shim, ['--repo', repo, '--base', 'main'], { PATH: onlyGit, GHL_DESKTOP_PROBE: probe })
+    // Before launching: a launcher that fails may still have started the app.
     window = binary
+    await run(shim, ['--repo', repo, '--base', 'main'], { PATH: onlyGit, GHL_DESKTOP_PROBE: probe })
     for (let attempt = 0; attempt < 100 && !windowRunning(binary); attempt++)
       await new Promise((resolve) => setTimeout(resolve, 200))
     assert.ok(windowRunning(binary), 'The app did not open its window from the mise install')

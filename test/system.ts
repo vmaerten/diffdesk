@@ -14,12 +14,3 @@ export function findExecutable(name: string): string {
   }
   throw new Error(`Test prerequisite not found on PATH: ${name}`)
 }
-
-/** Node's OS resolver may differ from Go/Chrome for *.localhost on Linux.
- * API probes use the known loopback listener; browser tests keep advertised URLs.
- */
-export function loopbackURL(address: string | URL): URL {
-  const url = new URL(address)
-  url.hostname = '127.0.0.1'
-  return url
-}

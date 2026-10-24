@@ -1,7 +1,8 @@
 import {
   allTreeRows,
   openPicker,
-  sleep,
+  pickerShows,
+  poll,
   titlebar,
   waitForRows,
   TREE_ROWS,
@@ -77,7 +78,7 @@ export default {
 
     // Folding.
     await clickHead('Collapse all')
-    await sleep(400)
+    await poll(rows, (shown) => shown.dirs.length > 0 && shown.dirs.every((dir) => !dir.open))
     const folded = await rows()
     check(
       'collapse all hides rows',
@@ -93,8 +94,8 @@ export default {
       summaries.map((r) => r.decoration).join(' | '),
     )
     await clickHead('Expand all')
-    await sleep(400)
-    check('expand all restores them', (await rows()).rows.length === start.rows.length)
+    const expanded = await poll(rows, (shown) => shown.rows.length === start.rows.length)
+    check('expand all restores them', expanded.rows.length === start.rows.length)
 
     // The chain src/util/deep/nested is one row, not three — and only visible
     // while the tree is open, which is why this is not checked while folded.
@@ -107,13 +108,12 @@ export default {
 
     // j has to reveal what it selects, not select something invisible.
     await clickHead('Collapse all')
-    await sleep(400)
+    await poll(rows, (shown) => shown.dirs.length > 0 && shown.dirs.every((dir) => !dir.open))
     const closed = await rows()
     let revealed = closed
     for (let i = 0; i < 12; i++) {
       await page.keyboard.press('j')
-      await sleep(350)
-      revealed = await rows()
+      revealed = await poll(rows, (shown) => shown.rows.length > closed.rows.length, 1_000)
       if (revealed.rows.length > closed.rows.length) break
     }
     check(
@@ -130,18 +130,21 @@ export default {
     // Reviewing another revision rebuilds the tree — the only path that reaches
     // resetPaths, since an identical file list is reused as is.
     await clickHead('Collapse all')
-    await sleep(400)
+    await poll(rows, (shown) => shown.dirs.length > 0 && shown.dirs.every((dir) => !dir.open))
     const beforeSwitch = await rows()
     const wasFolded = new Set(beforeSwitch.dirs.filter((d) => !d.open).map((d) => d.path))
 
     await openPicker(page, 't')
     await page.keyboard.type('other')
-    await sleep(600)
+    await pickerShows(page, 'other')
     await page.keyboard.press('Enter')
     await waitForRows(page)
-    await sleep(500)
 
-    const afterSwitch = await rows()
+    // The rebuilt tree restores its folds as it mounts.
+    const afterSwitch = await poll(rows, (shown) => {
+      const shared = shown.dirs.filter((d) => wasFolded.has(d.path))
+      return shared.length > 0 && shared.every((d) => !d.open)
+    })
     const shared = afterSwitch.dirs.filter((d) => wasFolded.has(d.path))
     const reopened = shared.filter((d) => d.open)
     check(

@@ -5,16 +5,24 @@ import { realpathSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 
+/** Git without the machine's global and system config, so results do not depend on it. */
+export const isolatedGit = {
+  ...process.env,
+  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_CONFIG_NOSYSTEM: '1',
+}
+
 /** The review server without the desktop window, built by `task build`. */
 export function goBinary(): string {
   return realpathSync(fileURLToPath(new URL('../go/dist/ghl-dev', import.meta.url)))
 }
 
-export async function serveGo(repoPath: string) {
-  const child = spawn(goBinary(), ['--repo', repoPath, '--port', '0'], {
+/** Serve `repoPath` on a free port; `args` adds options such as `--base`. */
+export async function serveGo(repoPath: string, args: readonly string[] = []) {
+  const child = spawn(goBinary(), ['--repo', repoPath, ...args, '--port', '0'], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
-      ...process.env,
+      ...isolatedGit,
       ...(process.env.GHL_TEST_GIT_PATH ? { PATH: process.env.GHL_TEST_GIT_PATH } : {}),
     },
   })
@@ -33,9 +41,12 @@ export async function serveGo(repoPath: string) {
       }),
     ])
     const info: { port: number; repoId: string } = JSON.parse(line)
+    const origin = `http://127.0.0.1:${info.port}`
     return {
-      origin: `http://127.0.0.1:${info.port}`,
+      origin,
       repoId: info.repoId,
+      /** The repository's routes, as in `${base}/api/diff`. */
+      base: `${origin}/r/${info.repoId}`,
       close: async () => {
         if (child.exitCode !== null || child.signalCode !== null) return
         child.kill('SIGINT')

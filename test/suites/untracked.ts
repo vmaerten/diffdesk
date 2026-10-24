@@ -1,7 +1,7 @@
 import { rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { openOptions, sleep, titlebar, TREE_ROWS, type Suite, type TreeRow } from '../harness.ts'
+import { openOptions, poll, titlebar, TREE_ROWS, type Suite, type TreeRow } from '../harness.ts'
 
 const BUTTON = `document.querySelector('.options-popover .scope-check input.untracked')`
 
@@ -34,7 +34,6 @@ export default {
       // Pressed first: released, the diff is empty and there is no tree to wait
       // for, which is what `load` waits on.
       await load('?untracked=1')
-      await sleep(1000)
       await openOptions(page)
 
       check(
@@ -61,7 +60,7 @@ export default {
       )
 
       await page.evaluate(`${BUTTON}.click()`)
-      await sleep(1500)
+      await poll(message, (text) => text?.includes('nothing but 1 untracked file(s)') === true)
 
       check(
         'releasing it takes the file back out',
@@ -89,7 +88,6 @@ export default {
       // Bare, as it is typed by hand: `get` would return the empty string here,
       // which is falsy, and the flag would be inert without saying so.
       await load('?untracked')
-      await sleep(1000)
       await openOptions(page)
       check(
         'the flag works written bare',
@@ -100,7 +98,6 @@ export default {
       // A ref holds no working tree, so nothing is untracked in it whatever the
       // flag says — and a checked checkbox there would claim otherwise.
       await load('?target=feature&untracked=1')
-      await sleep(1000)
       await openOptions(page)
       const onRef = await button()
       check(

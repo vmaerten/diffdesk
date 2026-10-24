@@ -19,6 +19,16 @@ func shortDir(t *testing.T) string {
 	return dir
 }
 
+// The launcher and the app LaunchServices starts must agree on the folder
+// whatever TMPDIR each of them was given.
+func TestUserTempDirIgnoresTMPDIR(t *testing.T) {
+	want := userTempDir()
+	t.Setenv("TMPDIR", t.TempDir())
+	if got := userTempDir(); got != want || got == os.TempDir() {
+		t.Fatalf("user temp dir %q follows TMPDIR %q", got, os.TempDir())
+	}
+}
+
 func TestOneAppClaimsTheInstance(t *testing.T) {
 	dir := shortDir(t)
 	first, err := claimInstance(dir, "app")

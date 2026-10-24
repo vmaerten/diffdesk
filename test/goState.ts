@@ -1,8 +1,6 @@
-import { loopbackURL } from './system.ts'
-import { goBinary } from './goBinary.ts'
+import { isolatedGit, serveGo } from './goBinary.ts'
 import assert from 'node:assert/strict'
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
-import { once } from 'node:events'
+import { execFileSync } from 'node:child_process'
 import {
   mkdirSync,
   mkdtempSync,
@@ -14,7 +12,6 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createInterface } from 'node:readline'
 import { createHash } from 'node:crypto'
 
 import type { Comment, DiffPayload, StoredState } from '../src/types.ts'
@@ -22,36 +19,16 @@ import type { Comment, DiffPayload, StoredState } from '../src/types.ts'
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-go-state-')))
 const repo = join(root, 'repo')
 mkdirSync(repo)
-const binary = goBinary()
 const git = (...args: string[]) =>
-  execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim()
+  execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', env: isolatedGit }).trim()
 const stateFile = join(repo, '.git', 'ghl', 'state.json')
-const servers: ChildProcess[] = []
+const servers: Awaited<ReturnType<typeof serveGo>>[] = []
 let checks = 0
 
 async function start(repoPath = repo) {
-  const child = spawn(binary, ['--repo', repoPath, '--base', 'main', '--port', '0'], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
-  servers.push(child)
-  let errors = ''
-  child.stderr!.on('data', (chunk) => {
-    errors += String(chunk)
-  })
-  const lines = createInterface({ input: child.stdout! })
-  const timer = setTimeout(() => child.kill('SIGTERM'), 20_000)
-  try {
-    const first = await Promise.race([
-      once(lines, 'line').then(([line]) => String(line)),
-      once(child, 'exit').then(() => {
-        throw new Error(errors)
-      }),
-    ])
-    return { child, url: loopbackURL(JSON.parse(first).url).href.split('?')[0] as string }
-  } finally {
-    clearTimeout(timer)
-    lines.close()
-  }
+  const server = await serveGo(repoPath, ['--base', 'main'])
+  servers.push(server)
+  return server
 }
 
 const send = (url: string, method = 'GET', body?: unknown) =>
@@ -118,7 +95,7 @@ try {
 
   let a = await start()
   let b = await start()
-  const first = await request<DiffPayload>(a.url + '/api/diff')
+  const first = await request<DiffPayload>(a.base + '/api/diff')
   assert.deepEqual(
     first.comments.map(({ code: _code, stale: _stale, ...comment }) => comment),
     JSON.parse(initial).comments,
@@ -130,20 +107,20 @@ try {
 
   const goWriter = async (server: typeof a, name: string) => {
     for (let i = 0; i < 10; i++) {
-      await request(server.url + '/api/comments', 'POST', {
+      await request(server.base + '/api/comments', 'POST', {
         ...seed,
         id: `${name}-${i}`,
         body: name,
       })
-      await request(server.url + '/api/viewed', 'POST', {
+      await request(server.base + '/api/viewed', 'POST', {
         range: 'concurrent',
         path: `${name}-${i}`,
         hash: name,
         viewed: true,
       })
-      await request(server.url + '/api/comments', 'POST', { ...seed, body: name })
+      await request(server.base + '/api/comments', 'POST', { ...seed, body: name })
     }
-    await request(server.url + `/api/comments?id=delete-${name}`, 'DELETE')
+    await request(server.base + `/api/comments?id=delete-${name}`, 'DELETE')
   }
   await Promise.all([
     goWriter(a, 'go-a'),
@@ -159,7 +136,7 @@ try {
   assert.equal(concurrent.comments.find((c) => c.id === 'before')?.side, 'deletions')
   assert.equal(concurrent.viewed['main..feature']?.['context.txt'], hash)
   checks += 6
-  await request(a.url + '/api/comments?target=main', 'PATCH', {
+  await request(a.base + '/api/comments?target=main', 'PATCH', {
     id: 'seed',
     body: 'edited outside diff',
   })
@@ -169,11 +146,9 @@ try {
   checks++
 
   // Restart while the other server stays up; no process-local cache owns state.
-  const exited = once(a.child, 'exit')
-  a.child.kill('SIGINT')
-  await exited
+  await a.close()
   a = await start()
-  const restarted = await request<DiffPayload>(a.url + '/api/diff')
+  const restarted = await request<DiffPayload>(a.base + '/api/diff')
   assert.equal(restarted.comments.length, 42)
   assert.equal(restarted.viewed['context.txt'], hash)
   checks++
@@ -181,13 +156,13 @@ try {
   const linked = join(root, 'linked')
   git('worktree', 'add', '-q', '-b', 'linked', linked, 'HEAD')
   const linkedServer = await start(linked)
-  await request(linkedServer.url + '/api/viewed', 'POST', {
+  await request(linkedServer.base + '/api/viewed', 'POST', {
     range: 'main..linked',
     path: 'context.txt',
     hash,
     viewed: true,
   })
-  await request(linkedServer.url + '/api/comments', 'POST', {
+  await request(linkedServer.base + '/api/comments', 'POST', {
     ...seed,
     id: 'linked-only',
     range: 'main..linked',
@@ -198,7 +173,7 @@ try {
     { encoding: 'utf8' },
   ).trim()
   assert.notEqual(linkedFile, stateFile)
-  const linkedRead = await request<DiffPayload>(linkedServer.url + '/api/diff')
+  const linkedRead = await request<DiffPayload>(linkedServer.base + '/api/diff')
   assert.deepEqual(
     linkedRead.comments.map((c) => c.id),
     ['linked-only'],
@@ -211,27 +186,27 @@ try {
 
   const future = '{"version":2,"viewed":{},"comments":[]}'
   writeFileSync(stateFile, future)
-  const unsupported = await send(a.url + '/api/diff')
+  const unsupported = await send(a.base + '/api/diff')
   assert.notEqual(unsupported.status, 200)
   assert.match(await unsupported.text(), /Unsupported review state version/)
   assert.equal(readFileSync(stateFile, 'utf8'), future)
   checks += 2
   // Reads leave a corrupt file in place; the next write moves it aside.
   const write = () =>
-    request(a.url + '/api/viewed', 'POST', {
+    request(a.base + '/api/viewed', 'POST', {
       range: 'corrupt',
       path: 'context.txt',
       hash,
       viewed: true,
     })
   writeFileSync(stateFile, '{corrupt-one')
-  const corrupt = await request<DiffPayload>(a.url + '/api/diff')
+  const corrupt = await request<DiffPayload>(a.base + '/api/diff')
   assert.match(corrupt.notice ?? '', /\.corrupt/)
   assert.deepEqual(corrupt.comments, [])
   assert.equal(readFileSync(stateFile, 'utf8'), '{corrupt-one')
   await write()
   writeFileSync(stateFile, '{corrupt-two')
-  const recovered = await request<DiffPayload>(a.url + '/api/diff')
+  const recovered = await request<DiffPayload>(a.base + '/api/diff')
   assert.match(recovered.notice ?? '', /\.corrupt/)
   await write()
   const backups = readdirSync(join(repo, '.git', 'ghl'))
@@ -243,12 +218,6 @@ try {
     `Go state: ${checks} checks passed (Go process concurrency, worktrees and schema compatibility)`,
   )
 } finally {
-  for (const child of servers) {
-    if (child.exitCode === null && child.signalCode === null) {
-      const exited = once(child, 'exit')
-      child.kill('SIGINT')
-      await exited
-    }
-  }
+  await Promise.all(servers.map((server) => server.close()))
   rmSync(root, { recursive: true, force: true })
 }

@@ -1,24 +1,14 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, symlinkSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { DiffPayload } from '../src/types.ts'
-import { clickTreeRow, sleep, withHarness, type Check } from './harness.ts'
-
-export interface ImageTestServer {
-  origin: string
-  repoId: string
-  close: () => Promise<void>
-}
-
-export interface ImageTestRuntime {
-  serve: (repo: string) => Promise<ImageTestServer>
-  withHarness: typeof withHarness
-}
+import { clickTreeRow, until, withHarness, type Check } from './harness.ts'
+import { isolatedGit, serveGo } from './goBinary.ts'
 
 const git = (cwd: string, args: string[]) =>
-  execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+  execFileSync('git', args, { cwd, encoding: 'utf8', env: isolatedGit }).trim()
 const svg = (color: string, width = 80) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="60"><rect width="100%" height="100%" fill="${color}"/></svg>`
 const gif = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
@@ -27,9 +17,9 @@ const png = Buffer.from(
   'base64',
 )
 
-export async function runImages(check: Check, runtime: ImageTestRuntime): Promise<void> {
-  const path = mkdtempSync(join(tmpdir(), 'ghl-images-'))
-  let running: ImageTestServer | undefined
+export async function runImages(check: Check): Promise<void> {
+  const path = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-images-')))
+  let running: Awaited<ReturnType<typeof serveGo>> | undefined
   try {
     git(path, ['init', '-q', '--initial-branch=main'])
     git(path, ['config', 'user.name', 'Image tests'])
@@ -66,7 +56,7 @@ export async function runImages(check: Check, runtime: ImageTestRuntime): Promis
     writeFileSync(join(path, 'changed.svg'), svg('yellow', 200))
     writeFileSync(join(path, 'untracked.png'), png)
 
-    running = await runtime.serve(path)
+    running = await serveGo(path, ['--base', 'main'])
     const { origin, repoId } = running
     const base = `${origin}/r/${repoId}`
     const diff = async (query: string): Promise<DiffPayload> => {
@@ -252,7 +242,7 @@ export async function runImages(check: Check, runtime: ImageTestRuntime): Promis
     rmSync(join(path, 'oversized.png'))
     writeFileSync(join(path, 'broken.png'), 'not an image')
 
-    await runtime.withHarness(path, async (make) => {
+    await withHarness(path, async (make) => {
       const harness = await make()
       const { page, load } = harness
       await load('?base=main&target=feature')
@@ -281,14 +271,27 @@ export async function runImages(check: Check, runtime: ImageTestRuntime): Promis
           sizes[0].y === sizes[1].y,
         JSON.stringify(sizes),
       )
-      await page.screenshot({
-        path: '/tmp/ghl-go-image-previews.png',
-      })
       const zoomTrigger =
         '[data-image-path="changed.svg"] .image-side:last-child .image-zoom-trigger'
-      await sleep(600)
+      // Selecting the file left the pane settling: click once a point of the
+      // trigger actually hits it.
+      const clickTrigger = async () => {
+        const at = await page.waitForFunction(
+          (selector) => {
+            const trigger = document.querySelector(selector)
+            const box = trigger?.getBoundingClientRect()
+            if (!trigger || !box) return null
+            const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+            return trigger.contains(document.elementFromPoint(point.x, point.y)) ? point : null
+          },
+          { timeout: 10_000 },
+          zoomTrigger,
+        )
+        const { x, y } = (await at.jsonValue()) as { x: number; y: number }
+        await page.mouse.click(x, y)
+      }
       const previewSrc = await page.$eval(`${zoomTrigger} img`, (img) => img.getAttribute('src'))
-      await page.click(zoomTrigger)
+      await clickTrigger()
       await page.waitForSelector('.image-zoom[open]')
       check(
         'clicking an image opens the selected version in a modal',
@@ -310,14 +313,16 @@ export async function runImages(check: Check, runtime: ImageTestRuntime): Promis
       await page.click('.image-zoom-heading button')
       await page.waitForSelector('.image-zoom', { hidden: true })
       check('keyboard activation and the close button work', (await page.$('.image-zoom')) === null)
-      await page.click(zoomTrigger)
+      await clickTrigger()
       await page.waitForSelector('.image-zoom[open]')
       await page.mouse.click(5, 5)
       await page.waitForSelector('.image-zoom', { hidden: true })
       check('clicking the backdrop closes the modal', (await page.$('.image-zoom')) === null)
       await page.keyboard.press('v')
-      await sleep(600)
-      check('viewed images fold away', (await page.$('[data-image-path="changed.svg"]')) === null)
+      check(
+        'viewed images fold away',
+        await until(page, `!document.querySelector('[data-image-path="changed.svg"]')`, 5_000),
+      )
       await page.keyboard.press('v')
       await page.waitForSelector('[data-image-path="changed.svg"] img')
       await clickTreeRow(page, 'added.png')

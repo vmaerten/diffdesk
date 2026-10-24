@@ -1,4 +1,4 @@
-import { sleep, titlebar, waitForRows, type Suite, type TitlebarState } from '../harness.ts'
+import { titlebar, titlebarWhen, type Suite, type TitlebarState } from '../harness.ts'
 
 /**
  * The fixture stacks `stack/a` (2 files) on `main`, then `stack/b` (1 file) on
@@ -46,9 +46,10 @@ export default {
         .find((e) => e.querySelector('.stack-name')?.textContent?.trim() === 'stack/a')
         ?.querySelector('.stack-name').click()`,
     )
-    await waitForRows(page)
-    await sleep(2500)
-    const bottom = await shown()
+    const bottom = await titlebarWhen(
+      page,
+      (state) => state.target === 'stack/a' && state.files === 2 && current(state) === 'stack/a',
+    )
 
     check('clicking a layer reviews it', bottom.target === 'stack/a', bottom.target ?? '')
     check('  its base is the trunk', bottom.base === 'main', bottom.base ?? '')

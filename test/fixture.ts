@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { isolatedGit } from './goBinary.ts'
 
 /**
  * A throwaway repository to run the suites against.
@@ -16,7 +17,8 @@ export interface Fixture {
   cleanup: () => void
 }
 
-const git = (cwd: string, args: string[]) => execFileSync('git', args, { cwd, stdio: 'pipe' })
+const git = (cwd: string, args: string[]) =>
+  execFileSync('git', args, { cwd, stdio: 'pipe', env: isolatedGit })
 
 function write(root: string, path: string, body: string) {
   const file = join(root, path)
