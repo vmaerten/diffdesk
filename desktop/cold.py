@@ -37,7 +37,7 @@ def main():
   }})}})
 }}, 250)
 ''')
-        env = {**os.environ, 'GHL_DESKTOP_PROBE': str(probe), 'GHL_DESKTOP_SETTINGS': str(folder / 'settings.json')}
+        env = {**os.environ, 'GHL_DESKTOP_PROBE': str(probe), 'GHL_DESKTOP_SETTINGS': str(folder / 'settings.json'), 'GHL_DESKTOP_TABS': '1'}
         # The app started through LaunchServices never sees the launcher's TMPDIR.
         env.pop('TMPDIR', None)
         try:

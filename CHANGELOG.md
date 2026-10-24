@@ -9,6 +9,7 @@
 - Open the window maximised: it fills the screen with the menu bar and the Dock still visible, and the zoom button brings it back to its former size. ([#200](https://github.com/vmaerten/ghl/pull/200))
 - Centre the comparison capsule in the title bar; in a narrow window it moves left to keep room for the actions. ([#201](https://github.com/vmaerten/ghl/pull/201))
 - Show a stacked branch's layer, such as `2/3`, at the start of the comparison in the title bar instead of a line of branches in the status bar: it opens the stack from the top layer down to the trunk, with each pull request and whether a layer is merged or pruned. Press `s` to open it, and `[` or `]` to review the layer below or above. ([#202](https://github.com/vmaerten/ghl/pull/202))
+- Open a review in place of the one shown instead of in a new tab: running `ghl` in another checkout, or opening a repository with `Cmd+O`, replaces it. ([#203](https://github.com/vmaerten/ghl/pull/203))
 
 ### 🐛 Fixes
 

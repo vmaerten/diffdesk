@@ -29,6 +29,8 @@ type reviewTabs struct {
 	mu    sync.Mutex
 	state tabSnapshot
 	next  uint64
+	// single keeps one review: opening another replaces it instead of adding a tab.
+	single bool
 }
 
 func comparisonKey(route string) string {
@@ -78,6 +80,9 @@ func (t *reviewTabs) open(route, checkout string) tabSnapshot {
 	// IDs supplied by the runtime end with '-' plus seven SHA-1 characters.
 	if len(name) > 8 {
 		name = name[:len(name)-8]
+	}
+	if t.single {
+		t.state.Tabs = nil
 	}
 	t.state.Tabs = append(t.state.Tabs, reviewTab{ID: id, Name: name, Path: homeRelative(checkout), Route: route, checkout: checkout})
 	t.state.Active = id

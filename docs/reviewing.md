@@ -1,6 +1,6 @@
 # Reviewing code
 
-Run `ghl` in a Git repository to open its review in the ghl window; running it in another checkout opens a second tab. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, expand unchanged context, and search the whole diff with `Cmd+f`, including files outside the current viewport.
+Run `ghl` in a Git repository to open its review in the ghl window; running it in another checkout replaces that review. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, expand unchanged context, and search the whole diff with `Cmd+f`, including files outside the current viewport.
 
 This guide describes `main`. See the [changelog](../CHANGELOG.md) for changes that have not reached a published release.
 
@@ -10,7 +10,7 @@ The default review compares the merge-base of the chosen base and HEAD with the 
 
 Press `t` to review another revision without checking it out. Press `l` to pick one commit: its diff is against its first parent, or the empty tree for a root commit. The base determines which commits are offered, but does not affect a selected commit's patch. A commit that no longer resolves falls back to the whole range with a notice.
 
-Ref and commit views exclude uncommitted and untracked files. Comparison choices belong to each tab, so reloading keeps them; running `ghl` again with the same comparison activates the matching tab.
+Ref and commit views exclude uncommitted and untracked files. Reloading keeps the comparison choices; running `ghl` again with the same comparison leaves the review as it is.
 
 **Ignore whitespace** uses Git's `--ignore-all-space`: spacing-only changes leave the diff, tree and totals, while line breaks and file metadata changes remain. The choice is preserved as `w=1` in the URL. Turn it off to reveal hidden changes.
 
@@ -20,7 +20,7 @@ Click the gutter's `+`, or select lines and press `c`. Comments belong to the re
 
 Each comment saves its original code. When those lines change, the comment shows the previous text; restoring the lines clears the stale marker. Comments are never deleted automatically. Editing changes the prose while preserving the original anchor and comparison.
 
-**Comments** opens a side panel listing the branch's comments by file, including files outside the current diff. **View in diff** reveals available lines without clearing Viewed, and the panel stays open beside the diff. Inline cards can be collapsed; their folded state survives reloads in the same tab.
+**Comments** opens a side panel listing the branch's comments by file, including files outside the current diff. **View in diff** reveals available lines without clearing Viewed, and the panel stays open beside the diff. Inline cards can be collapsed; their folded state survives reloads.
 
 **Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments as Markdown, including viewed files and files outside the diff. Individual cards have their own copy button. Exports include paths, line numbers and current code, with original code labelled when current code is unavailable.
 

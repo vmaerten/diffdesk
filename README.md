@@ -40,13 +40,13 @@ ghl comments           # print this comparison's comments with their code, as Ma
 ghl comments --json    # the same, as JSON
 ```
 
-`ghl` opens the review in the ghl window and returns to the terminal; later invocations open or activate a tab in the same window. `ghl comments` and `ghl --version` print without opening it. Comments and Viewed live in each checkout's `.git/ghl/state.json`. Run `ghl --help` for every option.
+`ghl` opens the review in the ghl window and returns to the terminal; later invocations replace it in the same window. `ghl comments` and `ghl --version` print without opening it. Comments and Viewed live in each checkout's `.git/ghl/state.json`. Run `ghl --help` for every option.
 
 - Unified or split diffs, file tree, full-diff search and expandable context.
 - Branch, base and commit pickers, with `gh stack` navigation.
 - Persistent comments per branch, code anchors, a comments side panel and Markdown copy.
 - Viewed files, working-tree/untracked controls and whitespace filtering.
-- Review tabs, image previews, native menus, and light and dark appearance with a syntax theme for each.
+- Image previews, native menus, and light and dark appearance with a syntax theme for each.
 
 See the [reviewing guide](./docs/reviewing.md) for comparisons, comments and state. Features on `main` may be newer than the published release; see the [changelog](./CHANGELOG.md).
 
@@ -64,8 +64,7 @@ See the [reviewing guide](./docs/reviewing.md) for comparisons, comments and sta
 | `r` | Refresh |
 | `Cmd+f` | Search the diff |
 | `Cmd+1` / `Cmd+2` | Unified / split diff |
-| `Cmd+O` / `Cmd+W` | Open a repository / close the tab |
-| `Ctrl+Tab` | Next tab |
+| `Cmd+O` / `Cmd+W` | Open a repository / close the review |
 | `Shift+Cmd+C` | Copy all comments |
 | `Cmd+,` | Settings |
 

@@ -28,9 +28,10 @@ Options:
   --version      Print version and build metadata, as JSON with --json
   -h, --help     Show this help
 
-Opens or activates a review tab in the ghl window, then returns to the terminal.
+Opens the review in the ghl window, in place of the one shown, then returns
+to the terminal.
 Relative paths are resolved from the calling terminal, including later launches.
-Cmd+O opens another repository; Cmd+W closes a tab; Cmd+R reloads; Cmd+Q quits.
+Cmd+O opens another repository; Cmd+W closes the review; Cmd+R reloads; Cmd+Q quits.
 Comments and Viewed live in each checkout's .git/ghl/state.json.
 `
 

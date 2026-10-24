@@ -100,3 +100,15 @@ func TestSavedViewsAreIsolatedAndNotResurrected(t *testing.T) {
 		t.Fatal("closed tab resurrected")
 	}
 }
+
+func TestSingleReviewReplacesTheShownOne(t *testing.T) {
+	tabs := reviewTabs{single: true}
+	first := tabs.open("/r/first-1234567/?base=main", "")
+	if same := tabs.open("/r/first-1234567/?base=main", ""); same.Revision != first.Revision {
+		t.Fatal("reopening the shown review reloaded it")
+	}
+	second := tabs.open("/r/second-1234567/", "")
+	if len(second.Tabs) != 1 || second.Active == first.Active || second.Tabs[0].Name != "second" {
+		t.Fatalf("the new review did not replace the shown one: %+v", second)
+	}
+}

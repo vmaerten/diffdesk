@@ -159,6 +159,8 @@ func run() error {
 		return err
 	}
 	desktop := &desktopApp{backend: backend, requests: requests, settings: settings}
+	// Tabs are off for now; GHL_DESKTOP_TABS=1 keeps them for the smoke tests.
+	desktop.tabs.single = os.Getenv("GHL_DESKTOP_TABS") != "1"
 	// Every menu item reaches the page as one named command: the shell takes the
 	// window's, the mounted review the rest. Single-letter shortcuts stay in the
 	// page, since a key without a modifier would also capture typing.
@@ -175,7 +177,7 @@ func run() error {
 	appMenu.Append(menu.AppMenu())
 	fileMenu := appMenu.AddSubmenu("File")
 	fileMenu.AddText("Open Repository…", keys.CmdOrCtrl("o"), func(*menu.CallbackData) { desktop.chooseRepository() })
-	fileMenu.AddText("Close Tab", keys.CmdOrCtrl("w"), command("close-tab"))
+	fileMenu.AddText("Close Review", keys.CmdOrCtrl("w"), command("close-tab"))
 	// Wails v2 builds the application menu itself, leaving no room for Settings there.
 	fileMenu.AddSeparator()
 	fileMenu.AddText("Settings…", keys.CmdOrCtrl(","), command("settings"))
