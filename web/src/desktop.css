@@ -1,6 +1,5 @@
 /* One neutral palette per color mode: in the desktop app a theme only colors
-   the code. The extra attribute outranks the editor palettes in themes.css.
-   Settings previews both modes side by side, whatever the active one. */
+   the code. Settings previews both modes side by side, whatever the active one. */
 :root[data-theme][data-color-mode='light'],
 .settings-preview.light {
   --bg: #f8f8f6;
