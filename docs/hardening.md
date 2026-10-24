@@ -16,7 +16,7 @@ Les défauts sont aux bords : la config git de l'utilisateur, les dépôts dans 
 
 Préfixe `hardening/`. Les PRs sont indépendantes : chacune part de `main`, sans pile. Seule la 11 vient en dernier, parce qu'elle touche les mêmes fichiers que la 04 et la 06.
 
-### 01 · `hardening/01-git-format` — Sortie git indépendante de la config utilisateur
+### 01 · `hardening/01-git-format` — Sortie git indépendante de la config utilisateur — [#184](https://github.com/vmaerten/ghl/pull/184)
 
 - Le parseur de patch (`headerMatches`, `parseSections`) suppose les préfixes `a/` et `b/`, et une ligne de contexte vide précédée d'un espace.
 - Avec `diff.mnemonicPrefix`, `diff.noprefix`, `diff.srcPrefix` ou `diff.dstPrefix`, aucun fichier n'est reconnu dans le patch. Les fichiers n'ont plus d'empreinte : Viewed ne tient pas, les commentaires renvoient 400 et le contexte ne s'ouvre pas.
@@ -24,7 +24,7 @@ Préfixe `hardening/`. Les PRs sont indépendantes : chacune part de `main`, san
 - Correctif : `--src-prefix=a/ --dst-prefix=b/` sur les deux `git diff` (review et non suivis), et `diff.suppressBlankEmpty=false` imposé aux commandes git du serveur.
 - Les autres réglages essayés (`color.diff=always`, `diff.renames=copies`, `core.quotePath=false`, `log.showSignature`) ne changent pas ce que lisent les parseurs.
 
-### 02 · `hardening/02-app-lifecycle` — Lancement depuis le Finder et arrêt
+### 02 · `hardening/02-app-lifecycle` — Lancement depuis le Finder et arrêt — [#185](https://github.com/vmaerten/ghl/pull/185)
 
 - Un lancement depuis le Finder, Spotlight ou le Dock passe par le lanceur, sans argument et avec `/` comme dossier courant. L'app essaie d'ouvrir `/` et affiche « not a git repository ». Sans argument et depuis `/`, le binaire doit ouvrir la fenêtre sans requête. À confirmer d'abord à la main : quitter ghl, le relancer depuis Spotlight.
 - Un `ghl` lancé pendant un Cmd+Q reçoit un accusé de réception, puis sa requête est perdue : le socket répond jusqu'au dernier `defer`. Fermer l'instance en premier dans `OnShutdown`.
@@ -128,3 +128,8 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 
 | PR | Constat | Ce qu'on a fait |
 | --- | --- | --- |
+| 01 | Le cas `diff.suppressBlankEmpty` ne se voit que sur une ligne de contexte qui suit une ligne vide : ailleurs, `Lines` retombe sur le fichier et masque le décalage. | Le test vise la ligne 3 de `one / (vide) / three / FOUR`. |
+| 02 | Le lancement depuis Spotlight, confirmé par une capture, affichait aussi la réponse JSON du runtime (`{"error":…}`) au lieu de son message. | Corrigé dans 02, avec un test sur `backend.open`. |
+| 02 | Wails v2 quitte déjà sur SIGINT et SIGTERM (`signal.Start` dans `wails.Run`) : le contexte de signal de l'app faisait doublon, en plus des branches `Done()` mortes. | Gestion des signaux laissée à Wails ; `desktop:smoke`, qui quitte l'app par SIGTERM, passe. |
+| 02 | Fermer l'instance dans `OnShutdown` et dans le `defer` l'appelle deux fois ; le second appel pouvait supprimer le socket de l'app suivante. | `close` passe par un `sync.Once`, gardé par `instance_test.go`. |
+| 01, 02 | Chaque PR ajoute une section `### 🐛 Fixes` à Unreleased : la seconde mergée entre en conflit sur le CHANGELOG. | Rebaser la seconde après le merge de la première. |
