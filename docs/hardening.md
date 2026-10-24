@@ -64,11 +64,11 @@ Préfixe `hardening/`. Les PRs sont indépendantes : chacune part de `main`, san
 - **Dossier du dépôt.** `#`, `?` ou `%` dans son nom cassent l'URL des aperçus d'images.
 - **Erreurs git.** `optionalText` traite l'erreur fatale 128 comme une valeur absente.
 
-### 07 · `hardening/07-git-filters` — Filtres et textconv
+### 07 · `hardening/07-git-filters` — Filtres et textconv — [#190](https://github.com/vmaerten/ghl/pull/190)
 
 - Avec `eol=crlf`, un filtre clean ou un `textconv`, ouvrir du contexte renvoie 409 et les commentaires hors hunk passent stale. Le serveur compare les octets bruts du fichier au blob nettoyé ou au texte converti.
 - Correctif : `--no-textconv`, et vérifier les lectures du worktree avec `git hash-object --path`.
-- Décision à prendre : avec `--no-textconv`, un fichier que l'utilisateur fait lire par textconv s'affiche comme binaire, comme sur GitHub.
+- Décision prise le 24 octobre : `--no-textconv`, un fichier que l'utilisateur fait lire par textconv s'affiche comme Git le stocke, binaire le cas échéant, comme sur GitHub.
 - À vérifier ici : un aperçu d'image Git LFS montre probablement le pointeur.
 
 ### 08 · `hardening/08-release` — Release
@@ -145,3 +145,6 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 | 06 | Lister un fichier non suivi illisible « comme les images » ne l'aurait pas montré : sans section de patch, l'UI ne crée pas d'item. Une section binaire factice aurait menti. | Laissé hors du patch et nommé dans l'avis de la review, que `ghl comments` écrit sur stderr. |
 | 06 | `strings.ToValidUTF8` remplace une suite d'octets invalides par un seul U+FFFD, JSON un par octet. | Normalisation octet par octet, comme JSON. |
 | 06 | `REVERT_HEAD` n'était pas détecté. | Ajouté aux opérations, `RepoOperation` comprend `revert`. |
+| 07 | `git hash-object --path` sur stdin demandait une plomberie d'entrée qu'aucun appel git du serveur n'a. | Fins de ligne : normalisation CRLF→LF en Go, retenue seulement si elle redonne l'empreinte du patch. Autres filtres : `git hash-object -- <path>`, seulement pour choisir le message d'erreur. |
+| 07 | La PR part de `main` sans la 01 : les deux modifient la ligne des arguments de `git diff` dans `review.go` et `untracked.go`. | Conflit trivial à résoudre au rebase de la seconde mergée. |
+| 07 | Une exécution complète des suites UI a échoué une fois sur `and c comments that selection` ; trois exécutions isolées passent. | À traiter dans la 10 : le clic de gouttière vise des coordonnées lues plus tôt, et l'`until` qui suit n'est pas vérifié. |
