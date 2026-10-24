@@ -41,7 +41,8 @@ func (r Repository) git(ctx context.Context, limit int, args ...string) ([]byte,
 	return r.gitOutput(ctx, limit, false, args...)
 }
 func (r Repository) gitOutput(ctx context.Context, limit int, differenceOK bool, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", r.Path}, args...)...)
+	// The patch parsers expect blank context lines to keep their leading space.
+	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", r.Path, "-c", "diff.suppressBlankEmpty=false"}, args...)...)
 	var stdout = limitedBuffer{limit: limit}
 	var stderr = limitedBuffer{limit: 64 * 1024}
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -238,7 +239,8 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 	if selection.Committed || selection.Target != "" || review.Commit != nil {
 		review.Comparison.After = &tip
 	}
-	args := []string{"diff", "-M", "--no-ext-diff", before}
+	// Explicit prefixes override diff.noprefix, diff.mnemonicPrefix and diff.srcPrefix.
+	args := []string{"diff", "-M", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", before}
 	if selection.IgnoreWhitespace {
 		args = append(args, "--ignore-all-space")
 	}

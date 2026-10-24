@@ -305,6 +305,35 @@ func TestRepositoryPathWithSpacesAndDetachedHead(t *testing.T) {
 		t.Fatal("incorrect detached review")
 	}
 }
+func TestPatchFormatIgnoresUserConfig(t *testing.T) {
+	ctx := context.Background()
+	for _, setting := range [][2]string{{"diff.mnemonicPrefix", "true"}, {"diff.noprefix", "true"}, {"diff.srcPrefix", "x/"}, {"diff.suppressBlankEmpty", "true"}} {
+		r := fixture(t)
+		gitFixture(t, r.Path, "config", setting[0], setting[1])
+		review, err := r.Resolve(ctx, Selection{Base: "main", IncludeUntracked: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range review.Files {
+			if f.Hash == nil {
+				t.Errorf("%s: %s has no patch section", setting[0], f.Path)
+			}
+		}
+		// Context after a blank line, which suppressBlankEmpty prints without its space.
+		writeFixture(t, r.Path, "blank.txt", "one\n\nthree\nfour\n")
+		gitFixture(t, r.Path, "add", "blank.txt")
+		gitFixture(t, r.Path, "commit", "-qm", "blank")
+		writeFixture(t, r.Path, "blank.txt", "one\n\nthree\nFOUR\n")
+		review, err = r.Resolve(ctx, Selection{Base: "HEAD"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines, err := review.Lines(ctx, Comment{Path: "blank.txt", Side: "additions", Start: 3, End: 3})
+		if err != nil || strings.Join(lines, "") != "three" {
+			t.Errorf("%s: line 3 is %q: %v", setting[0], lines, err)
+		}
+	}
+}
 func TestInvalidComparisonsAndCancellation(t *testing.T) {
 	r := fixture(t)
 	ctx := context.Background()

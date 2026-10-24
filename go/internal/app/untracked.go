@@ -66,7 +66,7 @@ func (r Repository) untrackedPatch(ctx context.Context, paths []string) (string,
 		}
 		out, err := snapshot.gitOutput(ctx, 256*1024*1024, true,
 			"--git-dir="+r.GitDir, "--work-tree="+tmp,
-			"diff", "--no-index", "--numstat", "-p", "--no-color", "--no-ext-diff", "--", "/dev/null", path)
+			"diff", "--no-index", "--numstat", "-p", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", "--", "/dev/null", path)
 		if err != nil {
 			return "", nil, err
 		}
