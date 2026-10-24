@@ -247,6 +247,10 @@ Maquette : [desktop-tabs-mockup.html](./desktop-tabs-mockup.html), six propositi
 - Si on passe en Wails v3 ou en Electron : la 5, la plus native, à condition d'accepter de refaire le modèle d'onglets côté Go.
 - À écarter : la 6 (peu lisible) et la 1 telle quelle (ambiguë).
 
+## Barre compacte : propositions
+
+Maquette : [desktop-titlebar-mockup.html](./desktop-titlebar-mockup.html), quatre hauteurs de barre (A à D) et trois façons de se passer de la barre d'état (E à G), du 24 octobre 2026.
+
 ## Hors périmètre
 
 Wails v3 et ce qu'elle apporterait (fenêtre Settings séparée, menus contextuels natifs, onglets natifs macOS), filtre de fichiers, liste des repos récents sur l'écran vide, mises à jour automatiques, notarisation, Linux et Windows, refonte de la version navigateur.

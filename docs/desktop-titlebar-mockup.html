@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ghl — barre de titre compacte</title>
+<style>
+:root { --page: #f2f2f0; --text: #111111; --dim: rgb(17 17 17 / 60%); --border: rgb(17 17 17 / 12%); --box: #ffffff;
+  --ok: #1f7a44; --v3: #2a66c9; --hack: #a85d0b; --sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; --mono: ui-monospace, 'SF Mono', Menlo, monospace; color-scheme: light; }
+:root[data-theme='dark'] { --page: #0e0f12; --text: #ebebeb; --dim: rgb(230 230 230 / 56%); --border: rgb(230 230 230 / 12%); --box: #15171c;
+  --ok: #6fd094; --v3: #8fb6ff; --hack: #eb9a3d; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 var(--sans); }
+.page { max-width: 1480px; margin: 0 auto; padding: 40px 24px 80px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; }
+h1 { margin: 0 0 6px; font-size: 26px; }
+.lede { max-width: 860px; margin: 0 0 12px; color: var(--dim); }
+.case { max-width: 980px; margin: 8px 0 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--box); color: var(--dim); font-size: 13px; }
+.case b, .desc b { color: var(--text); }
+code { font: 12px var(--mono); }
+.theme { display: flex; gap: 4px; }
+.theme button { padding: 4px 10px; border: 1px solid var(--border); border-radius: 7px; background: none; color: var(--dim); font: 500 12px var(--sans); }
+.theme button[aria-pressed='true'] { background: var(--box); color: var(--text); }
+.group { margin: 56px 0 0; }
+h2 { margin: 0 0 4px; font-size: 21px; }
+.variant { margin: 36px 0 0; }
+h3 { display: flex; align-items: baseline; gap: 10px; margin: 0; font-size: 17px; }
+h3 .num { color: var(--dim); font: 600 14px var(--mono); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
+.tag { padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--dim); font: 600 11px var(--sans); }
+.tag.ok { color: var(--ok); } .tag.v3 { color: var(--v3); } .tag.hack { color: var(--hack); }
+.desc { max-width: 900px; margin: 0 0 14px; color: var(--dim); }
+#a .win{--bg:#f8f8f6;--raised:#ffffff;--border:rgb(17 17 17 / 10%);--text:#111111;--dim:rgb(17 17 17 / 60%);--accent:#2a66c9;--success:#1f7a44;--danger:#b8312f;--warn:#a85d0b;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash-strong:rgb(127 127 127 / 18%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;--ctl:28px;--cap:30px;--ref:24px;--fs:12px;--icon:16px}
+#a .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 56%);--accent:#3d87f5;--success:#6fd094;--danger:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash-strong:rgb(127 127 127 / 26%)}
+#a .win{--add:color-mix(in srgb,var(--success) 9%,var(--raised));--del:color-mix(in srgb,var(--danger) 9%,var(--raised));--accent-soft:color-mix(in srgb,var(--accent) 16%,transparent)}
+#a .win button{font:inherit;color:inherit;cursor:default}
+#a .ib{display:grid;place-items:center;flex-shrink:0;width:var(--ctl);height:var(--ctl);padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#a .ib svg,#a .tb svg{width:var(--icon);height:var(--icon)}
+#a .ref{height:var(--ref);padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#a .win .commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#a .caret{margin-left:4px;font-size:10px;opacity:.6}
+#a .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#a .chip{display:flex;align-items:center;gap:5px;height:var(--ref);padding:0 8px;border:0;border-radius:12px;background:var(--accent-soft);color:var(--accent);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#a .win .chip{color:var(--accent)}
+#a .chip svg{width:14px;height:14px}
+#a .seg{display:flex;gap:2px;height:var(--ctl);padding:2px;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#a .seg button{display:grid;place-items:center;padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:var(--fs);font-weight:500}
+#a .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#a .tb{display:flex;align-items:center;gap:5px;height:var(--ctl);padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:var(--fs);font-weight:500;white-space:nowrap}
+#a .count{min-width:16px;padding:0 5px;box-sizing:border-box;border-radius:8px;background:var(--wash-strong);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#a .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#a .row.dir{color:var(--dim)}
+#a .row.file{padding-left:24px}
+#a .row.on{background:var(--accent-soft)}
+#a .st{margin-left:auto;font:600 11px var(--mono)}
+#a .st.m{color:var(--warn)}#a .st.a{color:var(--success)}
+#a .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#a .ln.add{background:var(--add)}#a .ln.del{background:var(--del)}
+#a .no{width:44px;flex-shrink:0;padding-right:10px;box-sizing:border-box;text-align:right;color:var(--dim)}
+#a .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#a .ln.add .sg{color:var(--success)}#a .ln.del .sg{color:var(--danger)}
+#a kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;font:11px var(--mono)}
+@media (max-width:800px){#a .side{display:none}}
+#b .win{--bg:#f8f8f6;--raised:#ffffff;--border:rgb(17 17 17 / 10%);--text:#111111;--dim:rgb(17 17 17 / 60%);--accent:#2a66c9;--success:#1f7a44;--danger:#b8312f;--warn:#a85d0b;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash-strong:rgb(127 127 127 / 18%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;--ctl:28px;--cap:30px;--ref:24px;--fs:12px;--icon:16px}
+#b .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 56%);--accent:#3d87f5;--success:#6fd094;--danger:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash-strong:rgb(127 127 127 / 26%)}
+#b .win.s38{--ctl:24px;--cap:26px;--ref:20px;--icon:14px}
+#b .win{--add:color-mix(in srgb,var(--success) 9%,var(--raised));--del:color-mix(in srgb,var(--danger) 9%,var(--raised));--accent-soft:color-mix(in srgb,var(--accent) 16%,transparent)}
+#b .win button{font:inherit;color:inherit;cursor:default}
+#b .ib{display:grid;place-items:center;flex-shrink:0;width:var(--ctl);height:var(--ctl);padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#b .ib svg,#b .tb svg{width:var(--icon);height:var(--icon)}
+#b .ref{height:var(--ref);padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#b .win .commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#b .caret{margin-left:4px;font-size:10px;opacity:.6}
+#b .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#b .chip{display:flex;align-items:center;gap:5px;height:var(--ref);padding:0 8px;border:0;border-radius:12px;background:var(--accent-soft);color:var(--accent);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#b .win .chip{color:var(--accent)}
+#b .chip svg{width:14px;height:14px}
+#b .seg{display:flex;gap:2px;height:var(--ctl);padding:2px;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#b .seg button{display:grid;place-items:center;padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:var(--fs);font-weight:500}
+#b .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#b .tb{display:flex;align-items:center;gap:5px;height:var(--ctl);padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:var(--fs);font-weight:500;white-space:nowrap}
+#b .count{min-width:16px;padding:0 5px;box-sizing:border-box;border-radius:8px;background:var(--wash-strong);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#b .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#b .row.dir{color:var(--dim)}
+#b .row.file{padding-left:24px}
+#b .row.on{background:var(--accent-soft)}
+#b .st{margin-left:auto;font:600 11px var(--mono)}
+#b .st.m{color:var(--warn)}#b .st.a{color:var(--success)}
+#b .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#b .ln.add{background:var(--add)}#b .ln.del{background:var(--del)}
+#b .no{width:44px;flex-shrink:0;padding-right:10px;box-sizing:border-box;text-align:right;color:var(--dim)}
+#b .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#b .ln.add .sg{color:var(--success)}#b .ln.del .sg{color:var(--danger)}
+#b kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;font:11px var(--mono)}
+@media (max-width:800px){#b .side{display:none}}
+#c .win{--bg:#f8f8f6;--raised:#ffffff;--border:rgb(17 17 17 / 10%);--text:#111111;--dim:rgb(17 17 17 / 60%);--accent:#2a66c9;--success:#1f7a44;--danger:#b8312f;--warn:#a85d0b;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash-strong:rgb(127 127 127 / 18%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;--ctl:28px;--cap:30px;--ref:24px;--fs:12px;--icon:16px}
+#c .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 56%);--accent:#3d87f5;--success:#6fd094;--danger:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash-strong:rgb(127 127 127 / 26%)}
+#c .win.s38{--ctl:24px;--cap:26px;--ref:20px;--icon:14px}
+#c .win{--add:color-mix(in srgb,var(--success) 9%,var(--raised));--del:color-mix(in srgb,var(--danger) 9%,var(--raised));--accent-soft:color-mix(in srgb,var(--accent) 16%,transparent)}
+#c .win button{font:inherit;color:inherit;cursor:default}
+#c .ib{display:grid;place-items:center;flex-shrink:0;width:var(--ctl);height:var(--ctl);padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#c .ib svg,#c .tb svg,#c .seg svg,#c .repo svg{width:var(--icon);height:var(--icon)}
+#c .ref{height:var(--ref);padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#c .win .repo{display:flex;align-items:center;gap:6px;font-family:var(--sans);font-weight:600}
+#c .repo svg{color:var(--dim)}
+#c .win .commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#c .caret{margin-left:4px;font-size:10px;opacity:.6}
+#c .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#c .chip{display:flex;align-items:center;gap:5px;height:var(--ref);padding:0 8px;border:0;border-radius:12px;background:var(--accent-soft);color:var(--accent);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#c .win .chip{color:var(--accent)}
+#c .chip svg{width:14px;height:14px}
+#c .seg{display:flex;gap:2px;height:var(--ctl);padding:2px;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#c .seg button{display:grid;place-items:center;padding:0 7px;border:0;border-radius:6px;background:none;color:var(--dim)}
+#c .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#c .tb{display:flex;align-items:center;gap:5px;height:var(--ctl);padding:0 7px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:var(--fs);font-weight:500;white-space:nowrap}
+#c .count{min-width:16px;padding:0 5px;box-sizing:border-box;border-radius:8px;background:var(--wash-strong);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#c .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#c .row.dir{color:var(--dim)}
+#c .row.file{padding-left:24px}
+#c .row.on{background:var(--accent-soft)}
+#c .st{margin-left:auto;font:600 11px var(--mono)}
+#c .st.m{color:var(--warn)}#c .st.a{color:var(--success)}
+#c .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#c .ln.add{background:var(--add)}#c .ln.del{background:var(--del)}
+#c .no{width:44px;flex-shrink:0;padding-right:10px;box-sizing:border-box;text-align:right;color:var(--dim)}
+#c .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#c .ln.add .sg{color:var(--success)}#c .ln.del .sg{color:var(--danger)}
+#c kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;font:11px var(--mono)}
+@media (max-width:800px){#c .side{display:none}}
+#d .win{--bg:#f8f8f6;--raised:#ffffff;--border:rgb(17 17 17 / 10%);--text:#111111;--dim:rgb(17 17 17 / 60%);--accent:#2a66c9;--success:#1f7a44;--danger:#b8312f;--warn:#a85d0b;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash-strong:rgb(127 127 127 / 18%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;--ctl:28px;--cap:30px;--ref:24px;--fs:12px;--icon:16px}
+#d .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 56%);--accent:#3d87f5;--success:#6fd094;--danger:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash-strong:rgb(127 127 127 / 26%)}
+#d .win.s28{--ctl:20px;--cap:22px;--ref:18px;--fs:11.5px;--icon:13px}
+#d .win{--add:color-mix(in srgb,var(--success) 9%,var(--raised));--del:color-mix(in srgb,var(--danger) 9%,var(--raised));--accent-soft:color-mix(in srgb,var(--accent) 16%,transparent)}
+#d .win button{font:inherit;color:inherit;cursor:default}
+#d .ib{display:grid;place-items:center;flex-shrink:0;width:var(--ctl);height:var(--ctl);padding:0;border:0;border-radius:5px;background:none;color:var(--dim)}
+#d .ib svg,#d .tb svg,#d .seg svg,#d .repo svg{width:var(--icon);height:var(--icon)}
+#d .ref{height:var(--ref);padding:0 7px 0 8px;border:0;border-radius:9px;background:none;color:var(--text);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#d .win .repo{display:flex;align-items:center;gap:5px;font-family:var(--sans);font-weight:600}
+#d .repo svg{color:var(--dim)}
+#d .win .commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#d .caret{margin-left:3px;font-size:9px;opacity:.6}
+#d .sep{width:1px;height:12px;margin:0 3px;background:var(--border)}
+#d .chip{display:flex;align-items:center;gap:4px;height:var(--ref);padding:0 7px;border:0;border-radius:9px;background:var(--accent-soft);color:var(--accent);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#d .win .chip{color:var(--accent)}
+#d .chip svg{width:12px;height:12px}
+#d .seg{display:flex;gap:1px;height:var(--ctl);padding:1px;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;background:var(--wash)}
+#d .seg button{display:grid;place-items:center;padding:0 6px;border:0;border-radius:4px;background:none;color:var(--dim)}
+#d .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#d .tb{display:flex;align-items:center;gap:4px;height:var(--ctl);padding:0 6px;border:0;border-radius:5px;background:none;color:var(--dim);font-size:var(--fs);font-weight:500;white-space:nowrap}
+#d .count{min-width:14px;padding:0 4px;box-sizing:border-box;border-radius:7px;background:var(--wash-strong);color:var(--text);font-size:10.5px;line-height:14px;text-align:center}
+#d .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#d .row.dir{color:var(--dim)}
+#d .row.file{padding-left:24px}
+#d .row.on{background:var(--accent-soft)}
+#d .st{margin-left:auto;font:600 11px var(--mono)}
+#d .st.m{color:var(--warn)}#d .st.a{color:var(--success)}
+#d .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#d .ln.add{background:var(--add)}#d .ln.del{background:var(--del)}
+#d .no{width:44px;flex-shrink:0;padding-right:10px;box-sizing:border-box;text-align:right;color:var(--dim)}
+#d .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#d .ln.add .sg{color:var(--success)}#d .ln.del .sg{color:var(--danger)}
+#d kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;font:11px var(--mono)}
+@media (max-width:800px){#d .side{display:none}}
+#e .win{--bg:#f8f8f6;--raised:#ffffff;--border:rgb(17 17 17 / 10%);--text:#111111;--dim:rgb(17 17 17 / 60%);--accent:#2a66c9;--success:#1f7a44;--danger:#b8312f;--warn:#a85d0b;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash-strong:rgb(127 127 127 / 18%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;--ctl:28px;--cap:30px;--ref:24px;--fs:12px;--icon:16px}
+#e .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 56%);--accent:#3d87f5;--success:#6fd094;--danger:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash-strong:rgb(127 127 127 / 26%)}
+#e .win.s38{--ctl:24px;--cap:26px;--ref:20px;--icon:14px}
+#e .win{--add:color-mix(in srgb,var(--success) 9%,var(--raised));--del:color-mix(in srgb,var(--danger) 9%,var(--raised));--accent-soft:color-mix(in srgb,var(--accent) 16%,transparent)}
+#e .win button{font:inherit;color:inherit;cursor:default}
+#e .ib{position:relative;display:grid;place-items:center;flex-shrink:0;width:var(--ctl);height:var(--ctl);padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#e .ib svg,#e .tb svg,#e .seg svg,#e .repo svg{width:var(--icon);height:var(--icon)}
+#e .ref{height:var(--ref);padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#e .win .repo{display:flex;align-items:center;gap:6px;font-family:var(--sans);font-weight:600}
+#e .repo svg{color:var(--dim)}
+#e .win .commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#e .caret{margin-left:4px;font-size:10px;opacity:.6}
+#e .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#e .chip{display:flex;align-items:center;gap:5px;height:var(--ref);padding:0 8px;border:0;border-radius:12px;background:var(--accent-soft);color:var(--accent);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#e .win .chip{color:var(--accent)}
+#e .chip svg{width:14px;height:14px}
+#e .seg{display:flex;gap:2px;height:var(--ctl);padding:2px;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#e .seg button{display:grid;place-items:center;padding:0 7px;border:0;border-radius:6px;background:none;color:var(--dim)}
+#e .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#e .tb{display:flex;align-items:center;gap:5px;height:var(--ctl);padding:0 7px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:var(--fs);font-weight:500;white-space:nowrap}
+#e .count{min-width:16px;padding:0 5px;box-sizing:border-box;border-radius:8px;background:var(--wash-strong);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#e .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#e .row.dir{color:var(--dim)}
+#e .row.file{padding-left:24px}
+#e .row.on{background:var(--accent-soft)}
+#e .st{margin-left:auto;font:600 11px var(--mono)}
+#e .st.m{color:var(--warn)}#e .st.a{color:var(--success)}
+#e .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#e .ln.add{background:var(--add)}#e .ln.del{background:var(--del)}
+#e .no{width:44px;flex-shrink:0;padding-right:10px;box-sizing:border-box;text-align:right;color:var(--dim)}
+#e .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#e .ln.add .sg{color:var(--success)}#e .ln.del .sg{color:var(--danger)}
+#e kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;color:var(--dim);font:11px var(--mono)}
+#e .foot{display:grid;gap:8px;padding:10px 12px 12px 14px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;font-weight:600}
+#e .fline{display:flex;justify-content:space-between}
+#e .plus{color:var(--success)}#e .minus{color:var(--danger)}
+#e .prog{height:4px;overflow:hidden;border-radius:2px;background:var(--wash)}
+#e .prog span{display:block;width:50%;height:100%;border-radius:2px;background:var(--success)}
+#e .scope{color:var(--dim);font-size:11.5px;font-weight:500;line-height:1.45}
+#e .win .next{display:flex;align-items:center;gap:6px;min-width:0;height:26px;padding:0 6px 0 8px;border:0;border-radius:6px;background:var(--wash);color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#e .next b{overflow:hidden;color:var(--text);font:600 12px var(--mono);text-overflow:ellipsis}
+#e .next kbd{margin-left:auto}
+@media (max-width:800px){#e .side{display:none}}
+#f .win{--bg:#f8f8f6;--raised:#ffffff;--border:rgb(17 17 17 / 10%);--text:#111111;--dim:rgb(17 17 17 / 60%);--accent:#2a66c9;--success:#1f7a44;--danger:#b8312f;--warn:#a85d0b;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash-strong:rgb(127 127 127 / 18%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;--ctl:28px;--cap:30px;--ref:24px;--fs:12px;--icon:16px}
+#f .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 56%);--accent:#3d87f5;--success:#6fd094;--danger:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash-strong:rgb(127 127 127 / 26%)}
+#f .win.s38{--ctl:24px;--cap:26px;--ref:20px;--icon:14px}
+#f .win{--add:color-mix(in srgb,var(--success) 9%,var(--raised));--del:color-mix(in srgb,var(--danger) 9%,var(--raised));--accent-soft:color-mix(in srgb,var(--accent) 16%,transparent)}
+#f .win button{font:inherit;color:inherit;cursor:default}
+#f .ib{position:relative;display:grid;place-items:center;flex-shrink:0;width:var(--ctl);height:var(--ctl);padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#f .ib svg,#f .tb svg,#f .seg svg,#f .repo svg{width:var(--icon);height:var(--icon)}
+#f .ref{display:flex;align-items:center;height:var(--ref);padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#f .win .repo{gap:6px;font-family:var(--sans);font-weight:600}
+#f .repo svg{color:var(--dim)}
+#f .win .commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#f .caret{margin-left:4px;font-size:10px;opacity:.6}
+#f .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#f .chip{display:flex;align-items:center;gap:5px;height:var(--ref);padding:0 8px;border:0;border-radius:12px;background:var(--accent-soft);color:var(--accent);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#f .win .chip{color:var(--accent)}
+#f .chip svg{width:14px;height:14px}
+#f .pill{height:16px;margin-left:6px;padding:0 6px;border-radius:8px;background:var(--wash-strong);color:var(--dim);font:500 11px/16px var(--sans);white-space:nowrap}
+#f .badge{position:absolute;top:-2px;right:-3px;min-width:13px;height:13px;padding:0 3px;box-sizing:border-box;border-radius:7px;background:var(--accent);color:#ffffff;font:700 9px/13px var(--sans);text-align:center}
+#f .seg{display:flex;gap:2px;height:var(--ctl);padding:2px;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#f .seg button{display:grid;place-items:center;padding:0 7px;border:0;border-radius:6px;background:none;color:var(--dim)}
+#f .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#f .tb{display:flex;align-items:center;gap:5px;height:var(--ctl);padding:0 7px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:var(--fs);font-weight:500;white-space:nowrap}
+#f .count{min-width:16px;padding:0 5px;box-sizing:border-box;border-radius:8px;background:var(--wash-strong);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#f .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#f .row.dir{color:var(--dim)}
+#f .row.file{padding-left:24px}
+#f .row.on{background:var(--accent-soft)}
+#f .st{margin-left:auto;font:600 11px var(--mono)}
+#f .st.m{color:var(--warn)}#f .st.a{color:var(--success)}
+#f .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#f .ln.add{background:var(--add)}#f .ln.del{background:var(--del)}
+#f .no{width:44px;flex-shrink:0;padding-right:10px;box-sizing:border-box;text-align:right;color:var(--dim)}
+#f .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#f .ln.add .sg{color:var(--success)}#f .ln.del .sg{color:var(--danger)}
+#f kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;color:var(--dim);font:11px var(--mono)}
+#f .foot{display:grid;gap:8px;padding:10px 12px 12px 14px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;font-weight:600}
+#f .fline{display:flex;justify-content:space-between}
+#f .plus{color:var(--success)}#f .minus{color:var(--danger)}
+#f .prog{height:4px;overflow:hidden;border-radius:2px;background:var(--wash)}
+#f .prog span{display:block;width:50%;height:100%;border-radius:2px;background:var(--success)}
+#f .win .float{position:absolute;right:18px;bottom:14px;display:flex;align-items:center;gap:6px;height:28px;padding:0 6px 0 11px;border:1px solid var(--border);border-radius:14px;background:var(--raised);color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap;box-shadow:0 8px 24px -8px rgb(0 0 0 / 35%)}
+#f .float b{color:var(--text);font:600 12px var(--mono)}
+@media (max-width:800px){#f .side{display:none}}
+#g .win{--bg:#f8f8f6;--raised:#ffffff;--border:rgb(17 17 17 / 10%);--text:#111111;--dim:rgb(17 17 17 / 60%);--accent:#2a66c9;--success:#1f7a44;--danger:#b8312f;--warn:#a85d0b;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash-strong:rgb(127 127 127 / 18%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;--ctl:28px;--cap:30px;--ref:24px;--fs:12px;--icon:16px}
+#g .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 56%);--accent:#3d87f5;--success:#6fd094;--danger:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash-strong:rgb(127 127 127 / 26%)}
+#g .win.s38{--ctl:24px;--cap:26px;--ref:20px;--icon:14px}
+#g .win{--add:color-mix(in srgb,var(--success) 9%,var(--raised));--del:color-mix(in srgb,var(--danger) 9%,var(--raised));--accent-soft:color-mix(in srgb,var(--accent) 16%,transparent)}
+#g .win button{font:inherit;color:inherit;cursor:default}
+#g .ib{position:relative;display:grid;place-items:center;flex-shrink:0;width:var(--ctl);height:var(--ctl);padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#g .ib svg,#g .tb svg,#g .seg svg,#g .repo svg{width:var(--icon);height:var(--icon)}
+#g .ref{display:flex;align-items:center;height:var(--ref);padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#g .win .repo{gap:6px;font-family:var(--sans);font-weight:600}
+#g .repo svg{color:var(--dim)}
+#g .win .commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#g .caret{margin-left:4px;font-size:10px;opacity:.6}
+#g .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#g .chip{display:flex;align-items:center;gap:5px;height:var(--ref);padding:0 8px;border:0;border-radius:12px;background:var(--accent-soft);color:var(--accent);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#g .win .chip{color:var(--accent)}
+#g .chip svg{width:14px;height:14px}
+#g .pill{height:16px;margin-left:6px;padding:0 6px;border-radius:8px;background:var(--wash-strong);color:var(--dim);font:500 11px/16px var(--sans);white-space:nowrap}
+#g .badge{position:absolute;top:-2px;right:-3px;min-width:13px;height:13px;padding:0 3px;box-sizing:border-box;border-radius:7px;background:var(--accent);color:#ffffff;font:700 9px/13px var(--sans);text-align:center}
+#g .seg{display:flex;gap:2px;height:var(--ctl);padding:2px;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#g .seg button{display:grid;place-items:center;padding:0 7px;border:0;border-radius:6px;background:none;color:var(--dim)}
+#g .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#g .tb{display:flex;align-items:center;gap:5px;height:var(--ctl);padding:0 7px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:var(--fs);font-weight:500;white-space:nowrap}
+#g .count{min-width:16px;padding:0 5px;box-sizing:border-box;border-radius:8px;background:var(--wash-strong);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#g .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#g .row.dir{color:var(--dim)}
+#g .row.file{padding-left:24px}
+#g .row.on{background:var(--accent-soft)}
+#g .st{margin-left:auto;font:600 11px var(--mono)}
+#g .st.m{color:var(--warn)}#g .st.a{color:var(--success)}
+#g .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#g .ln.add{background:var(--add)}#g .ln.del{background:var(--del)}
+#g .no{width:44px;flex-shrink:0;padding-right:10px;box-sizing:border-box;text-align:right;color:var(--dim)}
+#g .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#g .ln.add .sg{color:var(--success)}#g .ln.del .sg{color:var(--danger)}
+#g kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;color:var(--dim);font:11px var(--mono)}
+#g .foot{display:grid;gap:8px;padding:10px 12px 12px 14px;border-top:1px solid var(--border);color:var(--dim);font-size:12px;font-weight:600}
+#g .fline{display:flex;justify-content:space-between}
+#g .plus{color:var(--success)}#g .minus{color:var(--danger)}
+#g .prog{height:4px;overflow:hidden;border-radius:2px;background:var(--wash)}
+#g .prog span{display:block;width:50%;height:100%;border-radius:2px;background:var(--success)}
+#g .win .next{display:flex;align-items:center;gap:6px;min-width:0;height:26px;padding:0 6px 0 8px;border:0;border-radius:6px;background:var(--wash);color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#g .next b{overflow:hidden;color:var(--text);font:600 12px var(--mono);text-overflow:ellipsis}
+#g .next kbd{margin-left:auto}
+@media (max-width:800px){#g .side{display:none}}
+#g2 .win{--bg:#f8f8f6;--raised:#ffffff;--border:rgb(17 17 17 / 10%);--text:#111111;--dim:rgb(17 17 17 / 60%);--accent:#2a66c9;--success:#1f7a44;--danger:#b8312f;--warn:#a85d0b;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash-strong:rgb(127 127 127 / 18%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;--ctl:28px;--cap:30px;--ref:24px;--fs:12px;--icon:16px}
+#g2 .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 56%);--accent:#3d87f5;--success:#6fd094;--danger:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash-strong:rgb(127 127 127 / 26%)}
+#g2 .win.s38{--ctl:24px;--cap:26px;--ref:20px;--icon:14px}
+#g2 .win{--add:color-mix(in srgb,var(--success) 9%,var(--raised));--del:color-mix(in srgb,var(--danger) 9%,var(--raised));--accent-soft:color-mix(in srgb,var(--accent) 16%,transparent)}
+#g2 .win button{font:inherit;color:inherit;cursor:default}
+#g2 .ib{position:relative;display:grid;place-items:center;flex-shrink:0;width:var(--ctl);height:var(--ctl);padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#g2 .ib svg,#g2 .tb svg,#g2 .seg svg,#g2 .repo svg{width:var(--icon);height:var(--icon)}
+#g2 .ref{display:flex;align-items:center;height:var(--ref);padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#g2 .win .repo{gap:6px;font-family:var(--sans);font-weight:600}
+#g2 .repo svg{color:var(--dim)}
+#g2 .win .commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#g2 .caret{margin-left:4px;font-size:10px;opacity:.6}
+#g2 .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#g2 .chip{display:flex;align-items:center;gap:5px;height:var(--ref);padding:0 8px;border:0;border-radius:12px;background:var(--accent-soft);color:var(--accent);font:600 var(--fs)/var(--ref) var(--mono);white-space:nowrap}
+#g2 .win .chip{color:var(--accent)}
+#g2 .chip svg{width:14px;height:14px}
+#g2 .pill{height:16px;margin-left:6px;padding:0 6px;border-radius:8px;background:var(--wash-strong);color:var(--dim);font:500 11px/16px var(--sans);white-space:nowrap}
+#g2 .badge{position:absolute;top:-2px;right:-3px;min-width:13px;height:13px;padding:0 3px;box-sizing:border-box;border-radius:7px;background:var(--accent);color:#ffffff;font:700 9px/13px var(--sans);text-align:center}
+#g2 .seg{display:flex;gap:2px;height:var(--ctl);padding:2px;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#g2 .seg button{display:grid;place-items:center;padding:0 7px;border:0;border-radius:6px;background:none;color:var(--dim)}
+#g2 .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#g2 .tb{display:flex;align-items:center;gap:5px;height:var(--ctl);padding:0 7px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:var(--fs);font-weight:500;white-space:nowrap}
+#g2 .count{min-width:16px;padding:0 5px;box-sizing:border-box;border-radius:8px;background:var(--wash-strong);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#g2 .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#g2 .ln.add{background:var(--add)}#g2 .ln.del{background:var(--del)}
+#g2 .no{width:44px;flex-shrink:0;padding-right:10px;box-sizing:border-box;text-align:right;color:var(--dim)}
+#g2 .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#g2 .ln.add .sg{color:var(--success)}#g2 .ln.del .sg{color:var(--danger)}
+#g2 kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;color:var(--dim);font:11px var(--mono)}
+#g2 .win .float{position:absolute;right:18px;bottom:14px;display:flex;align-items:center;gap:6px;height:28px;padding:0 6px 0 11px;border:1px solid var(--border);border-radius:14px;background:var(--raised);color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap;box-shadow:0 8px 24px -8px rgb(0 0 0 / 35%)}
+#g2 .float b{color:var(--text);font:600 12px var(--mono)}
+#g2 .float .ring{width:14px;height:14px}
+#g2 .float .fsep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+</style>
+</head>
+<body>
+<main class="page">
+<header class="top">
+<div>
+<h1>ghl — barre de titre plus compacte</h1>
+<p class="lede">Maquettes du 24 octobre 2026, après le passage à une seule review par fenêtre (#203) : rendre de la hauteur au code. Toutes les fenêtres ont la même hauteur, le gain se lit en lignes de diff.</p>
+</div>
+<div class="theme" role="group" aria-label="Apparence">
+<button type="button" data-mode="light">Clair</button>
+<button type="button" data-mode="dark">Sombre</button>
+</div>
+</header>
+<p class="case"><b>Contrainte.</b> macOS dessine les boutons de fenêtre, à une position qui dépend du style de barre d’outils : 52 px pour la barre unifiée (aujourd’hui, <code>TitleBarHiddenInset</code>), 38 px pour la barre compacte, 28 px sans barre d’outils (<code>TitleBarHidden</code>). Wails v2 n’a pas d’option pour le style compact : <code>desktop/toolbar.go</code> le règle en Objective-C (branche <code>feat/compact-titlebar</code>, vérifié par capture). Wails v3 l’expose avec <code>MacToolbarStyleUnifiedCompact</code>.</p>
+<section class="group">
+<h2>Hauteur de la barre</h2>
+<article class="variant" id="a">
+<h3><span class="num">A</span> Aujourd’hui</h3>
+<div class="tags"><span class="tag">52 px</span><span class="tag ok">Wails v2</span></div>
+<p class="desc">La barre actuelle : barre latérale, ouverture d’un dépôt, chemin du checkout, capsule de comparaison centrée, Unified/Split, Options, Copy et commentaires.</p>
+<div class="win" style="width: 100%; height: 340px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chrome); color: var(--text); font-family: var(--sans); font-size: 13px">
+<header style="position: relative; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); align-items: center; column-gap: 12px; height: 52px; padding: 0 12px; box-sizing: border-box; border-bottom: 1px solid var(--border)">
+<span aria-hidden="true" style="position: absolute; top: 20px; left: 20px; display: flex; gap: 8px">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span>
+</span>
+<div style="display: flex; align-items: center; gap: 4px; min-width: 0; padding-left: 72px">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.750v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span style="display: flex; align-items: center; min-width: 0; height: 28px; padding: 0 10px; overflow: hidden; font: 600 12px/1 var(--mono); white-space: nowrap"><span style="color: var(--dim)">~/dev/perso/</span>github-like</span>
+</div>
+<div role="group" aria-label="Comparison" style="grid-column: 2; display: flex; align-items: center; gap: 2px; height: var(--cap); padding: 2px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 15px; background: var(--wash)">
+<button class="chip" type="button" aria-label="Stack: layer 2 of 3"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.122.392a1.75 1.75 0 0 1 1.756 0l5.003 2.902c.83.481.83 1.68 0 2.162L8.878 8.358a1.75 1.75 0 0 1-1.756 0L2.119 5.456a1.251 1.251 0 0 1 0-2.162ZM8.125 1.69a.248.248 0 0 0-.25 0l-4.63 2.685 4.63 2.685a.248.248 0 0 0 .25 0l4.63-2.685ZM1.601 7.789a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0L1.874 8.814A.75.75 0 0 1 1.6 7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z"></path></svg>2/3<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref" type="button">stacks/01-popover<span class="caret">▾</span></button>
+<span aria-hidden="true" style="color: var(--dim); font-size: 12px">→</span>
+<button class="ref" type="button">stacks/02-overview<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div style="grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px">
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button" aria-pressed="true">Unified</button><button type="button" aria-pressed="false">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">3</span></button>
+<button class="ib" type="button" aria-label="Comments"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.750A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div style="flex: 1; min-height: 0; display: flex">
+<aside class="side" style="width: 240px; flex-shrink: 0; padding: 10px 8px; box-sizing: border-box; border-right: 1px solid var(--border)">
+<div style="display: flex; align-items: baseline; gap: 6px; padding: 2px 6px 8px">
+<span style="color: var(--dim); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">Files</span>
+<span style="color: var(--dim); font-size: 11px">6</span>
+</div>
+<div class="row dir"><span>desktop</span><span class="st "></span></div><div class="row file"><span>main.go</span><span class="st m">M</span></div><div class="row dir"><span>web/src</span><span class="st "></span></div><div class="row file"><span>DesktopApp.tsx</span><span class="st m">M</span></div><div class="row file"><span>DesktopToolbar.tsx</span><span class="st m">M</span></div><div class="row file on"><span>desktop.css</span><span class="st m">M</span></div><div class="row file"><span>Icon.tsx</span><span class="st m">M</span></div><div class="row file"><span>StackPicker.tsx</span><span class="st a">A</span></div>
+</aside>
+<main style="flex: 1; min-width: 0; padding: 12px 16px 0; box-sizing: border-box; overflow: hidden; background: var(--bg)">
+<section style="overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--raised)">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true" style="color: var(--dim)"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span style="font: 600 12px var(--mono)">web/src/desktop.css</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+4</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−3</span>
+<label style="display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln "><span class="no">117</span><span class="sg"> </span><span>/* The outer columns share the width evenly, so the comparison capsule sits in</span></div><div class="ln "><span class="no">118</span><span class="sg"> </span><span>   the middle of the window. */</span></div><div class="ln "><span class="no">119</span><span class="sg"> </span><span>.desktop-titlebar {</span></div><div class="ln "><span class="no">120</span><span class="sg"> </span><span>  --wails-draggable: drag;</span></div><div class="ln "><span class="no">121</span><span class="sg"> </span><span>  display: grid;</span></div><div class="ln "><span class="no">122</span><span class="sg"> </span><span>  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);</span></div><div class="ln del"><span class="no">123</span><span class="sg">−</span><span>  height: 52px;</span></div><div class="ln add"><span class="no">123</span><span class="sg">+</span><span>  height: 38px;</span></div><div class="ln "><span class="no">124</span><span class="sg"> </span><span>  padding: 0 12px;</span></div><div class="ln "><span class="no">125</span><span class="sg"> </span><span>  background: var(--chrome-bg);</span></div><div class="ln "><span class="no">126</span><span class="sg"> </span><span>  border-bottom: 1px solid var(--border);</span></div><div class="ln "><span class="no">127</span><span class="sg"> </span><span>}</span></div><div class="ln "><span class="no">128</span><span class="sg"> </span><span>.titlebar-button {</span></div><div class="ln del"><span class="no">129</span><span class="sg">−</span><span>  width: 28px;</span></div><div class="ln del"><span class="no">130</span><span class="sg">−</span><span>  height: 28px;</span></div><div class="ln add"><span class="no">129</span><span class="sg">+</span><span>  width: 24px;</span></div><div class="ln add"><span class="no">130</span><span class="sg">+</span><span>  height: 24px;</span></div><div class="ln add"><span class="no">131</span><span class="sg">+</span><span>  border-radius: 7px;</span></div><div class="ln "><span class="no">132</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer style="flex-shrink: 0; display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 14px; border-top: 1px solid var(--border); background: var(--bg); color: var(--dim); font-size: 12px; white-space: nowrap">
+<span>base from the stack</span>
+<span>working tree included</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0; border: 0; background: none; font-size: 12px">Next <b style="color: var(--text); font: 600 12px var(--mono)">web/src/Icon.tsx</b> <kbd>j</kbd></button>
+</footer>
+</div>
+</article>
+<article class="variant" id="b">
+<h3><span class="num">B</span> Même contenu, en compact</h3>
+<div class="tags"><span class="tag">38 px</span><span class="tag hack">v2 + toolbar.go</span><span class="tag v3">Wails v3</span></div>
+<p class="desc">Contrôles de 24 px et capsule de 26 px ; rien ne change de place.</p>
+<div class="win s38" style="width: 100%; height: 340px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chrome); color: var(--text); font-family: var(--sans); font-size: 13px">
+<header style="position: relative; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); align-items: center; column-gap: 12px; height: 38px; padding: 0 12px; box-sizing: border-box; border-bottom: 1px solid var(--border)">
+<span aria-hidden="true" style="position: absolute; top: 13px; left: 20px; display: flex; gap: 8px">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span>
+</span>
+<div style="display: flex; align-items: center; gap: 4px; min-width: 0; padding-left: 72px">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span style="display: flex; align-items: center; min-width: 0; height: 24px; padding: 0 10px; overflow: hidden; font: 600 12px/1 var(--mono); white-space: nowrap"><span style="color: var(--dim)">~/dev/perso/</span>github-like</span>
+</div>
+<div role="group" aria-label="Comparison" style="grid-column: 2; display: flex; align-items: center; gap: 2px; height: var(--cap); padding: 2px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 13px; background: var(--wash)">
+<button class="chip" type="button" aria-label="Stack: layer 2 of 3"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.122.392a1.75 1.75 0 0 1 1.756 0l5.003 2.902c.83.481.83 1.68 0 2.162L8.878 8.358a1.75 1.75 0 0 1-1.756 0L2.119 5.456a1.251 1.251 0 0 1 0-2.162ZM8.125 1.69a.248.248 0 0 0-.25 0l-4.63 2.685 4.63 2.685a.248.248 0 0 0 .25 0l4.63-2.685ZM1.601 7.789a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0L1.874 8.814A.75.75 0 0 1 1.6 7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z"></path></svg>2/3<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref" type="button">stacks/01-popover<span class="caret">▾</span></button>
+<span aria-hidden="true" style="color: var(--dim); font-size: 12px">→</span>
+<button class="ref" type="button">stacks/02-overview<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div style="grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px">
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button" aria-pressed="true">Unified</button><button type="button" aria-pressed="false">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">3</span></button>
+<button class="ib" type="button" aria-label="Comments"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div style="flex: 1; min-height: 0; display: flex">
+<aside class="side" style="width: 240px; flex-shrink: 0; padding: 10px 8px; box-sizing: border-box; border-right: 1px solid var(--border)">
+<div style="display: flex; align-items: baseline; gap: 6px; padding: 2px 6px 8px">
+<span style="color: var(--dim); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">Files</span>
+<span style="color: var(--dim); font-size: 11px">6</span>
+</div>
+<div class="row dir"><span>desktop</span><span class="st "></span></div><div class="row file"><span>main.go</span><span class="st m">M</span></div><div class="row dir"><span>web/src</span><span class="st "></span></div><div class="row file"><span>DesktopApp.tsx</span><span class="st m">M</span></div><div class="row file"><span>DesktopToolbar.tsx</span><span class="st m">M</span></div><div class="row file on"><span>desktop.css</span><span class="st m">M</span></div><div class="row file"><span>Icon.tsx</span><span class="st m">M</span></div><div class="row file"><span>StackPicker.tsx</span><span class="st a">A</span></div>
+</aside>
+<main style="flex: 1; min-width: 0; padding: 12px 16px 0; box-sizing: border-box; overflow: hidden; background: var(--bg)">
+<section style="overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--raised)">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true" style="color: var(--dim)"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span style="font: 600 12px var(--mono)">web/src/desktop.css</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+4</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−3</span>
+<label style="display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln "><span class="no">117</span><span class="sg"> </span><span>/* The outer columns share the width evenly, so the comparison capsule sits in</span></div><div class="ln "><span class="no">118</span><span class="sg"> </span><span>   the middle of the window. */</span></div><div class="ln "><span class="no">119</span><span class="sg"> </span><span>.desktop-titlebar {</span></div><div class="ln "><span class="no">120</span><span class="sg"> </span><span>  --wails-draggable: drag;</span></div><div class="ln "><span class="no">121</span><span class="sg"> </span><span>  display: grid;</span></div><div class="ln "><span class="no">122</span><span class="sg"> </span><span>  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);</span></div><div class="ln del"><span class="no">123</span><span class="sg">−</span><span>  height: 52px;</span></div><div class="ln add"><span class="no">123</span><span class="sg">+</span><span>  height: 38px;</span></div><div class="ln "><span class="no">124</span><span class="sg"> </span><span>  padding: 0 12px;</span></div><div class="ln "><span class="no">125</span><span class="sg"> </span><span>  background: var(--chrome-bg);</span></div><div class="ln "><span class="no">126</span><span class="sg"> </span><span>  border-bottom: 1px solid var(--border);</span></div><div class="ln "><span class="no">127</span><span class="sg"> </span><span>}</span></div><div class="ln "><span class="no">128</span><span class="sg"> </span><span>.titlebar-button {</span></div><div class="ln del"><span class="no">129</span><span class="sg">−</span><span>  width: 28px;</span></div><div class="ln del"><span class="no">130</span><span class="sg">−</span><span>  height: 28px;</span></div><div class="ln add"><span class="no">129</span><span class="sg">+</span><span>  width: 24px;</span></div><div class="ln add"><span class="no">130</span><span class="sg">+</span><span>  height: 24px;</span></div><div class="ln add"><span class="no">131</span><span class="sg">+</span><span>  border-radius: 7px;</span></div><div class="ln "><span class="no">132</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer style="flex-shrink: 0; display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 14px; border-top: 1px solid var(--border); background: var(--bg); color: var(--dim); font-size: 12px; white-space: nowrap">
+<span>base from the stack</span>
+<span>working tree included</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0; border: 0; background: none; font-size: 12px">Next <b style="color: var(--text); font: 600 12px var(--mono)">web/src/Icon.tsx</b> <kbd>j</kbd></button>
+</footer>
+</div>
+</article>
+<article class="variant" id="c">
+<h3><span class="num">C</span> Dépôt dans la capsule, actions en icônes</h3>
+<div class="tags"><span class="tag">38 px</span><span class="tag hack">v2 + toolbar.go</span><span class="tag v3">Wails v3</span></div>
+<p class="desc">Le dépôt entre dans la capsule et remplace le chemin et le bouton +. Les branches d’une stack perdent leur préfixe, que la liste de la stack affiche. Unified/Split et Options deviennent des icônes ; Copy disparaît (⇧⌘C) et le nombre de commentaires passe sur leur bouton.</p>
+<div class="win s38" style="width: 100%; height: 340px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chrome); color: var(--text); font-family: var(--sans); font-size: 13px">
+<header style="position: relative; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); align-items: center; column-gap: 12px; height: 38px; padding: 0 12px; box-sizing: border-box; border-bottom: 1px solid var(--border)">
+<span aria-hidden="true" style="position: absolute; top: 13px; left: 20px; display: flex; gap: 8px">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span>
+</span>
+<div style="display: flex; align-items: center; gap: 4px; min-width: 0; padding-left: 72px">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+<div role="group" aria-label="Comparison" style="grid-column: 2; display: flex; align-items: center; gap: 2px; height: var(--cap); padding: 2px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 13px; background: var(--wash)">
+<button class="ref repo" type="button" title="~/dev/perso/github-like — open another repository (⌘O)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.4 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5Z"></path></svg>github-like<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="chip" type="button" aria-label="Stack stacks/: layer 2 of 3"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.122.392a1.75 1.75 0 0 1 1.756 0l5.003 2.902c.83.481.83 1.68 0 2.162L8.878 8.358a1.75 1.75 0 0 1-1.756 0L2.119 5.456a1.251 1.251 0 0 1 0-2.162ZM8.125 1.69a.248.248 0 0 0-.25 0l-4.63 2.685 4.63 2.685a.248.248 0 0 0 .25 0l4.63-2.685ZM1.601 7.789a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0L1.874 8.814A.75.75 0 0 1 1.6 7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z"></path></svg>2/3<span class="caret">▾</span></button>
+<button class="ref" type="button" title="stacks/01-popover">01-popover<span class="caret">▾</span></button>
+<span aria-hidden="true" style="color: var(--dim); font-size: 12px">→</span>
+<button class="ref" type="button" title="stacks/02-overview">02-overview<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div style="grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px">
+<div class="seg" role="group" aria-label="Diff layout">
+<button class="on" type="button" aria-pressed="true" aria-label="Unified" title="Unified (⌘1)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M5 6h6M5 8.5h6M5 11h4"></path></svg></button>
+<button type="button" aria-pressed="false" aria-label="Split" title="Split (⌘2)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M8 2.5v11"></path></svg></button>
+</div>
+<button class="ib" type="button" aria-label="Diff options" title="Working tree, untracked, whitespace"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M2 4.5h7M12 4.5h2M2 11.5h2M7 11.5h7"></path><circle cx="10.5" cy="4.5" r="1.5"></circle><circle cx="5.5" cy="11.5" r="1.5"></circle></svg></button>
+<button class="tb" type="button" aria-label="Comments, 3" title="Comments (⌥⌘0) · copy all with ⇧⌘C"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg><span class="count">3</span></button>
+</div>
+</header>
+<div style="flex: 1; min-height: 0; display: flex">
+<aside class="side" style="width: 240px; flex-shrink: 0; padding: 10px 8px; box-sizing: border-box; border-right: 1px solid var(--border)">
+<div style="display: flex; align-items: baseline; gap: 6px; padding: 2px 6px 8px">
+<span style="color: var(--dim); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">Files</span>
+<span style="color: var(--dim); font-size: 11px">6</span>
+</div>
+<div class="row dir"><span>desktop</span><span class="st "></span></div><div class="row file"><span>main.go</span><span class="st m">M</span></div><div class="row dir"><span>web/src</span><span class="st "></span></div><div class="row file"><span>DesktopApp.tsx</span><span class="st m">M</span></div><div class="row file"><span>DesktopToolbar.tsx</span><span class="st m">M</span></div><div class="row file on"><span>desktop.css</span><span class="st m">M</span></div><div class="row file"><span>Icon.tsx</span><span class="st m">M</span></div><div class="row file"><span>StackPicker.tsx</span><span class="st a">A</span></div>
+</aside>
+<main style="flex: 1; min-width: 0; padding: 12px 16px 0; box-sizing: border-box; overflow: hidden; background: var(--bg)">
+<section style="overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--raised)">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true" style="color: var(--dim)"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span style="font: 600 12px var(--mono)">web/src/desktop.css</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+4</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−3</span>
+<label style="display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln "><span class="no">117</span><span class="sg"> </span><span>/* The outer columns share the width evenly, so the comparison capsule sits in</span></div><div class="ln "><span class="no">118</span><span class="sg"> </span><span>   the middle of the window. */</span></div><div class="ln "><span class="no">119</span><span class="sg"> </span><span>.desktop-titlebar {</span></div><div class="ln "><span class="no">120</span><span class="sg"> </span><span>  --wails-draggable: drag;</span></div><div class="ln "><span class="no">121</span><span class="sg"> </span><span>  display: grid;</span></div><div class="ln "><span class="no">122</span><span class="sg"> </span><span>  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);</span></div><div class="ln del"><span class="no">123</span><span class="sg">−</span><span>  height: 52px;</span></div><div class="ln add"><span class="no">123</span><span class="sg">+</span><span>  height: 38px;</span></div><div class="ln "><span class="no">124</span><span class="sg"> </span><span>  padding: 0 12px;</span></div><div class="ln "><span class="no">125</span><span class="sg"> </span><span>  background: var(--chrome-bg);</span></div><div class="ln "><span class="no">126</span><span class="sg"> </span><span>  border-bottom: 1px solid var(--border);</span></div><div class="ln "><span class="no">127</span><span class="sg"> </span><span>}</span></div><div class="ln "><span class="no">128</span><span class="sg"> </span><span>.titlebar-button {</span></div><div class="ln del"><span class="no">129</span><span class="sg">−</span><span>  width: 28px;</span></div><div class="ln del"><span class="no">130</span><span class="sg">−</span><span>  height: 28px;</span></div><div class="ln add"><span class="no">129</span><span class="sg">+</span><span>  width: 24px;</span></div><div class="ln add"><span class="no">130</span><span class="sg">+</span><span>  height: 24px;</span></div><div class="ln add"><span class="no">131</span><span class="sg">+</span><span>  border-radius: 7px;</span></div><div class="ln "><span class="no">132</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer style="flex-shrink: 0; display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 14px; border-top: 1px solid var(--border); background: var(--bg); color: var(--dim); font-size: 12px; white-space: nowrap">
+<span>base from the stack</span>
+<span>working tree included</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0; border: 0; background: none; font-size: 12px">Next <b style="color: var(--text); font: 600 12px var(--mono)">web/src/Icon.tsx</b> <kbd>j</kbd></button>
+</footer>
+</div>
+</article>
+<article class="variant" id="d">
+<h3><span class="num">D</span> Dans la rangée des boutons de fenêtre</h3>
+<div class="tags"><span class="tag">28 px</span><span class="tag ok">Wails v2</span></div>
+<p class="desc">Le contenu de C sans barre d’outils (<code>TitleBarHidden</code>) : contrôles de 20 px, capsule sans bordure.</p>
+<div class="win s28" style="width: 100%; height: 340px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chrome); color: var(--text); font-family: var(--sans); font-size: 13px">
+<header style="position: relative; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); align-items: center; column-gap: 10px; height: 28px; padding: 0 8px; box-sizing: border-box; border-bottom: 1px solid var(--border)">
+<span aria-hidden="true" style="position: absolute; top: 8px; left: 20px; display: flex; gap: 8px">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span>
+</span>
+<div style="display: flex; align-items: center; gap: 4px; min-width: 0; padding-left: 76px">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+<div role="group" aria-label="Comparison" style="grid-column: 2; display: flex; align-items: center; gap: 2px; height: var(--cap); padding: 2px; box-sizing: border-box; border-radius: 11px; background: var(--wash)">
+<button class="ref repo" type="button" title="~/dev/perso/github-like — open another repository (⌘O)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.4 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5Z"></path></svg>github-like<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="chip" type="button" aria-label="Stack stacks/: layer 2 of 3"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.122.392a1.75 1.75 0 0 1 1.756 0l5.003 2.902c.83.481.83 1.68 0 2.162L8.878 8.358a1.75 1.75 0 0 1-1.756 0L2.119 5.456a1.251 1.251 0 0 1 0-2.162ZM8.125 1.69a.248.248 0 0 0-.25 0l-4.63 2.685 4.63 2.685a.248.248 0 0 0 .25 0l4.63-2.685ZM1.601 7.789a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0L1.874 8.814A.75.75 0 0 1 1.6 7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z"></path></svg>2/3<span class="caret">▾</span></button>
+<button class="ref" type="button" title="stacks/01-popover">01-popover<span class="caret">▾</span></button>
+<span aria-hidden="true" style="color: var(--dim); font-size: 11px">→</span>
+<button class="ref" type="button" title="stacks/02-overview">02-overview<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div style="grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 2px">
+<div class="seg" role="group" aria-label="Diff layout">
+<button class="on" type="button" aria-pressed="true" aria-label="Unified" title="Unified (⌘1)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M5 6h6M5 8.5h6M5 11h4"></path></svg></button>
+<button type="button" aria-pressed="false" aria-label="Split" title="Split (⌘2)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M8 2.5v11"></path></svg></button>
+</div>
+<button class="ib" type="button" aria-label="Diff options" title="Working tree, untracked, whitespace"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M2 4.5h7M12 4.5h2M2 11.5h2M7 11.5h7"></path><circle cx="10.5" cy="4.5" r="1.5"></circle><circle cx="5.5" cy="11.5" r="1.5"></circle></svg></button>
+<button class="tb" type="button" aria-label="Comments, 3" title="Comments (⌥⌘0) · copy all with ⇧⌘C"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg><span class="count">3</span></button>
+</div>
+</header>
+<div style="flex: 1; min-height: 0; display: flex">
+<aside class="side" style="width: 240px; flex-shrink: 0; padding: 10px 8px; box-sizing: border-box; border-right: 1px solid var(--border)">
+<div style="display: flex; align-items: baseline; gap: 6px; padding: 2px 6px 8px">
+<span style="color: var(--dim); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">Files</span>
+<span style="color: var(--dim); font-size: 11px">6</span>
+</div>
+<div class="row dir"><span>desktop</span><span class="st "></span></div><div class="row file"><span>main.go</span><span class="st m">M</span></div><div class="row dir"><span>web/src</span><span class="st "></span></div><div class="row file"><span>DesktopApp.tsx</span><span class="st m">M</span></div><div class="row file"><span>DesktopToolbar.tsx</span><span class="st m">M</span></div><div class="row file on"><span>desktop.css</span><span class="st m">M</span></div><div class="row file"><span>Icon.tsx</span><span class="st m">M</span></div><div class="row file"><span>StackPicker.tsx</span><span class="st a">A</span></div>
+</aside>
+<main style="flex: 1; min-width: 0; padding: 12px 16px 0; box-sizing: border-box; overflow: hidden; background: var(--bg)">
+<section style="overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--raised)">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true" style="color: var(--dim)"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span style="font: 600 12px var(--mono)">web/src/desktop.css</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+4</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−3</span>
+<label style="display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln "><span class="no">117</span><span class="sg"> </span><span>/* The outer columns share the width evenly, so the comparison capsule sits in</span></div><div class="ln "><span class="no">118</span><span class="sg"> </span><span>   the middle of the window. */</span></div><div class="ln "><span class="no">119</span><span class="sg"> </span><span>.desktop-titlebar {</span></div><div class="ln "><span class="no">120</span><span class="sg"> </span><span>  --wails-draggable: drag;</span></div><div class="ln "><span class="no">121</span><span class="sg"> </span><span>  display: grid;</span></div><div class="ln "><span class="no">122</span><span class="sg"> </span><span>  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);</span></div><div class="ln del"><span class="no">123</span><span class="sg">−</span><span>  height: 52px;</span></div><div class="ln add"><span class="no">123</span><span class="sg">+</span><span>  height: 38px;</span></div><div class="ln "><span class="no">124</span><span class="sg"> </span><span>  padding: 0 12px;</span></div><div class="ln "><span class="no">125</span><span class="sg"> </span><span>  background: var(--chrome-bg);</span></div><div class="ln "><span class="no">126</span><span class="sg"> </span><span>  border-bottom: 1px solid var(--border);</span></div><div class="ln "><span class="no">127</span><span class="sg"> </span><span>}</span></div><div class="ln "><span class="no">128</span><span class="sg"> </span><span>.titlebar-button {</span></div><div class="ln del"><span class="no">129</span><span class="sg">−</span><span>  width: 28px;</span></div><div class="ln del"><span class="no">130</span><span class="sg">−</span><span>  height: 28px;</span></div><div class="ln add"><span class="no">129</span><span class="sg">+</span><span>  width: 24px;</span></div><div class="ln add"><span class="no">130</span><span class="sg">+</span><span>  height: 24px;</span></div><div class="ln add"><span class="no">131</span><span class="sg">+</span><span>  border-radius: 7px;</span></div><div class="ln "><span class="no">132</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer style="flex-shrink: 0; display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 14px; border-top: 1px solid var(--border); background: var(--bg); color: var(--dim); font-size: 12px; white-space: nowrap">
+<span>base from the stack</span>
+<span>working tree included</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0; border: 0; background: none; font-size: 12px">Next <b style="color: var(--text); font: 600 12px var(--mono)">web/src/Icon.tsx</b> <kbd>j</kbd></button>
+</footer>
+</div>
+</article>
+</section>
+<section class="group">
+<h2>Sans barre d’état, sur la barre C</h2>
+<p class="lede">La barre d’état du bas (32 px) disparaît. Ces variantes ne touchent que l’interface web et valent pour toutes les hauteurs de barre.</p>
+<article class="variant" id="e">
+<h3><span class="num">E</span> Tout dans le pied de la barre latérale</h3>
+<div class="tags"><span class="tag">web</span></div>
+<p class="desc">Base, working tree, fichiers non suivis, progression et bouton Next sous l’arbre. Ces informations disparaissent avec la barre latérale.</p>
+<div class="win s38" style="width: 100%; height: 340px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chrome); color: var(--text); font-family: var(--sans); font-size: 13px">
+<header style="position: relative; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); align-items: center; column-gap: 12px; height: 38px; padding: 0 12px; box-sizing: border-box; border-bottom: 1px solid var(--border)">
+<span aria-hidden="true" style="position: absolute; top: 13px; left: 20px; display: flex; gap: 8px">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span>
+</span>
+<div style="display: flex; align-items: center; gap: 4px; min-width: 0; padding-left: 72px">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+<div role="group" aria-label="Comparison" style="grid-column: 2; display: flex; align-items: center; gap: 2px; height: var(--cap); padding: 2px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 13px; background: var(--wash)">
+<button class="ref repo" type="button" title="~/dev/perso/github-like — open another repository (⌘O)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.4 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5Z"></path></svg>github-like<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="chip" type="button" aria-label="Stack stacks/: layer 2 of 3"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.122.392a1.75 1.75 0 0 1 1.756 0l5.003 2.902c.83.481.83 1.68 0 2.162L8.878 8.358a1.75 1.75 0 0 1-1.756 0L2.119 5.456a1.251 1.251 0 0 1 0-2.162ZM8.125 1.69a.248.248 0 0 0-.25 0l-4.63 2.685 4.63 2.685a.248.248 0 0 0 .25 0l4.630-2.685ZM1.601 7.789a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0L1.874 8.814A.75.75 0 0 1 1.6 7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z"></path></svg>2/3<span class="caret">▾</span></button>
+<button class="ref" type="button" title="stacks/01-popover">01-popover<span class="caret">▾</span></button>
+<span aria-hidden="true" style="color: var(--dim); font-size: 12px">→</span>
+<button class="ref" type="button" title="stacks/02-overview">02-overview<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div style="grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px">
+<div class="seg" role="group" aria-label="Diff layout">
+<button class="on" type="button" aria-pressed="true" aria-label="Unified" title="Unified (⌘1)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M5 6h6M5 8.5h6M5 11h4"></path></svg></button>
+<button type="button" aria-pressed="false" aria-label="Split" title="Split (⌘2)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M8 2.5v11"></path></svg></button>
+</div>
+<button class="ib" type="button" aria-label="Diff options" title="Working tree, untracked, whitespace"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M2 4.5h7M12 4.5h2M2 11.5h2M7 11.5h7"></path><circle cx="10.5" cy="4.5" r="1.5"></circle><circle cx="5.5" cy="11.5" r="1.5"></circle></svg></button>
+<button class="tb" type="button" aria-label="Comments, 3" title="Comments (⌥⌘0) · copy all with ⇧⌘C"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg><span class="count">3</span></button>
+</div>
+</header>
+<div style="flex: 1; min-height: 0; display: flex">
+<aside class="side" style="width: 240px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border)">
+<div style="flex: 1; min-height: 0; overflow: hidden; padding: 10px 8px; box-sizing: border-box">
+<div style="display: flex; align-items: baseline; gap: 6px; padding: 2px 6px 8px">
+<span style="color: var(--dim); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">Files</span>
+<span style="color: var(--dim); font-size: 11px">6</span>
+</div>
+<div class="row dir"><span>desktop</span><span class="st "></span></div><div class="row file"><span>main.go</span><span class="st m">M</span></div><div class="row dir"><span>web/src</span><span class="st "></span></div><div class="row file"><span>DesktopApp.tsx</span><span class="st m">M</span></div><div class="row file"><span>DesktopToolbar.tsx</span><span class="st m">M</span></div><div class="row file on"><span>desktop.css</span><span class="st m">M</span></div><div class="row file"><span>Icon.tsx</span><span class="st m">M</span></div><div class="row file"><span>StackPicker.tsx</span><span class="st a">A</span></div>
+</div>
+<div class="foot">
+<div class="scope">Base from the stack · working tree included · 2 untracked hidden</div>
+<div class="fline"><span>3 of 6 viewed</span><span><span class="plus">+42</span> <span class="minus">−17</span></span></div>
+<div class="prog" role="progressbar" aria-label="Files viewed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="3"><span></span></div>
+<button class="next" type="button" title="Next file (j)">Next <b>Icon.tsx</b><kbd>j</kbd></button>
+</div>
+</aside>
+<main style="flex: 1; min-width: 0; padding: 12px 16px 0; box-sizing: border-box; overflow: hidden; background: var(--bg)">
+<section style="overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--raised)">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true" style="color: var(--dim)"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span style="font: 600 12px var(--mono)">web/src/desktop.css</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+4</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−3</span>
+<label style="display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln "><span class="no">117</span><span class="sg"> </span><span>/* The outer columns share the width evenly, so the comparison capsule sits in</span></div><div class="ln "><span class="no">118</span><span class="sg"> </span><span>   the middle of the window. */</span></div><div class="ln "><span class="no">119</span><span class="sg"> </span><span>.desktop-titlebar {</span></div><div class="ln "><span class="no">120</span><span class="sg"> </span><span>  --wails-draggable: drag;</span></div><div class="ln "><span class="no">121</span><span class="sg"> </span><span>  display: grid;</span></div><div class="ln "><span class="no">122</span><span class="sg"> </span><span>  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);</span></div><div class="ln del"><span class="no">123</span><span class="sg">−</span><span>  height: 52px;</span></div><div class="ln add"><span class="no">123</span><span class="sg">+</span><span>  height: 38px;</span></div><div class="ln "><span class="no">124</span><span class="sg"> </span><span>  padding: 0 12px;</span></div><div class="ln "><span class="no">125</span><span class="sg"> </span><span>  background: var(--chrome-bg);</span></div><div class="ln "><span class="no">126</span><span class="sg"> </span><span>  border-bottom: 1px solid var(--border);</span></div><div class="ln "><span class="no">127</span><span class="sg"> </span><span>}</span></div><div class="ln "><span class="no">128</span><span class="sg"> </span><span>.titlebar-button {</span></div><div class="ln del"><span class="no">129</span><span class="sg">−</span><span>  width: 28px;</span></div><div class="ln del"><span class="no">130</span><span class="sg">−</span><span>  height: 28px;</span></div><div class="ln add"><span class="no">129</span><span class="sg">+</span><span>  width: 24px;</span></div><div class="ln add"><span class="no">130</span><span class="sg">+</span><span>  height: 24px;</span></div><div class="ln add"><span class="no">131</span><span class="sg">+</span><span>  border-radius: 7px;</span></div><div class="ln "><span class="no">132</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+</main>
+</div>
+</div>
+</article>
+<article class="variant" id="f">
+<h3><span class="num">F</span> Tout dans la barre de titre</h3>
+<div class="tags"><span class="tag">web</span></div>
+<p class="desc">Pastille « + working tree » sur la cible, badge sur Options pour les fichiers non suivis masqués, origine de la base au survol. Next flotte en bas à droite du diff et peut couvrir la fin des lignes.</p>
+<div class="win s38" style="width: 100%; height: 340px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chrome); color: var(--text); font-family: var(--sans); font-size: 13px">
+<header style="position: relative; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); align-items: center; column-gap: 12px; height: 38px; padding: 0 12px; box-sizing: border-box; border-bottom: 1px solid var(--border)">
+<span aria-hidden="true" style="position: absolute; top: 13px; left: 20px; display: flex; gap: 8px">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span>
+</span>
+<div style="display: flex; align-items: center; gap: 4px; min-width: 0; padding-left: 72px">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+<div role="group" aria-label="Comparison" style="grid-column: 2; display: flex; align-items: center; gap: 2px; height: var(--cap); padding: 2px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 13px; background: var(--wash)">
+<button class="ref repo" type="button" title="~/dev/perso/github-like — open another repository (⌘O)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.4 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5Z"></path></svg>github-like<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="chip" type="button" aria-label="Stack stacks/: layer 2 of 3"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.122.392a1.75 1.75 0 0 1 1.756 0l5.003 2.902c.83.481.83 1.68 0 2.162L8.878 8.358a1.75 1.75 0 0 1-1.756 0L2.119 5.456a1.251 1.251 0 0 1 0-2.162ZM8.125 1.69a.248.248 0 0 0-.25 0l-4.63 2.685 4.63 2.685a.248.248 0 0 0 .25 0l4.63-2.685ZM1.601 7.789a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0L1.874 8.814A.75.75 0 0 1 1.6 7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z"></path></svg>2/3<span class="caret">▾</span></button>
+<button class="ref" type="button" title="stacks/01-popover · base from the stack">01-popover<span class="caret">▾</span></button>
+<span aria-hidden="true" style="color: var(--dim); font-size: 12px">→</span>
+<button class="ref" type="button" title="stacks/02-overview, working tree included">02-overview<span class="pill">+ working tree</span><span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div style="grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px">
+<div class="seg" role="group" aria-label="Diff layout">
+<button class="on" type="button" aria-pressed="true" aria-label="Unified" title="Unified (⌘1)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M5 6h6M5 8.5h6M5 11h4"></path></svg></button>
+<button type="button" aria-pressed="false" aria-label="Split" title="Split (⌘2)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M8 2.5v11"></path></svg></button>
+</div>
+<button class="ib" type="button" aria-label="Diff options, 2 untracked files hidden" title="2 untracked files hidden"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M2 4.5h7M12 4.5h2M2 11.5h2M7 11.5h7"></path><circle cx="10.5" cy="4.5" r="1.5"></circle><circle cx="5.5" cy="11.5" r="1.5"></circle></svg><span class="badge" aria-hidden="true">2</span></button>
+<button class="tb" type="button" aria-label="Comments, 3" title="Comments (⌥⌘0) · copy all with ⇧⌘C"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg><span class="count">3</span></button>
+</div>
+</header>
+<div style="flex: 1; min-height: 0; display: flex">
+<aside class="side" style="width: 240px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border)">
+<div style="flex: 1; min-height: 0; overflow: hidden; padding: 10px 8px; box-sizing: border-box">
+<div style="display: flex; align-items: baseline; gap: 6px; padding: 2px 6px 8px">
+<span style="color: var(--dim); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">Files</span>
+<span style="color: var(--dim); font-size: 11px">6</span>
+</div>
+<div class="row dir"><span>desktop</span><span class="st "></span></div><div class="row file"><span>main.go</span><span class="st m">M</span></div><div class="row dir"><span>web/src</span><span class="st "></span></div><div class="row file"><span>DesktopApp.tsx</span><span class="st m">M</span></div><div class="row file"><span>DesktopToolbar.tsx</span><span class="st m">M</span></div><div class="row file on"><span>desktop.css</span><span class="st m">M</span></div><div class="row file"><span>Icon.tsx</span><span class="st m">M</span></div><div class="row file"><span>StackPicker.tsx</span><span class="st a">A</span></div>
+</div>
+<div class="foot">
+<div class="fline"><span>3 of 6 viewed</span><span><span class="plus">+42</span> <span class="minus">−17</span></span></div>
+<div class="prog" role="progressbar" aria-label="Files viewed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="3"><span></span></div>
+</div>
+</aside>
+<main style="position: relative; flex: 1; min-width: 0; padding: 12px 16px 0; box-sizing: border-box; overflow: hidden; background: var(--bg)">
+<section style="overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--raised)">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true" style="color: var(--dim)"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span style="font: 600 12px var(--mono)">web/src/desktop.css</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+4</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−3</span>
+<label style="display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln "><span class="no">117</span><span class="sg"> </span><span>/* The outer columns share the width evenly, so the comparison capsule sits in</span></div><div class="ln "><span class="no">118</span><span class="sg"> </span><span>   the middle of the window. */</span></div><div class="ln "><span class="no">119</span><span class="sg"> </span><span>.desktop-titlebar {</span></div><div class="ln "><span class="no">120</span><span class="sg"> </span><span>  --wails-draggable: drag;</span></div><div class="ln "><span class="no">121</span><span class="sg"> </span><span>  display: grid;</span></div><div class="ln "><span class="no">122</span><span class="sg"> </span><span>  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);</span></div><div class="ln del"><span class="no">123</span><span class="sg">−</span><span>  height: 52px;</span></div><div class="ln add"><span class="no">123</span><span class="sg">+</span><span>  height: 38px;</span></div><div class="ln "><span class="no">124</span><span class="sg"> </span><span>  padding: 0 12px;</span></div><div class="ln "><span class="no">125</span><span class="sg"> </span><span>  background: var(--chrome-bg);</span></div><div class="ln "><span class="no">126</span><span class="sg"> </span><span>  border-bottom: 1px solid var(--border);</span></div><div class="ln "><span class="no">127</span><span class="sg"> </span><span>}</span></div><div class="ln "><span class="no">128</span><span class="sg"> </span><span>.titlebar-button {</span></div><div class="ln del"><span class="no">129</span><span class="sg">−</span><span>  width: 28px;</span></div><div class="ln del"><span class="no">130</span><span class="sg">−</span><span>  height: 28px;</span></div><div class="ln add"><span class="no">129</span><span class="sg">+</span><span>  width: 24px;</span></div><div class="ln add"><span class="no">130</span><span class="sg">+</span><span>  height: 24px;</span></div><div class="ln add"><span class="no">131</span><span class="sg">+</span><span>  border-radius: 7px;</span></div><div class="ln "><span class="no">132</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+<button class="float" type="button" title="Next file (j)">Next <b>web/src/Icon.tsx</b><kbd>j</kbd></button>
+</main>
+</div>
+</div>
+</article>
+<article class="variant" id="g">
+<h3><span class="num">G</span> Portée dans la capsule, Next dans le pied</h3>
+<div class="tags"><span class="tag">web</span><span class="tag ok">recommandée</span></div>
+<p class="desc">La portée de la comparaison dans la capsule, comme en F ; la progression et Next dans le pied de la barre latérale, à côté de l’arbre.</p>
+<div class="win s38" style="width: 100%; height: 340px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chrome); color: var(--text); font-family: var(--sans); font-size: 13px">
+<header style="position: relative; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); align-items: center; column-gap: 12px; height: 38px; padding: 0 12px; box-sizing: border-box; border-bottom: 1px solid var(--border)">
+<span aria-hidden="true" style="position: absolute; top: 13px; left: 20px; display: flex; gap: 8px">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span>
+</span>
+<div style="display: flex; align-items: center; gap: 4px; min-width: 0; padding-left: 72px">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+<div role="group" aria-label="Comparison" style="grid-column: 2; display: flex; align-items: center; gap: 2px; height: var(--cap); padding: 2px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 13px; background: var(--wash)">
+<button class="ref repo" type="button" title="~/dev/perso/github-like — open another repository (⌘O)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.4 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5Z"></path></svg>github-like<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="chip" type="button" aria-label="Stack stacks/: layer 2 of 3"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.122.392a1.75 1.75 0 0 1 1.756 0l5.003 2.902c.83.481.83 1.68 0 2.162L8.878 8.358a1.75 1.75 0 0 1-1.756 0L2.119 5.456a1.251 1.251 0 0 1 0-2.162ZM8.125 1.69a.248.248 0 0 0-.25 0l-4.63 2.685 4.63 2.685a.248.248 0 0 0 .25 0l4.63-2.685ZM1.601 7.789a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0L1.874 8.814A.75.75 0 0 1 1.6 7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z"></path></svg>2/3<span class="caret">▾</span></button>
+<button class="ref" type="button" title="stacks/01-popover · base from the stack">01-popover<span class="caret">▾</span></button>
+<span aria-hidden="true" style="color: var(--dim); font-size: 12px">→</span>
+<button class="ref" type="button" title="stacks/02-overview, working tree included">02-overview<span class="pill">+ working tree</span><span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div style="grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px">
+<div class="seg" role="group" aria-label="Diff layout">
+<button class="on" type="button" aria-pressed="true" aria-label="Unified" title="Unified (⌘1)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M5 6h6M5 8.5h6M5 11h4"></path></svg></button>
+<button type="button" aria-pressed="false" aria-label="Split" title="Split (⌘2)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M8 2.5v11"></path></svg></button>
+</div>
+<button class="ib" type="button" aria-label="Diff options, 2 untracked files hidden" title="2 untracked files hidden"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M2 4.5h7M12 4.5h2M2 11.5h2M7 11.5h7"></path><circle cx="10.5" cy="4.5" r="1.5"></circle><circle cx="5.5" cy="11.5" r="1.5"></circle></svg><span class="badge" aria-hidden="true">2</span></button>
+<button class="tb" type="button" aria-label="Comments, 3" title="Comments (⌥⌘0) · copy all with ⇧⌘C"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg><span class="count">3</span></button>
+</div>
+</header>
+<div style="flex: 1; min-height: 0; display: flex">
+<aside class="side" style="width: 240px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border)">
+<div style="flex: 1; min-height: 0; overflow: hidden; padding: 10px 8px; box-sizing: border-box">
+<div style="display: flex; align-items: baseline; gap: 6px; padding: 2px 6px 8px">
+<span style="color: var(--dim); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">Files</span>
+<span style="color: var(--dim); font-size: 11px">6</span>
+</div>
+<div class="row dir"><span>desktop</span><span class="st "></span></div><div class="row file"><span>main.go</span><span class="st m">M</span></div><div class="row dir"><span>web/src</span><span class="st "></span></div><div class="row file"><span>DesktopApp.tsx</span><span class="st m">M</span></div><div class="row file"><span>DesktopToolbar.tsx</span><span class="st m">M</span></div><div class="row file on"><span>desktop.css</span><span class="st m">M</span></div><div class="row file"><span>Icon.tsx</span><span class="st m">M</span></div><div class="row file"><span>StackPicker.tsx</span><span class="st a">A</span></div>
+</div>
+<div class="foot">
+<div class="fline"><span>3 of 6 viewed</span><span><span class="plus">+42</span> <span class="minus">−17</span></span></div>
+<div class="prog" role="progressbar" aria-label="Files viewed" aria-valuemin="0" aria-valuemax="6" aria-valuenow="3"><span></span></div>
+<button class="next" type="button" title="Next file (j)">Next <b>Icon.tsx</b><kbd>j</kbd></button>
+</div>
+</aside>
+<main style="flex: 1; min-width: 0; padding: 12px 16px 0; box-sizing: border-box; overflow: hidden; background: var(--bg)">
+<section style="overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--raised)">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true" style="color: var(--dim)"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span style="font: 600 12px var(--mono)">web/src/desktop.css</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+4</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−3</span>
+<label style="display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln "><span class="no">117</span><span class="sg"> </span><span>/* The outer columns share the width evenly, so the comparison capsule sits in</span></div><div class="ln "><span class="no">118</span><span class="sg"> </span><span>   the middle of the window. */</span></div><div class="ln "><span class="no">119</span><span class="sg"> </span><span>.desktop-titlebar {</span></div><div class="ln "><span class="no">120</span><span class="sg"> </span><span>  --wails-draggable: drag;</span></div><div class="ln "><span class="no">121</span><span class="sg"> </span><span>  display: grid;</span></div><div class="ln "><span class="no">122</span><span class="sg"> </span><span>  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);</span></div><div class="ln del"><span class="no">123</span><span class="sg">−</span><span>  height: 52px;</span></div><div class="ln add"><span class="no">123</span><span class="sg">+</span><span>  height: 38px;</span></div><div class="ln "><span class="no">124</span><span class="sg"> </span><span>  padding: 0 12px;</span></div><div class="ln "><span class="no">125</span><span class="sg"> </span><span>  background: var(--chrome-bg);</span></div><div class="ln "><span class="no">126</span><span class="sg"> </span><span>  border-bottom: 1px solid var(--border);</span></div><div class="ln "><span class="no">127</span><span class="sg"> </span><span>}</span></div><div class="ln "><span class="no">128</span><span class="sg"> </span><span>.titlebar-button {</span></div><div class="ln del"><span class="no">129</span><span class="sg">−</span><span>  width: 28px;</span></div><div class="ln del"><span class="no">130</span><span class="sg">−</span><span>  height: 28px;</span></div><div class="ln add"><span class="no">129</span><span class="sg">+</span><span>  width: 24px;</span></div><div class="ln add"><span class="no">130</span><span class="sg">+</span><span>  height: 24px;</span></div><div class="ln add"><span class="no">131</span><span class="sg">+</span><span>  border-radius: 7px;</span></div><div class="ln "><span class="no">132</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+</main>
+</div>
+</div>
+</article>
+<article class="variant" id="g2">
+<h3><span class="num">G</span> Barre latérale masquée</h3>
+<div class="tags"><span class="tag">web</span></div>
+<p class="desc">Next et la progression passent dans une pastille flottante, seulement quand la barre latérale est masquée.</p>
+<div class="win s38" style="width: 100%; height: 340px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chrome); color: var(--text); font-family: var(--sans); font-size: 13px">
+<header style="position: relative; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); align-items: center; column-gap: 12px; height: 38px; padding: 0 12px; box-sizing: border-box; border-bottom: 1px solid var(--border)">
+<span aria-hidden="true" style="position: absolute; top: 13px; left: 20px; display: flex; gap: 8px">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span>
+</span>
+<div style="display: flex; align-items: center; gap: 4px; min-width: 0; padding-left: 72px">
+<button class="ib" type="button" aria-label="Show sidebar" aria-pressed="false"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+<div role="group" aria-label="Comparison" style="grid-column: 2; display: flex; align-items: center; gap: 2px; height: var(--cap); padding: 2px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 13px; background: var(--wash)">
+<button class="ref repo" type="button" title="~/dev/perso/github-like — open another repository (⌘O)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.4 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5Z"></path></svg>github-like<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="chip" type="button" aria-label="Stack stacks/: layer 2 of 3"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.122.392a1.75 1.75 0 0 1 1.756 0l5.003 2.902c.83.481.83 1.68 0 2.162L8.878 8.358a1.75 1.75 0 0 1-1.756 0L2.119 5.456a1.251 1.251 0 0 1 0-2.162ZM8.125 1.69a.248.248 0 0 0-.25 0l-4.63 2.685 4.63 2.685a.248.248 0 0 0 .25 0l4.63-2.685ZM1.601 7.789a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0L1.874 8.814A.75.75 0 0 1 1.6 7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z"></path></svg>2/3<span class="caret">▾</span></button>
+<button class="ref" type="button" title="stacks/01-popover · base from the stack">01-popover<span class="caret">▾</span></button>
+<span aria-hidden="true" style="color: var(--dim); font-size: 12px">→</span>
+<button class="ref" type="button" title="stacks/02-overview, working tree included">02-overview<span class="pill">+ working tree</span><span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div style="grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px">
+<div class="seg" role="group" aria-label="Diff layout">
+<button class="on" type="button" aria-pressed="true" aria-label="Unified" title="Unified (⌘1)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M5 6h6M5 8.5h6M5 11h4"></path></svg></button>
+<button type="button" aria-pressed="false" aria-label="Split" title="Split (⌘2)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"></rect><path d="M8 2.5v11"></path></svg></button>
+</div>
+<button class="ib" type="button" aria-label="Diff options, 2 untracked files hidden" title="2 untracked files hidden"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M2 4.5h7M12 4.5h2M2 11.5h2M7 11.5h7"></path><circle cx="10.5" cy="4.5" r="1.5"></circle><circle cx="5.5" cy="11.5" r="1.5"></circle></svg><span class="badge" aria-hidden="true">2</span></button>
+<button class="tb" type="button" aria-label="Comments, 3" title="Comments (⌥⌘0) · copy all with ⇧⌘C"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg><span class="count">3</span></button>
+</div>
+</header>
+<main style="position: relative; flex: 1; min-height: 0; padding: 12px 16px 0; box-sizing: border-box; overflow: hidden; background: var(--bg)">
+<section style="overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--raised)">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true" style="color: var(--dim)"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span style="font: 600 12px var(--mono)">web/src/desktop.css</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+4</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−3</span>
+<label style="display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln "><span class="no">117</span><span class="sg"> </span><span>/* The outer columns share the width evenly, so the comparison capsule sits in</span></div><div class="ln "><span class="no">118</span><span class="sg"> </span><span>   the middle of the window. */</span></div><div class="ln "><span class="no">119</span><span class="sg"> </span><span>.desktop-titlebar {</span></div><div class="ln "><span class="no">120</span><span class="sg"> </span><span>  --wails-draggable: drag;</span></div><div class="ln "><span class="no">121</span><span class="sg"> </span><span>  display: grid;</span></div><div class="ln "><span class="no">122</span><span class="sg"> </span><span>  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);</span></div><div class="ln del"><span class="no">123</span><span class="sg">−</span><span>  height: 52px;</span></div><div class="ln add"><span class="no">123</span><span class="sg">+</span><span>  height: 38px;</span></div><div class="ln "><span class="no">124</span><span class="sg"> </span><span>  padding: 0 12px;</span></div><div class="ln "><span class="no">125</span><span class="sg"> </span><span>  background: var(--chrome-bg);</span></div><div class="ln "><span class="no">126</span><span class="sg"> </span><span>  border-bottom: 1px solid var(--border);</span></div><div class="ln "><span class="no">127</span><span class="sg"> </span><span>}</span></div><div class="ln "><span class="no">128</span><span class="sg"> </span><span>.titlebar-button {</span></div><div class="ln del"><span class="no">129</span><span class="sg">−</span><span>  width: 28px;</span></div><div class="ln del"><span class="no">130</span><span class="sg">−</span><span>  height: 28px;</span></div><div class="ln add"><span class="no">129</span><span class="sg">+</span><span>  width: 24px;</span></div><div class="ln add"><span class="no">130</span><span class="sg">+</span><span>  height: 24px;</span></div><div class="ln add"><span class="no">131</span><span class="sg">+</span><span>  border-radius: 7px;</span></div><div class="ln "><span class="no">132</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+<button class="float" type="button" title="3 of 6 files viewed · next file (j)"><svg class="ring" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="2"></circle><path d="M8 2a6 6 0 0 1 0 12" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round"></path></svg>3/6<span class="fsep" aria-hidden="true"></span>Next <b>web/src/Icon.tsx</b><kbd>j</kbd></button>
+</main>
+</div>
+</article>
+</section>
+</main>
+<script>
+const buttons = document.querySelectorAll('.theme button')
+function apply(mode) {
+  document.documentElement.dataset.theme = mode
+  for (const win of document.querySelectorAll('.win')) win.classList.toggle('dark', mode === 'dark')
+  for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.mode === mode))
+}
+for (const button of buttons) button.addEventListener('click', () => apply(button.dataset.mode))
+apply(matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+</script>
+</body>
+</html>
