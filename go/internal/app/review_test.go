@@ -205,6 +205,52 @@ func TestNonUTF8LinesKeepTheirAnchor(t *testing.T) {
 	}
 }
 
+func TestFilteredFilesExpand(t *testing.T) {
+	ctx := context.Background()
+	r := fixture(t)
+	var lines strings.Builder
+	for i := 1; i <= 30; i++ {
+		fmt.Fprintf(&lines, "line %d\n", i)
+	}
+	// A textconv driver rewrites what diff shows; eol=crlf, what the checkout holds.
+	gitFixture(t, r.Path, "config", "diff.upper.textconv", "tr a-z A-Z <")
+	gitFixture(t, r.Path, "config", "filter.reverse.clean", "rev")
+	writeFixture(t, r.Path, ".gitattributes", "*.up diff=upper\ncrlf.txt text eol=crlf\nstored.rev filter=reverse\n")
+	writeFixture(t, r.Path, "shout.up", lines.String())
+	writeFixture(t, r.Path, "crlf.txt", lines.String())
+	writeFixture(t, r.Path, "stored.rev", lines.String())
+	gitFixture(t, r.Path, "add", ".gitattributes", "shout.up", "crlf.txt", "stored.rev")
+	gitFixture(t, r.Path, "commit", "-qm", "filtered")
+	edited := strings.Replace(lines.String(), "line 15\n", "edited 15\n", 1)
+	writeFixture(t, r.Path, "shout.up", edited)
+	writeFixture(t, r.Path, "crlf.txt", strings.ReplaceAll(edited, "\n", "\r\n"))
+	writeFixture(t, r.Path, "stored.rev", edited)
+	review := compare(t, r, false)
+	// A clean filter whose stored content cannot be rebuilt says so, not "refresh".
+	if f := statFor(t, review, "stored.rev"); f.Hash == nil {
+		t.Fatal("stored.rev has no patch section")
+	} else if _, err := review.Context(ctx, "stored.rev", *f.Hash); err == nil || !strings.Contains(err.Error(), "Git filters") {
+		t.Fatalf("filtered context: %v", err)
+	}
+	for _, path := range []string{"shout.up", "crlf.txt"} {
+		f := statFor(t, review, path)
+		if f.Hash == nil {
+			t.Fatalf("%s has no patch section", path)
+		}
+		files, err := review.Context(ctx, path, *f.Hash)
+		if err != nil {
+			t.Fatalf("%s context: %v", path, err)
+		}
+		if files.NewFile.Contents != edited {
+			t.Fatalf("%s reads %q", path, files.NewFile.Contents)
+		}
+		outside := Comment{Path: path, Side: "additions", Start: 2, End: 2, Anchor: []string{"line 2"}}
+		if served := review.Comments(ctx, []Comment{outside})[0]; served.Stale {
+			t.Fatalf("%s: comment outside the hunk is stale: %q", path, served.Code)
+		}
+	}
+}
+
 func TestEditedRename(t *testing.T) {
 	r := fixture(t)
 	gitFixture(t, r.Path, "mv", "context.txt", "context moved.txt")
