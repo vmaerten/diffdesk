@@ -55,7 +55,7 @@ Préfixe `hardening/`. Les PRs sont indépendantes : chacune part de `main`, san
 - Une page servie sur `localhost:3000` peut donc créer ou supprimer des commentaires, changer Viewed ou réécrire `branch.*.ghlBase`.
 - Correctif : exiger `Content-Type: application/json` sur les requêtes qui écrivent ; l'UI et `backend.go` l'envoient déjà.
 
-### 06 · `hardening/06-repository-edge-cases` — Dépôts dans un état inhabituel
+### 06 · `hardening/06-repository-edge-cases` — Dépôts dans un état inhabituel — [#189](https://github.com/vmaerten/ghl/pull/189)
 
 - **Opération en cours.** Pendant un merge, un rebase ou un cherry-pick, toute la review et `ghl comments` renvoient 422. Calculer le diff quand même et remplir `state.operation`, que le bandeau de l'UI attend déjà.
 - **Fichiers non suivis problématiques.** Un lien symbolique, un FIFO ou un fichier de plus de 20 Mo fait échouer `ghl comments` et la review avec non suivis. Les lister comme indisponibles, comme les images.
@@ -141,3 +141,7 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 | 04 | `desktopTabs.ts` n'avait qu'un seul écouteur d'interception, propre au test des commentaires. | Écouteur commun, avec un drapeau par type de requête retenue ou en échec. |
 | 04 | Libellé du sélecteur de cible et ordre du panneau de commentaires : correctifs d'une ligne. | Sans test dédié. |
 | 05 | `DELETE` n'a pas de corps, mais c'est une méthode qui impose un preflight. | L'exigence porte sur `POST`, `PATCH` et `PUT` ; le contrôle d'`Origin` existant reste en place. |
+| 06 | Un rebase arrêté détache HEAD : même affichée, la review perdait les commentaires, la base retenue et la pile de la branche. | La branche vient du `head-name` du rebase. Ajout hors plan, sans lequel `ghl comments` restait vide pendant un rebase. |
+| 06 | Lister un fichier non suivi illisible « comme les images » ne l'aurait pas montré : sans section de patch, l'UI ne crée pas d'item. Une section binaire factice aurait menti. | Laissé hors du patch et nommé dans l'avis de la review, que `ghl comments` écrit sur stderr. |
+| 06 | `strings.ToValidUTF8` remplace une suite d'octets invalides par un seul U+FFFD, JSON un par octet. | Normalisation octet par octet, comme JSON. |
+| 06 | `REVERT_HEAD` n'était pas détecté. | Ajouté aux opérations, `RepoOperation` comprend `revert`. |
