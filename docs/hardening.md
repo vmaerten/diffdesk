@@ -30,7 +30,7 @@ Préfixe `hardening/`. Les PRs sont indépendantes : chacune part de `main`, san
 - Un `ghl` lancé pendant un Cmd+Q reçoit un accusé de réception, puis sa requête est perdue : le socket répond jusqu'au dernier `defer`. Fermer l'instance en premier dans `OnShutdown`.
 - Retirer les branches `ctx.Done()` mortes : Wails v2 n'annule jamais son contexte.
 
-### 03 · `hardening/03-state-lock` — Verrou et lecture de l'état
+### 03 · `hardening/03-state-lock` — Verrou et lecture de l'état — [#186](https://github.com/vmaerten/ghl/pull/186)
 
 - Chaque lecture prend le verrou. Un `refs/worktree/ghl-state-lock.lock` laissé par un crash fait échouer tout `/diff` (500 après 10 s), indéfiniment.
 - Sur un dépôt reftable, la contention n'est pas reconnue comme telle, et la transaction verrouille toute la pile de refs.
@@ -133,3 +133,6 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 | 02 | Wails v2 quitte déjà sur SIGINT et SIGTERM (`signal.Start` dans `wails.Run`) : le contexte de signal de l'app faisait doublon, en plus des branches `Done()` mortes. | Gestion des signaux laissée à Wails ; `desktop:smoke`, qui quitte l'app par SIGTERM, passe. |
 | 02 | Fermer l'instance dans `OnShutdown` et dans le `defer` l'appelle deux fois ; le second appel pouvait supprimer le socket de l'app suivante. | `close` passe par un `sync.Once`, gardé par `instance_test.go`. |
 | 01, 02 | Chaque PR ajoute une section `### 🐛 Fixes` à Unreleased : la seconde mergée entre en conflit sur le CHANGELOG. | Rebaser la seconde après le merge de la première. |
+| 03 | Sans verrou, `Snapshot` n'a plus besoin de contexte. | Signature réduite à `Snapshot()` ; les appelants et les tests suivent. |
+| 03 | Un commentaire invalide rend encore tout le fichier illisible : le récupérer entrée par entrée suppose de deviner un schéma futur. | Gardé tel quel ; un schéma futur doit changer `version`, refusé sans quarantaine. Seule la lecture ne déplace plus rien. |
+| 03 | Le `refs/worktree/ghl-state-lock.lock` laissé par une version antérieure reste sur disque. | Ignoré : plus rien ne lit ni ne verrouille cette ref. |
