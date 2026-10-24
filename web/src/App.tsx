@@ -17,7 +17,7 @@ import {
   type CommentPersistence,
   type CommentSubmission,
 } from './commentPersistence.ts'
-import { useViewedPersistence } from './viewedPersistence.ts'
+import { useViewedPersistence, type ViewedPersistence } from './viewedPersistence.ts'
 
 import type { SyntaxTheme } from './theme.ts'
 import CommentsPanel from './CommentsPanel.tsx'
@@ -66,6 +66,7 @@ export default function App({
   savedView,
   viewHandle,
   commentStore,
+  viewedStore,
   onRouteChange,
   syntaxTheme,
   codeLineHeight,
@@ -76,6 +77,7 @@ export default function App({
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
   commentStore?: CommentPersistence
+  viewedStore?: ViewedPersistence
   /** Receives every selection URL the review writes. */
   onRouteChange?: (route: string) => void
   syntaxTheme: SyntaxTheme
@@ -97,7 +99,7 @@ export default function App({
   const shownRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(savedView?.diffStyle ?? 'unified')
-  const [viewed, viewedPersistence] = useViewedPersistence(repoId)
+  const [viewed, viewedPersistence] = useViewedPersistence(repoId, viewedStore)
   const [picking, setPicking] = useState<Picker | null>(null)
   const [selection, select] = useReviewSelection(repoId, onRouteChange)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection

@@ -20,6 +20,10 @@ import {
   createRepositoryCommentPersistence,
   type CommentPersistence,
 } from './commentPersistence.ts'
+import {
+  createRepositoryViewedPersistence,
+  type ViewedPersistence,
+} from './viewedPersistence.ts'
 import desktopStyles from './desktop.css?inline'
 
 interface ReviewTab {
@@ -91,6 +95,7 @@ export default function DesktopApp() {
   const views = useRef(new Map<string, SavedView>())
   // Writes and retries outlive the mounted review, and are released when its tab closes.
   const commentStores = useRef(new Map<string, CommentPersistence>())
+  const viewedStores = useRef(new Map<string, ViewedPersistence>())
   const viewHandle = useRef<SavedViewHandle>(null)
   useEffect(() => {
     const api = window.go?.main.desktopApp
@@ -123,13 +128,15 @@ export default function DesktopApp() {
         void save().catch((cause) => setError(String(cause)))
       for (const id of views.current.keys())
         if (!next.tabs.some((tab) => tab.id === id)) views.current.delete(id)
-      for (const id of commentStores.current.keys())
-        if (!next.tabs.some((tab) => tab.id === id)) commentStores.current.delete(id)
+      for (const stores of [commentStores.current, viewedStores.current])
+        for (const id of stores.keys())
+          if (!next.tabs.some((tab) => tab.id === id)) stores.delete(id)
       latest.current = next
       const active = next.tabs.find((tab) => tab.id === next.active)
       if (active && !commentStores.current.has(active.id)) {
         const repoId = new URL(active.route, location.href).pathname.split('/')[2] ?? null
         commentStores.current.set(active.id, createRepositoryCommentPersistence(repoId))
+        viewedStores.current.set(active.id, createRepositoryViewedPersistence(repoId))
       }
       if (active && !views.current.has(active.id))
         views.current.set(
@@ -396,6 +403,7 @@ export default function DesktopApp() {
               savedView={views.current.get(active.id)}
               viewHandle={viewHandle}
               commentStore={commentStores.current.get(active.id)}
+              viewedStore={viewedStores.current.get(active.id)}
               onRouteChange={routeChanged}
               syntaxTheme={syntaxTheme}
               codeLineHeight={codeLineHeight(settings.codeSize)}

@@ -60,11 +60,12 @@ try {
   }
   await ready('1')
   // Requests a test holds back or fails; everything else goes through.
-  const held = { comments: false, diff: false }
+  const held = { comments: false, viewed: false, diff: false }
   await page.setRequestInterception(true)
   page.on('request', (request) => {
     if (held.comments && request.method() === 'POST' && request.url().includes('/api/comments'))
       return
+    if (held.viewed && request.method() === 'POST' && request.url().includes('/api/viewed')) return
     if (held.diff && /\/api\/diff(\?|$)/.test(request.url()))
       return void request.respond({
         status: 500,
@@ -231,6 +232,29 @@ try {
           ?.shadowRoot?.querySelector('[data-column-number="20"]'),
       { timeout: 5000 },
     )
+  })
+  await test('a Viewed tick survives switching while its save is pending', async () => {
+    await page.goto(origin, { waitUntil: 'networkidle0' })
+    await ready('1')
+    held.viewed = true
+    const saving = page.waitForRequest(
+      (request) => request.method() === 'POST' && request.url().includes('/api/viewed'),
+    )
+    await page.click('.viewed-toggle input')
+    const pending = await saving
+    // The ticked file folds, so the tab shows no line to wait for.
+    const show = async (id: string) => {
+      await page.click(`#review-tab-${id}`)
+      await page.waitForSelector(`.desktop-review[data-active-tab="${id}"] .viewed-toggle input`)
+    }
+    await show('2')
+    await show('1')
+    await page.waitForFunction(
+      () => document.querySelector<HTMLInputElement>('.viewed-toggle input')?.checked === true,
+      { timeout: 5000 },
+    )
+    held.viewed = false
+    await pending.continue()
   })
   assert.deepEqual(errors, [])
   assert.equal(failures, 0, 'Desktop tab regressions')
