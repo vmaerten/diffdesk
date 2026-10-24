@@ -1,5 +1,4 @@
 node_modules/
-web-dist/
 *.log
 go/dist/
 .task/
