@@ -141,9 +141,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
-	backend, err := startBackend(ctx, assets)
+	backend, err := startBackend(context.Background(), assets)
 	if err != nil {
 		return err
 	}
@@ -228,16 +226,8 @@ func run() error {
 		},
 		AssetServer: &assetserver.Options{Handler: backend.handler()},
 		Bind:        []interface{}{desktop},
-		OnStartup: func(windowCtx context.Context) {
-			desktop.startup(windowCtx)
-			go func() {
-				select {
-				case <-ctx.Done():
-					runtime.Quit(windowCtx)
-				case <-windowCtx.Done():
-				}
-			}()
-		},
+		// Wails quits on SIGINT and SIGTERM itself, through OnShutdown.
+		OnStartup: desktop.startup,
 		OnDomReady: func(ctx context.Context) {
 			runtime.WindowExecJS(ctx, bridge)
 			if len(probe) > 0 {
