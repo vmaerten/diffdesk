@@ -13,6 +13,7 @@ import {
   pickerShows,
   poll,
   settled,
+  sleep,
   TREE_ROWS,
   until,
   type Suite,
@@ -511,13 +512,23 @@ export default {
 
     // The gutter cell itself, not the "+" inside it: that selects without opening
     // anything, which is the state `c` exists for.
-    await page.mouse.click(cell.x, cell.y)
-    await until(
-      page,
-      `[...document.querySelectorAll('.diff diffs-container')].some((host) => host.shadowRoot?.querySelector('[data-selected-line]'))`,
-      5_000,
+    //
+    // Closing the composer re-renders its file, and with highlighting in workers
+    // that render can land after this click and drop the selection. Click until
+    // the selection holds across a few frames, as it does at human speed.
+    const SELECTED = `[...document.querySelectorAll('.diff diffs-container')].some((host) => host.shadowRoot?.querySelector('[data-selected-line]'))`
+    let held = false
+    for (let attempt = 0; attempt < 5 && !held; attempt++) {
+      await page.mouse.click(cell.x, cell.y)
+      await until(page, SELECTED, 2_000)
+      await sleep(100)
+      await frames(page)
+      held = (await page.evaluate(SELECTED)) as boolean
+    }
+    check(
+      'clicking the gutter selects without composing',
+      held && (await count('.comment-composer')) === 0,
     )
-    check('clicking the gutter selects without composing', (await count('.comment-composer')) === 0)
     await page.keyboard.press('c')
     await composers(1)
     check('  and c comments that selection', (await count('.comment-composer')) === 1)
