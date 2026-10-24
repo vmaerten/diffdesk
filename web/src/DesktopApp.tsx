@@ -20,10 +20,7 @@ import {
   createRepositoryCommentPersistence,
   type CommentPersistence,
 } from './commentPersistence.ts'
-import {
-  createRepositoryViewedPersistence,
-  type ViewedPersistence,
-} from './viewedPersistence.ts'
+import { createRepositoryViewedPersistence, type ViewedPersistence } from './viewedPersistence.ts'
 import desktopStyles from './desktop.css?inline'
 
 interface ReviewTab {
@@ -282,109 +279,111 @@ export default function DesktopApp() {
     >
       <style>{desktopStyles}</style>
       <header className="desktop-titlebar">
-        <button
-          className="titlebar-button"
-          aria-label={sidebarHidden ? 'Show sidebar' : 'Hide sidebar'}
-          title={`${sidebarHidden ? 'Show' : 'Hide'} sidebar (⌃⌘S)`}
-          aria-pressed={!sidebarHidden}
-          disabled={!active}
-          onClick={toggleSidebar}
-        >
-          <Icon name="sidebar" />
-        </button>
-        <button
-          className="titlebar-button"
-          aria-label="Open repository"
-          title="Open repository (⌘O)"
-          onClick={open}
-        >
-          <Icon name="plus" />
-        </button>
-        <div className="desktop-tabs-area" ref={tabsArea} style={tabSizes}>
-          <div
-            role="tablist"
-            aria-label="Open reviews"
-            className={`desktop-tabs${state.tabs.length > 1 ? ' multi' : ''}`}
+        <div className="titlebar-start">
+          <button
+            className="titlebar-button"
+            aria-label={sidebarHidden ? 'Show sidebar' : 'Hide sidebar'}
+            title={`${sidebarHidden ? 'Show' : 'Hide'} sidebar (⌃⌘S)`}
+            aria-pressed={!sidebarHidden}
+            disabled={!active}
+            onClick={toggleSidebar}
           >
-            {layout.shown.map((index) => {
-              const tab = state.tabs[index]!
-              const query = new URL(tab.route, location.href).searchParams
-              const comparison = `${query.get('base') ?? 'Auto base'} → ${query.get('target') ?? 'Working tree'}`
-              const cut = tab.path.lastIndexOf('/') + 1
-              return (
-                <div
-                  className={`desktop-tab ${tab.id === state.active ? 'active' : ''}`}
-                  key={tab.id}
+            <Icon name="sidebar" />
+          </button>
+          <button
+            className="titlebar-button"
+            aria-label="Open repository"
+            title="Open repository (⌘O)"
+            onClick={open}
+          >
+            <Icon name="plus" />
+          </button>
+          <div className="desktop-tabs-area" ref={tabsArea} style={tabSizes}>
+            <div
+              role="tablist"
+              aria-label="Open reviews"
+              className={`desktop-tabs${state.tabs.length > 1 ? ' multi' : ''}`}
+            >
+              {layout.shown.map((index) => {
+                const tab = state.tabs[index]!
+                const query = new URL(tab.route, location.href).searchParams
+                const comparison = `${query.get('base') ?? 'Auto base'} → ${query.get('target') ?? 'Working tree'}`
+                const cut = tab.path.lastIndexOf('/') + 1
+                return (
+                  <div
+                    className={`desktop-tab ${tab.id === state.active ? 'active' : ''}`}
+                    key={tab.id}
+                  >
+                    <button
+                      role="tab"
+                      id={`review-tab-${tab.id}`}
+                      aria-selected={tab.id === state.active}
+                      aria-controls="desktop-review"
+                      tabIndex={tab.id === state.active ? 0 : -1}
+                      title={`${tab.path || tab.name} · ${comparison}`}
+                      onClick={() => activate(tab.id)}
+                      onKeyDown={(event) => {
+                        let next: number | undefined
+                        if (event.key === 'ArrowRight') next = (index + 1) % state.tabs.length
+                        if (event.key === 'ArrowLeft')
+                          next = (index + state.tabs.length - 1) % state.tabs.length
+                        if (event.key === 'Home') next = 0
+                        if (event.key === 'End') next = state.tabs.length - 1
+                        if (next === undefined) return
+                        event.preventDefault()
+                        event.stopPropagation()
+                        const nextTab = state.tabs[next]
+                        if (!nextTab) return
+                        // It may sit in the » menu until the activation renders it.
+                        focusTab.current = nextTab.id
+                        activate(nextTab.id)
+                      }}
+                    >
+                      {/* One review reads as its checkout; several, by name. */}
+                      {state.tabs.length === 1 && tab.path ? (
+                        <>
+                          <span className="tab-dir">{tab.path.slice(0, cut)}</span>
+                          <span className="tab-name">{tab.path.slice(cut)}</span>
+                        </>
+                      ) : (
+                        <span className="tab-name">{tab.name}</span>
+                      )}
+                    </button>
+                    <button
+                      className="desktop-tab-close"
+                      aria-label={`Close ${tab.name}`}
+                      title="Close review (⌘W)"
+                      onClick={() => close(tab.id)}
+                    >
+                      <Icon name="close" />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            {layout.hidden.length > 0 && (
+              <label className="titlebar-more" title="More reviews">
+                <Icon name="more" />
+                <select
+                  aria-label="More reviews"
+                  value=""
+                  onChange={(event) => activate(event.target.value)}
                 >
-                  <button
-                    role="tab"
-                    id={`review-tab-${tab.id}`}
-                    aria-selected={tab.id === state.active}
-                    aria-controls="desktop-review"
-                    tabIndex={tab.id === state.active ? 0 : -1}
-                    title={`${tab.path || tab.name} · ${comparison}`}
-                    onClick={() => activate(tab.id)}
-                    onKeyDown={(event) => {
-                      let next: number | undefined
-                      if (event.key === 'ArrowRight') next = (index + 1) % state.tabs.length
-                      if (event.key === 'ArrowLeft')
-                        next = (index + state.tabs.length - 1) % state.tabs.length
-                      if (event.key === 'Home') next = 0
-                      if (event.key === 'End') next = state.tabs.length - 1
-                      if (next === undefined) return
-                      event.preventDefault()
-                      event.stopPropagation()
-                      const nextTab = state.tabs[next]
-                      if (!nextTab) return
-                      // It may sit in the » menu until the activation renders it.
-                      focusTab.current = nextTab.id
-                      activate(nextTab.id)
-                    }}
-                  >
-                    {/* One review reads as its checkout; several, by name. */}
-                    {state.tabs.length === 1 && tab.path ? (
-                      <>
-                        <span className="tab-dir">{tab.path.slice(0, cut)}</span>
-                        <span className="tab-name">{tab.path.slice(cut)}</span>
-                      </>
-                    ) : (
-                      <span className="tab-name">{tab.name}</span>
-                    )}
-                  </button>
-                  <button
-                    className="desktop-tab-close"
-                    aria-label={`Close ${tab.name}`}
-                    title="Close review (⌘W)"
-                    onClick={() => close(tab.id)}
-                  >
-                    <Icon name="close" />
-                  </button>
-                </div>
-              )
-            })}
+                  <option value="" disabled>
+                    More reviews
+                  </option>
+                  {layout.hidden.map((index) => {
+                    const tab = state.tabs[index]!
+                    return (
+                      <option key={tab.id} value={tab.id}>
+                        {tab.name}
+                      </option>
+                    )
+                  })}
+                </select>
+              </label>
+            )}
           </div>
-          {layout.hidden.length > 0 && (
-            <label className="titlebar-more" title="More reviews">
-              <Icon name="more" />
-              <select
-                aria-label="More reviews"
-                value=""
-                onChange={(event) => activate(event.target.value)}
-              >
-                <option value="" disabled>
-                  More reviews
-                </option>
-                {layout.hidden.map((index) => {
-                  const tab = state.tabs[index]!
-                  return (
-                    <option key={tab.id} value={tab.id}>
-                      {tab.name}
-                    </option>
-                  )
-                })}
-              </select>
-            </label>
-          )}
         </div>
         <div className="titlebar-review" ref={setToolbar} />
       </header>

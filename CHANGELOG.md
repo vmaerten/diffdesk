@@ -7,6 +7,7 @@
 - Clean up after the browser CLI when the app starts: stop the daemon ghl 0.1 or 0.2 left on port 7777, remove its lock folder, and remove a CLI installed from source in `~/.local/bin/ghl` that would shadow the app's `ghl`. ([#180](https://github.com/vmaerten/ghl/pull/180))
 - Highlight code in background workers, so scrolling a large review no longer stutters as each file comes into view, and render it about twice as fast. Reviews of thousands of files and checkouts with many branches load faster too. ([#192](https://github.com/vmaerten/ghl/pull/192))
 - Open the window maximised: it fills the screen with the menu bar and the Dock still visible, and the zoom button brings it back to its former size. ([#200](https://github.com/vmaerten/ghl/pull/200))
+- Centre the comparison capsule in the title bar; in a narrow window it moves left to keep room for the actions. ([#201](https://github.com/vmaerten/ghl/pull/201))
 - Show a stacked branch's layer, such as `2/3`, at the start of the comparison in the title bar instead of a line of branches in the status bar: it opens the stack from the top layer down to the trunk, with each pull request and whether a layer is merged or pruned. Press `s` to open it, and `[` or `]` to review the layer below or above. ([#202](https://github.com/vmaerten/ghl/pull/202))
 
 ### 🐛 Fixes

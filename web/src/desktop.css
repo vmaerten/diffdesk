@@ -114,19 +114,31 @@ body,
 .desktop-shell {
   background: transparent;
 }
+/* The outer columns share the width evenly, so the comparison capsule sits in
+   the middle of the window. When the actions need more than their half, the
+   capsule moves left and the tabs give way. */
 .desktop-titlebar {
   --wails-draggable: drag;
   position: relative;
   z-index: 30;
-  display: flex;
+  display: grid;
   flex-shrink: 0;
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
   align-items: center;
-  gap: 4px;
+  column-gap: 12px;
   /* The unified toolbar height, where macOS centers the window buttons. */
   height: 52px;
-  padding: 0 12px 0 84px;
+  padding: 0 12px;
   background: var(--chrome-bg);
   border-bottom: 1px solid var(--border);
+}
+.titlebar-start {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  /* Clear of the window buttons. */
+  padding-left: 72px;
 }
 .desktop-titlebar :is(button, select) {
   --wails-draggable: no-drag;
@@ -533,17 +545,16 @@ body,
   width: min(420px, calc(100vw - 48px));
 }
 
-/* The review renders its controls here, through a portal. */
+/* The review renders its controls here, through a portal; they take the title
+   bar's middle and right columns. */
 .titlebar-review {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 12px;
+  display: contents;
 }
 .titlebar-review > * {
   --wails-draggable: no-drag;
 }
 .compare-capsule {
+  grid-column: 2;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -768,6 +779,8 @@ button.stack-branch:focus-visible::after {
   margin: 6px -6px 0;
 }
 .titlebar-actions {
+  grid-column: 3;
+  justify-self: end;
   display: flex;
   align-items: center;
   gap: 4px;
