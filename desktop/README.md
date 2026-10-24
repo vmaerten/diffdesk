@@ -25,7 +25,7 @@ ghl comments --json            # this comparison's comments, without a window
 ghl --help
 ```
 
-Installation creates a symlink in `~/.local/bin` pointing to the local bundle; that directory must be on PATH. `BIN_DIR` overrides the command directory. Keep the bundle at its build location while using that link. `task install` refuses to replace a file that is not a link, such as a 0.2.0 browser CLI; `task uninstall` removes only the link. Released builds install through [Homebrew or mise](../docs/installation.md).
+Installation creates a symlink in `~/.local/bin` pointing to the local bundle; that directory must be on PATH. `BIN_DIR` overrides the command directory. Keep the bundle at its build location while using that link. `task install` replaces the browser CLI that 0.1 and 0.2 copied there, and refuses to replace any other file that is not a link; `task uninstall` removes only the link. Released builds install through [Homebrew or mise](../docs/installation.md).
 
 `ghl comments` and `ghl --version` answer in the terminal and never reach the window. Any other invocation delivers its review to the running app, or starts the app first, and returns once the app has queued it.
 

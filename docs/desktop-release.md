@@ -1,6 +1,6 @@
 # Release de l'app desktop
 
-Statut : décisions validées le 23 octobre 2026 ; spike de distribution fait le même jour.
+Statut : livré en 0.3.0 le 24 octobre 2026, corrigé en 0.3.1 le même jour. Décisions validées le 23 octobre 2026 ; spike de distribution fait le même jour.
 
 ## Objectif
 

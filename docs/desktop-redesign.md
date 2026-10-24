@@ -1,6 +1,6 @@
 # Refonte de l'UI desktop
 
-Statut : design validé le 22 octobre 2026. Référence visuelle : [maquette](./desktop-redesign-mockup.html), à ouvrir dans un navigateur ; la barre au-dessus de la fenêtre ouvre Settings, affiche trois onglets et le panneau de commentaires.
+Statut : livré en 0.3.0 le 24 octobre 2026 (#154–#164). Design validé le 22 octobre 2026. Référence visuelle : [maquette](./desktop-redesign-mockup.html), à ouvrir dans un navigateur ; la barre au-dessus de la fenêtre ouvre Settings, affiche trois onglets et le panneau de commentaires.
 
 ## Objectif
 
