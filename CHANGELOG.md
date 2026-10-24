@@ -16,6 +16,7 @@
 - Refuse review writes that are not JSON, so a web page served on another localhost port can no longer add or delete comments, change Viewed or change the remembered base. ([#188](https://github.com/vmaerten/ghl/pull/188))
 - Review and export comments during a merge, rebase, cherry-pick or revert, with a warning naming the conflicted files; a stopped rebase keeps the branch's comments. Untracked symlinks, special files and files over 20 MB are left out with a notice instead of failing the review, comments on non-UTF-8 lines no longer turn stale, file names with a backslash can be commented on, and image previews work in folders whose name holds `#`, `?` or `%`. ([#189](https://github.com/vmaerten/ghl/pull/189))
 - Expand context and keep comments fresh on files with a textconv driver or a CRLF checkout (`eol=crlf`, `core.autocrlf`), instead of asking for a refresh every time. Files are shown as Git stores them, without textconv, and files other filters such as Git LFS rewrite say context is unavailable. ([#190](https://github.com/vmaerten/ghl/pull/190))
+- Keep a file's header opaque to its corners while it stays at the top of a scrolled review, instead of letting the code show through its rounded top left. ([#199](https://github.com/vmaerten/ghl/pull/199))
 
 ### 📦 Distribution
 
