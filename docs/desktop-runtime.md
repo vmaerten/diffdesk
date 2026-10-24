@@ -4,9 +4,9 @@ Statut : comparatif du 24 octobre 2026, avant de choisir le runtime qui succède
 
 ## Résumé
 
-Recommandation : **Wails v3**, en figeant une beta et en refaisant le portage sur `main`. Il lève les limites qui nous ont arrêtés en v2 (barre compacte, plusieurs fenêtres et onglets natifs, menus contextuels natifs), garde un seul processus Go et une archive de 7 Mio, et le portage a déjà passé tous les tests une fois.
+Recommandation : **Wails v3**, en figeant une beta. Il lève les limites qui nous ont arrêtés en v2 (barre compacte, plusieurs fenêtres et onglets natifs, menus contextuels natifs) et garde un seul processus Go et une archive de 7,5 Mio. Le portage sur `main` est fait (branche `feat/wails-v3`), et les mesures du 24 octobre le donnent au moins aussi bon que v2 partout.
 
-Electron ferait mieux sur quatre points : même moteur en production que dans les tests (Chromium), placement libre des boutons de fenêtre, translucidité qui suit le focus, apparence changeable à chaud. Il coûte une archive environ 16 fois plus lourde (115 Mio au minimum contre 7,1), un processus principal en JavaScript à côté du serveur Go, une réécriture des menus, du packaging et du smoke natif, et une montée de version majeure tous les six mois au plus tard. Il n'apporte rien sur la signature ni les mises à jour automatiques, qui exigent un Developer ID dans les trois cas.
+Electron ferait mieux sur quatre points : même moteur en production que dans les tests (Chromium), placement libre des boutons de fenêtre, translucidité qui suit le focus, apparence changeable à chaud. Mesuré sur ghl, il démarre et change d'onglet 14 à 92 ms plus vite, rouvre une review depuis le terminal 60 ms plus lentement, et occupe 70 à 140 Mio de plus au repos. Il coûte une archive 16 fois plus lourde (119 Mio contre 7,5), un processus principal en JavaScript à côté du serveur Go, une réécriture des menus, du packaging et du smoke natif, et une montée de version majeure tous les six mois au plus tard. Il n'apporte rien sur la signature ni les mises à jour automatiques, qui exigent un Developer ID dans les trois cas.
 
 Electron deviendrait le bon choix si les écarts entre WebKit et Chromium se mettaient à coûter régulièrement, ou si ghl visait Windows et Linux avec un rendu identique partout.
 
@@ -55,27 +55,46 @@ Wails affiche la page dans le WKWebView du système : la version de WebKit suit 
 
 Electron embarque son Chromium (M156 pour Electron 45) : le même moteur partout, celui des tests, et les DevTools de Chrome. C'est son argument le plus solide pour ghl.
 
-## Taille, mémoire et démarrage
+## Mesures
 
-| | Wails v2 (ghl aujourd'hui) | Wails v3 | Electron |
+Banc du 24 octobre 2026 sur un Apple M5 Pro sous macOS 26.6.2. Les trois apps sont construites depuis `main` (`c530c67`) avec la même interface : Wails v2, Wails v3 (portage de la branche `feat/wails-v3`) et un prototype Electron 45 (branche `spike/electron`) qui lance le serveur Go à côté. Chaque essai démarre l'app sur un dépôt de test, ouvre un second dépôt en onglet, change 30 fois d'onglet dans l'interface, puis rouvre 10 fois une review depuis le terminal. Deux charges : 1 fichier et 2 lignes changées, puis 40 fichiers et 2 000 lignes changées. 4 séries, en alternant l'ordre des runtimes. La mémoire est l'empreinte physique de l'app, de ses processus fils (aides Electron, serveur Go) et des processus WebKit qui lui sont rattachés. Les chiffres sont des médianes, avec l'écart minimum–maximum des 4 séries.
+
+| | Wails v2 | Wails v3 | Electron 45 |
 | --- | --- | --- | --- |
-| Archive | 7,1 Mio (`ghl_0.3.1_darwin_arm64.zip`) | Du même ordre : binaire de 22,8 Mo contre 22,2 Mo en v2 (benchmark) | 115,1 Mio pour Electron 45 seul ; codiff 1.18.2 : 209,9 Mio (vérifié) |
-| Installée | 22 Mo | Du même ordre | 252 Mio pour Electron seul ; codiff : 632 Mio, sans élagage (vérifié) |
-| Processus | Un processus Go, plus les XPC WebKit | Idem | Principal, GPU, réseau, rendu, plus le serveur Go |
+| Archive zip | 7,3 Mio | 7,5 Mio | 119 Mio |
+| App installée | 23 Mio | 24 Mio | 269 Mio |
+| Processus | `ghl`, 3 processus WebKit, 1 aide audio | Idem | Principal, 3 aides, serveur Go |
 
-Notre benchmark v2 contre v3 (`desktop/wails-v2-v3-benchmark.json` sur la branche `desktop/wails-v3`, Apple M5 Pro, médianes de 3 paires, run interrompu avant la fin, empreinte physique de l'app et des XPC WebKit) :
+Petit diff :
 
-| Mesure | Petit diff, v2 / v3 | 40 fichiers et 4 000 lignes changées, v2 / v3 |
-| --- | --- | --- |
-| Démarrage jusqu'au premier diff | 1 396 / 1 385 ms | 1 553 / 1 509 ms |
-| Mémoire après chargement | 184 / 183 Mio | 245 / 250 Mio |
-| Mémoire après 40 changements d'onglet | 229 / 229 Mio | 320 / 509 Mio, plages qui se recouvrent (319–489 / 399–528) |
-| Changement d'onglet dans l'interface | 170 / 172 ms | 231 / 235 ms |
-| Ouverture depuis le terminal | 410–438 / 802–840 ms | 485–525 / 894–914 ms |
+| Mesure | Wails v2 | Wails v3 | Electron 45 |
+| --- | --- | --- | --- |
+| Démarrage jusqu'au premier diff | 874 ms (831–884) | 894 ms (793–942) | 802 ms (735–962) |
+| Mémoire, deux reviews ouvertes | 194 Mio (190–195) | 178 Mio (176–179) | 249 Mio (247–251) |
+| Mémoire après 30 changements d'onglet | 220 Mio (209–224) | 202 Mio (198–204) | 298 Mio (296–300) |
+| Mémoire en fin d'essai | 228 Mio (215–231) | 211 Mio (207–213) | 302 Mio (300–303) |
+| Changement d'onglet | 164 ms (156–169) | 154 ms (151–160) | 140 ms (135–151) |
+| Ouverture depuis le terminal | 356 ms (345–365) | 338 ms (329–366) | 400 ms (383–420) |
 
-L'ouverture depuis le terminal est nettement plus lente en v3. Ce portage passait par l'instance unique de Wails v3 ; `main` utilise depuis son propre socket, ce qui peut effacer l'écart (non vérifié).
+Gros diff :
 
-Pour Electron, il n'existe pas de mesure fiable sur ghl. Les benchmarks publics se contredisent : celui d'Elanis (Electron 44 contre Wails v2.16, octobre 2026) donne environ 364 Mo contre 100 Mo et un démarrage de 582 ms contre 1 396 ms, mais il compte les pages partagées de Chromium et ignore les processus XPC de WebKit ; [tauri#5889](https://github.com/tauri-apps/tauri/issues/5889) trouve au contraire Electron plus léger que WKWebView sur de vraies applications web (2022). Trancher demande un prototype Electron mesuré comme le benchmark ci-dessus.
+| Mesure | Wails v2 | Wails v3 | Electron 45 |
+| --- | --- | --- | --- |
+| Démarrage jusqu'au premier diff | 969 ms (952–1 092) | 949 ms (899–990) | 884 ms (865–915) |
+| Mémoire, deux reviews ouvertes | 271 Mio (268–275) | 225 Mio (219–234) | 363 Mio (353–366) |
+| Mémoire après 30 changements d'onglet | 390 Mio (384–400) | 391 Mio (334–458) | 430 Mio (414–435) |
+| Mémoire en fin d'essai | 437 Mio (421–453) | 435 Mio (377–493) | 428 Mio (419–434) |
+| Changement d'onglet | 204 ms (199–212) | 194 ms (186–204) | 165 ms (162–181) |
+| Ouverture depuis le terminal | 417 ms (411–435) | 393 ms (384–436) | 451 ms (440–494) |
+
+Ce qu'on en retient :
+
+- **Wails v3 fait au moins aussi bien que v2** : 16 à 46 Mio de moins avec deux reviews ouvertes, des changements d'onglet un peu plus rapides. L'ancien portage (branche `desktop/wails-v3`, avant la refonte) ouvrait une review depuis le terminal environ 400 ms plus lentement ; ce ralentissement venait de l'instance unique de Wails v3, que `main` remplace par son propre socket, et il a disparu. Sur le gros diff, la mémoire de v3 après usage varie beaucoup d'une série à l'autre, sans dépasser v2 en médiane.
+- **Electron part de plus haut en mémoire** : 71 Mio de plus que v3 avec deux petites reviews, 138 Mio avec deux grosses. L'écart se referme avec l'usage, parce que la mémoire de WebKit croît à chaque changement de review quand celle d'Electron reste stable : en fin d'essai sur le gros diff, les trois se valent.
+- **Electron gagne un peu en vitesse d'affichage** : un changement d'onglet 10 à 15 % plus rapide, un démarrage plus court de 65 à 92 ms, avec un cache Chromium déjà chaud. Il rouvre une review depuis le terminal 60 ms plus lentement, parce que le prototype lance un second processus Electron pour passer le relais ; une CLI Go qui parlerait au serveur supprimerait sans doute cet écart (non mesuré).
+- Les écarts de temps restent entre 14 et 92 ms. Les écarts nets sont la taille, 16 fois plus lourde, et la mémoire au repos.
+
+Ces mesures remplacent les benchmarks publics, qui se contredisaient : celui d'Elanis donnait Electron 3,6 fois plus gourmand en ignorant les processus WebKit, [tauri#5889](https://github.com/tauri-apps/tauri/issues/5889) le donnait plus léger que WKWebView.
 
 ## Distribution et mises à jour
 
@@ -85,17 +104,16 @@ Aucune des trois options ne permet une mise à jour automatique sans Developer I
 
 ## Coût du changement
 
-**Wails v3.** La branche `desktop/wails-v3` a porté l'app d'avant la refonte (#140) : services, fenêtres, menus, dialogues et événements v3, un `bridge.js` qui adapte le runtime v3 à l'interface React actuelle sans toucher au web. Elle passait `task desktop:test`, `task desktop:vet`, les tests Go et web, `task release:snapshot` et les 21 contrôles WebKit du smoke. Depuis, 24 commits ont modifié `desktop/` ; le code natif à reporter tient surtout dans `main.go` (24 appels à Wails) et `launch.go` (8). Estimation : une PR, plus le passage à Go 1.26.
+**Wails v3.** Le portage tient en deux commits sur la branche `feat/wails-v3` : les services, la fenêtre, les menus, les dialogues et les événements de v3 dans `main.go` et `launch.go`, et un module `native.js` qui reconstruit l'interface que la page attend à partir du runtime v3, sans toucher à l'interface React. Il a révélé un trou : la page v3 a pour origine `wails://localhost`, que le serveur de review acceptait comme `localhost` ; il n'accepte plus que `http` et `https`. Les tests Go passent et le banc l'a fait tourner 8 fois sans erreur. Restent le smoke natif, la documentation et le passage à Go 1.26 (`desktop/go.mod`).
 
-**Electron.** Tout le code natif passe en JavaScript : processus principal, les 26 entrées de menu, dialogues, instance unique, lancement et arrêt du serveur Go. Puis le packaging (Forge ou electron-builder, signature ad hoc, binaire Go dans le bundle), la release (GoReleaser ne suffit plus), `bridge.js` et `simulator.ts` réécrits autour de l'IPC, et le smoke natif refait, mais pilotable avec Puppeteer comme le reste des tests. Node entre dans la chaîne de build de l'app. Estimation : plusieurs PRs, puis une montée de majeure Electron au moins tous les six mois.
+**Electron.** Le prototype de la branche `spike/electron` (serveur Go à côté, onglets, instance unique, une partie des menus) tient en deux fichiers JavaScript (510 lignes) et un `main` Go d'une cinquantaine de lignes, mais l'app complète demande plus. Tout le code natif passe en JavaScript : processus principal, les 26 entrées de menu, dialogues, instance unique, lancement et arrêt du serveur Go. Puis le packaging (Forge ou electron-builder, signature ad hoc, binaire Go dans le bundle), la release (GoReleaser ne suffit plus), `bridge.js` et `simulator.ts` réécrits autour de l'IPC, et le smoke natif refait, mais pilotable avec Puppeteer comme le reste des tests. Node entre dans la chaîne de build de l'app. Estimation : plusieurs PRs, puis une montée de majeure Electron au moins tous les six mois.
 
-## À mesurer avant de trancher définitivement
+## Ce que les mesures ne couvrent pas
 
-- L'ouverture depuis le terminal en v3, avec le socket d'instance de `main`.
-- La mémoire en v3 sur un gros diff, avec plus de 3 paires de mesures.
-- Un prototype Electron (fenêtre, serveur Go à côté, interface actuelle) mesuré avec le même protocole, si Electron reste une option.
-
-Ces mesures ouvrent des fenêtres au premier plan.
+- Un seul Mac, sous macOS 26.6.2 : macOS 13, dont le WebKit est plus ancien, n'a pas été mesuré.
+- Le prototype Electron ne porte qu'une partie des menus et rien de Reveal in Finder ; une vraie app Electron aurait plus de code dans son processus principal.
+- Les longues sessions : la mémoire de WebKit croît à chaque changement de review, sur une durée bien plus longue que 40 changements.
+- Le smoke natif n'a pas encore tourné sur le portage v3.
 
 ## Sources
 
