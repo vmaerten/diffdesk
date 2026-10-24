@@ -45,7 +45,8 @@ func TestImageVersionsAndDisplayIdentity(t *testing.T) {
 			t.Fatal(err)
 		}
 		textHash := *statFor(t, review, "modified.svg").Hash
-		if err := review.attachImages(ctx, "repo"); err != nil {
+		// Repository folders may hold URL delimiters, which the ID carries.
+		if err := review.attachImages(ctx, "my#repo?%"); err != nil {
 			t.Fatal(err)
 		}
 		f := statFor(t, review, "modified.svg")
@@ -62,8 +63,8 @@ func TestImageVersionsAndDisplayIdentity(t *testing.T) {
 		}
 		for contents, version := range versions {
 			uri, err := url.Parse(*version.URL)
-			if err != nil {
-				t.Fatal(err)
+			if err != nil || uri.Path != "/r/my#repo?%/api/image" {
+				t.Fatalf("image URL %s: %v", *version.URL, err)
 			}
 			source, err := r.imageSource(ctx, uri.Query().Get("revision"), uri.Query().Get("path"))
 			if err != nil {
