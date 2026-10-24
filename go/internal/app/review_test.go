@@ -369,6 +369,20 @@ func TestReviewDuringAMergeConflict(t *testing.T) {
 	if f := statFor(t, review, "a.txt"); f.Hash == nil || !strings.Contains(review.Patch, "+<<<<<<< HEAD") {
 		t.Fatalf("conflicted file not reviewable: %+v", f)
 	}
+	// A stopped rebase detaches HEAD, but the comments stay the branch's.
+	gitFixture(t, path, "merge", "--abort")
+	rebase := exec.Command("git", "-C", path, "rebase", "main")
+	rebase.Env = merge.Env
+	if out, err := rebase.CombinedOutput(); err == nil {
+		t.Fatalf("rebase did not stop: %s", out)
+	}
+	review, err = r.Compare(ctx, "main", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *review.Operation != "rebase" || review.Branch == nil || *review.Branch != "feature" || review.CommentBranch != "feature" {
+		t.Fatalf("rebase review: %v %v %s", *review.Operation, review.Branch, review.CommentBranch)
+	}
 }
 func TestInvalidComparisonsAndCancellation(t *testing.T) {
 	r := fixture(t)
