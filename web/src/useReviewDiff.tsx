@@ -31,7 +31,7 @@ import type {
   ViewedMap,
 } from '../../src/types.ts'
 
-/** The loaded comparison and the lifetime of the request that owns it. */
+/** The loaded comparison, with a signal that ends when another one replaces it. */
 export type LoadedReviewDiff = DiffPayload & {
   loadId: number
   query: string
@@ -166,8 +166,7 @@ export function useReviewDiff({
   const searchInputRef = useRef<HTMLInputElement>(null)
   const selectionBeforeSearchRef = useRef<{ id: string; range: SelectedLineRange } | null>(null)
 
-  // Refresh cancels the old comparison before its replacement arrives. Clear
-  // its errors at that point, including when the replacement request fails.
+  // A replaced comparison cancels its context requests: clear their errors too.
   const signal = data?.signal
   useEffect(() => {
     const clear = () => setContextErrors({})

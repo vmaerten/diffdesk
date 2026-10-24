@@ -59,6 +59,20 @@ try {
     await ready(id)
   }
   await ready('1')
+  // Requests a test holds back or fails; everything else goes through.
+  const held = { comments: false, diff: false }
+  await page.setRequestInterception(true)
+  page.on('request', (request) => {
+    if (held.comments && request.method() === 'POST' && request.url().includes('/api/comments'))
+      return
+    if (held.diff && /\/api\/diff(\?|$)/.test(request.url()))
+      return void request.respond({
+        status: 500,
+        contentType: 'application/json',
+        body: '{"error":"fixture failure"}',
+      })
+    void request.continue()
+  })
   let failures = 0
   const test = async (name: string, run: () => Promise<void>) => {
     try {
@@ -70,13 +84,7 @@ try {
     }
   }
   await test('failed comment survives switching while its save is pending, then retries', async () => {
-    let intercept = true
-    await page.setRequestInterception(true)
-    page.on('request', (request) => {
-      if (intercept && request.method() === 'POST' && request.url().includes('/api/comments'))
-        return
-      void request.continue()
-    })
+    held.comments = true
     await page.evaluate(() => {
       const cell = document
         .querySelector('diffs-container')
@@ -121,7 +129,7 @@ try {
       true,
     )
     await page.waitForSelector('.comment-state.failed')
-    intercept = false
+    held.comments = false
     await page.evaluate(() => {
       const retry = [...document.querySelectorAll<HTMLButtonElement>('.comment button')].find(
         (button) => button.textContent === 'Retry',
@@ -196,6 +204,32 @@ try {
             ?.shadowRoot?.querySelector('[data-column-number="60"]'),
       ),
       false,
+    )
+  })
+  await test('a failed refresh leaves the shown comparison expandable', async () => {
+    await page.goto(origin, { waitUntil: 'networkidle0' })
+    await ready('1')
+    held.diff = true
+    await page.evaluate(() =>
+      window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'refresh' })),
+    )
+    await page.waitForFunction(() =>
+      document.querySelector('.message')?.textContent?.includes('fixture failure'),
+    )
+    held.diff = false
+    await page.evaluate(() => {
+      const control = document
+        .querySelector('diffs-container')
+        ?.shadowRoot?.querySelector<HTMLElement>('[data-expand-index="1"] [data-expand-all-button]')
+      if (!control) throw new Error('Missing Expand all')
+      control.click()
+    })
+    await page.waitForFunction(
+      () =>
+        !!document
+          .querySelector('diffs-container')
+          ?.shadowRoot?.querySelector('[data-column-number="20"]'),
+      { timeout: 5000 },
     )
   })
   assert.deepEqual(errors, [])

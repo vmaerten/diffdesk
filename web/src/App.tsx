@@ -91,7 +91,10 @@ export default function App({
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
   const loadRef = useRef(0)
-  const controllerRef = useRef<AbortController | null>(null)
+  const requestRef = useRef<AbortController | null>(null)
+  // The shown comparison's context requests live until it is replaced, not
+  // until the next refresh starts: a failed refresh leaves it on screen.
+  const shownRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(savedView?.diffStyle ?? 'unified')
   const [viewed, viewedPersistence] = useViewedPersistence(repoId)
@@ -128,9 +131,9 @@ export default function App({
       return
     }
     const loadId = ++loadRef.current
-    controllerRef.current?.abort()
+    requestRef.current?.abort()
     const controller = new AbortController()
-    controllerRef.current = controller
+    requestRef.current = controller
     const receiveComments = commentPersistence.refresh()
     const receiveViewed = viewedPersistence.refresh()
     try {
@@ -140,7 +143,10 @@ export default function App({
       const body: DiffPayload & { error?: string } = await response.json()
       if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`)
       if (controller.signal.aborted) return
-      setData({ ...body, loadId, query: selection.query, signal: controller.signal })
+      shownRef.current?.abort()
+      const shown = new AbortController()
+      shownRef.current = shown
+      setData({ ...body, loadId, query: selection.query, signal: shown.signal })
       receiveViewed({ ...body, query: selection.query })
       receiveComments(body.comments ?? [], body.commentBranch)
       setError(null)
@@ -152,8 +158,9 @@ export default function App({
 
   useEffect(() => {
     refresh()
-    return () => controllerRef.current?.abort()
+    return () => requestRef.current?.abort()
   }, [refresh])
+  useEffect(() => () => shownRef.current?.abort(), [])
 
   const pickTarget = useCallback(
     (ref: string | null) => {
