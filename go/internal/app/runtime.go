@@ -92,11 +92,6 @@ func (s *Runtime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		repos := s.servedLocked()
 		s.mu.Unlock()
 		reply(w, 200, runtimeHealth{BuildInfo: buildInfo(), PID: os.Getpid(), Repos: repos})
-	case r.URL.Path == "/api/repos" && r.Method == "GET":
-		s.mu.Lock()
-		repos := s.servedLocked()
-		s.mu.Unlock()
-		reply(w, 200, map[string]any{"repos": repos})
 	case r.URL.Path == "/api/repos" && r.Method == "POST":
 		var body struct {
 			Path string `json:"repoPath"`

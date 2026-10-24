@@ -63,9 +63,6 @@ func decode(w http.ResponseWriter, r *http.Request, body any) error {
 }
 func (s *Server) selection(r *http.Request) (Selection, error) {
 	q := r.URL.Query()
-	if q.Has("includeUntracked") {
-		return Selection{}, fmt.Errorf("includeUntracked is not supported by this Go runtime")
-	}
 	for _, key := range []string{"base", "target", "commit"} {
 		if q.Has(key) && !validRef(q.Get(key)) {
 			return Selection{}, fmt.Errorf("Invalid %s ref", key)
