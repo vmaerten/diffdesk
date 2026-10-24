@@ -100,7 +100,7 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 - `test/images.ts` écrit une capture de debug dans `/tmp`.
 - `test/goMise.ts` laisse tourner l'app précédente quand il échoue.
 
-### 11 · `hardening/11-cleanup` — Nettoyage
+### 11 · `hardening/11-cleanup` — Nettoyage — [#194](https://github.com/vmaerten/ghl/pull/194)
 
 - **Benchmark mémoire.** Il est cassé : `.repo-name` n'existe plus. Supprimer `memory.py`, `metrics.py`, `memory-probe.js`, `tab-memory.json`, `task desktop:memory` et la section correspondante du README.
 - **`PLAN.md`.** Reporter la note de la décision 7 dans `useReviewDiff.tsx`, puis supprimer le fichier.
@@ -162,3 +162,8 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 | 10 | La suite complète est passée de 33 s à 19 s. | Seuls les intervalles de sondage de `poll` et `waitForRows` gardent un délai fixe. |
 | 10 | Les tests ne touchent pas l'utilisateur. | Pas d'entrée au CHANGELOG. |
 | 10 | Le commentaire sur la longueur du socket était au-dessus de `userTempDir` depuis #178. | Remis sur `instancePaths`, dans un commit à part. |
+| 11 | Élaguer propriété par propriété les règles de `styles.css` que `desktop.css` surcharge demandait de comparer des sélecteurs de spécificités différentes, pour une trentaine de lignes. | Seules les règles mortes et les palettes de `themes.css` sont retirées ; `desktop.css` reste injecté en `?inline`, qui garantit qu'il passe après `styles.css`. Captures identiques au pixel dans sept états. |
+| 11 | Rendre obligatoires les props optionnelles d'`App` réécrit les lignes que #187 modifie. | Reporté après le merge de #187. |
+| 11 | Le bandeau d'opération en cours et `RepoState` sont utilisés depuis #189, et `loopbackURL` a été retiré par #193. | Laissés à ces PR. |
+| 11 | `smoke.py --standalone` a échoué sur « Scroll not restored » ; la référence qui passait avait été compilée avec Go 1.27.3, la branche avec 1.27.1. L'UI de la branche, CSS annulé, est identique octet pour octet à celle de `main` et échouait aussi. | Aucun commit de la PR n'est en cause à l'analyse ; trois exécutions standalone sur `main` trancheront, au moment choisi par l'utilisateur. |
+| 11 | Les smoke natifs lancés à répétition ont affiché des fenêtres au premier plan pendant que l'utilisateur travaillait. | Plus de test natif sans le demander ; ils sont listés dans les PR. |
