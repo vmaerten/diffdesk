@@ -40,7 +40,7 @@ Préfixe `hardening/`. Les PRs sont indépendantes : chacune part de `main`, san
   - ne mettre en quarantaine que dans `Mutate` ;
   - remplacer le verrou de ref par un `flock` sur un fichier de `.git/ghl/`, que le noyau libère si le processus meurt.
 
-### 04 · `hardening/04-view-state` — État de vue de l'UI
+### 04 · `hardening/04-view-state` — État de vue de l'UI — [#187](https://github.com/vmaerten/ghl/pull/187)
 
 - Quand la comparaison change, le composer n'a plus de place où s'afficher mais reste ouvert, et tous les raccourcis à une lettre sont bloqués. Le fermer quand sa ligne quitte les hunks.
 - Le fichier actif est un index, jamais recalculé. Après un changement de commit, `j` et `k` sautent au dernier fichier ; après un scroll au trackpad, `v` marque le mauvais fichier. Le garder par chemin et le suivre au scroll.
@@ -136,3 +136,7 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 | 03 | Sans verrou, `Snapshot` n'a plus besoin de contexte. | Signature réduite à `Snapshot()` ; les appelants et les tests suivent. |
 | 03 | Un commentaire invalide rend encore tout le fichier illisible : le récupérer entrée par entrée suppose de deviner un schéma futur. | Gardé tel quel ; un schéma futur doit changer `version`, refusé sans quarantaine. Seule la lecture ne déplace plus rien. |
 | 03 | Le `refs/worktree/ghl-state-lock.lock` laissé par une version antérieure reste sur disque. | Ignoré : plus rien ne lit ni ne verrouille cette ref. |
+| 04 | Fermer le composer quand sa ligne quitte les hunks aurait aussi fermé un composer restauré sur du contexte déplié, avant que l'expansion soit rejouée. | Seul un composer affiché bloque les raccourcis ; il reste ouvert et revient avec sa comparaison. |
+| 04 | Suivre le scroll sans garde fait boucler `j` sur un dernier fichier trop court pour monter en haut du panneau. | Le fichier actif reste tant qu'une partie est visible, puis passe à celui sous le bord haut. |
+| 04 | `desktopTabs.ts` n'avait qu'un seul écouteur d'interception, propre au test des commentaires. | Écouteur commun, avec un drapeau par type de requête retenue ou en échec. |
+| 04 | Libellé du sélecteur de cible et ordre du panneau de commentaires : correctifs d'une ligne. | Sans test dédié. |
