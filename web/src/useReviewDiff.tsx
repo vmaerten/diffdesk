@@ -303,7 +303,10 @@ export function useReviewDiff({
    * used to do — changed the item list on every tick, and the pane rebuilds its
    * virtual window from scratch when that happens: the reader was thrown back to
    * the top of the diff each time, and a file clicked in the tree came back
-   * somewhere they never saw. See decision 7 in PLAN.md for what it costs.
+   * somewhere they never saw. The cost is DOM: folded files are short, so more
+   * of them mount. With all 54 files of a fixture viewed, 23 mounted (1,347
+   * nodes) against 3 (540), for the same settle time; at 87 and 177 files an
+   * earlier campaign measured four to five times the render time.
    */
   const versions = useRef(new Map<string, { key: string; version: number }>())
   const items = useMemo(
