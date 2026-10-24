@@ -26,6 +26,9 @@ func api(t *testing.T, s *Server, method, route string, body any) *httptest.Resp
 		raw = string(encoded)
 	}
 	r := httptest.NewRequest(method, "http://127.0.0.1/r/"+s.id+"/api/"+route, strings.NewReader(raw))
+	if body != nil {
+		r.Header.Set("Content-Type", "application/json")
+	}
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, r)
 	return w
@@ -114,14 +117,19 @@ func TestAPIValidationAndSecurity(t *testing.T) {
 	}
 	requireStatus(t, api(t, s, "POST", "comments", Comment{ID: "c", Path: "context.txt", Side: "additions", Start: 0, End: 1, Range: "r"}), 400)
 	requireStatus(t, api(t, s, "PATCH", "comments", map[string]string{"id": "missing", "body": "ok"}), 404)
+	// The last two: a page on another localhost port, which passes the Origin
+	// check, can only send a write that needs no preflight.
 	for _, test := range []struct {
-		host, origin string
-		status       int
-	}{{"evil.example", "", 403}, {"127.0.0.1", "https://evil.example", 403}, {"localhost", "null", 403}, {"ghl.localhost", "", 403}, {"localhost:1234", "http://localhost:1234", 200}} {
+		host, origin, contentType string
+		status                    int
+	}{{"evil.example", "", "application/json", 403}, {"127.0.0.1", "https://evil.example", "application/json", 403}, {"localhost", "null", "application/json", 403}, {"ghl.localhost", "", "application/json", 403}, {"localhost:1234", "http://localhost:1234", "application/json; charset=utf-8", 200}, {"localhost:1234", "http://localhost:3000", "text/plain", 415}, {"localhost:1234", "http://localhost:3000", "", 415}} {
 		r := httptest.NewRequest("POST", "http://127.0.0.1/r/"+s.id+"/api/viewed", strings.NewReader(`{"range":"r","clear":true}`))
 		r.Host = test.host
 		if test.origin != "" {
 			r.Header.Set("Origin", test.origin)
+		}
+		if test.contentType != "" {
+			r.Header.Set("Content-Type", test.contentType)
 		}
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, r)

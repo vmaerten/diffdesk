@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"mime"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -80,6 +81,14 @@ func allowedRequest(w http.ResponseWriter, r *http.Request) bool {
 	if origin, ok := r.Header["Origin"]; r.Method != "GET" && ok && (len(origin) != 1 || !allowedName(origin[0])) {
 		fail(w, 403, fmt.Errorf("unexpected Origin header"))
 		return false
+	}
+	// Any page, including one on another localhost port, can POST text or a form
+	// without a preflight. Every write here carries JSON, which it cannot.
+	if r.Method == "POST" || r.Method == "PATCH" || r.Method == "PUT" {
+		if media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err != nil || media != "application/json" {
+			fail(w, 415, fmt.Errorf("expected a JSON body"))
+			return false
+		}
 	}
 	return true
 }
