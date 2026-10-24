@@ -229,14 +229,44 @@ func (r Repository) stack(ctx context.Context, branch, trunk *string) (*StackCha
 	return nil, nil
 }
 
+// guesses keeps each repository's last base guess. It costs two Git processes
+// per local branch, on every request without a base, yet changes only with the
+// head, the trunk or a branch tip.
+var guesses = struct {
+	sync.Mutex
+	last map[string]guess
+}{last: map[string]guess{}}
+
+type guess struct {
+	key, base string
+	distance  int
+}
+
 func (r Repository) guessParent(ctx context.Context, head string, trunk *string) (string, int, error) {
 	headSHA, err := r.resolveRef(ctx, head)
 	if err != nil || headSHA == "" {
 		return "", 0, err
 	}
-	names, err := r.branches(ctx)
+	tips, err := r.text(ctx, "for-each-ref", "--format=%(objectname) %(refname:short)", "refs/heads")
 	if err != nil {
 		return "", 0, err
+	}
+	trunkName := "\x00none"
+	if trunk != nil {
+		trunkName = *trunk
+	}
+	key := strings.Join([]string{head, headSHA, trunkName, tips}, "\x00")
+	guesses.Lock()
+	cached, ok := guesses.last[r.GitDir]
+	guesses.Unlock()
+	if ok && cached.key == key {
+		return cached.base, cached.distance, nil
+	}
+	names := []string{}
+	for _, line := range strings.Split(tips, "\n") {
+		if _, name, ok := strings.Cut(line, " "); ok {
+			names = append(names, name)
+		}
 	}
 	if trunk != nil {
 		found := false
@@ -310,8 +340,11 @@ func (r Repository) guessParent(ctx context.Context, head string, trunk *string)
 		}
 	}
 	if trunkDistance >= 0 && distance >= trunkDistance {
-		return *trunk, trunkDistance, nil
+		best, distance = *trunk, trunkDistance
 	}
+	guesses.Lock()
+	guesses.last[r.GitDir] = guess{key, best, distance}
+	guesses.Unlock()
 	return best, distance, nil
 }
 func (r Repository) resolveBase(ctx context.Context, override, target string) (BaseResolution, error) {

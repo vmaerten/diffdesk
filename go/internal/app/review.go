@@ -409,9 +409,10 @@ func parseCounts(raw string, statuses map[string]string) ([]FileStat, error) {
 var hunkRE = regexp.MustCompile(`^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@`)
 var indexRE = regexp.MustCompile(`(?m)^index ([a-f0-9]+)\.\.([a-f0-9]+)`)
 
-// Match complete Git-quoted pairs against known NUL-delimited names. Splitting
-// on " b/" alone confuses valid filenames containing that sequence.
-func headerMatches(header, old, path string) bool {
+// headerFile finds the (previous, path) pair a "diff --git" header names among
+// the known NUL-delimited names. Splitting on " b/" alone confuses valid names
+// containing that sequence, so every space is tried, each a map lookup.
+func headerFile(header string, files map[[2]string]bool) ([2]string, bool) {
 	pair := strings.TrimPrefix(header, "diff --git ")
 	decode := func(token string) string {
 		if strings.HasPrefix(token, `"`) {
@@ -424,13 +425,26 @@ func headerMatches(header, old, path string) bool {
 		return token
 	}
 	for i := range pair {
-		if pair[i] == ' ' && decode(pair[:i]) == "a/"+old && decode(pair[i+1:]) == "b/"+path {
-			return true
+		if pair[i] != ' ' {
+			continue
+		}
+		old, fromOld := strings.CutPrefix(decode(pair[:i]), "a/")
+		path, fromNew := strings.CutPrefix(decode(pair[i+1:]), "b/")
+		if key := [2]string{old, path}; fromOld && fromNew && files[key] {
+			return key, true
 		}
 	}
-	return false
+	return [2]string{}, false
 }
 func (r *Review) parseSections(previous map[string]string) {
+	files := make(map[[2]string]bool, len(r.Files))
+	for _, file := range r.Files {
+		old := file.Path
+		if previous[file.Path] != "" {
+			old = previous[file.Path]
+		}
+		files[[2]string{old, file.Path}] = true
+	}
 	lines := strings.Split(r.Patch, "\n")
 	for start := 0; start < len(lines); {
 		if !strings.HasPrefix(lines[start], "diff --git ") {
@@ -441,15 +455,8 @@ func (r *Review) parseSections(previous map[string]string) {
 		for end < len(lines) && !strings.HasPrefix(lines[end], "diff --git ") {
 			end++
 		}
-		for _, file := range r.Files {
-			old := file.Path
-			if previous[file.Path] != "" {
-				old = previous[file.Path]
-			}
-			if !headerMatches(lines[start], old, file.Path) {
-				continue
-			}
-			s := &section{previous: old, patch: strings.Join(lines[start:end], "\n"), oldLines: map[int]string{}, newLines: map[int]string{}}
+		if key, ok := headerFile(lines[start], files); ok {
+			s := &section{previous: key[0], patch: strings.Join(lines[start:end], "\n"), oldLines: map[int]string{}, newLines: map[int]string{}}
 			if ids := indexRE.FindStringSubmatch(s.patch); ids != nil {
 				s.oldID, s.newID = ids[1], ids[2]
 			}
@@ -478,8 +485,7 @@ func (r *Review) parseSections(previous map[string]string) {
 					newLine++
 				}
 			}
-			r.sections[file.Path] = s
-			break
+			r.sections[key[1]] = s
 		}
 		start = end
 	}

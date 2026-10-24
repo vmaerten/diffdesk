@@ -258,3 +258,24 @@ func TestGitFailuresAreNotAbsentValues(t *testing.T) {
 		t.Fatalf("broken repository read as a missing ref: %q", sha)
 	}
 }
+
+// The guess is cached per repository: a new branch tip must still change it.
+func TestBaseGuessFollowsBranchTips(t *testing.T) {
+	ctx := context.Background()
+	r := fixture(t)
+	gitFixture(t, r.Path, "checkout", "-qb", "top")
+	gitFixture(t, r.Path, "commit", "--allow-empty", "-qm", "one")
+	gitFixture(t, r.Path, "commit", "--allow-empty", "-qm", "two")
+	trunk := "main"
+	for _, want := range []struct {
+		branch, base string
+		distance     int
+	}{{"", "feature", 2}, {"", "feature", 2}, {"middle", "middle", 1}} {
+		if want.branch != "" {
+			gitFixture(t, r.Path, "branch", want.branch, "top~1")
+		}
+		if base, distance, err := r.guessParent(ctx, "top", &trunk); err != nil || base != want.base || distance != want.distance {
+			t.Fatalf("guess %q at %d (%v), want %q at %d", base, distance, err, want.base, want.distance)
+		}
+	}
+}
