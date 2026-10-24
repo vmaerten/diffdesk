@@ -71,7 +71,7 @@ Préfixe `hardening/`. Les PRs sont indépendantes : chacune part de `main`, san
 - Décision prise le 24 octobre : `--no-textconv`, un fichier que l'utilisateur fait lire par textconv s'affiche comme Git le stocke, binaire le cas échéant, comme sur GitHub.
 - À vérifier ici : un aperçu d'image Git LFS montre probablement le pointeur.
 
-### 08 · `hardening/08-release` — Release
+### 08 · `hardening/08-release` — Release — [#191](https://github.com/vmaerten/ghl/pull/191)
 
 - **Token du tap.** `release:tap:access` ne détecte pas un token absent : le tap est public, la lecture passe sans token, et l'échec n'arrive qu'après publication. Exiger `HOMEBREW_TAP_TOKEN` pour un tag stable.
 - **Version de Go.** Avec Go 1.27.1, govulncheck trouve 12 failles de la bibliothèque standard atteignables, corrigées en 1.27.2 et 1.27.3. Passer `.mise.toml` à 1.27.3.
@@ -148,3 +148,7 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 | 07 | `git hash-object --path` sur stdin demandait une plomberie d'entrée qu'aucun appel git du serveur n'a. | Fins de ligne : normalisation CRLF→LF en Go, retenue seulement si elle redonne l'empreinte du patch. Autres filtres : `git hash-object -- <path>`, seulement pour choisir le message d'erreur. |
 | 07 | La PR part de `main` sans la 01 : les deux modifient la ligne des arguments de `git diff` dans `review.go` et `untracked.go`. | Conflit trivial à résoudre au rebase de la seconde mergée. |
 | 07 | Une exécution complète des suites UI a échoué une fois sur `and c comments that selection` ; trois exécutions isolées passent. | À traiter dans la 10 : le clic de gouttière vise des coordonnées lues plus tôt, et l'`until` qui suit n'est pas vérifié. |
+| 08 | Exiger `HOMEBREW_TAP_TOKEN` partout aurait cassé `task release` en local, où `gh` écrit sur le tap avec le compte du mainteneur. | Exigé seulement sous `GITHUB_ACTIONS`. |
+| 08 | `brew style` refusait déjà l'ordre de la liste `zap` sur `main` (`ghl Desktop` avant `ghl`). | Ordre corrigé avec les nouveaux chemins. |
+| 08 | Séparer le build, sans secret, de la publication reste une option. | Non fait : à décider, cela double les jobs et le transfert d'artefacts. |
+| 08 | Aucune release n'est faite dans cette PR, à la demande de l'utilisateur. | Le contrôle du token et le groupe de concurrence ne se verront qu'au prochain tag. |
