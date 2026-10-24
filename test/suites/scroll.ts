@@ -2,7 +2,8 @@ import {
   allTreeRows,
   DIFF_ON_SCREEN as ON_SCREEN,
   DIFF_SCROLLER as SCROLLER,
-  sleep,
+  frames,
+  poll,
   titlebar,
   until,
   VIEWED_COUNT,
@@ -14,7 +15,6 @@ export default {
   async run({ page, load }, check) {
     await load()
     await page.waitForSelector('.viewed-toggle input', { timeout: 30_000 })
-    await sleep(1500)
 
     const scrollable = (await page.evaluate(`Boolean(${SCROLLER})`)) as boolean
     check('the diff pane has a scroller of its own', scrollable)
@@ -25,8 +25,10 @@ export default {
         const el = ${SCROLLER}
         el.scrollTop = (el.scrollHeight - el.clientHeight) * ${ratio}
       })()`)
-      await sleep(900)
-      return (await page.evaluate(ON_SCREEN)) as string[]
+      // The files that scrolled out leave the viewport at once; wait for the
+      // window to mount the ones that scrolled in.
+      await frames(page)
+      return poll(() => page.evaluate(ON_SCREEN) as Promise<string[]>, (names) => names.length > 0)
     }
 
     const top = await at(0)

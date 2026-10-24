@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { DiffPayload } from '../src/types.ts'
-import { clickTreeRow, sleep, withHarness, type Check } from './harness.ts'
+import { clickTreeRow, until, withHarness, type Check } from './harness.ts'
 import { isolatedGit, serveGo } from './goBinary.ts'
 
 const git = (cwd: string, args: string[]) =>
@@ -273,9 +273,25 @@ export async function runImages(check: Check): Promise<void> {
       )
       const zoomTrigger =
         '[data-image-path="changed.svg"] .image-side:last-child .image-zoom-trigger'
-      await sleep(600)
+      // Selecting the file left the pane settling: click once a point of the
+      // trigger actually hits it.
+      const clickTrigger = async () => {
+        const at = await page.waitForFunction(
+          (selector) => {
+            const trigger = document.querySelector(selector)
+            const box = trigger?.getBoundingClientRect()
+            if (!trigger || !box) return null
+            const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+            return trigger.contains(document.elementFromPoint(point.x, point.y)) ? point : null
+          },
+          { timeout: 10_000 },
+          zoomTrigger,
+        )
+        const { x, y } = (await at.jsonValue()) as { x: number; y: number }
+        await page.mouse.click(x, y)
+      }
       const previewSrc = await page.$eval(`${zoomTrigger} img`, (img) => img.getAttribute('src'))
-      await page.click(zoomTrigger)
+      await clickTrigger()
       await page.waitForSelector('.image-zoom[open]')
       check(
         'clicking an image opens the selected version in a modal',
@@ -297,14 +313,16 @@ export async function runImages(check: Check): Promise<void> {
       await page.click('.image-zoom-heading button')
       await page.waitForSelector('.image-zoom', { hidden: true })
       check('keyboard activation and the close button work', (await page.$('.image-zoom')) === null)
-      await page.click(zoomTrigger)
+      await clickTrigger()
       await page.waitForSelector('.image-zoom[open]')
       await page.mouse.click(5, 5)
       await page.waitForSelector('.image-zoom', { hidden: true })
       check('clicking the backdrop closes the modal', (await page.$('.image-zoom')) === null)
       await page.keyboard.press('v')
-      await sleep(600)
-      check('viewed images fold away', (await page.$('[data-image-path="changed.svg"]')) === null)
+      check(
+        'viewed images fold away',
+        await until(page, `!document.querySelector('[data-image-path="changed.svg"]')`, 5_000),
+      )
       await page.keyboard.press('v')
       await page.waitForSelector('[data-image-path="changed.svg"] img')
       await clickTreeRow(page, 'added.png')

@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { openOptions, sleep, titlebar, type Suite } from '../harness.ts'
+import { openOptions, poll, titlebar, type Suite } from '../harness.ts'
 
 /** Named, since the Options popover holds other checkboxes beside it. */
 const BUTTON = `document.querySelector('.options-popover .scope-check input.worktree')`
@@ -35,7 +35,6 @@ export default {
       writeFileSync(untracked, 'export const untracked = 1\n')
 
       await load('')
-      await sleep(1500)
       await openOptions(page)
 
       check(
@@ -55,7 +54,7 @@ export default {
       )
 
       await page.evaluate(`${BUTTON}.click()`)
-      await sleep(1500)
+      await poll(message, (text) => text?.includes('nothing is committed above') === true)
 
       check('releasing it empties the diff', (await files()) === null, String(await files()))
       // "matches the base" would be a lie: the work is there, uncommitted.
@@ -84,13 +83,12 @@ export default {
       )
 
       await page.evaluate(`${BUTTON}.click()`)
-      await sleep(1500)
+      await poll(files, (count) => count === 1)
       check('pressing it again brings the work back', (await files()) === 1, String(await files()))
 
       // Reviewing a ref: the working tree is out whatever the checkbox says, so it
       // must neither claim otherwise nor invite a click.
       await load('?target=feature')
-      await sleep(1500)
       await openOptions(page)
       const onRef = await button()
       check('reviewing a ref disables the button', onRef?.off === true, JSON.stringify(onRef))
