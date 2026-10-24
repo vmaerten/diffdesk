@@ -75,7 +75,7 @@ func run() error {
 		instanceID = fmt.Sprintf("ghl-test-%x", sha256.Sum256([]byte(probePath)))
 	}
 	// Per user on macOS, and the socket path must stay short.
-	dir := os.TempDir()
+	dir := userTempDir()
 	if !windowMode {
 		// A running app takes the review at once.
 		if err := deliver(dir, instanceID, initial, 0); !errors.Is(err, errNoApp) {

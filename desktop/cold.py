@@ -38,6 +38,8 @@ def main():
 }}, 250)
 ''')
         env = {**os.environ, 'GHL_DESKTOP_PROBE': str(probe), 'GHL_DESKTOP_SETTINGS': str(folder / 'settings.json')}
+        # The app started through LaunchServices never sees the launcher's TMPDIR.
+        env.pop('TMPDIR', None)
         try:
             for round in range(1, ROUNDS + 1):
                 assert not running(binary), 'A previous app is still running'
