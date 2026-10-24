@@ -12,8 +12,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint scripts src test web/src desktop/bridge.js desktop/simulator.ts vite.config.js",
     "lint:fix": "oxlint --fix scripts src test web/src desktop/bridge.js desktop/simulator.ts vite.config.js",
-    "format": "oxfmt scripts src test web/src desktop/bridge.js desktop/simulator.ts desktop/native-smoke.js desktop/memory-probe.js vite.config.js",
-    "format:check": "oxfmt --check scripts src test web/src desktop/bridge.js desktop/simulator.ts desktop/native-smoke.js desktop/memory-probe.js vite.config.js",
+    "format": "oxfmt scripts src test web/src desktop/bridge.js desktop/simulator.ts desktop/native-smoke.js vite.config.js",
+    "format:check": "oxfmt --check scripts src test web/src desktop/bridge.js desktop/simulator.ts desktop/native-smoke.js vite.config.js",
     "go:build": "task build",
     "go:test": "task test",
     "go:vet": "task vet"
