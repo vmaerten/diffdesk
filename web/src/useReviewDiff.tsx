@@ -112,7 +112,7 @@ export function useReviewDiff({
   const viewRef = useRef<CodeViewHandle<undefined>>(null)
   const paneRef = useRef<HTMLDivElement>(null)
   const scrollerRef = useRef<HTMLDivElement>(null)
-  const [activeIndex, setActiveIndex] = useState(0)
+  const [activePath, setActivePath] = useState<string | null>(null)
   const [revealedPath, setRevealedPath] = useState<string | null>(null)
   const [commentTarget, setCommentTarget] = useState<ServedComment | null>(null)
   useEffect(() => {
@@ -336,6 +336,12 @@ export function useReviewDiff({
     [allItems, viewed, annotations, revealedPath, composer?.path, foldedByPath],
   )
 
+  // The file j, k and v act on. Kept by path: an index would point at whatever
+  // file a new comparison puts in that position.
+  const active = items.some((item) => item.path === activePath)
+    ? activePath
+    : (items[0]?.path ?? null)
+
   const commentCounts = useMemo(() => {
     const counts = new Map<string, number>()
     for (const comment of comments) {
@@ -390,12 +396,11 @@ export function useReviewDiff({
 
   useEffect(() => {
     if (!commentTarget) return
-    const index = items.findIndex((item) => item.path === commentTarget.path)
-    const item = items[index]
+    const item = items.find((entry) => entry.path === commentTarget.path)
     if (!item || item.collapsed) return
     // The React wrapper has committed the expanded item before its next frame.
     const frame = requestAnimationFrame(() => {
-      setActiveIndex(index)
+      setActivePath(item.path)
       revealFile(item.path)
       viewRef.current?.setSelectedLines({
         id: item.id,
@@ -467,7 +472,7 @@ export function useReviewDiff({
       // Not `target`: that name already means the revision under review.
       const item = items[bounded]
       if (!item) return
-      setActiveIndex(bounded)
+      setActivePath(item.path)
 
       // The tree folds directories, so ask it to bring the file back into view
       // rather than moving the selection somewhere invisible.
@@ -534,8 +539,7 @@ export function useReviewDiff({
       return
     }
 
-    const itemIndex = items.findIndex((item) => item.id === activeSearchMatch.id)
-    if (itemIndex >= 0) setActiveIndex(itemIndex)
+    setActivePath(activeSearchMatch.path)
     revealFile(activeSearchMatch.path)
 
     if (activeSearchMatch.type === 'path') {
@@ -580,7 +584,36 @@ export function useReviewDiff({
     if (path) openComposer(path, selection.range)
   })
 
-  const navigate = useCallback((offset: number) => goTo(activeIndex + offset), [goTo, activeIndex])
+  const navigate = useCallback(
+    (offset: number) => goTo(items.findIndex((item) => item.path === active) + offset),
+    [goTo, items, active],
+  )
+
+  /**
+   * Follow the reader's scroll. The active file stays while any of it shows, so
+   * `j` onto a short last file holds; once it leaves the pane, the file under
+   * the top edge, the one in the sticky header, takes over.
+   */
+  const followScroll = useStableCallback(() => {
+    const instance = viewRef.current?.getInstance()
+    if (!instance || items.length === 0) return
+    const top = instance.getScrollTop()
+    const bottom = top + instance.getHeight()
+    const start = (index: number) => instance.getTopForItem(items[index]!.id) ?? 0
+    const end = (index: number) =>
+      index + 1 < items.length ? start(index + 1) : instance.getScrollHeight()
+    const current = items.findIndex((item) => item.path === active)
+    if (current >= 0 && start(current) < bottom && end(current) > top) return
+    // Tops grow with the index.
+    let low = 0
+    let high = items.length - 1
+    while (low < high) {
+      const middle = (low + high) >> 1
+      if (end(middle) > top) high = middle
+      else low = middle + 1
+    }
+    setActivePath(items[low]!.path)
+  })
 
   /**
    * The gutter "+" reports a range but not which file it is in.
@@ -744,8 +777,7 @@ export function useReviewDiff({
   useEffect(() => {
     if (!savedView || !data || items.length === 0 || restored.current) return
     restored.current = true
-    const index = items.findIndex((item) => item.path === savedView.activePath)
-    if (index >= 0) setActiveIndex(index)
+    setActivePath(savedView.activePath ?? null)
     const selectedItem = items.find((item) => item.path === savedView.selected?.path)
     if (selectedItem && savedView.selected)
       viewRef.current?.setSelectedLines({ id: selectedItem.id, range: savedView.selected.range })
@@ -834,7 +866,7 @@ export function useReviewDiff({
     const selected = viewRef.current?.getSelectedLines()
     const selectedItem = items.find((item) => item.id === selected?.id)
     return {
-      activePath: items[activeIndex]?.path,
+      activePath: active ?? undefined,
       scrollTop: scrollTopRef.current,
       composer,
       drafts: [...draftsRef.current.entries()],
@@ -856,6 +888,7 @@ export function useReviewDiff({
         onScroll={(position) => {
           scrollTopRef.current = position
           replayExpansions()
+          followScroll()
         }}
         items={items}
         options={options}
@@ -943,7 +976,7 @@ export function useReviewDiff({
   return {
     view,
     entries,
-    activePath: items[activeIndex]?.path,
+    activePath: active ?? undefined,
     searchOpen,
     selectFile: selectByPath,
     revealComment,

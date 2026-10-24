@@ -1,8 +1,11 @@
 import {
+  allTreeRows,
   DIFF_ON_SCREEN as ON_SCREEN,
   DIFF_SCROLLER as SCROLLER,
   sleep,
   titlebar,
+  until,
+  VIEWED_COUNT,
   type Suite,
 } from '../harness.ts'
 
@@ -35,6 +38,18 @@ export default {
       middle.length > 0 && middle.join() !== top.join(),
       `${top[0] ?? '?'} -> ${middle[0] ?? '?'}`,
     )
+
+    // Scrolling moves the reader, so v marks a file they can see, not the first.
+    await page.keyboard.press('v')
+    await until(page, `(${VIEWED_COUNT})?.startsWith('1 of ')`)
+    const ticked = (await allTreeRows(page)).find((row) => row.decoration.includes('✓'))?.path
+    check(
+      'v marks a file on screen after scrolling',
+      !!ticked && middle.some((name) => ticked.endsWith(name) || name.endsWith(ticked)),
+      `${ticked} among ${middle.join(' | ')}`,
+    )
+    await page.keyboard.press('v')
+    await until(page, `(${VIEWED_COUNT})?.startsWith('0 of ')`)
 
     const bottom = await at(0.98)
     check(
