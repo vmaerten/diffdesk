@@ -24,10 +24,12 @@ type Selection struct {
 	IgnoreWhitespace     bool
 }
 
+// optionalText reads a value Git may report absent with exit code 1. Code 128
+// is a fatal error, such as a moved checkout, and stays one.
 func (r Repository) optionalText(ctx context.Context, args ...string) (string, error) {
 	value, err := r.text(ctx, args...)
 	var exited *exec.ExitError
-	if ctx.Err() == nil && errors.As(err, &exited) && (exited.ExitCode() == 1 || exited.ExitCode() == 128) {
+	if ctx.Err() == nil && errors.As(err, &exited) && exited.ExitCode() == 1 {
 		return "", nil
 	}
 	return value, err
