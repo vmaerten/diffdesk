@@ -22,7 +22,7 @@ import {
   stateLabel,
   useLanguageStatus,
 } from './codeIntelligence.ts'
-import type { LanguageStatus } from '../../src/types.ts'
+import type { GitHubAccount, LanguageStatus } from '../../src/types.ts'
 import desktopStyles from './desktop.css?inline'
 
 const APPEARANCES: { value: Appearance; label: string }[] = [
@@ -47,7 +47,7 @@ const PREVIEW = `diff --git a/open.go b/open.go
  }
 `
 
-type Pane = 'appearance' | 'code' | 'window' | 'intelligence'
+type Pane = 'appearance' | 'code' | 'window' | 'intelligence' | 'github'
 
 const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
   {
@@ -114,6 +114,26 @@ const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
         aria-hidden="true"
       >
         <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'github',
+    label: 'GitHub',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="6.5" cy="6" r="2.5" />
+        <circle cx="6.5" cy="18" r="2.5" />
+        <circle cx="17.5" cy="18" r="2.5" />
+        <path d="M6.5 8.5v7M17.5 15.5V10a3 3 0 0 0-3-3H11M13 4.5 10.5 7 13 9.5" />
       </svg>
     ),
   },
@@ -210,6 +230,7 @@ export default function SettingsWindow() {
         {settings && pane === 'intelligence' && (
           <IntelligencePane settings={settings} onChange={change} />
         )}
+        {settings && pane === 'github' && <GitHubPane settings={settings} onChange={change} />}
       </main>
     </div>
   )
@@ -508,6 +529,57 @@ function IntelligencePane({ settings, onChange }: PaneProps) {
         })}
       </div>
     </>
+  )
+}
+
+/** Why pull requests show, or why they cannot. */
+function accountNote(account: GitHubAccount | null): string {
+  switch (account?.github) {
+    case 'ready':
+      return `From the GitHub CLI, signed in as ${account.login}.`
+    case 'missing':
+      return 'Needs the GitHub CLI: brew install gh, then gh auth login.'
+    case 'signed-out':
+      return 'The GitHub CLI is not signed in: run gh auth login in a terminal.'
+    case 'unavailable':
+      return `The GitHub CLI did not answer. ${account.message ?? ''}`
+    default:
+      return 'From the GitHub CLI.'
+  }
+}
+
+function GitHubPane({ settings, onChange }: PaneProps) {
+  const [account, setAccount] = useState<GitHubAccount | null>(null)
+  // Asked each time the pane shows: gh may have been installed or signed in meanwhile.
+  useEffect(() => {
+    if (!settings.showPullRequests) return
+    const controller = new AbortController()
+    fetch('/api/github', { signal: controller.signal })
+      .then((response) => response.json() as Promise<GitHubAccount>)
+      .then(setAccount)
+      .catch(() => {
+        if (!controller.signal.aborted) setAccount(null)
+      })
+    return () => controller.abort()
+  }, [settings.showPullRequests])
+  return (
+    <div className="settings-group">
+      <label className="settings-field">
+        <span className="settings-label">
+          Show pull requests
+          <small>
+            {settings.showPullRequests
+              ? accountNote(account)
+              : "The reviewed branch's pull request, in the title bar."}
+          </small>
+        </span>
+        <input
+          type="checkbox"
+          checked={settings.showPullRequests}
+          onChange={(event) => onChange({ showPullRequests: event.target.checked })}
+        />
+      </label>
+    </div>
   )
 }
 

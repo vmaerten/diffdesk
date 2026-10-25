@@ -28,6 +28,8 @@ export interface DesktopSettings extends AppearanceSettings {
   /** References in a Symbol tab beside Comments, under code intelligence. */
   symbolPanel: boolean
   languageServers: Record<LanguageId, string>
+  /** Through the GitHub CLI, when it is installed and signed in. */
+  showPullRequests: boolean
 }
 
 export const DEFAULT_SETTINGS: DesktopSettings = {
@@ -46,6 +48,7 @@ export const DEFAULT_SETTINGS: DesktopSettings = {
     helm: 'auto',
     rust: 'auto',
   },
+  showPullRequests: true,
 }
 
 const APPEARANCES: readonly Appearance[] = ['system', 'light', 'dark']
@@ -76,6 +79,7 @@ export function readSettings(raw: string): DesktopSettings {
     codeIntelligence,
     symbolPanel,
     languageServers,
+    showPullRequests,
   } = stored
   const servers = (
     languageServers && typeof languageServers === 'object' ? languageServers : {}
@@ -106,6 +110,8 @@ export function readSettings(raw: string): DesktopSettings {
         return [id, (choices as readonly unknown[]).includes(choice) ? choice : 'auto']
       }),
     ) as Record<LanguageId, string>,
+    showPullRequests:
+      typeof showPullRequests === 'boolean' ? showPullRequests : DEFAULT_SETTINGS.showPullRequests,
   }
 }
 

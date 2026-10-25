@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Icon from './Icon.tsx'
 import ScopeControls from './ScopeControls.tsx'
 import StackPicker from './StackPicker.tsx'
+import PullRequestPill from './PullRequestPill.tsx'
 import {
   commitLabel,
   ComparisonSelector,
@@ -22,6 +23,7 @@ export default function DesktopToolbar(
     onToggleComments: () => void
     copiedAll: boolean
     onCopyAll: () => void
+    showPullRequest: boolean
   },
 ) {
   const {
@@ -44,6 +46,7 @@ export default function DesktopToolbar(
     onToggleComments,
     copiedAll,
     onCopyAll,
+    showPullRequest,
   } = props
   const [optionsOpen, setOptionsOpen] = useState(false)
   const stack = data?.base.stack
@@ -118,6 +121,14 @@ export default function DesktopToolbar(
       </div>
 
       <div className="titlebar-actions">
+        {showPullRequest && data && (
+          <PullRequestPill
+            repoId={props.repoId}
+            branch={data.target.ref === 'HEAD' ? null : data.target.ref}
+            loadId={data.loadId}
+            workingTree={data.target.workingTree}
+          />
+        )}
         <div className="segmented" role="group" aria-label="Diff layout">
           <button
             type="button"
