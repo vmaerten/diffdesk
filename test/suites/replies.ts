@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DiffPayload, StoredState } from '../../src/types.ts'
-import { clickTreeRow, COMMENTS_OPEN, type Suite } from '../harness.ts'
+import { clickTreeRow, COMMENTS_OPEN, poll, type Suite } from '../harness.ts'
 
 /** Replies and resolution come from the terminal; the window only shows them. */
 export default {
@@ -108,6 +108,23 @@ export default {
           payload.comments.filter((comment) => comment.status !== 'resolved'),
           { range: payload.range },
         ),
+    )
+
+    // Resolving from the window: the card leaves, and the state says so.
+    await page.click('[aria-label="Close comments"]')
+    await page.click(`${card} .comment-resolve`)
+    await page.waitForSelector(card, { hidden: true })
+    const status = await poll(
+      async () =>
+        (JSON.parse(readFileSync(stateFile, 'utf8')) as StoredState).comments.find(
+          (comment) => comment.id === answered.id,
+        )?.status,
+      (value) => value === 'resolved',
+    )
+    check('Resolve closes an answered comment from the window', status === 'resolved')
+    check(
+      '  and the count drops to nothing',
+      (await page.$eval('.copy-all .counter', (el) => el.textContent?.trim())) === '0',
     )
   },
 } satisfies Suite

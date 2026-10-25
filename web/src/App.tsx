@@ -238,6 +238,14 @@ export default function App({
     }
   })
 
+  const resolveComment = useStableCallback(async (id: string) => {
+    try {
+      await commentPersistence.resolve(id)
+    } catch (cause) {
+      setError(`could not resolve the comment: ${cause instanceof Error ? cause.message : cause}`)
+    }
+  })
+
   /**
    * Put the whole review on the clipboard, as markdown.
    *
@@ -295,6 +303,7 @@ export default function App({
     onViewedChange: toggleViewed,
     onSubmit: submitComment,
     onDelete: deleteComment,
+    onResolve: resolveComment,
     onRetry: (comment) => {
       void commentPersistence.retry(comment.id)
     },
@@ -525,6 +534,7 @@ export default function App({
         })
       }
       onDelete={deleteComment}
+      onResolve={resolveComment}
       onRetry={(comment) => {
         void commentPersistence.retry(comment.id)
       }}

@@ -10,6 +10,7 @@ export type CommentSubmission = Pick<Comment, 'path' | 'side' | 'start' | 'end' 
 interface CommentTransport {
   save: (comment: ServedComment, query: string, editing: boolean) => Promise<ServedComment>
   remove: (id: string) => Promise<void>
+  resolve: (id: string) => Promise<Comment>
 }
 
 interface PendingSave {
@@ -202,6 +203,39 @@ export function createCommentPersistence(transport: CommentTransport) {
         if (local.get(id) === entry) publish()
       })
     },
+    /** Optimistic like a delete: the comment leaves the review, and comes back if the write fails. */
+    resolve: (id: string) => {
+      const comment = snapshot.comments.find((item) => item.id === id)
+      if (!comment) return Promise.resolve()
+      const previous = local.get(id)
+      const entry: PendingSave = {
+        kind: 'save',
+        branch,
+        comment: { ...comment, status: 'resolved' },
+        query: '',
+        editing: true,
+        status: 'saving',
+        changedAt: ++clock,
+      }
+      local.set(id, entry)
+      publish()
+      return enqueue(id, async () => {
+        try {
+          const saved = await transport.resolve(id)
+          entry.comment = { ...entry.comment, status: saved.status, replies: saved.replies }
+          entry.status = null
+        } catch (error) {
+          if (local.get(id) === entry) {
+            if (previous) local.set(id, previous)
+            else local.delete(id)
+            publish()
+          }
+          throw error
+        }
+        entry.changedAt = ++clock
+        if (local.get(id) === entry) publish()
+      })
+    },
   }
 }
 
@@ -224,6 +258,16 @@ export function createRepositoryCommentPersistence(repoId: string | null): Comme
         method: 'DELETE',
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    },
+    resolve: async (id) => {
+      const response = await fetch(`/r/${repoId}/api/comments/resolve`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const body: { comment: Comment } = await response.json()
+      return body.comment
     },
   })
 }

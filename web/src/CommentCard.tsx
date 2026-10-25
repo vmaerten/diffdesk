@@ -14,6 +14,7 @@ export default function CommentCard({
   onCopy,
   onEdit,
   onDelete,
+  onResolve,
   onRetry,
   collapsed = false,
   onToggle,
@@ -26,6 +27,7 @@ export default function CommentCard({
   onCopy: (comment: ServedComment) => void
   onEdit: (comment: ServedComment) => void
   onDelete: (id: string) => void
+  onResolve: (id: string) => void
   onRetry: (comment: ServedComment) => void
   collapsed?: boolean
   onToggle?: () => void
@@ -82,12 +84,14 @@ export default function CommentCard({
           </span>
         )}
         {comment.status === 'answered' && (
-          <span
-            className="badge on"
-            title="Answered by the agent: resolve or reopen it with ghl comments"
-          >
-            Answered
-          </span>
+          <>
+            <span className="badge on" title="Answered: it waits for you">
+              Answered
+            </span>
+            <button type="button" className="comment-resolve" onClick={() => onResolve(comment.id)}>
+              Resolve
+            </button>
+          </>
         )}
         {!onToggle && <span className="spacer" />}
         {state === 'saving' && (
@@ -141,6 +145,15 @@ export default function CommentCard({
               }}
             >
               Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                closeMenu()
+                onResolve(comment.id)
+              }}
+            >
+              Resolve
             </button>
             <button
               type="button"

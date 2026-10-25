@@ -19,6 +19,7 @@ export default function CommentsPanel({
   canView,
   onUpdate,
   onDelete,
+  onResolve,
   onRetry,
 }: {
   savedEditor?: RefObject<{ editing: string | null; draft: string }>
@@ -34,6 +35,7 @@ export default function CommentsPanel({
   canView: (comment: ServedComment) => boolean
   onUpdate: (comment: ServedComment, body: string) => void
   onDelete: (id: string) => void
+  onResolve: (id: string) => void
   onRetry: (comment: ServedComment) => void
 }) {
   const [editing, setEditing] = useState<string | null>(savedEditor?.current.editing ?? null)
@@ -161,6 +163,7 @@ export default function CommentsPanel({
                       setDraft(item.body)
                     }}
                     onDelete={onDelete}
+                    onResolve={onResolve}
                     onRetry={onRetry}
                   >
                     <footer className="comment-navigation">
