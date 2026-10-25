@@ -411,7 +411,7 @@ export default function App({
       case 'palette':
       case 'go-to-file':
         setPicking(null)
-        palette.current?.open(command === 'palette' ? 'all' : 'files')
+        palette.current?.open(command === 'palette' ? 'commands' : 'files')
         break
       case 'base':
       case 'target':

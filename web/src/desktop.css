@@ -435,15 +435,7 @@ body,
 .palette-list {
   min-height: 0;
   overflow-y: auto;
-  padding: 0 6px 6px;
-}
-.palette-group [cmdk-group-heading] {
-  padding: 10px 6px 4px;
-  color: var(--text-dim);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  padding: 6px;
 }
 .palette-item {
   display: flex;

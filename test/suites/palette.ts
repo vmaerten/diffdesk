@@ -56,7 +56,7 @@ export default {
       !labels.includes('Choose Stack Layer…') && !labels.includes('Copy All Comments'),
     )
     check(
-      '  nor files before a search',
+      '  and no file',
       offered.every((item) => item.kind === 'command'),
       offered.map((item) => item.kind).join(', '),
     )
@@ -124,11 +124,13 @@ export default {
     )
     check('  on the Files tab', (await page.evaluate(SCOPE)) === 'Files')
     await command(page, 'palette')
-    const all = await poll(items, (shown) => shown.every((item) => item.kind === 'command'))
+    const commands = await poll(items, (shown) => shown.every((item) => item.kind === 'command'))
     check(
-      'the palette shortcut switches it to All',
-      (await page.evaluate(SCOPE)) === 'All' && all.length > 0,
+      'the palette shortcut switches it to Commands',
+      (await page.evaluate(SCOPE)) === 'Commands' && commands.length > 0,
     )
+    await command(page, 'go-to-file')
+    await poll(items, (shown) => shown.every((item) => item.kind === 'file'))
 
     await page.keyboard.type('nested/tool')
     const match = await poll(items, (shown) => shown[0]?.path?.endsWith('nested/tool.ts') === true)

@@ -1,6 +1,6 @@
 import { useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react'
 import { flushSync } from 'react-dom'
-import { Command, defaultFilter } from 'cmdk'
+import { Command, useCommandState } from 'cmdk'
 
 import Icon from './Icon.tsx'
 import type { CommandEntry, CommandName } from './commands.ts'
@@ -13,23 +13,21 @@ export interface PaletteCommand extends CommandEntry {
   checked?: boolean
 }
 
-export type PaletteScope = 'all' | 'files' | 'commands'
+export type PaletteScope = 'commands' | 'files'
 
 export interface PaletteHandle {
   /** Opens on `scope`, or switches to it when already open. */
   open: (scope: PaletteScope) => void
 }
 
-const SCOPES: { scope: PaletteScope; label: string; keys?: string }[] = [
-  { scope: 'all', label: 'All', keys: '⌘K' },
+const SCOPES: { scope: PaletteScope; label: string; keys: string }[] = [
+  { scope: 'commands', label: 'Commands', keys: '⌘K' },
   { scope: 'files', label: 'Files', keys: '⌘P' },
-  { scope: 'commands', label: 'Commands' },
 ]
 
 const PLACEHOLDERS: Record<PaletteScope, string> = {
-  all: 'Search files and commands…',
-  files: 'Search files…',
   commands: 'Search commands…',
+  files: 'Search files…',
 }
 
 const STATUS: Record<GitStatus, string> = {
@@ -39,13 +37,6 @@ const STATUS: Record<GitStatus, string> = {
   renamed: 'R',
   untracked: 'U',
 }
-
-// Values carry their kind, so a file named like a command stays a separate
-// entry; the search only reads what follows it.
-const FILE = 'file:'
-const COMMAND = 'command:'
-const filter = (value: string, search: string, keywords?: string[]) =>
-  defaultFilter(value.slice(value.indexOf(':') + 1), search, keywords)
 
 /** `text` from `start` to `end`, with the matched ranges marked. */
 function Highlighted({
@@ -80,20 +71,9 @@ function fileRanges(path: string, nameStart: number, search: string): [number, n
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 
-/** cmdk counts matches by item, not by kind, so this scores them again. */
-function countShown(files: TreeEntry[], commands: PaletteCommand[], search: string) {
-  const matches = (value: string, keywords?: string[]) =>
-    !search || filter(value, search, keywords) > 0
-  const fileCount = files.filter((file) => matches(FILE + file.path)).length
-  const commandCount = commands.filter((command) =>
-    matches(COMMAND + command.label, [command.group]),
-  ).length
-  return [
-    fileCount > 0 && plural(fileCount, 'file'),
-    commandCount > 0 && plural(commandCount, 'command'),
-  ]
-    .filter(Boolean)
-    .join(' · ')
+function Count({ word }: { word: string }) {
+  const count = useCommandState((state) => state.filtered.count)
+  return <span className="palette-count">{plural(count, word)}</span>
 }
 
 /** Mounted on each opening, so the search starts empty. */
@@ -113,11 +93,8 @@ function PaletteBody({
   onRun: (name: CommandName) => void
 }) {
   const [search, setSearch] = useState('')
-  // A review can hold thousands of files: All lists them once there is a search.
-  const shownFiles = scope === 'files' || (scope === 'all' && search.trim() !== '') ? files : []
-  const shownCommands = scope === 'files' ? [] : commands
   return (
-    <Command label="Command palette" loop filter={filter}>
+    <Command label="Command palette" loop>
       <div className="palette-search">
         <Icon name="search" />
         <Command.Input
@@ -140,76 +117,72 @@ function PaletteBody({
             onClick={() => onScope(option.scope)}
           >
             {option.label}
-            {option.keys && <span className="palette-scope-keys">{option.keys}</span>}
+            <span className="palette-scope-keys">{option.keys}</span>
           </button>
         ))}
       </div>
       <Command.List className="palette-list">
-        <Command.Empty className="palette-empty">No matching file or command.</Command.Empty>
-        {shownCommands.length > 0 && (
-          <Command.Group heading="Commands" className="palette-group">
-            {shownCommands.map((command) => (
+        <Command.Empty className="palette-empty">
+          {scope === 'files' ? 'No matching file.' : 'No matching command.'}
+        </Command.Empty>
+        {scope === 'commands' &&
+          commands.map((command) => (
+            <Command.Item
+              key={command.name}
+              className="palette-item"
+              data-kind="command"
+              value={command.label}
+              keywords={[command.group]}
+              aria-checked={command.checked}
+              onSelect={() => onRun(command.name)}
+            >
+              <span className="palette-check">{command.checked && <Icon name="check" />}</span>
+              <span className="palette-label">
+                <Highlighted text={command.label} ranges={matchedRanges(command.label, search)} />
+              </span>
+              <span className="palette-meta">
+                {command.group}
+                {command.keys && <kbd>{command.keys}</kbd>}
+              </span>
+            </Command.Item>
+          ))}
+        {scope === 'files' &&
+          files.map((file) => {
+            const nameStart = file.path.lastIndexOf('/') + 1
+            const ranges = fileRanges(file.path, nameStart, search)
+            return (
               <Command.Item
-                key={command.name}
+                key={file.path}
                 className="palette-item"
-                data-kind="command"
-                value={COMMAND + command.label}
-                keywords={[command.group]}
-                aria-checked={command.checked}
-                onSelect={() => onRun(command.name)}
+                data-kind="file"
+                data-path={file.path}
+                value={file.path}
+                onSelect={() => onOpenFile(file.path)}
               >
-                <span className="palette-check">{command.checked && <Icon name="check" />}</span>
-                <span className="palette-label">
-                  <Highlighted text={command.label} ranges={matchedRanges(command.label, search)} />
+                <span className="palette-check">
+                  <Icon name="file" />
                 </span>
+                <span className="palette-label palette-file">
+                  <Highlighted text={file.path} ranges={ranges} start={nameStart} />
+                </span>
+                {nameStart > 0 && (
+                  <span className="palette-dir">
+                    <Highlighted text={file.path} ranges={ranges} end={nameStart - 1} />
+                  </span>
+                )}
                 <span className="palette-meta">
-                  {command.group}
-                  {command.keys && <kbd>{command.keys}</kbd>}
-                </span>
-              </Command.Item>
-            ))}
-          </Command.Group>
-        )}
-        {shownFiles.length > 0 && (
-          <Command.Group heading="Files" className="palette-group">
-            {shownFiles.map((file) => {
-              const nameStart = file.path.lastIndexOf('/') + 1
-              const ranges = fileRanges(file.path, nameStart, search)
-              return (
-                <Command.Item
-                  key={file.path}
-                  className="palette-item"
-                  data-kind="file"
-                  data-path={file.path}
-                  value={FILE + file.path}
-                  onSelect={() => onOpenFile(file.path)}
-                >
-                  <span className="palette-check">
-                    <Icon name="file" />
-                  </span>
-                  <span className="palette-label palette-file">
-                    <Highlighted text={file.path} ranges={ranges} start={nameStart} />
-                  </span>
-                  {nameStart > 0 && (
-                    <span className="palette-dir">
-                      <Highlighted text={file.path} ranges={ranges} end={nameStart - 1} />
+                  {file.viewed && 'Viewed'}
+                  {!file.binary && (
+                    <span className="palette-stats">
+                      {file.additions > 0 && <span className="added">+{file.additions}</span>}
+                      {file.deletions > 0 && <span className="deleted">−{file.deletions}</span>}
                     </span>
                   )}
-                  <span className="palette-meta">
-                    {file.viewed && 'Viewed'}
-                    {!file.binary && (
-                      <span className="palette-stats">
-                        {file.additions > 0 && <span className="added">+{file.additions}</span>}
-                        {file.deletions > 0 && <span className="deleted">−{file.deletions}</span>}
-                      </span>
-                    )}
-                    <span className={`palette-status ${file.status}`}>{STATUS[file.status]}</span>
-                  </span>
-                </Command.Item>
-              )
-            })}
-          </Command.Group>
-        )}
+                  <span className={`palette-status ${file.status}`}>{STATUS[file.status]}</span>
+                </span>
+              </Command.Item>
+            )
+          })}
       </Command.List>
       <div className="palette-foot">
         <span>
@@ -219,13 +192,13 @@ function PaletteBody({
         <span>
           <kbd>↵</kbd> Open
         </span>
-        <span className="palette-count">{countShown(shownFiles, shownCommands, search)}</span>
+        <Count word={scope === 'files' ? 'file' : 'command'} />
       </div>
     </Command>
   )
 }
 
-/** ⌘K and ⌘P: the review's files and the commands that apply to it, found by name. */
+/** ⌘K: the commands that apply to the review, found by name; ⌘P: its files. */
 export default function CommandPalette({
   handle,
   files,

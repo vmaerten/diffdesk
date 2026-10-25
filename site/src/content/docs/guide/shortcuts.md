@@ -16,7 +16,7 @@ next: false
 | `s` | Pick a stack layer |
 | `[` / `]` | Review the stack layer below / above |
 | `r` | Refresh |
-| `Cmd+K` | Command palette: files and commands |
+| `Cmd+K` | Command palette |
 | `Cmd+P` | Go to a file |
 | `Cmd+f` | Search the diff |
 | `Cmd+1` / `Cmd+2` | Unified / split diff |

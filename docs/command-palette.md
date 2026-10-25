@@ -1,10 +1,10 @@
 # Palette de commandes
 
-Statut : plan proposé le 25 octobre 2026. Maquettes : [`palette-mockup.html`](./palette-mockup.html), variante A avec les coches de B.
+Statut : plan proposé le 25 octobre 2026. Maquettes : [`palette-mockup.html`](./palette-mockup.html), variante A avec les coches de B, sans son onglet All (voir Fichiers).
 
 ## Objectif
 
-⌘K ouvre au centre de la fenêtre une palette qui cherche parmi les commandes des menus et les fichiers de la review ; ⌘P l'ouvre sur les fichiers. Entrée lance la commande ou ouvre le fichier, comme le menu ou un clic dans l'arbre.
+⌘K ouvre au centre de la fenêtre une palette qui cherche parmi les commandes des menus ; ⌘P l'ouvre sur les fichiers de la review. Entrée lance la commande ou ouvre le fichier, comme le menu ou un clic dans l'arbre.
 
 ## Constat
 
@@ -32,7 +32,7 @@ Statut : plan proposé le 25 octobre 2026. Maquettes : [`palette-mockup.html`](.
 ### Fichiers
 
 - Les fichiers de la review, dans l'ordre de l'arbre : le nom, puis le dossier en gris, les lignes ajoutées et retirées, la lettre de statut, et Viewed pour un fichier vu. Entrée l'ouvre comme un clic dans l'arbre (`selectFile`).
-- Sur All et sans recherche, seules les commandes s'affichent : une review peut compter des milliers de fichiers. Ils arrivent dès la première lettre. L'onglet Files les montre tous.
+- Deux onglets, Commands (⌘K) et Files (⌘P), sans le All de la maquette A : dans une liste mêlée, une recherche courante comme « com » faisait passer des dizaines de chemins devant les commandes. Un raccourci par liste, comme ⌘⇧P et ⌘P dans VS Code.
 
 ### Recherche
 
@@ -58,7 +58,7 @@ Préfixe `palette/`, en pile `gh stack` dans l'ordre ci-dessous ; ce plan ouvre 
 
 ### 03 · `palette/03-files` — Fichiers
 
-- Groupe Files, onglets All, Files et Commands, Go › Go to File… (⌘P).
+- Liste des fichiers, onglets Commands et Files, Go › Go to File… (⌘P).
 - Suite étendue ; raccourcis ; CHANGELOG.
 
 ## Reporté
