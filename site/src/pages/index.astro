@@ -89,13 +89,18 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
             </Fragment>
           </DiffDemo>
         </div>
-        <p class="demo-hint">
-          Try it: click a line's <kbd class="kbd">+</kbd> to comment, or select lines and press <kbd class="kbd">c</kbd>;
-          <kbd class="kbd">j</kbd> <kbd class="kbd">k</kbd> move between files and <kbd class="kbd">v</kbd> marks one Viewed;
-          the <kbd class="kbd">2/3</kbd> chip or <kbd class="kbd">s</kbd> opens the stack, <kbd class="kbd">[</kbd> <kbd class="kbd">]</kbd> step through it;
-          <kbd class="kbd">⌘K</kbd> finds a command, <kbd class="kbd">⌘P</kbd> a file.
-          The terminal prints what <code>ghl comments</code> would.
-        </p>
+        <ul class="demo-hint" aria-label="Try it">
+          <li><kbd class="kbd">+</kbd> comment a line</li>
+          <li><kbd class="kbd">c</kbd> comment the selection</li>
+          <li><span class="keys"><kbd class="kbd">j</kbd><kbd class="kbd">k</kbd></span> next, previous file</li>
+          <li><kbd class="kbd">v</kbd> mark Viewed</li>
+          <li><kbd class="kbd">s</kbd> pick a layer</li>
+          <li><span class="keys"><kbd class="kbd">[</kbd><kbd class="kbd">]</kbd></span> layer below, above</li>
+          <li><kbd class="kbd">⌘K</kbd> run a command</li>
+          <li><kbd class="kbd">⌘P</kbd> go to a file</li>
+          <li><kbd class="kbd">⌘</kbd> hover a name for its type, click for its definition</li>
+        </ul>
+        <p class="demo-terminal">The terminal prints what <code>ghl comments</code> would.</p>
       </section>
 
       <section class="wrap section">

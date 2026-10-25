@@ -95,6 +95,7 @@ export function useSymbolCard({
   onAnswer,
   onReferences,
   theme,
+  ask = (query) => lookUpSymbol(repoId!, query),
 }: {
   repoId: string | null
   enabled: boolean
@@ -110,6 +111,8 @@ export function useSymbolCard({
   onReferences?: (query: SymbolQuery, answer: SymbolAnswer) => void
   /** The review's syntax theme, for the card's code. */
   theme: SyntaxTheme
+  /** Answers a query, from the review server's language servers unless given. */
+  ask?: (query: SymbolQuery) => Promise<SymbolAnswer>
 }): { handlers: TokenHandlers; card: ReactNode } {
   const [card, setCard] = useState<Card | null>(null)
   const [underline, setUnderline] = useState<DOMRect | null>(null)
@@ -154,7 +157,7 @@ export function useSymbolCard({
     const key = `${query.path}:${query.line}:${query.character}:${query.token}`
     let answer = answers.current.get(key)
     if (!answer) {
-      answer = lookUpSymbol(repoId!, query)
+      answer = ask(query)
       answers.current.set(key, answer)
       // A stale file or a server that failed may answer differently next time.
       answer.then(onAnswer, () => {
