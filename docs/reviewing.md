@@ -24,7 +24,21 @@ Each comment saves its original code. When those lines change, the comment shows
 
 **Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments as Markdown, including viewed files and files outside the diff. Individual cards have their own copy button. Exports include paths, line numbers and current code, with original code labelled when current code is unavailable.
 
-`ghl comments` exports the reviewed branch's comments on files in the selected comparison, including untracked files in working-tree reviews. Add `--json` for structured output or a revision argument to review another target. It prints without opening the window; its file scope can be narrower than the panel's.
+`ghl comments` exports the reviewed branch's comments on files in the selected comparison, including untracked files in working-tree reviews, with their replies. Add `--json` for structured output, `--all` to include resolved comments, or a revision argument to review another target. It prints without opening the window; its file scope can be narrower than the panel's.
+
+### Working through comments with an agent
+
+A comment is `open` until the agent answers it, `answered` until the reviewer decides, and `resolved` once the reviewer closes it. Each step happens in the terminal:
+
+```bash
+ghl comments check                      # the agent: open comments, exit 1 while any remain
+ghl comments reply 0455572a "Renamed."  # the agent: answer; the comment waits for the reviewer
+ghl comments                            # the reviewer: comments with their replies
+ghl comments resolve 0455572a           # the reviewer: close it
+ghl comments reopen 0455572a "Still too vague."  # the reviewer: hand it back
+```
+
+`check` prints only what the agent cannot read in the file: the comment, the reviewer's last reply, and the lines the file no longer has, such as removed lines or the lines a stale comment was written on. `--code` adds the current code and `--json` the export's format. It covers every comment on the branch, including files that left the comparison, and exits 0 when none is open, 1 while some are, and 2 on an error. Comment IDs are shown by their first 8 characters; any unique prefix of 4 or more works. The window shows the change after a reload.
 
 Older comments recover their branch from the target in their saved comparison. If only commit hashes were recorded, the branch is unknown. Those comments stay in the state file and can be read by explicitly reviewing the recorded target.
 
