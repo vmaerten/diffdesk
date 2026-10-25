@@ -271,7 +271,7 @@ export default function DiffDemo() {
                   }}
                   onSubmit={addComment}
                   onCancel={() => setComposer(null)}
-                  onDelete={(id) =>
+                  onResolve={(id) =>
                     update((each) => ({
                       ...each,
                       comments: each.comments.filter((comment) => comment.id !== id),
@@ -349,7 +349,7 @@ interface DemoFileDiffProps {
   onSelect: (selected: SelectedLineRange | null) => void
   onSubmit: (body: string) => void
   onCancel: () => void
-  onDelete: (id: string) => void
+  onResolve: (id: string) => void
 }
 
 function DemoFileDiff(props: DemoFileDiffProps) {
@@ -405,7 +405,7 @@ function DemoFileDiff(props: DemoFileDiffProps) {
         if (metadata && 'comment' in metadata) {
           const { comment } = metadata
           return (
-            <CommentCard comment={comment} onDelete={() => latest.current.onDelete(comment.id)} />
+            <CommentCard comment={comment} onResolve={() => latest.current.onResolve(comment.id)} />
           )
         }
         return (
@@ -419,15 +419,20 @@ function DemoFileDiff(props: DemoFileDiffProps) {
   )
 }
 
-function CommentCard({ comment, onDelete }: { comment: DemoComment; onDelete: () => void }) {
+function CommentCard({ comment, onResolve }: { comment: DemoComment; onResolve: () => void }) {
   const lines =
     comment.start === comment.end ? `L${comment.start}` : `L${comment.start}–L${comment.end}`
   return (
     <div className="demo-note">
       <div className="who">
         <b>You</b> on {lines}
-        <button type="button" className="delete" aria-label="Delete the comment" onClick={onDelete}>
-          ×
+        <button
+          type="button"
+          className="resolve"
+          title="Close this comment and keep it"
+          onClick={onResolve}
+        >
+          Resolve
         </button>
       </div>
       <p>{comment.body}</p>

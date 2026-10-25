@@ -39,7 +39,7 @@
           <div class="ln add"><span class="no">10</span><span class="sg">+</span>  const index = live.findIndex((layer) =&gt; layer.branch === branch)</div>
           <div class="ln add"><span class="no">11</span><span class="sg">+</span>  return index &gt; 0 ? live[index - 1] : undefined</div>
           <div class="note">
-            <div class="who"><b>You</b> on L11</div>
+            <div class="who"><b>You</b> on L11<span class="resolve">Resolve</span></div>
             Return <code>null</code> here, like <code>layerBelow</code> does.
           </div>
           <div class="ln"><span class="no">12</span><span class="sg"></span>&#125;</div>
@@ -171,9 +171,21 @@
   }
 
   .who {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     margin-bottom: 4px;
     color: var(--dim);
     font-size: 12px;
+  }
+
+  .resolve {
+    margin-left: auto;
+    padding: 3px 9px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--raised);
+    font-weight: 500;
   }
 
   .who b {

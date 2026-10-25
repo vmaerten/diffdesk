@@ -127,18 +127,19 @@
   color: var(--text);
 }
 
-.demo-note .delete {
+.demo-note .resolve {
+  height: 24px;
   margin-left: auto;
-  padding: 0 4px;
-  border: 0;
-  background: none;
-  color: var(--faint);
-  font-size: 16px;
-  line-height: 1;
+  padding: 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--raised);
+  color: var(--dim);
+  font: 500 12px var(--sans);
   cursor: pointer;
 }
 
-.demo-note .delete:hover {
+.demo-note .resolve:hover {
   color: var(--text);
 }
 
