@@ -16,6 +16,7 @@
 - Show the agent's replies under each comment in the window, with an Answered badge while a comment waits for the reviewer; resolved comments leave the diff, the comments panel, the count and Copy. ([#215](https://github.com/vmaerten/ghl/pull/215))
 - Ship a skill that teaches an agent to work through review comments: `ghl skill` prints it for Claude Code or any agent that reads skills, and the reviewing guide shows a Claude Code `Stop` hook that keeps the agent going while comments are open. ([#216](https://github.com/vmaerten/ghl/pull/216))
 - Resolve a comment from the window: answered cards carry a Resolve button, and every card's menu offers it. ([#222](https://github.com/vmaerten/ghl/pull/222))
+- Sign each agent reply with its harness: `ghl comments reply` reads it from `AI_AGENT` or the variables Claude Code, Codex, Gemini CLI, Cursor and opencode set, or takes `--as <name>`, and the window shows the harness with its mark instead of "Agent". ([#225](https://github.com/vmaerten/ghl/pull/225))
 
 ### 🐛 Fixes
 
