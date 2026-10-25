@@ -7,7 +7,7 @@ import (
 )
 
 func TestSettingsStore(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "ghl", "settings.json")
+	path := filepath.Join(t.TempDir(), "Diffdesk", "settings.json")
 	store := &settingsStore{path: path}
 
 	if raw, err := store.load(); err != nil || raw != "" {
@@ -37,15 +37,23 @@ func TestSettingsStore(t *testing.T) {
 
 func TestSettingsStoreReadsTheLegacyFileUntilSaved(t *testing.T) {
 	dir := t.TempDir()
-	legacy := filepath.Join(dir, "ghl Desktop", "settings.json")
-	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
-		t.Fatal(err)
+	legacy := filepath.Join(dir, "ghl", "settings.json")
+	oldest := filepath.Join(dir, "ghl Desktop", "settings.json")
+	store := &settingsStore{path: filepath.Join(dir, "Diffdesk", "settings.json"), legacy: []string{legacy, oldest}}
+	write := func(path, raw string) {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(oldest, `{"version":1,"appearance":"system"}`)
+	if raw, err := store.load(); err != nil || raw != `{"version":1,"appearance":"system"}` {
+		t.Fatalf("oldest settings: got %q, %v", raw, err)
 	}
 	old := `{"version":1,"appearance":"light"}`
-	if err := os.WriteFile(legacy, []byte(old), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	store := &settingsStore{path: filepath.Join(dir, "ghl", "settings.json"), legacy: legacy}
+	write(legacy, old)
 	if raw, err := store.load(); err != nil || raw != old {
 		t.Fatalf("legacy settings: got %q, %v", raw, err)
 	}

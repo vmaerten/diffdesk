@@ -48,7 +48,7 @@ function reviews(pr: PullRequest): { tone: string; text: string } {
   }
 }
 
-/** What GitHub has against what this checkout has, which is what ghl reviews. */
+/** What GitHub has against what this checkout has, which is what Diffdesk reviews. */
 function pushed(pr: PullRequest, workingTree: boolean): { tone: string; text: string } {
   const extra = pr.uncommitted && workingTree ? ', plus uncommitted changes' : ''
   const { sync } = pr

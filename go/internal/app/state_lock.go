@@ -11,7 +11,7 @@ import (
 )
 
 // stateLock serializes the writers of one state file across processes: the app,
-// `ghl comments` and development servers. The kernel releases a flock when its
+// `diffdesk comments` and development servers. The kernel releases a flock when its
 // process dies, so a crash never strands it.
 func stateLock(ctx context.Context, path string) (func() error, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {

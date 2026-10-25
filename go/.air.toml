@@ -2,8 +2,8 @@ root = "."
 tmp_dir = "../.task/go-dev"
 
 [build]
-cmd = "go build -o ../.task/go-dev/ghl ./cmd/ghl-dev"
-bin = "../.task/go-dev/ghl"
+cmd = "go build -o ../.task/go-dev/diffdesk ./cmd/diffdesk-dev"
+bin = "../.task/go-dev/diffdesk"
 include_ext = ["go"]
 include_file = ["go.mod", "go.sum"]
 exclude_dir = ["dist"]

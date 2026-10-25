@@ -12,12 +12,12 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-const help = `ghl — review the PR you are about to open, without opening it (macOS)
+const help = `diffdesk — review the PR you are about to open, without opening it (macOS)
 
 Usage:
-  ghl [target] [--repo <path>] [--base <ref>]
-  ghl comments [target] [--repo <path>] [--base <ref>] [--json] [--all] [--code]
-  ghl comments resolve|reopen <id> [--repo <path>]
+  diffdesk [target] [--repo <path>] [--base <ref>]
+  diffdesk comments [target] [--repo <path>] [--base <ref>] [--json] [--all] [--code]
+  diffdesk comments resolve|reopen <id> [--repo <path>]
 
   target     Branch or revision; defaults to the checkout and its working tree.
   comments   Print this comparison's comments for an agent: ID, path:lines and
@@ -33,11 +33,12 @@ Options:
   --version      Print version and build metadata, as JSON with --json
   -h, --help     Show this help
 
-Opens the review in the ghl window, in place of the one shown, then returns
+Opens the review in the Diffdesk window, in place of the one shown, then returns
 to the terminal.
 Relative paths are resolved from the calling terminal, including later launches.
 Cmd+O opens another repository; Cmd+W closes the review; Cmd+R reloads; Cmd+Q quits.
 Comments and Viewed live in each checkout's .git/ghl/state.json.
+ghl is the same command, under the app's former name.
 `
 
 type launch struct {
@@ -192,7 +193,7 @@ func (d *desktopApp) chooseRepository() {
 }
 
 func (d *desktopApp) showError(err error) {
-	fmt.Println("ghl:", err)
+	fmt.Println("diffdesk:", err)
 	if app, window := d.native(); app != nil {
 		d.reveal()
 		app.Dialog.Error().SetTitle("Could not open repository").SetMessage(err.Error()).AttachToWindow(window).Show()

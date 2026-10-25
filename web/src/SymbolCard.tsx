@@ -36,7 +36,7 @@ interface Card {
 
 const OPEN_DELAY = 150
 const CLOSE_DELAY = 250
-/** The characters of a symbol's name, in any language ghl serves. */
+/** The characters of a symbol's name, in any language Diffdesk serves. */
 const WORD = /[\p{L}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}_$]+/gu
 
 /**

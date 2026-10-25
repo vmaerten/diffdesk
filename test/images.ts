@@ -18,7 +18,7 @@ const png = Buffer.from(
 )
 
 export async function runImages(check: Check): Promise<void> {
-  const path = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-images-')))
+  const path = realpathSync(mkdtempSync(join(tmpdir(), 'diffdesk-images-')))
   let running: Awaited<ReturnType<typeof serveGo>> | undefined
   try {
     git(path, ['init', '-q', '--initial-branch=main'])

@@ -137,7 +137,7 @@
               document.querySelector('.panel-editor textarea')?.value === 'panel draft survives',
             'Panel draft not restored',
           )
-          const flag = 'ghl-smoke-reload:' + api
+          const flag = 'diffdesk-smoke-reload:' + api
           if (!sessionStorage.getItem(flag)) {
             sessionStorage.setItem(flag, '1')
             await report({ ...baseReport, phase: 'restored-editor', panelDraft: true })

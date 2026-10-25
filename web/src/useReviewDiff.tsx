@@ -130,7 +130,7 @@ export function useReviewDiff({
     setRevealedPath(null)
   }, [viewed, data?.range])
   const [composer, setComposer] = useState<Composer | null>(savedView?.composer ?? null)
-  const collapseStorageKey = `ghl.collapsed-comments:${repoId}`
+  const collapseStorageKey = `diffdesk.collapsed-comments:${repoId}`
   const [collapsedComments, setCollapsedComments] = useState<Set<string>>(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem(collapseStorageKey) ?? '[]')

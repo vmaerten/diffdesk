@@ -39,7 +39,7 @@ func startBackend(ctx context.Context, assets fs.FS) (*reviewBackend, error) {
 	go func() {
 		defer close(backend.done)
 		if err := app.NewRuntime(assets).Serve(ctx, listener); err != nil {
-			fmt.Fprintln(os.Stderr, "ghl: review server stopped:", err)
+			fmt.Fprintln(os.Stderr, "diffdesk: review server stopped:", err)
 		}
 	}()
 	return backend, nil

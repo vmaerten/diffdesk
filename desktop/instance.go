@@ -38,7 +38,7 @@ type receipt struct {
 }
 
 // errNoApp means no app listens yet: start one, then deliver again.
-var errNoApp = errors.New("no ghl app is running")
+var errNoApp = errors.New("Diffdesk is not running")
 
 // userTempDir is the per-user folder macOS gives every process. The app started
 // through LaunchServices does not inherit the launcher's TMPDIR, so both sides
@@ -53,7 +53,7 @@ func userTempDir() string {
 
 // instancePaths stays short: macOS limits a Unix socket path to 104 bytes.
 func instancePaths(dir, id string) (lock, socket string) {
-	base := filepath.Join(dir, fmt.Sprintf("ghl-%x", sha256.Sum256([]byte(id)))[:16])
+	base := filepath.Join(dir, fmt.Sprintf("diffdesk-%x", sha256.Sum256([]byte(id)))[:21])
 	return base + ".lock", base + ".sock"
 }
 
@@ -140,11 +140,11 @@ func send(conn net.Conn, request launch) error {
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 	if err := json.NewEncoder(conn).Encode(delivery{Args: request.arguments()}); err != nil {
-		return fmt.Errorf("could not reach the ghl app: %w", err)
+		return fmt.Errorf("could not reach Diffdesk: %w", err)
 	}
 	var reply receipt
 	if err := json.NewDecoder(conn).Decode(&reply); err != nil {
-		return fmt.Errorf("the ghl app did not confirm the review: %w", err)
+		return fmt.Errorf("Diffdesk did not confirm the review: %w", err)
 	}
 	if reply.Error != "" {
 		return errors.New(reply.Error)

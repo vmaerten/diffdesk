@@ -564,7 +564,7 @@ func initializeParams(root string) map[string]any {
 	return map[string]any{
 		// A server watches this process and exits with it.
 		"processId":        os.Getpid(),
-		"clientInfo":       map[string]string{"name": "ghl", "version": buildInfo().Version},
+		"clientInfo":       map[string]string{"name": "diffdesk", "version": buildInfo().Version},
 		"rootUri":          fileURI(root),
 		"workspaceFolders": []map[string]string{{"uri": fileURI(root), "name": filepath.Base(root)}},
 		"capabilities": map[string]any{
@@ -587,7 +587,7 @@ func initializeParams(root string) map[string]any {
 	}
 }
 
-// answerServer replies to the requests a server makes of its client. ghl has
+// answerServer replies to the requests a server makes of its client. Diffdesk has
 // no settings to give, and registers nothing.
 func answerServer(method string, params json.RawMessage, root string) (any, error) {
 	switch method {

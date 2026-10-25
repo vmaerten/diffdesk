@@ -237,7 +237,7 @@ func TestCorruptionNotice(t *testing.T) {
 		if err != nil || notice == nil || len(state.Comments) != 0 {
 			t.Fatalf("corruption swallowed: %+v %v %v", state, notice, err)
 		}
-		// A read, such as `ghl comments`, leaves the file for the user to repair.
+		// A read, such as `diffdesk comments`, leaves the file for the user to repair.
 		if actual, err := os.ReadFile(s.path); err != nil || string(actual) != raw {
 			t.Fatalf("read changed the corrupt file: %q %v", actual, err)
 		}

@@ -2,7 +2,7 @@ export const THEMES = [
   { id: 'github-dimmed', label: 'GitHub Dark dimmed', syntax: 'github-dark-dimmed', mode: 'dark' },
   { id: 'github-dark', label: 'GitHub Dark', syntax: 'github-dark-default', mode: 'dark' },
   { id: 'vscode-dark', label: 'VS Code Dark+', syntax: 'dark-plus', mode: 'dark' },
-  { id: 'darcula', label: 'JetBrains Darcula', syntax: 'ghl-darcula', mode: 'dark' },
+  { id: 'darcula', label: 'JetBrains Darcula', syntax: 'diffdesk-darcula', mode: 'dark' },
   {
     id: 'catppuccin-frappe',
     label: 'Catppuccin Frappé',

@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 class ReleaseTask(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='ghl-release-task-')
+        self.temp = tempfile.TemporaryDirectory(prefix='diffdesk-release-task-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         for name in ['scripts', 'test', 'desktop', 'tools']:
@@ -49,7 +49,7 @@ folder = Path('go/dist/release')
 folder.mkdir(parents=True)
 metadata = {'version': version, 'tag': os.environ['RELEASE_TAG'], 'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()}
 (folder / 'metadata.json').write_text(json.dumps(metadata))
-name = f'ghl_{version}_darwin_arm64.zip'
+name = f'diffdesk_{version}_darwin_arm64.zip'
 (folder / name).write_bytes(b'fixture asset')
 (folder / 'checksums.txt').write_text(hashlib.sha256(b'fixture asset').hexdigest() + '  ' + name + '\\n')
 ''')
@@ -66,12 +66,14 @@ if args[0] == 'api':
     log('api', method=method, path=path, raw=raw, args=args, token=os.environ.get('GH_TOKEN'))
     if path == 'repos/vmaerten/homebrew-tap':
         sys.exit(1 if os.environ.get('GHL_TEST_TAP_DENIED') else 0)
+    file = path.removeprefix('repos/vmaerten/homebrew-tap/contents/')
     if method == 'GET' and raw:
-        if not os.environ.get('GHL_TEST_CASK_VERSION'): sys.exit(1)
-        print(f'cask "ghl" do\\n  version "{os.environ["GHL_TEST_CASK_VERSION"]}"\\nend')
+        if file != 'Casks/diffdesk.rb' or not os.environ.get('GHL_TEST_CASK_VERSION'): sys.exit(1)
+        print(f'cask "diffdesk" do\\n  version "{os.environ["GHL_TEST_CASK_VERSION"]}"\\nend')
     elif method == 'GET':
-        if not os.environ.get('GHL_TEST_CASK_SHA'): sys.exit(1)
-        print(os.environ['GHL_TEST_CASK_SHA'])
+        sha = os.environ.get({'Casks/diffdesk.rb': 'GHL_TEST_CASK_SHA', 'cask_renames.json': 'GHL_TEST_RENAMES_SHA', 'Casks/ghl.rb': 'GHL_TEST_OLD_CASK_SHA'}[file])
+        if not sha: sys.exit(1)
+        print(sha)
     elif os.environ.get('GHL_TEST_TAP_FAIL'): sys.exit(28)
     sys.exit(0)
 notes = Path(args[args.index('--notes-file') + 1]).read_text() if '--notes-file' in args else None
@@ -80,13 +82,13 @@ if args[:2] == ['release', 'create'] and os.environ.get('GHL_TEST_CREATE_FAIL'):
 if args[:2] == ['release', 'download']:
     version = args[2][1:]
     folder = Path(args[args.index('--dir') + 1])
-    (folder / 'checksums.txt').write_text(hashlib.sha256(b'fixture asset').hexdigest() + f'  ghl_{version}_darwin_arm64.zip\\n')
+    (folder / 'checksums.txt').write_text(hashlib.sha256(b'fixture asset').hexdigest() + f'  diffdesk_{version}_darwin_arm64.zip\\n')
 ''')
         (self.root / 'desktop/release.py').write_text('''import json,os,sys
 with open(os.environ['GHL_TEST_EVENTS'],'a') as f: f.write(json.dumps({'event':'verify','tag':os.environ['RELEASE_TAG']})+'\\n')
 if os.environ.get('GHL_TEST_VERIFY_FAIL'): sys.exit(27)
 if os.environ.get('GHL_TEST_TAMPER'):
-    with open(f"go/dist/release/ghl_{os.environ['RELEASE_TAG'][1:]}_darwin_arm64.zip",'w') as f: f.write('tampered')
+    with open(f"go/dist/release/diffdesk_{os.environ['RELEASE_TAG'][1:]}_darwin_arm64.zip",'w') as f: f.write('tampered')
 ''')
         self.git('init', '-b', 'main')
         self.git('config', 'user.name', 'Release fixture')
@@ -105,6 +107,9 @@ def log(event, **fields):
 ''' + body)
         path.chmod(0o755)
 
+    def tap_write(self, events, file):
+        return next(e for e in events if e.get('path') == f'repos/vmaerten/homebrew-tap/contents/{file}' and e['method'] != 'GET')
+
     def git(self, *args):
         return subprocess.check_output(['git', *args], cwd=self.root, env=self.env, text=True)
 
@@ -116,9 +121,9 @@ def log(event, **fields):
     def test_stable_release_builds_verifies_uploads_publishes_then_updates_the_cask(self):
         result, events = self.run_release(HOMEBREW_TAP_TOKEN='tap-token', GH_TOKEN='repo-token')
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([e['event'] for e in events], ['build', 'verify', 'api', 'create', 'edit', 'download', 'api', 'api', 'api'])
-        push = events[-1]
-        self.assertEqual((push['method'], push['path'], push['token']), ('PUT', 'repos/vmaerten/homebrew-tap/contents/Casks/ghl.rb', 'tap-token'))
+        self.assertEqual([e['event'] for e in events], ['build', 'verify', 'api', 'create', 'edit', 'download'] + ['api'] * 6)
+        push = self.tap_write(events, 'Casks/diffdesk.rb')
+        self.assertEqual((push['method'], push['token']), ('PUT', 'tap-token'))
         self.assertEqual(events[3]['args'][:2], ['release', 'create'])
         cask = base64.b64decode(next(a for a in push['args'] if a.startswith('content=')).split('=', 1)[1]).decode()
         self.assertIn('version "1.2.3"', cask)
@@ -127,7 +132,7 @@ def log(event, **fields):
         self.assertEqual(events[0]['tag'], 'v1.2.3')
         self.assertEqual(events[1]['tag'], 'v1.2.3')
         self.assertEqual(events[0]['args'], ['release', '--skip=publish', '--clean'])
-        for flag in ['--draft', '--verify-tag', 'go/dist/release/ghl_1.2.3_darwin_arm64.zip', 'go/dist/release/checksums.txt']:
+        for flag in ['--draft', '--verify-tag', 'go/dist/release/diffdesk_1.2.3_darwin_arm64.zip', 'go/dist/release/checksums.txt']:
             self.assertIn(flag, events[3]['args'])
         self.assertIn('--draft=false', events[4]['args'])
         self.assertEqual(events[3]['notes'], '### 🐛 Fixes\n\n- Fixture fix\n')
@@ -173,7 +178,7 @@ def log(event, **fields):
     def test_older_release_leaves_a_newer_cask(self):
         result, events = self.run_release(GHL_TEST_CASK_VERSION='1.10.0', GHL_TEST_CASK_SHA='newer-blob')
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('already offers ghl 1.10.0', result.stdout)
+        self.assertIn('already offers diffdesk 1.10.0', result.stdout)
         self.assertNotIn('PUT', [e.get('method') for e in events])
 
     def test_failed_cask_push_leaves_the_release_published(self):
@@ -185,7 +190,23 @@ def log(event, **fields):
     def test_existing_cask_is_replaced_in_place(self):
         result, events = self.run_release(GHL_TEST_CASK_VERSION='1.2.2', GHL_TEST_CASK_SHA='previous-blob')
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('sha=previous-blob', events[-1]['args'])
+        self.assertIn('sha=previous-blob', self.tap_write(events, 'Casks/diffdesk.rb')['args'])
+
+    def test_first_release_renames_the_ghl_cask(self):
+        result, events = self.run_release(GHL_TEST_OLD_CASK_SHA='ghl-blob')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        writes = [(e['method'], e['path'].rsplit('contents/', 1)[1]) for e in events if e.get('method', 'GET') != 'GET']
+        self.assertEqual(writes, [('PUT', 'Casks/diffdesk.rb'), ('PUT', 'cask_renames.json'), ('DELETE', 'Casks/ghl.rb')])
+        renames = self.tap_write(events, 'cask_renames.json')
+        content = base64.b64decode(next(a for a in renames['args'] if a.startswith('content=')).split('=', 1)[1])
+        self.assertEqual(json.loads(content), {'ghl': 'diffdesk'})
+        self.assertIn('sha=ghl-blob', self.tap_write(events, 'Casks/ghl.rb')['args'])
+
+    def test_later_releases_only_update_the_cask(self):
+        result, events = self.run_release(GHL_TEST_RENAMES_SHA='renames-blob')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        writes = [e['path'].rsplit('contents/', 1)[1] for e in events if e.get('method', 'GET') != 'GET']
+        self.assertEqual(writes, ['Casks/diffdesk.rb'])
 
     def test_failed_validation_does_not_publish(self):
         result, events = self.run_release(GHL_TEST_VERIFY_FAIL='1')

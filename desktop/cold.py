@@ -22,7 +22,7 @@ def main():
     server.events = []
     threading.Thread(target=server.serve_forever, daemon=True).start()
     binary = BINARY.resolve()
-    with tempfile.TemporaryDirectory(prefix='ghl-cold-') as directory:
+    with tempfile.TemporaryDirectory(prefix='diffdesk-cold-') as directory:
         folder = Path(directory).resolve()
         first, second = folder / 'first', folder / 'second'
         fixture(first, True)

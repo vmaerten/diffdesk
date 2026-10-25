@@ -27,11 +27,11 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ghl · Review the PR you are about to open</title>
+    <title>Diffdesk · Review the PR you are about to open</title>
     <meta name="description" content={description} />
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
     <link rel="canonical" href={new URL(base, Astro.site)} />
-    <meta property="og:title" content="ghl" />
+    <meta property="og:title" content="Diffdesk" />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={new URL(base, Astro.site)} />
@@ -50,7 +50,7 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
   </head>
   <body>
     <header class="wrap top">
-      <a href={base} class="brand"><img src={`${base}favicon.svg`} alt="" width="28" height="28" />ghl</a>
+      <a href={base} class="brand"><img src={`${base}favicon.svg`} alt="" width="28" height="28" />Diffdesk</a>
       <nav aria-label="Main">
         <a href={guide}>guide</a>
         <a href={changelog}>changelog</a>
@@ -62,7 +62,7 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
     <main>
       <section class="wrap hero">
         <div class="title">
-          <p class="eyebrow">$ ghl</p>
+          <p class="eyebrow">$ diffdesk</p>
           <h1>Review the PR you are about to open, without opening it.</h1>
         </div>
         <div class="intro">
@@ -75,7 +75,7 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
         </div>
       </section>
 
-      <section class="wrap section" aria-label="A ghl review to try">
+      <section class="wrap section" aria-label="A Diffdesk review to try">
         <div class="stage">
           <DiffDemo client:only="react">
             <Fragment slot="fallback">
@@ -84,7 +84,7 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
                 <div class="bar">
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>~/dev/api · stack-nav
                 </div>
-                <pre><span class="prompt">$</span> ghl comments{'\n'}{firstExport.map(({ line, heading }) => <span class={heading ? 'heading' : undefined}>{line}{'\n'}</span>)}</pre>
+                <pre><span class="prompt">$</span> diffdesk comments{'\n'}{firstExport.map(({ line, heading }) => <span class={heading ? 'heading' : undefined}>{line}{'\n'}</span>)}</pre>
               </div>
             </Fragment>
           </DiffDemo>
@@ -100,7 +100,7 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
           <li><kbd class="kbd">⌘P</kbd> go to a file</li>
           <li><kbd class="kbd">⌘</kbd> hover a name for its type, click for its definition</li>
         </ul>
-        <p class="demo-terminal">The terminal prints what <code>ghl comments</code> would.</p>
+        <p class="demo-terminal">The terminal prints what <code>diffdesk comments</code> would.</p>
       </section>
 
       <section class="wrap section">
@@ -113,7 +113,7 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
           </li>
           <li class="arrow" aria-hidden="true">→</li>
           <li>
-            <p class="step">02 · ghl</p>
+            <p class="step">02 · diffdesk</p>
             The branch against its base, working tree included, in one window.
           </li>
           <li class="arrow" aria-hidden="true">→</li>
@@ -124,7 +124,7 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
           <li class="arrow" aria-hidden="true">→</li>
           <li class="last">
             <p class="step">04 · hand back</p>
-            <kbd class="kbd">⇧⌘C</kbd> copies the comments for your agent. Fix, run <code>ghl</code> again.
+            <kbd class="kbd">⇧⌘C</kbd> copies the comments for your agent. Fix, run <code>diffdesk</code> again.
           </li>
         </ol>
       </section>
@@ -136,15 +136,15 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
             <h2>Comments an agent can act on.</h2>
             <p>
               Each comment gives its ID, its lines and what to change. The agent reads the code in the file it edits,
-              so ghl only quotes the lines the file no longer has: removed by the change, or changed since you wrote
+              so Diffdesk only quotes the lines the file no longer has: removed by the change, or changed since you wrote
               the remark.
             </p>
             <p>
-              <code>ghl comments resolve &lt;id&gt;</code> closes one once it is done, and <code>--json</code> gives
+              <code>diffdesk comments resolve &lt;id&gt;</code> closes one once it is done, and <code>--json</code> gives
               the comments to a script.
             </p>
           </div>
-          <pre class="export"><span class="prompt">$</span> ghl comments{'\n'}{fullExport.map(({ line, heading }) => <span class={heading ? 'heading' : undefined}>{line}{'\n'}</span>)}</pre>
+          <pre class="export"><span class="prompt">$</span> diffdesk comments{'\n'}{fullExport.map(({ line, heading }) => <span class={heading ? 'heading' : undefined}>{line}{'\n'}</span>)}</pre>
         </div>
       </section>
 
@@ -205,12 +205,12 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
           <p class="eyebrow">// usage</p>
           <h2>One command, a few flags.</h2>
           <dl class="usage">
-            <div><dt>ghl</dt><dd>The current branch, uncommitted work included.</dd></div>
-            <div><dt>ghl feature</dt><dd>Another revision, without checking it out.</dd></div>
-            <div><dt>ghl --base main</dt><dd>The comparison base. Otherwise gh stack or the trunk.</dd></div>
-            <div><dt>ghl --repo ../other</dt><dd>Another checkout.</dd></div>
-            <div><dt>ghl comments</dt><dd>The comments, compact for an agent.</dd></div>
-            <div><dt>ghl comments resolve &lt;id&gt;</dt><dd>Close a comment once it is done.</dd></div>
+            <div><dt>diffdesk</dt><dd>The current branch, uncommitted work included.</dd></div>
+            <div><dt>diffdesk feature</dt><dd>Another revision, without checking it out.</dd></div>
+            <div><dt>diffdesk --base main</dt><dd>The comparison base. Otherwise gh stack or the trunk.</dd></div>
+            <div><dt>diffdesk --repo ../other</dt><dd>Another checkout.</dd></div>
+            <div><dt>diffdesk comments</dt><dd>The comments, compact for an agent.</dd></div>
+            <div><dt>diffdesk comments resolve &lt;id&gt;</dt><dd>Close a comment once it is done.</dd></div>
           </dl>
         </div>
         <div class="keys-column">
@@ -238,7 +238,7 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
             <p>Free and open source under the MIT license. Needs macOS 13 or later on Apple Silicon, and Git.</p>
           </div>
           <div class="commands">
-            <code><span class="prompt">$</span> brew install --cask vmaerten/tap/ghl</code>
+            <code><span class="prompt">$</span> brew install --cask vmaerten/tap/diffdesk</code>
             <code><span class="prompt">$</span> mise use -g github:vmaerten/ghl@latest</code>
           </div>
         </div>
@@ -247,7 +247,7 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
 
     <footer class="wrap">
       <div class="bottom">
-        <span>ghl · MIT · vmaerten/ghl</span>
+        <span>Diffdesk · MIT · vmaerten/ghl</span>
         <nav aria-label="Footer">
           <a href={guide}>guide</a><a href={changelog}>changelog</a><a href={repo}>github ↗</a>
         </nav>

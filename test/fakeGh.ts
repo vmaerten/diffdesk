@@ -52,7 +52,7 @@ const PULL_REQUEST = JSON.stringify([
  * commit behind the branch, with one failing check; other branches have none.
  */
 export const fakeGh = (() => {
-  const dir = mkdtempSync(join(tmpdir(), 'ghl-fake-gh-'))
+  const dir = mkdtempSync(join(tmpdir(), 'diffdesk-fake-gh-'))
   process.on('exit', () => rmSync(dir, { recursive: true, force: true }))
   const path = join(dir, 'gh')
   const [before, after] = PULL_REQUEST.split('HEAD_OID')

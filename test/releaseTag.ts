@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const temporary = mkdtempSync(join(tmpdir(), 'ghl-release-tag-'))
+const temporary = mkdtempSync(join(tmpdir(), 'diffdesk-release-tag-'))
 const tagValidator = join(root, 'scripts/release-tag.ts')
 let checks = 0
 try {

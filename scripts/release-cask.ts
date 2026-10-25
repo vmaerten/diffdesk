@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 
 const [version, checksums] = process.argv.slice(2)
 assert.ok(version && checksums, 'Usage: node scripts/release-cask.ts <version> <checksums.txt>')
-const archive = `ghl_${version}_darwin_arm64.zip`
+const archive = `diffdesk_${version}_darwin_arm64.zip`
 const digest = readFileSync(checksums, 'utf8')
   .split('\n')
   .find((line) => line.endsWith(`  ${archive}`))

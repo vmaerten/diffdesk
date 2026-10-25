@@ -1,6 +1,6 @@
 # Releases
 
-A release is one archive, `ghl_<version>_darwin_arm64.zip`, with its SHA-256 in `checksums.txt`. It holds `ghl.app`, the project's MIT license and the notices of every third-party component it ships. The app runs on macOS 13 or later on Apple Silicon and needs Git. Consumers install it through [Homebrew or mise](../site/src/content/docs/guide/installation.md).
+A release is one archive, `diffdesk_<version>_darwin_arm64.zip`, with its SHA-256 in `checksums.txt`. It holds `Diffdesk.app`, the project's MIT license and the notices of every third-party component it ships. The app runs on macOS 13 or later on Apple Silicon and needs Git. Consumers install it through [Homebrew or mise](../site/src/content/docs/guide/installation.md).
 
 ## Local snapshot
 
@@ -18,13 +18,13 @@ Outputs live in `go/dist/release/`:
 
 | File | Content |
 | --- | --- |
-| `ghl_<version>_darwin_arm64.zip` | `ghl.app`, `LICENSE` and `THIRD_PARTY_NOTICES.txt` |
+| `diffdesk_<version>_darwin_arm64.zip` | `Diffdesk.app`, `LICENSE` and `THIRD_PARTY_NOTICES.txt` |
 | `checksums.txt` | SHA-256 of the archive, with its exact filename |
 | `metadata.json`, `artifacts.json` | Local GoReleaser build records |
 
 Snapshot versions use `<latest-version>-next-<short-commit>`. The date is the commit's UTC timestamp, which keeps the version stamp and the archive's file times stable across builds.
 
-`task release:snapshot` ends with `task release:verify`, which runs `desktop/release.py verify`. Before extracting anything, it checks the checksum and rejects unexpected or duplicate ZIP members, links and an executable without its executable mode. It then verifies the bundle metadata, including `LSMinimumSystemVersion`, the executable's `minos` of 13.0, the license and notices, the Go build settings and the ad hoc signature. It runs `ghl --version` from the extracted app with only system tools on PATH and checks its build date against the commit. With `RELEASE_TAG` set, the archive must also match the tag. `task desktop:test` includes the ZIP and checksum guard tests.
+`task release:snapshot` ends with `task release:verify`, which runs `desktop/release.py verify`. Before extracting anything, it checks the checksum and rejects unexpected or duplicate ZIP members, links and an executable without its executable mode. It then verifies the bundle metadata, including `LSMinimumSystemVersion`, the executable's `minos` of 13.0, the license and notices, the Go build settings and the ad hoc signature. It runs `diffdesk --version` from the extracted app with only system tools on PATH and checks its build date against the commit. With `RELEASE_TAG` set, the archive must also match the tag. `task desktop:test` includes the ZIP and checksum guard tests.
 
 ## Version tags and publication
 
@@ -44,7 +44,7 @@ The `Release` GitHub workflow runs only when a stable `vX.Y.Z` tag is pushed. A 
 1. builds and verifies the archive, as above;
 2. checks that the Homebrew tap is reachable and, in the workflow, that `HOMEBREW_TAP_TOKEN` is set, so a missing token fails before anything is published;
 3. creates a draft release with the archive and `checksums.txt`, and publishes it only once both uploads succeed;
-4. renders `desktop/cask.rb` from the published `checksums.txt` and pushes it to `Casks/ghl.rb` in [vmaerten/homebrew-tap](https://github.com/vmaerten/homebrew-tap), unless the tap already offers a newer version.
+4. renders `desktop/cask.rb` from the published `checksums.txt` and pushes it to `Casks/diffdesk.rb` in [vmaerten/homebrew-tap](https://github.com/vmaerten/homebrew-tap), unless the tap already offers a newer version. While the tap still has `Casks/ghl.rb`, the cask's name before the app became Diffdesk, it adds `cask_renames.json` so `brew upgrade` moves those installs to `diffdesk`, then removes the old cask.
 
 An existing release is never overwritten; a failed upload leaves a draft to inspect. Prereleases are published by running `task release TAG=vX.Y.Z-rc.N` locally; they are marked as such and leave the cask on the last stable release.
 
@@ -64,7 +64,7 @@ After publication, check the real download through mise, then through Homebrew o
 
 ```bash
 task release:mise:published VERSION=0.3.0 PREVIOUS=0.2.0
-brew install --cask vmaerten/tap/ghl
+brew install --cask vmaerten/tap/diffdesk
 ```
 
 There is no paid signing, notarisation or automatic update. Go, Node, pnpm, Task and GoReleaser stay pinned in `.mise.toml`, with download checksums in `mise.lock`.
@@ -72,7 +72,7 @@ There is no paid signing, notarisation or automatic update. Go, Node, pnpm, Task
 ## mise acceptance
 
 
-Use mise **2026.10.2**; `GHL_TEST_MISE` can point at that binary. All mise configuration, data, cache and state live in temporary directories outside the checkout: the tests change neither your mise configuration nor a global `ghl`.
+Use mise **2026.10.2**; `GHL_TEST_MISE` can point at that binary. All mise configuration, data, cache and state live in temporary directories outside the checkout: the tests change neither your mise configuration nor a global `diffdesk`.
 
 ```bash
 task release:snapshot
@@ -83,7 +83,7 @@ task release:mise:published VERSION=X.Y.Z
 task release:mise:published VERSION=X.Y.Z PREVIOUS=A.B.C
 ```
 
-Before publication, `release:mise` routes the real mise GitHub client to a loopback API with mise's URL replacement setting. It serves the candidate archive, a predecessor (the candidate with another bundle marker, signed again), a prerelease and a corrupt download. It checks autodetection, the checksum fallback, activation and shims, `ghl --version` and `ghl comments` with only Git on PATH, the absence of quarantine and a valid signature, the window opened from the mise install, exact pins, `mise upgrade`, rollback, the corrupt download and uninstall. It creates no tag or release; it is fixture coverage, not evidence of a published download.
+Before publication, `release:mise` routes the real mise GitHub client to a loopback API with mise's URL replacement setting. It serves the candidate archive, a predecessor (the candidate with another bundle marker, signed again), a prerelease and a corrupt download. It checks autodetection, the checksum fallback, activation and shims, `diffdesk --version` and `diffdesk comments` with only Git on PATH, the absence of quarantine and a valid signature, the window opened from the mise install, exact pins, `mise upgrade`, rollback, the corrupt download and uninstall. It creates no tag or release; it is fixture coverage, not evidence of a published download.
 
 Published mode downloads the actual GitHub assets, compares the installed executable with the checksummed archive, and upgrades from `PREVIOUS` when given; that version may be a 0.2.0-era CLI tarball. `GITHUB_TOKEN` or `GH_TOKEN` can authenticate the reads, without write access. The tests set `GHL_PORT=0`, so an old CLI can never start or replace a daemon on your own port. Reports land in `.task/mise-acceptance.json` and `.task/mise-published.json`, starting with `complete: false`.
 

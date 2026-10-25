@@ -13,7 +13,9 @@ import { activeTheme, DEFAULT_APPEARANCE } from './appearance.ts'
 import './themes.css'
 import './styles.css'
 
-registerCustomTheme('ghl-darcula', () => import('./darcula.ts').then((module) => module.default))
+registerCustomTheme('diffdesk-darcula', () =>
+  import('./darcula.ts').then((module) => module.default),
+)
 applyTheme(activeTheme(DEFAULT_APPEARANCE))
 
 const root = document.getElementById('root')

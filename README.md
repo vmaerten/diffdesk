@@ -1,4 +1,4 @@
-# ghl
+# Diffdesk
 
 Review the PR you are about to open, without opening it.
 
@@ -9,7 +9,7 @@ A local Git diff viewer for macOS with a GitHub-like review flow. Review branche
 With [Homebrew](https://brew.sh/):
 
 ```bash
-brew install --cask vmaerten/tap/ghl
+brew install --cask vmaerten/tap/diffdesk
 ```
 
 With [mise](https://mise.jdx.dev/):
@@ -18,7 +18,7 @@ With [mise](https://mise.jdx.dev/):
 mise use -g github:vmaerten/ghl@latest
 ```
 
-Both put the `ghl` command on PATH. Homebrew installs `ghl.app` in `/Applications`; mise keeps it in its own install directory. See the [installation guide](https://ghl.vmaerten.fr/guide/installation/) for upgrades, rollback and moving from the 0.2.0 browser CLI.
+Both put the `diffdesk` command on PATH, and Homebrew also links `ghl`, its name before the app became Diffdesk. Homebrew installs `Diffdesk.app` in `/Applications`; mise keeps it in its own install directory. See the [installation guide](https://diffdesk.vmaerten.fr/guide/installation/) for upgrades, rollback and moving from the 0.2.0 browser CLI.
 
 To install from source, with Node >= 24, pnpm, Go >= 1.25, Task v3 and the Xcode Command Line Tools:
 
@@ -27,20 +27,20 @@ pnpm install
 task install
 ```
 
-This links `~/.local/bin/ghl` to the built app; add that directory to PATH.
+This links `~/.local/bin/diffdesk` and `~/.local/bin/ghl` to the built app; add that directory to PATH.
 
 ## Use
 
 ```bash
-ghl                    # review the current branch, including uncommitted work
-ghl feature            # review another revision without checking it out
-ghl --base main        # choose the comparison base
-ghl --repo ../other    # review another checkout
-ghl comments           # print this comparison's comments, compact for an agent
-ghl comments --json    # the same, as JSON
+diffdesk                    # review the current branch, including uncommitted work
+diffdesk feature            # review another revision without checking it out
+diffdesk --base main        # choose the comparison base
+diffdesk --repo ../other    # review another checkout
+diffdesk comments           # print this comparison's comments, compact for an agent
+diffdesk comments --json    # the same, as JSON
 ```
 
-`ghl` opens the review in the ghl window and returns to the terminal; later invocations replace it in the same window. `ghl comments` and `ghl --version` print without opening it. Comments and Viewed live in each checkout's `.git/ghl/state.json`. Run `ghl --help` for every option.
+`diffdesk` opens the review in the Diffdesk window and returns to the terminal; later invocations replace it in the same window. `diffdesk comments` and `diffdesk --version` print without opening it. Comments and Viewed live in each checkout's `.git/ghl/state.json`. Run `diffdesk --help` for every option.
 
 - Unified or split diffs, file tree, full-diff search and expandable context.
 - Branch, base and commit pickers, with `gh stack` navigation.
@@ -48,7 +48,7 @@ ghl comments --json    # the same, as JSON
 - Viewed files, working-tree/untracked controls and whitespace filtering.
 - Image previews, native menus, and light and dark appearance with a syntax theme for each.
 
-See the [reviewing guide](https://ghl.vmaerten.fr/guide/reviewing/) for comparisons, comments and state. Features on `main` may be newer than the published release; see the [changelog](./CHANGELOG.md).
+See the [reviewing guide](https://diffdesk.vmaerten.fr/guide/reviewing/) for comparisons, comments and state. Features on `main` may be newer than the published release; see the [changelog](./CHANGELOG.md).
 
 ## Shortcuts
 
@@ -88,6 +88,6 @@ See the [app guide](./desktop/README.md) for the window and its native tests, an
 
 ## Documentation
 
-- [The website](https://ghl.vmaerten.fr/) and its guide: [getting started](https://ghl.vmaerten.fr/guide/getting-started/), [installation](https://ghl.vmaerten.fr/guide/installation/), [reviewing code](https://ghl.vmaerten.fr/guide/reviewing/) and [keyboard shortcuts](https://ghl.vmaerten.fr/guide/shortcuts/), written in [`site/`](./site/src/content/docs/guide/)
+- [The website](https://diffdesk.vmaerten.fr/) and its guide: [getting started](https://diffdesk.vmaerten.fr/guide/getting-started/), [installation](https://diffdesk.vmaerten.fr/guide/installation/), [reviewing code](https://diffdesk.vmaerten.fr/guide/reviewing/) and [keyboard shortcuts](https://diffdesk.vmaerten.fr/guide/shortcuts/), written in [`site/`](./site/src/content/docs/guide/)
 - [The app](./desktop/README.md) and [its review server](./go/README.md)
 - [Releases](./docs/releases.md) and [release acceptance](./docs/validation.md)

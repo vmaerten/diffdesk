@@ -11,7 +11,7 @@ import (
 // shortDir keeps socket paths under macOS's 104-byte limit, which t.TempDir can exceed.
 func shortDir(t *testing.T) string {
 	t.Helper()
-	dir, err := os.MkdirTemp("/tmp", "ghl-")
+	dir, err := os.MkdirTemp("/tmp", "diffdesk-")
 	if err != nil {
 		t.Fatal(err)
 	}

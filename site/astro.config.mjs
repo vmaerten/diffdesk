@@ -6,11 +6,11 @@ import { defineConfig } from 'astro/config'
 const repo = 'https://github.com/vmaerten/ghl'
 
 export default defineConfig({
-  site: 'https://ghl.vmaerten.fr',
+  site: 'https://diffdesk.vmaerten.fr',
   integrations: [
     react(),
     starlight({
-      title: 'ghl',
+      title: 'Diffdesk',
       description: 'Review the PR you are about to open, without opening it.',
       logo: { src: './public/favicon.svg' },
       favicon: '/favicon.svg',

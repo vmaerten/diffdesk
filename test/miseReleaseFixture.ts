@@ -21,10 +21,10 @@ export interface Release {
 
 export const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
 
-export const archiveName = (version: string) => `ghl_${version}_darwin_arm64.zip`
+export const archiveName = (version: string) => `diffdesk_${version}_darwin_arm64.zip`
 
 /** Where the command lives in the archive, which is where mise puts it on PATH. */
-export const EXECUTABLE = 'ghl.app/Contents/MacOS/ghl'
+export const EXECUTABLE = 'Diffdesk.app/Contents/MacOS/diffdesk'
 
 /** Real mise client/backend, local release API; no tags or releases are created. */
 export async function miseReleaseFixture(directory: string, archive: string) {
@@ -40,13 +40,13 @@ export async function miseReleaseFixture(directory: string, archive: string) {
     'GHLFixture',
     '-string',
     'predecessor',
-    join(predecessor, 'ghl.app/Contents/Info.plist'),
+    join(predecessor, 'Diffdesk.app/Contents/Info.plist'),
   ])
-  execFileSync('codesign', ['--force', '--deep', '--sign', '-', join(predecessor, 'ghl.app')])
+  execFileSync('codesign', ['--force', '--deep', '--sign', '-', join(predecessor, 'Diffdesk.app')])
   const predecessorArchive = join(directory, 'predecessor.zip')
   execFileSync(
     'zip',
-    ['-qry', predecessorArchive, 'ghl.app', 'LICENSE', 'THIRD_PARTY_NOTICES.txt'],
+    ['-qry', predecessorArchive, 'Diffdesk.app', 'LICENSE', 'THIRD_PARTY_NOTICES.txt'],
     {
       cwd: predecessor,
     },

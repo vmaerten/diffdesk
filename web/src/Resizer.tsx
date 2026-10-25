@@ -8,7 +8,7 @@ const PANES = {
   sidebar: {
     element: '.sidebar',
     property: '--sidebar-width',
-    key: 'ghl.sidebarWidth',
+    key: 'diffdesk.sidebarWidth',
     min: 180,
     initial: 272,
     growth: 1,
@@ -17,7 +17,7 @@ const PANES = {
   panel: {
     element: '.comments-panel:not([hidden])',
     property: '--panel-width',
-    key: 'ghl.panelWidth',
+    key: 'diffdesk.panelWidth',
     min: 260,
     initial: 320,
     growth: -1,

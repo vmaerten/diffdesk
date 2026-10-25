@@ -3,7 +3,7 @@ title: Reviewing code
 description: Comparisons, comments, Viewed files, bases and stacks, pull requests, images and appearance.
 ---
 
-Run `ghl` in a Git repository to open its review in the ghl window; running it in another checkout replaces that review. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, expand unchanged context, and search the whole diff with `Cmd+f`, including files outside the current viewport.
+Run `diffdesk` in a Git repository to open its review in the Diffdesk window; running it in another checkout replaces that review. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, expand unchanged context, and search the whole diff with `Cmd+f`, including files outside the current viewport.
 
 `Cmd+K` opens a command palette that finds a command by name and shows its shortcut, with a check on those that show a state, such as Split or Ignore Whitespace. `Cmd+P` lists the review's files with their folder, line counts and status, to jump to one by name; the palette's Commands and Files tabs switch between the two.
 
@@ -15,7 +15,7 @@ The default review compares the merge-base of the chosen base and HEAD with the 
 
 Press `t` to review another revision without checking it out. Press `l` to pick one commit: its diff is against its first parent, or the empty tree for a root commit. The base determines which commits are offered, but does not affect a selected commit's patch. A commit that no longer resolves falls back to the whole range with a notice.
 
-Ref and commit views exclude uncommitted and untracked files. Reloading keeps the comparison choices; running `ghl` again with the same comparison leaves the review as it is.
+Ref and commit views exclude uncommitted and untracked files. Reloading keeps the comparison choices; running `diffdesk` again with the same comparison leaves the review as it is.
 
 **Ignore whitespace** uses Git's `--ignore-all-space`: spacing-only changes leave the diff, tree and totals, while line breaks and file metadata changes remain. The choice is preserved as `w=1` in the URL. Turn it off to reveal hidden changes.
 
@@ -29,9 +29,9 @@ Each comment saves its original code. When those lines change, the comment shows
 
 **Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments, including viewed files and files outside the diff. Individual cards have their own copy button. The text is sized for an agent, which reads the code in the file it edits: each comment gives its ID, `path:lines` and body, and quotes only the lines the file no longer has, under `code:` for lines the change removed and `was:` for lines changed since the remark or outside the comparison.
 
-**Resolve** on a card closes the comment without deleting it: it leaves the diff, the panel, the count and Copy, and stays in the state file. `ghl comments reopen <id>` brings it back, and `ghl comments resolve <id>` closes one from the terminal; any unique prefix of 4 or more characters of the ID works.
+**Resolve** on a card closes the comment without deleting it: it leaves the diff, the panel, the count and Copy, and stays in the state file. `diffdesk comments reopen <id>` brings it back, and `diffdesk comments resolve <id>` closes one from the terminal; any unique prefix of 4 or more characters of the ID works.
 
-`ghl comments` exports the reviewed branch's open comments on files in the selected comparison, including untracked files in working-tree reviews. It prints the same text as Copy; add `--code` to quote every comment's current lines, `--json` for structured output, `--all` to include resolved comments, or a revision argument to review another target. It prints without opening the window; its file scope can be narrower than the panel's.
+`diffdesk comments` exports the reviewed branch's open comments on files in the selected comparison, including untracked files in working-tree reviews. It prints the same text as Copy; add `--code` to quote every comment's current lines, `--json` for structured output, `--all` to include resolved comments, or a revision argument to review another target. It prints without opening the window; its file scope can be narrower than the panel's.
 
 Older comments recover their branch from the target in their saved comparison. If only commit hashes were recorded, the branch is unknown. Those comments stay in the state file and can be read by explicitly reviewing the recorded target.
 
@@ -45,16 +45,16 @@ Comments and Viewed are stored in `.git/ghl/state.json`, relative to the checkou
 
 ## Bases and stacks
 
-`ghl` resolves the base in this order:
+`diffdesk` resolves the base in this order:
 
 1. An explicit `--base`, or a base picked in the window.
 2. Its `gh stack` chain.
 3. The nearest-parent heuristic, with the trunk winning ties.
 4. The detected trunk, using `origin/HEAD` and conventional branch names.
 
-The base is shown, dimmed, before the reviewed branch in the title bar, and its source in the status bar. Click the branch, or press `t`, to review another one. Press `b`, or choose **Go → Choose Base…**, to compare against another base: the choice holds for the review shown and is never written to the repository, so the next `ghl` resolves the base again. **Automatic base** in that picker drops it. Both pickers open on the current choice, so Enter alone changes nothing. When the base already contains the whole branch, the empty review says so and offers the automatic base. The target picker also lists local branches; remote refs remain available through `ghl origin/branch` or a `target` URL parameter. Older releases remembered picked bases as `branch.<name>.ghlBase` in Git configuration; ghl now ignores them.
+The base is shown, dimmed, before the reviewed branch in the title bar, and its source in the status bar. Click the branch, or press `t`, to review another one. Press `b`, or choose **Go → Choose Base…**, to compare against another base: the choice holds for the review shown and is never written to the repository, so the next `diffdesk` resolves the base again. **Automatic base** in that picker drops it. Both pickers open on the current choice, so Enter alone changes nothing. When the base already contains the whole branch, the empty review says so and offers the automatic base. The target picker also lists local branches; remote refs remain available through `diffdesk origin/branch` or a `target` URL parameter. Older releases remembered picked bases as `branch.<name>.ghlBase` in Git configuration; Diffdesk now ignores them.
 
-When the local trunk is strictly behind its fetched `origin` counterpart, the remote ref is preferred. Local trunks that are ahead or diverged are retained. `ghl` does not fetch or change your checkout.
+When the local trunk is strictly behind its fetched `origin` counterpart, the remote ref is preferred. Local trunks that are ahead or diverged are retained. `diffdesk` does not fetch or change your checkout.
 
 Stack metadata is read from `.git/gh-stack`, including worktree-specific metadata, without calling GitHub. Each layer is compared with the nearest live layer below it; merged or missing layers stay visible while upper layers fall back past them. A stacked branch shows its layer, such as `2/3`, at the start of the title bar's comparison: press `s` or click it to list the stack and pick a layer, or press `[` and `]` to review the layer below or above.
 
@@ -77,18 +77,18 @@ Settings list each language's server for the review shown, with where it comes f
 | Helm | `helm_ls`, for the files of a chart's `templates` folder |
 | Rust | `rust-analyzer` |
 
-Highlighters often merge several names into one token, such as a Helm template's `.Values.replicaCount`: ghl looks up, and underlines, the name under the pointer. The servers run on the reviewed code, as your editor would; ghl finds them through your login shell, so tools installed with Homebrew or mise work even when the app was opened from the Finder. A server starts on the first lookup and stops after 10 minutes without one. The status bar shows the diff's servers and whether they are starting, indexing or failed.
+Highlighters often merge several names into one token, such as a Helm template's `.Values.replicaCount`: Diffdesk looks up, and underlines, the name under the pointer. The servers run on the reviewed code, as your editor would; Diffdesk finds them through your login shell, so tools installed with Homebrew or mise work even when the app was opened from the Finder. A server starts on the first lookup and stops after 10 minutes without one. The status bar shows the diff's servers and whether they are starting, indexing or failed.
 
 ## Pull requests
 
 When the reviewed branch has a pull request on GitHub, its number shows in the title bar, with the icon and colour of its state: open, draft, merged or closed. Then come its checks — GitHub Actions runs and commit statuses: a cross with the number failing, a dot with how many are done while they run, a tick once all pass. An arrow counts the local commits GitHub does not have yet, and a warning sign says the pull request conflicts with its base. Click it for the title, the reviews, the merge status, what is not pushed, the checks with their logs, failing ones first, and a link to GitHub. Checks ran on GitHub's head: the popover says so when you have local changes. While one runs, the pull request refreshes every 15 seconds as long as the window is in front.
 
-ghl asks the [GitHub CLI](https://cli.github.com/): install it and run `gh auth login` once. Without it, or signed out, ghl works as before, without the network. The pull request is the one whose head is the reviewed branch, or the branch it pushes to; an open one wins over closed ones. It refreshes with the review (`r`) and when you come back to the window. **Settings › GitHub** says which account gh uses, turns pull requests off, or shows them in the status bar instead of the title bar: the same items, in words, with the popover opening above.
+Diffdesk asks the [GitHub CLI](https://cli.github.com/): install it and run `gh auth login` once. Without it, or signed out, Diffdesk works as before, without the network. The pull request is the one whose head is the reviewed branch, or the branch it pushes to; an open one wins over closed ones. It refreshes with the review (`r`) and when you come back to the window. **Settings › GitHub** says which account gh uses, turns pull requests off, or shows them in the status bar instead of the title bar: the same items, in words, with the popover opening above.
 
 ## Images and appearance
 
 Image changes show before/after previews; click to enlarge and Escape to close. PNG, JPEG, GIF, WebP, AVIF, SVG, ICO and BMP are supported. Unavailable or oversized previews show an explanation; the image limit is 20 MiB.
 
-**Settings** (`Cmd+,`) opens in a window of its own, beside the review, which follows each change as you make it. **Appearance** chooses System (follows macOS), Light or Dark and a syntax theme for each mode, **Code** the code font and size, **Window** the title bar: standard (52 px, the default) or compact (38 px), applied the next time ghl opens, and **GitHub** whether and where to show pull requests. The interface keeps neutral colours; only the code takes the theme's.
+**Settings** (`Cmd+,`) opens in a window of its own, beside the review, which follows each change as you make it. **Appearance** chooses System (follows macOS), Light or Dark and a syntax theme for each mode, **Code** the code font and size, **Window** the title bar: standard (52 px, the default) or compact (38 px), applied the next time Diffdesk opens, and **GitHub** whether and where to show pull requests. The interface keeps neutral colours; only the code takes the theme's.
 
 For setup and upgrades, see [installation](../installation/).

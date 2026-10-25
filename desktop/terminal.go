@@ -37,7 +37,7 @@ func runTerminal(ctx context.Context, args []string, cwd string, stdout, stderr 
 		if jsonOutput {
 			return true, json.NewEncoder(stdout).Encode(info)
 		}
-		_, err := fmt.Fprintf(stdout, "ghl %s (commit %s; built %s)\n", info.Version, info.Commit, info.BuildDate)
+		_, err := fmt.Fprintf(stdout, "diffdesk %s (commit %s; built %s)\n", info.Version, info.Commit, info.BuildDate)
 		return true, err
 	}
 	return false, nil
@@ -56,7 +56,7 @@ func withoutFlag(args []string, flag string) ([]string, bool) {
 	return rest, found
 }
 
-// setStatus runs `ghl comments resolve <id>` or `reopen <id>`. The comment's
+// setStatus runs `diffdesk comments resolve <id>` or `reopen <id>`. The comment's
 // ID is all it needs, so it takes no target and no base.
 func setStatus(ctx context.Context, verb string, args []string, cwd string, stdout io.Writer) error {
 	var id string
@@ -67,7 +67,7 @@ func setStatus(ctx context.Context, verb string, args []string, cwd string, stdo
 		} else if id == "" {
 			id = arg
 		} else {
-			return fmt.Errorf("usage: ghl comments %s <id> [--repo <path>]", verb)
+			return fmt.Errorf("usage: diffdesk comments %s <id> [--repo <path>]", verb)
 		}
 	}
 	request, err := parseLaunch(flags, cwd)
@@ -75,7 +75,7 @@ func setStatus(ctx context.Context, verb string, args []string, cwd string, stdo
 		return err
 	}
 	if id == "" || request.base != "" {
-		return fmt.Errorf("usage: ghl comments %s <id> [--repo <path>]", verb)
+		return fmt.Errorf("usage: diffdesk comments %s <id> [--repo <path>]", verb)
 	}
 	status := "resolved"
 	if verb == "reopen" {
