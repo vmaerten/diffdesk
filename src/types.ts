@@ -301,3 +301,20 @@ export interface SymbolAnswer {
   hover: HoverBlock[]
   definitions: SymbolDefinition[]
 }
+
+export interface SymbolReference {
+  path: string
+  line: number
+  /** The reference's columns, in UTF-16 units. */
+  character: number
+  endCharacter: number
+  text: string
+}
+
+/** `GET /r/<id>/api/lsp/references`: the repository's references, sorted by path and line. */
+export interface ReferencesAnswer {
+  references: SymbolReference[]
+  /** References outside the repository, such as in a module cache. */
+  external: number
+  truncated: boolean
+}

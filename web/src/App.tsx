@@ -40,6 +40,7 @@ import {
 import { contextFile } from './fileMenu.ts'
 import { languagesOf, useLanguageStatus } from './codeIntelligence.ts'
 import { useSymbolCard } from './SymbolCard.tsx'
+import SymbolPanel, { PanelTabs, type PanelTab, type SymbolTarget } from './SymbolPanel.tsx'
 import type { LanguageStatus } from '../../src/types.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
@@ -91,6 +92,7 @@ export default function App({
   onReveal,
   onFileMenu,
   languageRevision = null,
+  symbolPanel = false,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -111,6 +113,8 @@ export default function App({
   onFileMenu?: (path: string, x: number, y: number, viewed: boolean) => Promise<void>
   /** Changes when the review server has new code intelligence settings; null while it is off. */
   languageRevision?: number | null
+  /** Offers a Symbol tab beside Comments, with references, while code intelligence is on. */
+  symbolPanel?: boolean
 }) {
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
@@ -137,6 +141,14 @@ export default function App({
   const [copyError, setCopyError] = useState<string | null>(null)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [commentsOpen, setCommentsOpen] = useState(savedView?.commentsOpen ?? false)
+  const symbolTab = languageRevision !== null && symbolPanel
+  const [panelTab, setPanelTab] = useState<PanelTab>('comments')
+  const [symbolTarget, setSymbolTarget] = useState<SymbolTarget | null>(null)
+  /** The toolbar's Comments button: shows the comments, or hides the panel showing them. */
+  const toggleComments = () => {
+    setPanelTab('comments')
+    setCommentsOpen((open) => !open || panelTab !== 'comments')
+  }
   const panelEditor = useRef(savedView?.panelEditor ?? { editing: null, draft: '' })
   useEffect(
     () => () => {
@@ -294,6 +306,13 @@ export default function App({
     canReveal: canRevealDefinition,
     reveal: revealDefinition,
     onAnswer: refreshLanguages,
+    onReferences: symbolTab
+      ? (symbol, answer) => {
+          setSymbolTarget({ query: symbol, answer })
+          setPanelTab('symbol')
+          setCommentsOpen(true)
+        }
+      : undefined,
     theme: syntaxTheme,
   })
   const {
@@ -430,7 +449,7 @@ export default function App({
         select.toggleWhitespace()
         break
       case 'comments':
-        setCommentsOpen((open) => !open)
+        toggleComments()
         break
       case 'copy-comments':
         if (comments.length > 0) void copyComments()
@@ -545,34 +564,52 @@ export default function App({
       }
     />
   )
+  const tabs = symbolTab ? (
+    <PanelTabs tab={panelTab} comments={comments.length} onTab={setPanelTab} />
+  ) : undefined
   const commentsPanel = (
-    <CommentsPanel
-      savedEditor={panelEditor}
-      open={commentsOpen}
-      comments={comments}
-      currentRange={data?.range ?? ''}
-      saving={saving}
-      copied={copied}
-      copyError={copyError}
-      onClose={() => setCommentsOpen(false)}
-      onCopy={copyComments}
-      canView={canRevealComment}
-      onView={revealComment}
-      onUpdate={(comment, body) =>
-        submitComment({
-          path: comment.path,
-          side: comment.side,
-          start: comment.start,
-          end: comment.end,
-          editing: comment.id,
-          body,
-        })
-      }
-      onDelete={deleteComment}
-      onRetry={(comment) => {
-        void commentPersistence.retry(comment.id)
-      }}
-    />
+    <>
+      <CommentsPanel
+        savedEditor={panelEditor}
+        open={commentsOpen && (!symbolTab || panelTab === 'comments')}
+        tabs={tabs}
+        comments={comments}
+        currentRange={data?.range ?? ''}
+        saving={saving}
+        copied={copied}
+        copyError={copyError}
+        onClose={() => setCommentsOpen(false)}
+        onCopy={copyComments}
+        canView={canRevealComment}
+        onView={revealComment}
+        onUpdate={(comment, body) =>
+          submitComment({
+            path: comment.path,
+            side: comment.side,
+            start: comment.start,
+            end: comment.end,
+            editing: comment.id,
+            body,
+          })
+        }
+        onDelete={deleteComment}
+        onRetry={(comment) => {
+          void commentPersistence.retry(comment.id)
+        }}
+      />
+      {symbolTab && (
+        <SymbolPanel
+          open={commentsOpen && panelTab === 'symbol'}
+          repoId={repoId}
+          target={symbolTarget}
+          refresh={data?.loadId}
+          tabs={tabs}
+          canReveal={canRevealDefinition}
+          onReveal={revealDefinition}
+          onClose={() => setCommentsOpen(false)}
+        />
+      )}
+    </>
   )
 
   return (
@@ -587,7 +624,7 @@ export default function App({
             onDiffStyleChange={setDiffStyle}
             commentCount={comments.length}
             commentsOpen={commentsOpen}
-            onToggleComments={() => setCommentsOpen((open) => !open)}
+            onToggleComments={toggleComments}
             copiedAll={copied === 'all'}
             onCopyAll={() => copyComments()}
           />,

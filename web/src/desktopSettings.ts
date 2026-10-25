@@ -22,6 +22,8 @@ export interface DesktopSettings extends AppearanceSettings {
   compactTitleBar: boolean
   /** Beta: hover and definitions from the language servers installed on this Mac. */
   codeIntelligence: boolean
+  /** References in a Symbol tab beside Comments, under code intelligence. */
+  symbolPanel: boolean
   languageServers: Record<LanguageId, string>
 }
 
@@ -32,6 +34,7 @@ export const DEFAULT_SETTINGS: DesktopSettings = {
   codeSize: 12,
   compactTitleBar: false,
   codeIntelligence: false,
+  symbolPanel: true,
   languageServers: { go: 'auto', typescript: 'auto', rust: 'auto' },
 }
 
@@ -55,8 +58,15 @@ export function readSettings(raw: string): DesktopSettings {
     const entry = THEMES.find((option) => option.id === stored[mode] && option.mode === mode)
     return entry ? entry.id : DEFAULT_SETTINGS[mode]
   }
-  const { appearance, codeFont, codeSize, compactTitleBar, codeIntelligence, languageServers } =
-    stored
+  const {
+    appearance,
+    codeFont,
+    codeSize,
+    compactTitleBar,
+    codeIntelligence,
+    symbolPanel,
+    languageServers,
+  } = stored
   const servers = (
     languageServers && typeof languageServers === 'object' ? languageServers : {}
   ) as Record<string, unknown>
@@ -79,6 +89,7 @@ export function readSettings(raw: string): DesktopSettings {
       typeof compactTitleBar === 'boolean' ? compactTitleBar : DEFAULT_SETTINGS.compactTitleBar,
     codeIntelligence:
       typeof codeIntelligence === 'boolean' ? codeIntelligence : DEFAULT_SETTINGS.codeIntelligence,
+    symbolPanel: typeof symbolPanel === 'boolean' ? symbolPanel : DEFAULT_SETTINGS.symbolPanel,
     languageServers: Object.fromEntries(
       Object.entries(LANGUAGE_SERVERS).map(([id, choices]) => {
         const choice = servers[id]

@@ -451,6 +451,17 @@ function IntelligencePane({ settings, onChange }: PaneProps) {
             onChange={(event) => onChange({ codeIntelligence: event.target.checked })}
           />
         </label>
+        <label className="settings-field">
+          <span className="settings-label">
+            Symbol panel
+            <small>References in a Symbol tab beside Comments.</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={settings.symbolPanel}
+            onChange={(event) => onChange({ symbolPanel: event.target.checked })}
+          />
+        </label>
       </div>
       <h2 className="settings-heading">Language servers</h2>
       <div className="settings-group language-servers">

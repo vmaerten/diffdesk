@@ -79,6 +79,32 @@ function definition(request: Position) {
   return null
 }
 
+/** Every other whole-word use of the word in the workspace's TypeScript files. */
+function references(request: Position) {
+  const word = wordAt(request)
+  if (!word) return []
+  const declared = definition(request)
+  const use = new RegExp(`(?<![\\w$])${word}(?![\\w$])`, 'g')
+  const found = []
+  for (const path of sources(fileURLToPath(request.textDocument.uri)).toSorted()) {
+    const uri = pathToFileURL(path).href
+    for (const [index, line] of text(uri).split('\n').entries()) {
+      for (const match of line.matchAll(use)) {
+        const range = {
+          start: { line: index, character: match.index },
+          end: { line: index, character: match.index + word.length },
+        }
+        const isDeclaration =
+          declared?.uri === uri &&
+          declared.range.start.line === index &&
+          declared.range.start.character === match.index
+        if (!isDeclaration) found.push({ uri, range })
+      }
+    }
+  }
+  return found
+}
+
 function answer(message: Message): unknown {
   switch (message.method) {
     case 'initialize':
@@ -97,6 +123,8 @@ function answer(message: Message): unknown {
     }
     case 'textDocument/definition':
       return definition(message.params as Position)
+    case 'textDocument/references':
+      return references(message.params as Position)
     default:
       return null
   }

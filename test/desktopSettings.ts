@@ -15,6 +15,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       codeSize: 14,
       compactTitleBar: true,
       codeIntelligence: true,
+      symbolPanel: false,
       languageServers: { go: 'off', typescript: 'tsrs', rust: 'auto' },
     }),
   )
@@ -29,6 +30,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       codeSize: 14,
       compactTitleBar: true,
       codeIntelligence: true,
+      symbolPanel: false,
       languageServers: { go: 'off', typescript: 'tsrs', rust: 'auto' },
     }),
   )
@@ -43,6 +45,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       codeSize: 40,
       compactTitleBar: 'yes',
       codeIntelligence: 1,
+      symbolPanel: 'no',
       // A Go setting may not name a TypeScript server, nor any setting a language Go does not know.
       languageServers: { go: 'tsrs', cobol: 'auto' },
     }),

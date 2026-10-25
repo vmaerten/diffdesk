@@ -54,6 +54,7 @@ export function useSymbolCard({
   canReveal,
   reveal,
   onAnswer,
+  onReferences,
   theme,
 }: {
   repoId: string | null
@@ -66,6 +67,8 @@ export function useSymbolCard({
   reveal: (path: string, line: number) => void
   /** A server answered, so its state may have moved on. */
   onAnswer: () => void
+  /** Lists the symbol's references; undefined leaves the card without the action. */
+  onReferences?: (query: SymbolQuery, answer: SymbolAnswer) => void
   /** The review's syntax theme, for the card's code. */
   theme: SyntaxTheme
 }): { handlers: TokenHandlers; card: ReactNode } {
@@ -277,6 +280,13 @@ export function useSymbolCard({
           closeTimer.current = setTimeout(() => setCard(null), CLOSE_DELAY)
         }}
         onOpenDefinition={() => void openDefinition(card.query, null)}
+        onReferences={
+          onReferences &&
+          ((answer) => {
+            close()
+            onReferences(card.query, answer)
+          })
+        }
       />
     ),
   }
@@ -290,6 +300,7 @@ function SymbolCard({
   onKeep,
   onLeave,
   onOpenDefinition,
+  onReferences,
 }: {
   card: Card
   server: string | undefined
@@ -298,6 +309,7 @@ function SymbolCard({
   onKeep: () => void
   onLeave: () => void
   onOpenDefinition: () => void
+  onReferences?: (answer: SymbolAnswer) => void
 }) {
   const { query, rect, lookup, expanded } = card
   const answer = lookup.status === 'done' ? lookup.answer : null
@@ -402,6 +414,11 @@ function SymbolCard({
               Show definition <kbd>⌘ click</kbd>
             </button>
           )
+        )}
+        {onReferences && (
+          <button type="button" disabled={!answer} onClick={() => answer && onReferences(answer)}>
+            References
+          </button>
         )}
         <span className="symbol-card-hint">
           <kbd>esc</kbd>

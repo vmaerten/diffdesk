@@ -420,6 +420,7 @@ export default function DesktopApp() {
               languageRevision={
                 settings.codeIntelligence && languageRevision > 0 ? languageRevision : null
               }
+              symbolPanel={settings.symbolPanel}
             />
           )}
         </div>

@@ -17,6 +17,26 @@ const SELECTED_TEXT = `(() => {
 
 const SCROLL_SETTLE = 400
 
+/** Uses engine_3, whose definition the diff shows, and parser_2, whose it does not. */
+const INDEX = [
+  "import { engine_3 } from './core/engine'",
+  "import { parser_2 } from './core/parser'",
+  '',
+  'export const answer = engine_3 + parser_2',
+  'export const twice = answer * 2',
+  '',
+].join('\n')
+
+/** The Symbol panel checkbox: whether it is ticked, after clicking it if asked. */
+const symbolPanelSetting = (window: Page, click: boolean) =>
+  window.evaluate((toggle) => {
+    const input = [...document.querySelectorAll<HTMLLabelElement>('label.settings-field')]
+      .find((field) => field.textContent?.startsWith('Symbol panel'))
+      ?.querySelector('input')
+    if (toggle) input?.click()
+    return input?.checked ?? null
+  }, click)
+
 interface ServerRow {
   id: string
   name: string
@@ -162,17 +182,7 @@ export default {
     )
 
     // index.ts uses engine_3, whose definition the diff shows, and parser_2, whose it does not.
-    writeFileSync(
-      join(repoPath, 'src/index.ts'),
-      [
-        "import { engine_3 } from './core/engine'",
-        "import { parser_2 } from './core/parser'",
-        '',
-        'export const answer = engine_3 + parser_2',
-        'export const twice = answer * 2',
-        '',
-      ].join('\n'),
-    )
+    writeFileSync(join(repoPath, 'src/index.ts'), INDEX)
     writeFileSync(
       join(repoPath, 'src/core/engine.ts'),
       `${Array.from({ length: 60 }, (_, i) => `${i === 3 ? 'export ' : ''}const engine_${i} = ${i}`).join('\n')}\n`,
@@ -329,6 +339,114 @@ export default {
       JSON.stringify(stale),
     )
     await page.keyboard.up('Meta')
+
+    // The Symbol tab: engine_3 is used in index.ts, in the diff, and in an untracked
+    // extra.ts, which the diff leaves out.
+    writeFileSync(join(repoPath, 'src/index.ts'), INDEX)
+    writeFileSync(
+      join(repoPath, 'src/extra.ts'),
+      "import { engine_3 } from './core/engine'\nexport const extra = engine_3\n",
+    )
+    const symbolSettings = await openSettings()
+    check(
+      'Settings offer the Symbol panel, on by default',
+      (await symbolPanelSetting(symbolSettings, false)) === true,
+    )
+    await symbolSettings.close()
+    await load('')
+    await clickTreeRow(page, 'src/index.ts')
+    await sleep(SCROLL_SETTLE)
+    const panel = () =>
+      page.evaluate(() => {
+        const shown = document.querySelector('.symbol-panel:not([hidden])')
+        return {
+          open: shown !== null,
+          comments: document.querySelector('#comments-panel:not([hidden])') !== null,
+          tab: document.querySelector('.panel-tabs [aria-selected="true"]')?.textContent ?? null,
+          name: shown?.querySelector('.symbol-panel-name b')?.textContent ?? '',
+          location: shown?.querySelector('.symbol-panel-location')?.textContent ?? '',
+          groups: [...(shown?.querySelectorAll('.symbol-references') ?? [])].map(
+            (group) =>
+              `${group.getAttribute('aria-label')}:${group.querySelectorAll('.symbol-reference').length}`,
+          ),
+          inDiff: shown?.querySelectorAll('.symbol-reference .symbol-tag').length ?? 0,
+        }
+      })
+    const references = await token('src/index.ts', 4, 'engine_3')
+    if (references) await page.mouse.move(references.x, references.y)
+    await page.keyboard.down('Meta')
+    await poll(card, (state) => Boolean(state?.signature))
+    await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLButtonElement>('.symbol-card-actions button')]
+        .find((button) => button.textContent === 'References')
+        ?.click(),
+    )
+    await page.keyboard.up('Meta')
+    const listed = await poll(panel, (state) => state.groups.length > 0)
+    check(
+      'References opens the Symbol tab with the definition',
+      listed.open &&
+        listed.tab === 'Symbol' &&
+        listed.name === 'engine_3' &&
+        listed.location === 'src/core/engine.ts:4',
+      JSON.stringify(listed),
+    )
+    check(
+      '  and the references by file, those in the diff marked',
+      listed.groups.join() === 'src/extra.ts:2,src/index.ts:2' && listed.inDiff === 2,
+      JSON.stringify(listed),
+    )
+    await page.click('.symbol-panel-references-head input')
+    const filtered = await poll(panel, (state) => state.groups.length === 1)
+    check(
+      'In this diff only leaves the references the diff shows',
+      filtered.groups.join() === 'src/index.ts:2',
+      JSON.stringify(filtered),
+    )
+    await page.evaluate(() =>
+      document.querySelector<HTMLButtonElement>('.symbol-reference:not(:disabled)')?.click(),
+    )
+    const shownReference = (await poll(
+      () => page.evaluate(SELECTED_TEXT),
+      (text) => String(text).includes('import { engine_3 }'),
+    )) as string
+    check(
+      'a reference in the diff opens there',
+      shownReference.includes('import { engine_3 }'),
+      shownReference,
+    )
+
+    await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLButtonElement>('.panel-tabs button')]
+        .find((button) => button.textContent?.startsWith('Comments'))
+        ?.click(),
+    )
+    const commentsTab = await poll(panel, (state) => state.comments)
+    check('the Comments tab shows the comments', commentsTab.comments && !commentsTab.open)
+    await page.click('.comments-trigger')
+    check(
+      '  and the Comments button then closes the panel',
+      !(await poll(panel, (state) => !state.comments)).comments,
+    )
+
+    const offSettings = await openSettings()
+    await symbolPanelSetting(offSettings, true)
+    await poll(saved, (stored) => (stored as { symbolPanel?: boolean }).symbolPanel === false)
+    await offSettings.close()
+    const again = await token('src/index.ts', 4, 'engine_3')
+    if (again) await page.mouse.move(again.x, again.y)
+    await page.keyboard.down('Meta')
+    await poll(card, (state) => Boolean(state?.signature))
+    const offered = await actions()
+    await page.keyboard.up('Meta')
+    await page.keyboard.press('Escape')
+    await page.click('.comments-trigger')
+    check(
+      'turning the Symbol panel off removes References and the tabs',
+      offered.join() === 'Go to definition ⌘ click' && (await page.$('.panel-tabs')) === null,
+      JSON.stringify(offered),
+    )
+
     // The server's 409 is the answer under test; Chrome logs any 4xx as a console error.
     const conflict = errors.findIndex((error) => error.includes('status of 409'))
     if (conflict >= 0) errors.splice(conflict, 1)
