@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // settingsStore keeps the desktop settings between launches. Their schema
@@ -105,5 +107,56 @@ func (s *settingsStore) compactTitleBar() bool {
 	return *stored.CompactTitleBar
 }
 
-func (d *desktopApp) Settings() (string, error)     { return d.settings.load() }
-func (d *desktopApp) SaveSettings(raw string) error { return d.settings.save(raw) }
+func (d *desktopApp) Settings() (string, error) { return d.settings.load() }
+
+// SaveSettings keeps what the Settings window changed and hands it to every
+// window, so the review follows each change.
+func (d *desktopApp) SaveSettings(raw string) error {
+	if err := d.settings.save(raw); err != nil {
+		return err
+	}
+	if app, _ := d.native(); app != nil {
+		app.Event.Emit("desktop:settings", raw)
+	}
+	return nil
+}
+
+const settingsWindow = "settings"
+
+// openSettings brings the Settings window forward, opening it the first time.
+// Its height fits the tallest pane: Wails resizes a window from its bottom
+// edge, where macOS settings windows keep their top in place.
+func (d *desktopApp) openSettings() {
+	app, _ := d.native()
+	if app == nil {
+		return
+	}
+	d.opening.Lock()
+	defer d.opening.Unlock()
+	if window, ok := app.Window.GetByName(settingsWindow); ok {
+		window.Show()
+		window.Focus()
+		return
+	}
+	app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name: settingsWindow, Title: "Settings", URL: "/settings",
+		Width: 640, Height: 560, DisableResize: true,
+		MinimiseButtonState: application.ButtonDisabled,
+		MaximiseButtonState: application.ButtonDisabled,
+		BackgroundType:      application.BackgroundTypeTranslucent,
+		Mac: application.MacWindow{
+			TitleBar: application.MacTitleBarHidden,
+			Backdrop: application.MacBackdropTranslucent,
+		},
+	})
+}
+
+func (d *desktopApp) closeSettings() {
+	app, _ := d.native()
+	if app == nil {
+		return
+	}
+	if window, ok := app.Window.GetByName(settingsWindow); ok {
+		window.Close()
+	}
+}

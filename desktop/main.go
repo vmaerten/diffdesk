@@ -191,6 +191,8 @@ func run() error {
 	window.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
 		desktop.ready.Do(func() { go desktop.process(context.Background()) })
 	})
+	// Closing the review quits the app, so Settings must not keep it running.
+	window.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) { desktop.closeSettings() })
 	// Every menu item reaches the page as one named command: the shell takes the
 	// window's, the mounted review the rest. Single-letter shortcuts stay in the
 	// page, since a key without a modifier would also capture typing.
@@ -210,7 +212,7 @@ func run() error {
 	ghlMenu := appMenu.AddSubmenu("ghl")
 	ghlMenu.AddRole(application.About)
 	ghlMenu.AddSeparator()
-	item(ghlMenu, "Settings…", "CmdOrCtrl+,", command("settings"))
+	item(ghlMenu, "Settings…", "CmdOrCtrl+,", func(*application.Context) { desktop.openSettings() })
 	ghlMenu.AddSeparator()
 	ghlMenu.AddRole(application.ServicesMenu)
 	ghlMenu.AddSeparator()
@@ -221,7 +223,15 @@ func run() error {
 	ghlMenu.AddRole(application.Quit)
 	fileMenu := appMenu.AddSubmenu("File")
 	item(fileMenu, "Open Repository…", "CmdOrCtrl+o", func(*application.Context) { desktop.chooseRepository() })
-	item(fileMenu, "Close Review", "CmdOrCtrl+w", command("close-tab"))
+	closeReview := command("close-tab")
+	item(fileMenu, "Close Review", "CmdOrCtrl+w", func(ctx *application.Context) {
+		// The menu belongs to the app: in Settings, Cmd+W closes Settings, not the review behind it.
+		if current := native.Window.Current(); current != nil && current.Name() == settingsWindow {
+			current.Close()
+			return
+		}
+		closeReview(ctx)
+	})
 	appMenu.AddRole(application.EditMenu)
 	viewMenu := appMenu.AddSubmenu("View")
 	item(viewMenu, "Toggle Sidebar", "Ctrl+CmdOrCtrl+s", command("sidebar"))
