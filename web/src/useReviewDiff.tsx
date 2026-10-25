@@ -21,6 +21,7 @@ import type { TreeEntry } from './FileTree.tsx'
 import { diffFilesLoader, type ContextError } from './diffFiles.ts'
 import { searchDiff } from './diffSearch.ts'
 import { treeOrder } from './fileOrder.ts'
+import { commentRange } from './commentRange.ts'
 import type { SavedView } from './savedView.ts'
 import type {
   Comment,
@@ -430,14 +431,9 @@ export function useReviewDiff({
 
   /** Open a composer on a selected range, from the gutter or from `c`. */
   const openComposer = useStableCallback((path: string, range: SelectedLineRange) => {
-    const side = (range.endSide ?? range.side ?? 'additions') as DiffSide
-    // Dragged across the two columns of a split view, the ends count in
-    // different files: keep the line the gesture finished on rather than store a
-    // range whose bounds do not share a coordinate system.
-    const crossed =
-      range.side !== undefined && range.endSide !== undefined && range.side !== range.endSide
-    const start = crossed ? range.end : Math.min(range.start, range.end)
-    const end = crossed ? range.end : Math.max(range.start, range.end)
+    const item = allItems.find((entry) => entry.path === path)
+    const hunks = item?.type === 'diff' ? item.fileDiff.hunks : []
+    const { side, start, end } = commentRange(hunks, range)
     setComposer({ key: threadKey(path, side, end), path, side, start, end, editing: null })
   })
 

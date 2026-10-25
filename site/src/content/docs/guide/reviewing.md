@@ -19,7 +19,7 @@ Ref and commit views exclude uncommitted and untracked files. Reloading keeps th
 
 ## Comments
 
-Click the gutter's `+`, or select lines and press `c`. Comments belong to the reviewed branch and survive refreshes, restarts and reinstalls. Switching branches shows that branch's comments; returning restores the earlier ones. Changing the base or displayed commit on the same branch keeps its comments available.
+Click the gutter's `+`, or select lines and press `c`. A selection that runs from added or unchanged lines into removed ones, or across the columns of the split view, comments on the lines of the new file it covers. Comments belong to the reviewed branch and survive refreshes, restarts and reinstalls. Switching branches shows that branch's comments; returning restores the earlier ones. Changing the base or displayed commit on the same branch keeps its comments available.
 
 Each comment saves its original code. When those lines change, the comment shows the previous text; restoring the lines clears the stale marker. Comments are never deleted automatically. Editing changes the prose while preserving the original anchor and comparison.
 
@@ -60,6 +60,6 @@ Stack metadata is read from `.git/gh-stack`, including worktree-specific metadat
 
 Image changes show before/after previews; click to enlarge and Escape to close. PNG, JPEG, GIF, WebP, AVIF, SVG, ICO and BMP are supported. Unavailable or oversized previews show an explanation; the image limit is 20 MiB.
 
-**Settings** (`Cmd+,`) chooses the appearance (System follows macOS, or Light or Dark), a syntax theme for each mode, the code font and size, and the title bar: standard (52 px, the default) or compact (38 px), applied the next time ghl opens. The interface keeps neutral colours; only the code takes the theme's.
+**Settings** (`Cmd+,`) opens in a window of its own, beside the review, which follows each change as you make it. **Appearance** chooses System (follows macOS), Light or Dark and a syntax theme for each mode, **Code** the code font and size, and **Window** the title bar: standard (52 px, the default) or compact (38 px), applied the next time ghl opens. The interface keeps neutral colours; only the code takes the theme's.
 
 For setup and upgrades, see [installation](../installation/).

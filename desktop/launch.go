@@ -115,6 +115,8 @@ type desktopApp struct {
 	ready      sync.Once
 	tabs       reviewTabs
 	settings   *settingsStore
+	// One Settings window, however fast Cmd+, repeats.
+	opening sync.Mutex
 }
 
 func (d *desktopApp) startup(app *application.App, window *application.WebviewWindow) {
