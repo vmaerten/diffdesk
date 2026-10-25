@@ -93,6 +93,7 @@ export default function App({
   onFileMenu,
   languageRevision = null,
   symbolPanel = false,
+  showPullRequest = false,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -115,6 +116,8 @@ export default function App({
   languageRevision?: number | null
   /** Offers a Symbol tab beside Comments, with references, while code intelligence is on. */
   symbolPanel?: boolean
+  /** Show the reviewed branch's GitHub pull request in the title bar. */
+  showPullRequest?: boolean
 }) {
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
@@ -651,6 +654,7 @@ export default function App({
             onToggleComments={toggleComments}
             copiedAll={copied === 'all'}
             onCopyAll={() => copyComments()}
+            showPullRequest={showPullRequest}
           />,
           toolbar,
         )}

@@ -7,6 +7,8 @@ import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 
+import { fakeGh } from './fakeGh.ts'
+
 /** Git without the machine's global and system config, so results do not depend on it. */
 export const isolatedGit = {
   ...process.env,
@@ -29,6 +31,7 @@ export async function serveGo(
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...isolatedGit,
+      GHL_GH: fakeGh,
       ...(process.env.GHL_TEST_GIT_PATH ? { PATH: process.env.GHL_TEST_GIT_PATH } : {}),
       ...env,
     },

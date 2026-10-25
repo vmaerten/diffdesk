@@ -324,3 +324,38 @@ export interface ReferencesAnswer {
   external: number
   truncated: boolean
 }
+
+/** How ghl reaches GitHub, through its CLI: anything but ready shows no pull request. */
+export type GitHubState = 'ready' | 'missing' | 'signed-out' | 'unavailable'
+
+export interface PullRequest {
+  number: number
+  title: string
+  url: string
+  state: 'open' | 'draft' | 'merged' | 'closed'
+  author: string
+  base: string
+  review: 'approved' | 'changes-requested' | 'required' | ''
+  approvedBy: string[]
+  changesRequestedBy: string[]
+  requested: string[]
+  mergeable: 'mergeable' | 'conflicting' | 'unknown'
+  /** The local branch against the pull request's head; null when the checkout lacks that head. */
+  sync: { ahead: number; behind: number } | null
+  /** The branch is checked out with changes to tracked files. */
+  uncommitted: boolean
+}
+
+/** The body of `GET /r/:repoId/api/pull-request?branch=`. */
+export interface PullRequestPayload {
+  github: GitHubState
+  message?: string
+  pullRequest: PullRequest | null
+}
+
+/** The body of `GET /api/github`: who the GitHub CLI is signed in as. */
+export interface GitHubAccount {
+  github: GitHubState
+  message?: string
+  login?: string
+}

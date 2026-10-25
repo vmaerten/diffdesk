@@ -29,6 +29,7 @@ import whitespace from './suites/whitespace.ts'
 import fileMenu from './suites/fileMenu.ts'
 import codeIntelligence from './suites/codeIntelligence.ts'
 import resolve from './suites/resolve.ts'
+import github from './suites/github.ts'
 
 const SUITES: Suite[] = [
   themes,
@@ -50,6 +51,7 @@ const SUITES: Suite[] = [
   fileMenu,
   codeIntelligence,
   resolve,
+  github,
 ]
 
 /**
