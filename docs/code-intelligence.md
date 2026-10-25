@@ -74,13 +74,13 @@ Les lectures passent en `GET` : la règle de #188 vise les écritures, et le `PU
 | Langage | Extensions | Auto | Choix |
 |---|---|---|---|
 | Go | `.go` | gopls | Auto, Off |
-| TypeScript et JavaScript | `.ts` `.tsx` `.mts` `.cts` `.js` `.jsx` `.mjs` `.cjs` | dans le checkout, `node_modules/.bin/tsrs`, puis `tsc` si TypeScript ≥ 7 ; sur le PATH, `tsrs`, puis `typescript-language-server` | Auto, TypeScript 7 (tsc), tsrs, typescript-language-server, Off |
+| TypeScript et JavaScript | `.ts` `.tsx` `.mts` `.cts` `.js` `.jsx` `.mjs` `.cjs` | `tsrs` du checkout puis du PATH, puis le `tsc` du checkout si TypeScript ≥ 7, puis `typescript-language-server` | Auto, TypeScript 7 (tsc), tsrs, typescript-language-server, Off |
 | Python | `.py` `.pyi` | dans le checkout, `.venv/bin/basedpyright-langserver`, puis `pyright-langserver` ; sur le PATH, ces deux, puis `ty server` | Auto, basedpyright, pyright, ty, Off |
 | Terraform | `.tf` `.tfvars` | terraform-ls | Auto, Off |
 | Helm | `.yaml` `.yml` `.tpl` `.txt` du dossier `templates` d'un chart | helm_ls | Auto, Off |
 | Rust | `.rs` | rust-analyzer | Auto, Off |
 
-Le serveur du checkout passe en premier : c'est la version que le projet a choisie. Python, Terraform et Helm sont venus en cours de route (`code-intel/06-languages`). Helm ne se reconnaît pas à l'extension : ghl liste les `Chart.yaml` suivis par Git, et le statut donne leurs dossiers `templates` à la fenêtre.
+Le serveur du checkout passe en premier : c'est la version que le projet a choisie. Exception : tsrs passe avant le `tsc` du checkout, parce qu'il répond plus vite et avec moins de mémoire (79 contre 115 ms au premier survol, 99 contre 159 Mo sur ce dépôt). Python, Terraform et Helm sont venus en cours de route (`code-intel/06-languages`). Helm ne se reconnaît pas à l'extension : ghl liste les `Chart.yaml` suivis par Git, et le statut donne leurs dossiers `templates` à la fenêtre.
 
 ### Le nom sous le pointeur
 
