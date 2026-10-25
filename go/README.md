@@ -8,7 +8,7 @@ It supports text review including optional untracked files, context expansion, i
 
 `app.NewRuntime(assets)` returns the server; `Open` registers a repository and `Serve` answers on a listener until its context ends, then cancels Git work and drains requests. The runtime registers canonical repository roots: subdirectories and symlink aliases join the same entry, and linked worktrees get their own IDs and state. Selections belong to URLs, so registering a checkout never changes another tab's base. The registry lives in memory; comments and Viewed live on disk.
 
-`GET /api/health` reports `version`, `commit`, `buildDate`, the process ID and the registered repositories. `POST /api/repos` accepts an absolute `repoPath`, validates it with Git and canonicalizes it. Each repository answers under `/r/<repoId>/api/`: `diff`, `diff-files`, `comments`, `viewed`, `base`, `refs`, `commits` and `image`. Requests are accepted only for the `localhost`, `127.0.0.1` and `::1` hosts, and writes only from those origins over `http` or `https`. The app's asset handler forwards its private Wails document to this server and translates that origin only.
+`GET /api/health` reports `version`, `commit`, `buildDate`, the process ID and the registered repositories. `POST /api/repos` accepts an absolute `repoPath`, validates it with Git and canonicalizes it. Each repository answers under `/r/<repoId>/api/`: `diff`, `diff-files`, `comments`, `viewed`, `base`, `refs`, `commits`, `image` and `lsp`. Requests are accepted only for the `localhost`, `127.0.0.1` and `::1` hosts, and writes only from those origins over `http` or `https`. The app's asset handler forwards its private Wails document to this server and translates that origin only.
 
 `ghl-dev` registers one repository and prints `{port, repoId, url}` on its first line:
 
@@ -50,6 +50,14 @@ The base resolves in this order: an explicit URL or `--base` choice, gh-stack me
 PNG, JPEG, GIF, WebP, AVIF, SVG, ICO and BMP previews use the before/after view and enlargement overlay. Their URLs identify the exact comparison revisions and keep previous paths for renames. The UI decodes images and shows dimensions and sizes; Go serves the original bytes with their content type. Committed metadata uses Git object IDs without loading blob bytes, while worktree identity hashes a bounded snapshot. Image hashes replace patch hashes for Viewed, so the tick clears when the bytes change.
 
 `GET /r/<repoId>/api/image` accepts `revision=worktree` or a full 40/64-character Git object ID and a canonical repository-relative image path. Reads share the context reader's regular-file checks and 20 MiB bound. Symlinks, special files, malformed paths, non-image paths and oversized sources are refused. Responses use `no-store`, `nosniff` and a sandboxed CSP that keeps SVG scripts and external resources inactive even when opened directly. Unavailable previews keep their file and an explanation, without inventing line counts. `goImages.ts` checks patches, metadata, hashes and exact bytes against fixture contents, and the previews in the UI.
+
+## Language servers
+
+Code intelligence is a beta, off until the window sends the settings: `PUT /api/lsp` takes `{enabled, servers}`, where `servers` maps `go`, `typescript` and `rust` to `auto`, `off` or one of the language's servers. Turning code intelligence or a language off stops the servers it no longer allows. `GET /r/<repoId>/api/lsp` reports, for each language, the server this checkout would use, with its path and whether it comes from the checkout or PATH, and its state: `off`, `missing` with an install command, `idle`, `starting`, `indexing` with the server's progress, `ready` or `failed` with the end of its stderr.
+
+A server serves one repository and one language. It starts on first use in the repository root, stops after 10 minutes without a request, when the settings exclude it or when `Serve` returns, and a failed start is not retried for 30 seconds. It runs in the environment of the user's login shell started in the repository, so Homebrew, mise and `~/go/bin` are found even when the app was opened from the Finder; without the shell, PATH gains the usual install directories. Each server has its own process group, so stopping it also stops what it spawned.
+
+Auto prefers the checkout's own server: for TypeScript, `node_modules/.bin/tsrs`, then the checkout's `tsc` from TypeScript 7 or later (`tsc --lsp --stdio`), then `tsrs` and `typescript-language-server` on PATH. Go uses `gopls` and Rust `rust-analyzer`. `TestRealLanguageServersStart` starts the real gopls and TypeScript 7 when they are installed; the other tests use a fake server, the test binary run again.
 
 ## Development
 
