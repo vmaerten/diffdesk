@@ -396,6 +396,26 @@ export default {
       listed.groups.join() === 'src/extra.ts:2,src/index.ts:2' && listed.inDiff === 2,
       JSON.stringify(listed),
     )
+    const panelWidth = () =>
+      page.evaluate(
+        () =>
+          document.querySelector('.symbol-panel:not([hidden])')?.getBoundingClientRect().width ?? 0,
+      )
+    const narrow = await panelWidth()
+    const handle = await page.$('.panel-resizer')
+    const box = await handle?.boundingBox()
+    if (box) {
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(box.x - 120, box.y + box.height / 2, { steps: 4 })
+      await page.mouse.up()
+    }
+    const widened = await poll(panelWidth, (width) => width > narrow + 100)
+    check(
+      'the side panel widens as its handle moves left',
+      Math.abs(widened - narrow - 120) < 4,
+      JSON.stringify({ narrow, widened }),
+    )
     await page.click('.symbol-panel-references-head input')
     const filtered = await poll(panel, (state) => state.groups.length === 1)
     check(

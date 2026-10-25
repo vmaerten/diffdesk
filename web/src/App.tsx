@@ -160,6 +160,7 @@ export default function App({
   const treeRef = useRef<FileTreeHandle>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [sidebarWidth, setSidebarWidth] = useState(storedWidth)
+  const [panelWidth, setPanelWidth] = useState(() => storedWidth('panel'))
 
   /**
    * The single refresh path.
@@ -524,6 +525,10 @@ export default function App({
     setSidebarWidth(width)
     localStorage.setItem('ghl.sidebarWidth', String(width))
   }, [])
+  const resizePanel = useCallback((width: number) => {
+    setPanelWidth(width)
+    localStorage.setItem('ghl.panelWidth', String(width))
+  }, [])
 
   const baseSource = data ? BASE_SOURCES[data.base.source] : null
 
@@ -705,7 +710,12 @@ export default function App({
         <div
           className={`body${sidebarHidden ? ' sidebar-hidden' : ''}`}
           ref={bodyRef}
-          style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
+          style={
+            {
+              '--sidebar-width': `${sidebarWidth}px`,
+              '--panel-width': `${panelWidth}px`,
+            } as CSSProperties
+          }
         >
           <aside className="sidebar" id="changed-files" aria-label="Changed files">
             <div className="sidebar-head">
@@ -737,6 +747,7 @@ export default function App({
             {view}
             {footer}
           </div>
+          {commentsOpen && <Resizer containerRef={bodyRef} onCommit={resizePanel} pane="panel" />}
           {commentsPanel}
         </div>
       )}
