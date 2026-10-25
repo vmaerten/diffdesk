@@ -18,6 +18,7 @@ type Server struct {
 	id     string
 	store  *Store
 	assets fs.FS
+	lsp    *languageServers
 }
 
 func reply(w http.ResponseWriter, status int, body any) {
@@ -143,6 +144,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
 		w.WriteHeader(200)
 		_, _ = w.Write(data)
+	case route == "lsp" && r.Method == "GET" && s.lsp != nil:
+		reply(w, 200, s.lsp.status(s.repo.Path))
 	case route == "refs" && r.Method == "GET":
 		refs, err := s.repo.refs(r.Context())
 		if err != nil {

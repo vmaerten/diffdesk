@@ -47,11 +47,12 @@ type Runtime struct {
 	mu     sync.Mutex
 	assets fs.FS
 	repos  map[string]*Server
+	lsp    *languageServers
 }
 
 // NewRuntime serves the UI from assets; nil serves the API alone.
 func NewRuntime(assets fs.FS) *Runtime {
-	return &Runtime{assets: assets, repos: make(map[string]*Server)}
+	return &Runtime{assets: assets, repos: make(map[string]*Server), lsp: newLanguageServers()}
 }
 
 // Open registers the repository containing path.
@@ -68,7 +69,7 @@ func (s *Runtime) register(repo Repository) Registered {
 	defer s.mu.Unlock()
 	id := repoID(repo.Path)
 	if s.repos[id] == nil {
-		s.repos[id] = &Server{repo: repo, id: id, assets: s.assets, store: storeFor(repo)}
+		s.repos[id] = &Server{repo: repo, id: id, assets: s.assets, store: storeFor(repo), lsp: s.lsp}
 	}
 	return Registered{id, repo.Path}
 }
@@ -110,6 +111,17 @@ func (s *Runtime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		reply(w, 200, entry)
+	case r.URL.Path == "/api/lsp" && r.Method == "PUT":
+		var config lspConfig
+		if err := decode(w, r, &config); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		if err := s.lsp.configure(config); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		reply(w, 200, config)
 	default:
 		segments := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
 		if len(segments) >= 2 && segments[0] == "r" {
@@ -133,8 +145,10 @@ func (s *Runtime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Serve answers on listener until ctx ends, then cancels Git work and drains requests.
+// Serve answers on listener until ctx ends, then cancels Git work, drains
+// requests and stops the language servers.
 func (s *Runtime) Serve(ctx context.Context, listener net.Listener) error {
+	defer s.lsp.close()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	server := &http.Server{Handler: s, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second,
