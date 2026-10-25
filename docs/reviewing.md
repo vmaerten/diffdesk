@@ -38,7 +38,7 @@ ghl comments resolve 0455572a           # the reviewer: close it
 ghl comments reopen 0455572a "Still too vague."  # the reviewer: hand it back
 ```
 
-`check` prints only what the agent cannot read in the file: the comment, the reviewer's last reply, and the lines the file no longer has, such as removed lines or the lines a stale comment was written on. `--code` adds the current code and `--json` the export's format. It covers every comment on the branch, including files that left the comparison, and exits 0 when none is open, 1 while some are, and 2 on an error. Comment IDs are shown by their first 8 characters; any unique prefix of 4 or more works. The window shows the change after a reload.
+`check` prints only what the agent cannot read in the file: the comment, the reviewer's last reply, and the lines the file no longer has, such as removed lines or the lines a stale comment was written on. `--code` adds the current code and `--json` the export's format. It covers every comment on the branch, including files that left the comparison, and exits 0 when none is open, 1 while some are, and 2 on an error. Comment IDs are shown by their first 8 characters; any unique prefix of 4 or more works. The window badges answered comments, lists each comment's replies and hides resolved ones, from the panel, the diff and Copy alike; press R after a change made in the terminal.
 
 Older comments recover their branch from the target in their saved comparison. If only commit hashes were recorded, the branch is unknown. Those comments stay in the state file and can be read by explicitly reviewing the recorded target.
 
