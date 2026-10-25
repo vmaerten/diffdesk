@@ -58,6 +58,6 @@ Stack metadata is read from `.git/gh-stack`, including worktree-specific metadat
 
 Image changes show before/after previews; click to enlarge and Escape to close. PNG, JPEG, GIF, WebP, AVIF, SVG, ICO and BMP are supported. Unavailable or oversized previews show an explanation; the image limit is 20 MiB.
 
-**Settings** (`Cmd+,`) chooses the appearance (System follows macOS, or Light or Dark), a syntax theme for each mode, the code font and size, and the title bar: standard (52 px, the default) or compact (38 px), applied the next time ghl opens. The interface keeps neutral colours; only the code takes the theme's.
+**Settings** (`Cmd+,`) opens in a window of its own, beside the review, which follows each change as you make it. **Appearance** chooses System (follows macOS), Light or Dark and a syntax theme for each mode, **Code** the code font and size, and **Window** the title bar: standard (52 px, the default) or compact (38 px), applied the next time ghl opens. The interface keeps neutral colours; only the code takes the theme's.
 
 For setup and upgrades, see [installation](../installation/).

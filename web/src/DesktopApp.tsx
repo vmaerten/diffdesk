@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { useStableCallback, useWorkerPool } from '@pierre/diffs/react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
@@ -6,11 +6,10 @@ import { releaseUrl } from './reviewSelection.ts'
 import { sameCapacity, splitTabs, tabSizes } from './tabOverflow.ts'
 import { useAppearance } from './appearance.ts'
 import { commandOf } from './commands.ts'
-import SettingsSheet from './SettingsSheet.tsx'
 import ShortcutsSheet from './ShortcutsSheet.tsx'
 import {
-  codeFontFamily,
   codeLineHeight,
+  codeVariables,
   DEFAULT_SETTINGS,
   readSettings,
   type DesktopSettings,
@@ -52,7 +51,7 @@ declare global {
   interface Window {
     go?: { main: { desktopApp: DesktopAPI } }
     runtime?: {
-      EventsOn(name: string, callback: (state: Tabs) => void): () => void
+      EventsOn<T>(name: string, callback: (data: T) => void): () => void
       WindowSetTitle(title: string): void
     }
   }
@@ -63,7 +62,6 @@ const Review = memo(App)
 export default function DesktopApp() {
   const [state, setState] = useState(EMPTY)
   const [settings, setSettings] = useState<DesktopSettings | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
   const [sidebarHidden, setSidebarHidden] = useState(() => {
@@ -167,7 +165,7 @@ export default function DesktopApp() {
       setState(next)
     }
     accept.current = update
-    const unsubscribe = runtime.EventsOn('desktop:tabs', update)
+    const unsubscribe = runtime.EventsOn<Tabs>('desktop:tabs', update)
     apply(api.Tabs())
     const reload = () => {
       void save()
@@ -188,7 +186,6 @@ export default function DesktopApp() {
       const command = commandOf(event)
       if (command === 'reload') reload()
       else if (command === 'close-tab') closeActive()
-      else if (command === 'settings') setSettingsOpen(true)
       else if (command === 'shortcuts') setShortcutsOpen(true)
       else if (command === 'sidebar') toggleSidebar()
     }
@@ -201,33 +198,21 @@ export default function DesktopApp() {
       window.removeEventListener('keydown', cycle)
     }
   }, [apply, toggleSidebar])
+  // The Settings window saves each change, and Go sends it to every window. A
+  // change that arrives before the first read is the newer of the two.
   useEffect(() => {
+    const unsubscribe = window.runtime?.EventsOn<string>('desktop:settings', (raw) =>
+      setSettings(readSettings(raw)),
+    )
     window.go?.main.desktopApp
       .Settings()
-      .then((raw) => setSettings(readSettings(raw)))
+      .then((raw) => setSettings((current) => current ?? readSettings(raw)))
       .catch((cause) => {
         setError(String(cause))
-        setSettings(DEFAULT_SETTINGS)
+        setSettings((current) => current ?? DEFAULT_SETTINGS)
       })
+    return () => unsubscribe?.()
   }, [])
-  // Each change applies to the latest settings: two controls used before a
-  // render must not undo each other.
-  const settingsChanged = useRef(false)
-  const changeSettings = useStableCallback((patch: Partial<DesktopSettings>) => {
-    settingsChanged.current = true
-    setSettings((current) => current && { ...current, ...patch })
-  })
-  // Saved once changes settle: typing a font name would otherwise write, and
-  // race, on every keystroke. Loading them is not a change.
-  useEffect(() => {
-    if (!settings || !settingsChanged.current) return
-    const timer = setTimeout(() => {
-      void window.go?.main.desktopApp
-        .SaveSettings(JSON.stringify(settings))
-        .catch((cause) => setError(String(cause)))
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [settings])
   const tabsArea = useRef<HTMLDivElement>(null)
   const [tabsWidth, setTabsWidth] = useState(Infinity)
   useEffect(() => {
@@ -269,18 +254,7 @@ export default function DesktopApp() {
     tabsWidth,
   )
   return (
-    <div
-      className="desktop-shell"
-      style={
-        settings
-          ? ({
-              '--code-font': codeFontFamily(settings.codeFont),
-              '--code-size': `${settings.codeSize}px`,
-              '--code-line-height': `${codeLineHeight(settings.codeSize)}px`,
-            } as CSSProperties)
-          : undefined
-      }
-    >
+    <div className="desktop-shell" style={settings ? codeVariables(settings) : undefined}>
       <style>{desktopStyles}</style>
       <header className="desktop-titlebar">
         <div className="titlebar-start">
@@ -432,14 +406,6 @@ export default function DesktopApp() {
         </div>
       )}
       <ShortcutsSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      {settings && (
-        <SettingsSheet
-          open={settingsOpen}
-          settings={settings}
-          onChange={changeSettings}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
     </div>
   )
 }

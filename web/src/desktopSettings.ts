@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { DEFAULT_APPEARANCE, type Appearance, type AppearanceSettings } from './appearance.ts'
 import { THEMES, type ThemeId } from './theme.ts'
 
@@ -62,11 +63,46 @@ export function readSettings(raw: string): DesktopSettings {
   }
 }
 
+/**
+ * Saves one document at a time, and only the latest of those that came in the
+ * meantime: Wails runs each call on its own goroutine, so two saves in flight
+ * could land in either order.
+ */
+export function latestSaver(
+  save: (raw: string) => Promise<void>,
+  failed: (cause: unknown) => void,
+): (raw: string) => void {
+  let next: string | null = null
+  let saving = false
+  return (raw) => {
+    next = raw
+    if (saving) return
+    saving = true
+    void (async () => {
+      while (next !== null) {
+        const current = next
+        next = null
+        await save(current).catch(failed)
+      }
+      saving = false
+    })()
+  }
+}
+
 /** SF Mono is the system stack (--mono in desktop.css); any other family falls back to it. */
-export function codeFontFamily(font: string): string {
+function codeFontFamily(font: string): string {
   return font === 'SF Mono' ? 'var(--mono)' : `"${font}", var(--mono)`
 }
 
 export function codeLineHeight(size: number): number {
   return Math.round(size * 1.65)
+}
+
+/** The code font and size, as the --code-* properties desktop.css reads. */
+export function codeVariables(settings: DesktopSettings): CSSProperties {
+  return {
+    '--code-font': codeFontFamily(settings.codeFont),
+    '--code-size': `${settings.codeSize}px`,
+    '--code-line-height': `${codeLineHeight(settings.codeSize)}px`,
+  } as CSSProperties
 }
