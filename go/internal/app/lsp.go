@@ -213,6 +213,10 @@ type languageClient struct {
 	progress    map[string]progressReport
 	last        string
 	idle        *time.Timer
+
+	// The documents sent to the server, by repository path.
+	docMu sync.Mutex
+	docs  map[string]openDocument
 }
 
 func (c *languageClient) failure() error {

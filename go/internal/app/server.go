@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -146,6 +147,32 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(data)
 	case route == "lsp" && r.Method == "GET" && s.lsp != nil:
 		reply(w, 200, s.lsp.status(s.repo.Path))
+	case (route == "lsp/symbol" || route == "lsp/references") && r.Method == "GET" && s.lsp != nil:
+		q := r.URL.Query()
+		line, lineErr := strconv.Atoi(q.Get("line"))
+		character, characterErr := strconv.Atoi(q.Get("character"))
+		query := symbolQuery{Path: q.Get("path"), Line: line, Character: character, Token: q.Get("token")}
+		if lineErr != nil || characterErr != nil || !query.valid() {
+			fail(w, 400, fmt.Errorf("A path, line, character and identifier token are required"))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), lspQueryTimeout)
+		defer cancel()
+		var answer any
+		if route == "lsp/symbol" {
+			answer, err = s.symbol(ctx, query)
+		} else {
+			answer, err = s.references(ctx, query)
+		}
+		if err != nil {
+			status := 422
+			if errors.Is(err, errStaleSymbol) {
+				status = 409
+			}
+			fail(w, status, err)
+			return
+		}
+		reply(w, 200, answer)
 	case route == "refs" && r.Method == "GET":
 		refs, err := s.repo.refs(r.Context())
 		if err != nil {
@@ -183,6 +210,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err := review.attachImages(r.Context(), s.id); err != nil {
 			fail(w, 422, err)
 			return
+		}
+		if s.lsp != nil && review.Comparison.After == nil {
+			s.lsp.changed(s.repo.Path, review.Files)
 		}
 		state, notice, err := s.store.Snapshot()
 		if err != nil {
