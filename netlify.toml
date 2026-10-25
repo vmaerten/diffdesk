@@ -5,3 +5,11 @@
 [build.environment]
   NODE_VERSION = "24.21.0"
   PNPM_VERSION = "11.6.0"
+
+# The site was ghl.vmaerten.fr before the app became Diffdesk; keep that
+# domain as an alias so earlier links land on the same page.
+[[redirects]]
+  from = "https://ghl.vmaerten.fr/*"
+  to = "https://diffdesk.vmaerten.fr/:splat"
+  status = 301
+  force = true

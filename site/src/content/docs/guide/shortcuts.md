@@ -1,6 +1,6 @@
 ---
 title: Keyboard shortcuts
-description: Every key ghl answers to.
+description: Every key Diffdesk answers to.
 next: false
 ---
 

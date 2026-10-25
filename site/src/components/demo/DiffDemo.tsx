@@ -31,7 +31,7 @@ import './demo.css'
 type DiffStyle = 'unified' | 'split'
 type Lines = { path: string; side: DiffSide; start: number; end: number }
 type Note = { comment: DemoComment } | { composer: true }
-/** What the reviewer changes on a layer: ghl keeps it per branch. */
+/** What the reviewer changes on a layer: Diffdesk keeps it per branch. */
 type LayerState = { viewed: Set<string>; revealed: Set<string>; comments: DemoComment[] }
 type Line = { path: string; line: number }
 
@@ -355,7 +355,7 @@ export default function DiffDemo() {
         ref={frame}
         className="window demo"
         role="region"
-        aria-label="A ghl review to try"
+        aria-label="A Diffdesk review to try"
         tabIndex={0}
         onKeyDown={onKeyDown}
       >
@@ -486,7 +486,7 @@ export default function DiffDemo() {
           <span className="dot"></span>~/dev/api · {layer.branch}
         </div>
         <pre>
-          <span className="prompt">$</span> ghl comments{'\n'}
+          <span className="prompt">$</span> diffdesk comments{'\n'}
           {exportLines(text).map(({ line, heading }, index) => (
             <span key={index} className={heading ? 'heading' : undefined}>
               {line}

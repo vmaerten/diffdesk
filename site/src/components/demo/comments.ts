@@ -13,7 +13,7 @@ export function codeOf(
   return text.split('\n').slice(start - 1, end)
 }
 
-/** What `ghl comments` prints for this layer's comments, through the app's own export. */
+/** What `diffdesk comments` prints for this layer's comments, through the app's own export. */
 export function exportComments(layer: DemoLayer, comments: DemoComment[]): string {
   const range = rangeOf(layer)
   const served: ServedComment[] = comments.map((comment) => {

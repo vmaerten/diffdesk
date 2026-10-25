@@ -1,6 +1,6 @@
-# The ghl app
+# The Diffdesk app
 
-ghl opens the Go review server and the React interface in one reusable native window. It is built with Wails v3, pinned to v3.0.0-beta.34, for macOS 13 or later on Apple Silicon.
+Diffdesk opens the Go review server and the React interface in one reusable native window. It is built with Wails v3, pinned to v3.0.0-beta.34, for macOS 13 or later on Apple Silicon.
 
 ## Run
 
@@ -11,7 +11,7 @@ task desktop:run -- --repo .
 task desktop:run -- --repo /path/to/another/repository --base main
 ```
 
-The task builds an embedded React release and a locally signed application in `.task/desktop/ghl.app`. The terminal returns after opening the window. Later launches replace the shown review in the same window and bring it back from a minimised state; repeating the shown comparison does not reload its page. `Cmd+W` closes the review and leaves the welcome screen open.
+The task builds an embedded React release and a locally signed application in `.task/desktop/Diffdesk.app`. The terminal returns after opening the window. Later launches replace the shown review in the same window and bring it back from a minimised state; repeating the shown comparison does not reload its page. `Cmd+W` closes the review and leaves the welcome screen open.
 
 Review tabs are off for now: `GHL_DESKTOP_TABS=1` turns them back on, and the smoke tests run with it. A tab identifies a canonical checkout and its base/target parameters; repeated commands activate an existing matching tab. Commit, Working tree and Untracked selections belong to that tab's view and survive switching.
 
@@ -21,19 +21,19 @@ For daily use from a checkout, link the command to the built bundle:
 
 ```bash
 task install
-ghl                            # current repository, automatically resolved base
-ghl feature --repo ../another-repository --base main
-ghl comments --json            # this comparison's comments, without a window
-ghl --help
+diffdesk                            # current repository, automatically resolved base
+diffdesk feature --repo ../another-repository --base main
+diffdesk comments --json            # this comparison's comments, without a window
+diffdesk --help
 ```
 
 Installation creates a symlink in `~/.local/bin` pointing to the local bundle; that directory must be on PATH. `BIN_DIR` overrides the command directory. Keep the bundle at its build location while using that link. `task install` replaces the browser CLI that 0.1 and 0.2 copied there, and refuses to replace any other file that is not a link; `task uninstall` removes only the link. Released builds install through [Homebrew or mise](../site/src/content/docs/guide/installation.md).
 
-`ghl comments`, including `ghl comments resolve` and `reopen`, and `ghl --version` answer in the terminal and never reach the window. Any other invocation delivers its review to the running app, or starts the app first, and returns once the app has queued it.
+`diffdesk comments`, including `diffdesk comments resolve` and `reopen`, and `diffdesk --version` answer in the terminal and never reach the window. Any other invocation delivers its review to the running app, or starts the app first, and returns once the app has queued it.
 
-The application menu supplies **ghl → Settings…** (`Cmd+,`), **File → Open repository** (`Cmd+O`), native Edit commands, close tab (`Cmd+W`), reload (`Cmd+R`) and quit (`Cmd+Q`). Closing the window quits the app.
+The application menu supplies **Diffdesk → Settings…** (`Cmd+,`), **File → Open repository** (`Cmd+O`), native Edit commands, close tab (`Cmd+W`), reload (`Cmd+R`) and quit (`Cmd+Q`). Closing the window quits the app.
 
-The app uses its own neutral light and dark palettes. Settings is a window of its own, with five panes: Appearance (System follows macOS, or Light or Dark, and one syntax theme for each mode), Code (font and size), Window (standard or compact title bar), Intelligence (the beta language servers) and GitHub (whether to show the reviewed branch's pull request through the GitHub CLI, in the title bar or the status bar). It saves each change at once, and Go sends the saved settings to every window, so the review follows. The title bar applies at the next launch, since Wails sets a window's toolbar style only when it creates the window. `Cmd+W` closes Settings when it is in front, and closing the review closes it too. Settings persist in `~/Library/Application Support/ghl/settings.json`; settings saved by the earlier `ghl Desktop` app are read until the first change. A font that is not installed falls back to SF Mono, and Settings says so. Git and macOS system WebKit are the runtime requirements; a copied bundle needs no Node, pnpm, Task or Go.
+The app uses its own neutral light and dark palettes. Settings is a window of its own, with five panes: Appearance (System follows macOS, or Light or Dark, and one syntax theme for each mode), Code (font and size), Window (standard or compact title bar), Intelligence (the beta language servers) and GitHub (whether to show the reviewed branch's pull request through the GitHub CLI, in the title bar or the status bar). It saves each change at once, and Go sends the saved settings to every window, so the review follows. The title bar applies at the next launch, since Wails sets a window's toolbar style only when it creates the window. `Cmd+W` closes Settings when it is in front, and closing the review closes it too. Settings persist in `~/Library/Application Support/Diffdesk/settings.json`; until the first change, they are read from where the app kept them as ghl, then as `ghl Desktop`. A font that is not installed falls back to SF Mono, and Settings says so. Git and macOS system WebKit are the runtime requirements; a copied bundle needs no Node, pnpm, Task or Go.
 
 ## App icon
 
@@ -41,7 +41,7 @@ The editable icon is `icon/AppIcon.svg`; `icon/AppIcon.png` is its transparent 1
 
 ## Release archive
 
-`task release:snapshot` packages the complete `ghl.app`, the project MIT license and notices for the embedded frontend, Go standard library and linked Go dependencies as `ghl_<version>_darwin_arm64.zip`. The bundle is signed ad hoc, without Apple notarisation, and declares macOS 13 as its minimum. The [release guide](../docs/releases.md) covers its verification, the tag-only release workflow and the Homebrew cask. `task release:snapshot` and `task desktop:build` never publish.
+`task release:snapshot` packages the complete `Diffdesk.app`, the project MIT license and notices for the embedded frontend, Go standard library and linked Go dependencies as `diffdesk_<version>_darwin_arm64.zip`. The bundle is signed ad hoc, without Apple notarisation, and declares macOS 13 as its minimum. The [release guide](../docs/releases.md) covers its verification, the tag-only release workflow and the Homebrew cask. `task release:snapshot` and `task desktop:build` never publish.
 
 ## What is preserved
 

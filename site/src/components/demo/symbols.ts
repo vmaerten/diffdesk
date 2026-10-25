@@ -23,7 +23,7 @@ const running = (
   state: 'ready',
 })
 
-/** The servers ghl runs on the demo's checkout; Markdown has none. */
+/** The servers Diffdesk runs on the demo's checkout; Markdown has none. */
 export const languages: LanguageStatus[] = [
   running('typescript', 'TypeScript', ['.ts', '.tsx'], 'tsc'),
   running('go', 'Go', ['.go'], 'gopls'),
