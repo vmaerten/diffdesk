@@ -1703,6 +1703,8 @@ button.stack-branch:focus-visible::after {
 .symbol-snippet {
   margin: 4px 0;
   font: var(--code-size, 12px) / 1.55 var(--code-font, var(--mono));
+  /* As wide as the diff draws a tab: the browser's 8 spreads a Go struct across the card. */
+  tab-size: 2;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
