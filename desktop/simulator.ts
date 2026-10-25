@@ -27,6 +27,7 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
     clipboard: '',
     settings: sessionStorage.getItem('desktopFixture.settings') ?? '',
     revealed: [] as string[],
+    fileMenus: [] as { path: string; viewed: boolean }[],
   }
   type Snapshot = typeof state
   const listeners = new Set<(state: Snapshot) => void>()
@@ -80,6 +81,9 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
         },
         RevealInFinder: async (_tab, path) => {
           fixture.revealed.push(path)
+        },
+        OpenFileMenu: async (path, _x, _y, viewed) => {
+          fixture.fileMenus.push({ path, viewed })
         },
       },
     },

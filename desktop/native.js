@@ -12,6 +12,7 @@ const methods = [
   'Settings',
   'SaveSettings',
   'RevealInFinder',
+  'OpenFileMenu',
 ]
 window.go = {
   main: {

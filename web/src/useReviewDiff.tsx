@@ -751,7 +751,7 @@ export function useReviewDiff({
       if (!path) return null
       const isViewed = path in viewed
       return (
-        <div className="file-header-actions">
+        <div className="file-header-actions" data-header-path={path}>
           <CopyFileName key={path} path={path} />
           <label className="viewed-toggle" onClick={(event) => event.stopPropagation()}>
             <input
