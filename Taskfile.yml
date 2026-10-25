@@ -220,6 +220,18 @@ tasks:
       # Bypass toolchain shims that override GOBIN (including mise's Go shim).
       - GOBIN={{.ROOT_DIR | shellQuote}}/.task/bin {{.GO_ROOT | shellQuote}}/bin/go install github.com/air-verse/air@{{.AIR_VERSION}}
 
+  site:dev:
+    desc: Serve the website and guide with hot reload
+    dir: site
+    cmds:
+      - pnpm exec astro dev
+
+  site:build:
+    desc: Build the website and guide into site/dist
+    dir: site
+    cmds:
+      - pnpm exec astro build
+
   build:
     desc: Build the review server without the desktop window, for the tests
     cmds:

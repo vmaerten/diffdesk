@@ -1,0 +1,39 @@
+/* The landing page's two palettes: Starlight declares dark on :root and light on [data-theme='light']. */
+:root {
+  --sl-font: 'Geist Variable';
+  --sl-font-mono: 'Geist Mono Variable';
+
+  --sl-color-white: #ececea;
+  --sl-color-gray-1: #e4e4e2;
+  --sl-color-gray-2: #c9cac8;
+  --sl-color-gray-3: #8f9196;
+  --sl-color-gray-4: #5f6268;
+  --sl-color-gray-5: #2f3238;
+  --sl-color-gray-6: #22252a;
+  --sl-color-black: #1b1d21;
+
+  --sl-color-accent-low: #24324a;
+  --sl-color-accent: #8fb0e8;
+  --sl-color-accent-high: #c4d6f5;
+}
+
+:root[data-theme='light'] {
+  --sl-color-white: #111111;
+  --sl-color-gray-1: #1f2328;
+  --sl-color-gray-2: #3a3d42;
+  --sl-color-gray-3: #5c5f64;
+  --sl-color-gray-4: #8a8c90;
+  --sl-color-gray-5: #c9c9c5;
+  --sl-color-gray-6: #e8e8e5;
+  --sl-color-gray-7: #f0f0ed;
+  --sl-color-black: #f8f8f6;
+
+  --sl-color-accent-low: #dbe6f7;
+  --sl-color-accent: #2a66c9;
+  --sl-color-accent-high: #1d4f9f;
+}
+
+.site-title {
+  color: var(--sl-color-white);
+  font-family: var(--__sl-font-mono);
+}

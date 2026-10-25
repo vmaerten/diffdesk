@@ -1,8 +1,11 @@
-# Reviewing code
+---
+title: Reviewing code
+description: Comparisons, comments, Viewed files, bases and stacks, images and appearance.
+---
 
 Run `ghl` in a Git repository to open its review in the ghl window; running it in another checkout replaces that review. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, expand unchanged context, and search the whole diff with `Cmd+f`, including files outside the current viewport.
 
-This guide describes `main`. See the [changelog](../CHANGELOG.md) for changes that have not reached a published release.
+This guide describes `main`. See the [changelog](https://github.com/vmaerten/ghl/blob/main/CHANGELOG.md) for changes that have not reached a published release.
 
 ## Choose a comparison
 
@@ -34,7 +37,7 @@ Press `v` or tick a file to mark it Viewed. It folds in place and remains in the
 
 Right-click a file in the tree or on its header for **Viewed**, **Copy Path** and **Reveal in Finder** on that file; the Review menu does the same for the active file.
 
-Comments and Viewed are stored in `.git/ghl/state.json`, relative to the checkout's Git directory. Linked worktrees have their own state. See the [server guide](../go/README.md#state) for locking, atomic writes and corruption recovery.
+Comments and Viewed are stored in `.git/ghl/state.json`, relative to the checkout's Git directory. Linked worktrees have their own state. See the [server guide](https://github.com/vmaerten/ghl/blob/main/go/README.md#state) for locking, atomic writes and corruption recovery.
 
 ## Bases and stacks
 
@@ -58,4 +61,4 @@ Image changes show before/after previews; click to enlarge and Escape to close. 
 
 **Settings** (`Cmd+,`) chooses the appearance (System follows macOS, or Light or Dark), a syntax theme for each mode, the code font and size, and the title bar: standard (52 px, the default) or compact (38 px), applied the next time ghl opens. The interface keeps neutral colours; only the code takes the theme's.
 
-For setup and upgrades, see [installation](./installation.md).
+For setup and upgrades, see [installation](../installation/).

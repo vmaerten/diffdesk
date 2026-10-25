@@ -1,6 +1,6 @@
 # Releases
 
-A release is one archive, `ghl_<version>_darwin_arm64.zip`, with its SHA-256 in `checksums.txt`. It holds `ghl.app`, the project's MIT license and the notices of every third-party component it ships. The app runs on macOS 13 or later on Apple Silicon and needs Git. Consumers install it through [Homebrew or mise](./installation.md).
+A release is one archive, `ghl_<version>_darwin_arm64.zip`, with its SHA-256 in `checksums.txt`. It holds `ghl.app`, the project's MIT license and the notices of every third-party component it ships. The app runs on macOS 13 or later on Apple Silicon and needs Git. Consumers install it through [Homebrew or mise](../site/src/content/docs/guide/installation.md).
 
 ## Local snapshot
 
@@ -68,6 +68,26 @@ brew install --cask vmaerten/tap/ghl
 ```
 
 There is no paid signing, notarisation or automatic update. Go, Node, pnpm, Task and GoReleaser stay pinned in `.mise.toml`, with download checksums in `mise.lock`.
+
+## mise acceptance
+
+
+Use mise **2026.10.2**; `GHL_TEST_MISE` can point at that binary. All mise configuration, data, cache and state live in temporary directories outside the checkout: the tests change neither your mise configuration nor a global `ghl`.
+
+```bash
+task release:snapshot
+task release:mise
+
+# Once releases exist; PREVIOUS is optional:
+task release:mise:published VERSION=X.Y.Z
+task release:mise:published VERSION=X.Y.Z PREVIOUS=A.B.C
+```
+
+Before publication, `release:mise` routes the real mise GitHub client to a loopback API with mise's URL replacement setting. It serves the candidate archive, a predecessor (the candidate with another bundle marker, signed again), a prerelease and a corrupt download. It checks autodetection, the checksum fallback, activation and shims, `ghl --version` and `ghl comments` with only Git on PATH, the absence of quarantine and a valid signature, the window opened from the mise install, exact pins, `mise upgrade`, rollback, the corrupt download and uninstall. It creates no tag or release; it is fixture coverage, not evidence of a published download.
+
+Published mode downloads the actual GitHub assets, compares the installed executable with the checksummed archive, and upgrades from `PREVIOUS` when given; that version may be a 0.2.0-era CLI tarball. `GITHUB_TOKEN` or `GH_TOKEN` can authenticate the reads, without write access. The tests set `GHL_PORT=0`, so an old CLI can never start or replace a daemon on your own port. Reports land in `.task/mise-acceptance.json` and `.task/mise-published.json`, starting with `complete: false`.
+
+References: [GitHub backend](https://mise.jdx.dev/dev-tools/backends/github.html), [release age](https://mise.jdx.dev/configuration/settings.html#minimum_release_age), [URL replacements](https://mise.jdx.dev/url-replacements.html).
 
 ## License material
 

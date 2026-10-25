@@ -6,3 +6,6 @@ go/dist/
 __pycache__/
 desktop/assets/*
 !desktop/assets/.gitkeep
+
+site/dist/
+site/.astro/

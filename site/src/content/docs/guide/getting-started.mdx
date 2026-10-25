@@ -1,0 +1,59 @@
+---
+title: Getting started
+description: Install ghl, review your first branch and hand the comments over.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components'
+
+ghl is a local Git diff viewer for macOS with a GitHub-like review flow. Review branches, commits and working-tree changes in one native window, comment on lines, then copy the comments to an agent. It needs macOS 13 or later on Apple Silicon, and Git.
+
+## Install
+
+<Tabs syncKey="installer">
+<TabItem label="Homebrew">
+
+```bash
+brew install --cask vmaerten/tap/ghl
+```
+
+The cask installs `ghl.app` in `/Applications` and links `ghl` into Homebrew's `bin`.
+
+</TabItem>
+<TabItem label="mise">
+
+```bash
+mise use -g github:vmaerten/ghl@latest
+```
+
+mise keeps the app in its own install directory and puts `ghl` on PATH.
+
+</TabItem>
+</Tabs>
+
+Check it with `ghl --version`. [Installation](../installation/) covers upgrades, pinning, rollback and moving from the 0.2.0 browser CLI.
+
+## Review a branch
+
+Run `ghl` in a Git repository. The window opens on the current branch against its base, uncommitted work included, and the terminal is yours again; later invocations replace the review in the same window.
+
+```bash
+ghl                    # review the current branch, including uncommitted work
+ghl feature            # review another revision without checking it out
+ghl --base main        # choose the comparison base
+ghl --repo ../other    # review another checkout
+```
+
+Move through files with `j` and `k`, tick a file Viewed with `v`, and switch between unified and split diffs with `Cmd+1` and `Cmd+2`.
+
+## Comment and hand over
+
+Select lines and press `c`, or click the gutter's `+`. Comments belong to the reviewed branch and survive refreshes, restarts and reinstalls.
+
+`Shift+Cmd+C` copies every comment as Markdown, with paths, line numbers and the code each one is about. From the terminal, without opening the window:
+
+```bash
+ghl comments           # this comparison's comments with their code, as Markdown
+ghl comments --json    # the same, as JSON
+```
+
+Comments and Viewed live in each checkout's `.git/ghl/state.json`. Run `ghl --help` for every option, and read [Reviewing code](../reviewing/) for comparisons, stacks and how comments follow changing code.
