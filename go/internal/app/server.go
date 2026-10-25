@@ -176,37 +176,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		reply(w, 200, map[string]any{"commits": commits})
-	case route == "base" && r.Method == "POST":
-		var body struct {
-			Base   string  `json:"base"`
-			Target *string `json:"target"`
-		}
-		if err := decode(w, r, &body); err != nil {
-			fail(w, 400, err)
-			return
-		}
-		if !validRef(body.Base) || (body.Target != nil && !validRef(*body.Target)) {
-			fail(w, 400, fmt.Errorf("Valid base and target refs are required"))
-			return
-		}
-		branch := body.Target
-		if branch == nil {
-			branch, err = s.repo.currentBranch(r.Context())
-		} else {
-			var sha string
-			sha, err = s.repo.resolveRef(r.Context(), *branch)
-			if err == nil && sha == "" {
-				err = fmt.Errorf("Invalid target %q", *branch)
-			}
-		}
-		if err == nil {
-			err = s.repo.rememberBase(r.Context(), branch, body.Base)
-		}
-		if err != nil {
-			fail(w, 422, err)
-			return
-		}
-		reply(w, 200, map[string]any{"ok": true, "branch": branch, "base": body.Base})
 	case route == "diff" && r.Method == "GET":
 		if err := review.attachImages(r.Context(), s.id); err != nil {
 			fail(w, 422, err)

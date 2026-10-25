@@ -564,7 +564,7 @@ body,
   border-radius: 15px;
   background: var(--wash);
 }
-.compare-capsule :is(.capsule-ref, .capsule-commit) {
+.compare-capsule :is(.capsule-base, .capsule-ref, .capsule-commit) {
   max-width: 200px;
   height: 24px;
   padding: 0 8px 0 10px;
@@ -576,6 +576,10 @@ body,
   font: 600 12px/24px var(--mono);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.compare-capsule .capsule-base {
+  color: var(--text-dim);
+  font-weight: 500;
 }
 .compare-capsule .capsule-commit {
   max-width: 240px;
@@ -970,7 +974,7 @@ button.stack-branch:focus-visible::after {
   height: 26px;
   border-radius: 13px;
 }
-:root[data-titlebar='compact'] .compare-capsule :is(.capsule-ref, .capsule-commit),
+:root[data-titlebar='compact'] .compare-capsule :is(.capsule-base, .capsule-ref, .capsule-commit),
 :root[data-titlebar='compact'] .compare-capsule button.capsule-stack {
   height: 20px;
   border-radius: 10px;

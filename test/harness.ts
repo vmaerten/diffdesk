@@ -241,7 +241,7 @@ export interface TitlebarState {
  */
 export function titlebar(page: Page): Promise<TitlebarState> {
   return page.evaluate(`(() => ({
-    base: document.querySelector('[aria-label^="Base:"]')?.textContent?.replace('▾', '').trim() ?? null,
+    base: document.querySelector('.capsule-base')?.textContent?.trim() ?? null,
     target: document.querySelector('[aria-label^="Target:"]')?.textContent?.replace('▾', '').trim() ?? null,
     files: Number(document.querySelector('.sidebar-head .counter')?.textContent ?? NaN) || null,
     notes: [...document.querySelectorAll('.review-footer > span')].map((e) => e.textContent.trim()),

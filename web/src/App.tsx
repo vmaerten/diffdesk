@@ -67,8 +67,7 @@ const KEY_COMMANDS: Record<string, ReviewCommand> = {
 
 /** Shorter than the CLI's wording: this is a badge in a topbar, not a report. */
 const BASE_SOURCES: Record<BaseSource, string> = {
-  override: 'given on the command line',
-  remembered: 'remembered',
+  override: 'chosen for this review',
   stack: 'from the stack',
   guessed: 'guessed',
   trunk: 'trunk',
@@ -116,7 +115,7 @@ export default function App({
   const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(savedView?.diffStyle ?? 'unified')
   const [viewed, viewedPersistence] = useViewedPersistence(repoId, viewedStore)
   const [picking, setPicking] = useState<Picker | null>(null)
-  const [selection, select] = useReviewSelection(repoId, onRouteChange)
+  const [selection, select] = useReviewSelection(onRouteChange)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
   const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId, commentStore)
   /** Momentary, so the button can say the clipboard actually took it. */
@@ -254,13 +253,9 @@ export default function App({
     }
   })
 
-  const pickBase = useStableCallback(async (base: string | null) => {
+  const pickBase = useStableCallback((base: string | null) => {
     setPicking(null)
-    try {
-      await select.pickBase(base, data?.base.ref)
-    } catch (cause) {
-      setError(`could not save the base: ${cause instanceof Error ? cause.message : cause}`)
-    }
+    if (base !== data?.base.ref) select.pickBase(base)
   })
 
   const revealFile = useCallback((path: string) => treeRef.current?.reveal(path), [])
@@ -593,6 +588,19 @@ export default function App({
             <>
               Nothing to show — nothing but {data.untracked.length} untracked file(s), which the
               Untracked checkbox brings in.
+            </>
+          ) : data.comparison.before === (data.comparison.after ?? data.head.sha) &&
+            data.base.sha !== data.comparison.before ? (
+            // The base already holds every commit of the target, which a base
+            // picked by mistake does: say so, and offer the way back.
+            <>
+              Nothing to show — <code>{data.target.ref}</code> is already part of the base,{' '}
+              <code>{data.base.ref}</code>.{' '}
+              {data.base.source === 'override' && (
+                <button type="button" className="link" onClick={() => pickBase(null)}>
+                  Use the automatic base
+                </button>
+              )}
             </>
           ) : (
             <>

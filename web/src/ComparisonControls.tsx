@@ -16,6 +16,8 @@ export function comparisonNote(
   return null
 }
 
+const WORKING_TREE = '__working_tree__ this checkout working tree'
+
 /** The comparison state and actions the title bar renders. */
 export interface ComparisonProps {
   repoId: string | null
@@ -71,6 +73,16 @@ export function ComparisonSelector({
         kind="base"
         current={data.base.ref}
         source={data.base.source}
+        extra={
+          data.base.source === 'override'
+            ? {
+                value: '__automatic__ automatic base',
+                label: 'Automatic base',
+                hint: 'from the stack, the branch point or the trunk',
+                pick: null,
+              }
+            : undefined
+        }
         onPick={onPickBase}
         onClose={close}
       />
@@ -80,9 +92,10 @@ export function ComparisonSelector({
       repoId={repoId}
       kind="target"
       current={data.target.ref}
+      selected={data.target.workingTree ? WORKING_TREE : data.target.ref}
       source={data.target.workingTree ? 'working tree' : 'ref'}
       extra={{
-        value: '__working_tree__ this checkout working tree',
+        value: WORKING_TREE,
         label: 'This checkout (working tree)',
         hint: 'uncommitted work included',
         pick: null,

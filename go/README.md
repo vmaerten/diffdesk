@@ -39,7 +39,7 @@ Writes go to a unique neighbouring temporary file, synced and then renamed over 
 
 ## Review selection
 
-The base resolves in this order: an explicit URL or `--base` choice, a remembered `branch.<name>.ghlBase`, gh-stack metadata, the nearest-parent heuristic, then the detected trunk, which wins equal parent scores. Stack metadata is read from the worktree's Git directory, with the common directory as a compatibility fallback; missing or merged layers stay visible while the next layer uses the nearest live base below. Base choices from the picker are remembered for the reviewed branch. The URL controls each comparison: removing an explicit base re-enables resolution.
+The base resolves in this order: an explicit URL or `--base` choice, gh-stack metadata, the nearest-parent heuristic, then the detected trunk, which wins equal parent scores. Stack metadata is read from the worktree's Git directory, with the common directory as a compatibility fallback; missing or merged layers stay visible while the next layer uses the nearest live base below. A base picked in the window is a URL choice too, never written to Git configuration; `branch.<name>.ghlBase`, which older releases wrote, is ignored. Removing the explicit base re-enables resolution.
 
 `target` reviews a revision without checking it out. `committed` excludes staged and unstaged work from a checkout review. `commit` shows the selected commit's own diff against its first parent, or the empty tree for a root commit; its Viewed state uses that parent/commit pair. An unavailable commit falls back to the whole range with a notice. Invalid bases or targets fail explicitly.
 
