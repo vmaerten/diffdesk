@@ -814,7 +814,8 @@ button.stack-branch:focus-visible::after {
   font-size: 12px;
 }
 
-.command-palette kbd {
+.command-palette kbd,
+.symbol-card kbd {
   display: inline-grid;
   place-items: center;
   min-width: 18px;
@@ -853,4 +854,154 @@ button.stack-branch:focus-visible::after {
 
 .palette-foot .palette-count {
   margin-left: auto;
+}
+
+/* The app's symbol card, opened while ⌘ is held: outside the window, since it is placed on the page. */
+.symbol-card {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  box-shadow: 0 16px 40px -12px rgb(0 0 0 / 28%), 0 4px 12px -6px rgb(0 0 0 / 18%);
+  color: var(--text);
+  font: 400 12.5px var(--sans);
+  text-align: left;
+}
+
+.symbol-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 0;
+  color: var(--dim);
+  font-size: 11.5px;
+}
+
+.symbol-card .beta-badge {
+  margin-left: auto;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.symbol-card-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 12px 8px;
+}
+
+.symbol-signature,
+.symbol-snippet {
+  margin: 4px 0;
+  font: 12px / 1.55 var(--mono);
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.symbol-snippet {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--win-pane);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.symbol-snippet i {
+  display: inline-block;
+  min-width: 3ch;
+  margin-right: 10px;
+  color: var(--dim);
+  font-style: normal;
+  text-align: right;
+}
+
+.symbol-doc {
+  margin: 6px 0;
+  white-space: pre-wrap;
+}
+
+.symbol-card-status {
+  margin: 6px 0;
+  color: var(--dim);
+}
+
+.symbol-card-status.unavailable {
+  color: var(--orange);
+}
+
+.symbol-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  color: var(--dim);
+}
+
+.symbol-card-meta b {
+  color: var(--text);
+  font: 600 12px var(--mono);
+}
+
+.symbol-tag {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--wash);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.symbol-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.symbol-card-actions button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.symbol-card-actions button:hover {
+  background: var(--wash);
+}
+
+.symbol-card-hint {
+  margin-left: auto;
+  padding: 4px 8px 4px 0;
+  color: var(--dim);
+}
+
+/* The name under the pointer while ⌘ is held, drawn over the diff. */
+.symbol-underline {
+  position: fixed;
+  z-index: 30;
+  border-bottom: 1.5px solid var(--accent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  pointer-events: none;
 }

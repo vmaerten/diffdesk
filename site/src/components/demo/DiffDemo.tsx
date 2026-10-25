@@ -4,7 +4,7 @@ import {
   type FileDiffMetadata,
   type SelectedLineRange,
 } from '@pierre/diffs'
-import { FileDiff } from '@pierre/diffs/react'
+import { FileDiff, useStableCallback } from '@pierre/diffs/react'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { DiffSide, PullRequest } from '../../../../src/types.ts'
 import CommandPalette, {
@@ -15,6 +15,7 @@ import { commentRange } from '../../../../web/src/commentRange.ts'
 import { COMMANDS, type CommandName } from '../../../../web/src/commands.ts'
 import type { TreeEntry } from '../../../../web/src/FileTree.tsx'
 import PullRequestPill from '../../../../web/src/PullRequestPill.tsx'
+import { useSymbolCard, type TokenHandlers } from '../../../../web/src/SymbolCard.tsx'
 import { exportComments, exportLines } from './comments.ts'
 import {
   layers,
@@ -24,6 +25,7 @@ import {
   type DemoLayer,
 } from './fixtures.ts'
 import StackMenu from './StackMenu.tsx'
+import { languages, lookUpDemoSymbol } from './symbols.ts'
 import './demo.css'
 
 type DiffStyle = 'unified' | 'split'
@@ -31,6 +33,7 @@ type Lines = { path: string; side: DiffSide; start: number; end: number }
 type Note = { comment: DemoComment } | { composer: true }
 /** What the reviewer changes on a layer: ghl keeps it per branch. */
 type LayerState = { viewed: Set<string>; revealed: Set<string>; comments: DemoComment[] }
+type Line = { path: string; line: number }
 
 /** The app's commands the demo can run; the others need a repository or a window. */
 const DEMO_COMMANDS = new Set<CommandName>([
@@ -59,6 +62,8 @@ const KEYS: Record<string, CommandName> = {
 
 // The app's default syntax theme for each appearance.
 const themes = { light: 'github-light-default', dark: 'github-dark-dimmed' } as const
+
+const ignore = () => {}
 
 const reviews = layers.map((layer) => {
   const files = layer.files.map((file) => {
@@ -143,6 +148,7 @@ export default function DiffDemo() {
   const [active, setActive] = useState(() => firstUnread(startLayer))
   const [picker, setPicker] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [landing, setLanding] = useState<Line | null>(null)
   const pane = useRef<HTMLDivElement>(null)
   const frame = useRef<HTMLDivElement>(null)
   const palette = useRef<PaletteHandle>(null)
@@ -188,6 +194,53 @@ export default function DiffDemo() {
     update((each) => ({ ...each, revealed: new Set(each.revealed).add(path) }))
     show(path)
   }
+
+  // A line outside every hunk has nowhere to scroll to.
+  const canRevealLine = useStableCallback((path: string, line: number) =>
+    (review.files.find((file) => file.path === path)?.diff.hunks ?? []).some(
+      (hunk) => line >= hunk.additionStart && line < hunk.additionStart + hunk.additionCount,
+    ),
+  )
+
+  const revealLine = useStableCallback((path: string, line: number) => {
+    update((each) => ({ ...each, revealed: new Set(each.revealed).add(path) }))
+    setActive(path)
+    setLanding({ path, line })
+  })
+
+  const symbols = useSymbolCard({
+    repoId: 'demo',
+    enabled: true,
+    languages,
+    loadId: current,
+    canReveal: canRevealLine,
+    reveal: revealLine,
+    onAnswer: ignore,
+    theme: themes[theme],
+    ask: lookUpDemoSymbol,
+  })
+
+  // The line is selected as its file renders; scrolling waits for that render.
+  useEffect(() => {
+    if (!landing) return
+    const next = requestAnimationFrame(() => {
+      const file = cards.current.get(landing.path)
+      const row = file
+        ?.querySelector('diffs-container')
+        ?.shadowRoot?.querySelector(
+          `[data-line="${landing.line}"]:not([data-line-type="change-deletion"])`,
+        )
+      if (row && pane.current) {
+        const top = row.getBoundingClientRect().top - pane.current.getBoundingClientRect().top
+        pane.current.scrollTo({
+          top: pane.current.scrollTop + top - pane.current.clientHeight / 2,
+          behavior: 'smooth',
+        })
+      }
+      setLanding(null)
+    })
+    return () => cancelAnimationFrame(next)
+  }, [landing])
 
   function addComment(body: string) {
     if (!composer) return
@@ -392,6 +445,8 @@ export default function DiffDemo() {
                   viewed={state.viewed.has(file.path)}
                   comments={state.comments.filter((comment) => comment.path === file.path)}
                   composer={composer?.path === file.path ? composer : null}
+                  landing={landing?.path === file.path ? landing.line : null}
+                  tokens={symbols.handlers}
                   onToggleViewed={() => toggleViewed(file.path)}
                   onGutter={(selected) => {
                     setActive(file.path)
@@ -447,6 +502,7 @@ export default function DiffDemo() {
         onOpenFile={reveal}
         onRun={run}
       />
+      {symbols.card}
     </>
   )
 }
@@ -483,6 +539,9 @@ interface DemoFileDiffProps {
   viewed: boolean
   comments: DemoComment[]
   composer: Lines | null
+  /** The line a definition lands on, selected as the app selects it. */
+  landing: number | null
+  tokens: TokenHandlers
   onToggleViewed: () => void
   onGutter: (selected: SelectedLineRange) => void
   onSelect: (selected: SelectedLineRange | null) => void
@@ -491,8 +550,11 @@ interface DemoFileDiffProps {
   onResolve: (id: string) => void
 }
 
+type TokenEvent = Parameters<TokenHandlers['onTokenEnter']>[0]
+const context = (diff: FileDiffMetadata) => ({ item: { type: 'diff', fileDiff: diff } })
+
 function DemoFileDiff(props: DemoFileDiffProps) {
-  const { diff, theme, diffStyle, collapsed, viewed, comments, composer } = props
+  const { diff, theme, diffStyle, collapsed, viewed, comments, composer, landing } = props
   // The handlers change identity on every render; the options should not.
   const latest = useRef(props)
   latest.current = props
@@ -509,8 +571,21 @@ function DemoFileDiff(props: DemoFileDiffProps) {
       onGutterUtilityClick: (selected: SelectedLineRange) => latest.current.onGutter(selected),
       enableLineSelection: true,
       onLineSelected: (selected: SelectedLineRange | null) => latest.current.onSelect(selected),
+      // The symbol card asks which file a token is in, as the app's CodeView tells it.
+      onTokenEnter: (token: TokenEvent, event: PointerEvent) =>
+        latest.current.tokens.onTokenEnter(token, event, context(latest.current.diff)),
+      onTokenLeave: (token: TokenEvent, event: PointerEvent) =>
+        latest.current.tokens.onTokenLeave(token, event, context(latest.current.diff)),
+      onTokenClick: (token: TokenEvent, event: MouseEvent) =>
+        latest.current.tokens.onTokenClick(token, event, context(latest.current.diff)),
     }),
     [theme, diffStyle, collapsed],
+  )
+
+  const selectedLines = useMemo(
+    () =>
+      landing === null ? undefined : { start: landing, end: landing, side: 'additions' as const },
+    [landing],
   )
 
   const annotations = useMemo(() => {
@@ -529,6 +604,7 @@ function DemoFileDiff(props: DemoFileDiffProps) {
       fileDiff={diff}
       options={options}
       lineAnnotations={annotations}
+      selectedLines={selectedLines}
       disableWorkerPool
       renderHeaderMetadata={() => (
         <label className="viewed-toggle">
