@@ -79,7 +79,8 @@ func writeCommentExport(comments []ServedComment, repo, comparison string, jsonO
 		if c.Start != c.End {
 			label += fmt.Sprintf("–L%d", c.End)
 		}
-		label = "**" + label + "**"
+		// The ID is what reply, resolve and reopen take back.
+		label = "**" + label + "** · " + shortID(c.ID)
 		if c.Status != "" && c.Status != statusOpen {
 			label += " · " + c.Status
 		}

@@ -63,7 +63,7 @@ func TestCommentCheckAndReply(t *testing.T) {
 	if out, err := run("check", "--repo", repo, "--base", "HEAD"); err != nil || !strings.HasPrefix(out, "No open comments") {
 		t.Fatalf("answered comment still open: %v %q", err, out)
 	}
-	if out, err := run("--repo", repo, "--base", "HEAD"); err != nil || !strings.Contains(out, "**L1** · answered") || !strings.Contains(out, "↳ agent: Said hello") {
+	if out, err := run("--repo", repo, "--base", "HEAD"); err != nil || !strings.Contains(out, "**L1** · c0ffee00 · answered") || !strings.Contains(out, "↳ agent: Said hello") {
 		t.Fatalf("export without the reply: %v\n%s", err, out)
 	}
 	if _, err := run("check", "--bogus"); !errors.As(err, &status) || status.code != 2 {

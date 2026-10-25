@@ -47,7 +47,8 @@ export function asMarkdown(comments: ServedComment[], { range }: { range: string
       out.push('', `## ${file}`)
     }
     const status = comment.status && comment.status !== 'open' ? ` · ${comment.status}` : ''
-    out.push('', `**${lineLabel(comment)}**${status}`)
+    // The ID is what `ghl comments reply`, `resolve` and `reopen` take back.
+    out.push('', `**${lineLabel(comment)}** · ${comment.id.slice(0, 8)}${status}`)
     if (comment.code.length > 0) out.push('', '```', ...comment.code, '```')
     out.push('', comment.body)
     for (const reply of comment.replies ?? []) out.push('', `↳ ${reply.author}: ${reply.body}`)
