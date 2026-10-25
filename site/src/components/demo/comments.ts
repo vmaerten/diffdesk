@@ -1,4 +1,4 @@
-import { asMarkdown } from '../../../../src/export.ts'
+import { asText } from '../../../../src/export.ts'
 import type { ServedComment } from '../../../../src/types.ts'
 import type { DemoComment, DemoLayer } from './fixtures.ts'
 
@@ -28,5 +28,5 @@ export function exportComments(layer: DemoLayer, comments: DemoComment[]): strin
       createdAt: '',
     }
   })
-  return asMarkdown(served, { range })
+  return asText(served, { range })
 }

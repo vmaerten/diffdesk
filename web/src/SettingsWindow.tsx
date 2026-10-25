@@ -13,6 +13,7 @@ import {
   readSettings,
   type DesktopSettings,
   type LanguageId,
+  type PullRequestPlace,
 } from './desktopSettings.ts'
 import {
   homeRelative,
@@ -22,13 +23,18 @@ import {
   stateLabel,
   useLanguageStatus,
 } from './codeIntelligence.ts'
-import type { LanguageStatus } from '../../src/types.ts'
+import type { GitHubAccount, LanguageStatus } from '../../src/types.ts'
 import desktopStyles from './desktop.css?inline'
 
 const APPEARANCES: { value: Appearance; label: string }[] = [
   { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
+]
+
+const PULL_REQUEST_PLACES: { place: PullRequestPlace; label: string }[] = [
+  { place: 'title-bar', label: 'Title bar' },
+  { place: 'status-bar', label: 'Status bar' },
 ]
 
 const TITLE_BARS = [
@@ -47,7 +53,7 @@ const PREVIEW = `diff --git a/open.go b/open.go
  }
 `
 
-type Pane = 'appearance' | 'code' | 'window' | 'intelligence'
+type Pane = 'appearance' | 'code' | 'window' | 'github' | 'intelligence'
 
 const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
   {
@@ -97,6 +103,26 @@ const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
       >
         <rect x="3.5" y="5" width="17" height="14" rx="2.5" />
         <path d="M3.5 9.5h17" />
+      </svg>
+    ),
+  },
+  {
+    id: 'github',
+    label: 'GitHub',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="6.5" cy="6" r="2.5" />
+        <circle cx="6.5" cy="18" r="2.5" />
+        <circle cx="17.5" cy="18" r="2.5" />
+        <path d="M6.5 8.5v7M17.5 15.5V10a3 3 0 0 0-3-3H11M13 4.5 10.5 7 13 9.5" />
       </svg>
     ),
   },
@@ -210,6 +236,7 @@ export default function SettingsWindow() {
         {settings && pane === 'intelligence' && (
           <IntelligencePane settings={settings} onChange={change} />
         )}
+        {settings && pane === 'github' && <GitHubPane settings={settings} onChange={change} />}
       </main>
     </div>
   )
@@ -508,6 +535,77 @@ function IntelligencePane({ settings, onChange }: PaneProps) {
         })}
       </div>
     </>
+  )
+}
+
+/** Why pull requests show, or why they cannot. */
+function accountNote(account: GitHubAccount | null): string {
+  switch (account?.github) {
+    case 'ready':
+      return `From the GitHub CLI, signed in as ${account.login}.`
+    case 'missing':
+      return 'Needs the GitHub CLI: brew install gh, then gh auth login.'
+    case 'signed-out':
+      return 'The GitHub CLI is not signed in: run gh auth login in a terminal.'
+    case 'unavailable':
+      return `The GitHub CLI did not answer. ${account.message ?? ''}`
+    default:
+      return 'From the GitHub CLI.'
+  }
+}
+
+function GitHubPane({ settings, onChange }: PaneProps) {
+  const [account, setAccount] = useState<GitHubAccount | null>(null)
+  // Asked each time the pane shows: gh may have been installed or signed in meanwhile.
+  useEffect(() => {
+    if (!settings.showPullRequests) return
+    const controller = new AbortController()
+    fetch('/api/github', { signal: controller.signal })
+      .then((response) => response.json() as Promise<GitHubAccount>)
+      .then(setAccount)
+      .catch(() => {
+        if (!controller.signal.aborted) setAccount(null)
+      })
+    return () => controller.abort()
+  }, [settings.showPullRequests])
+  return (
+    <div className="settings-group">
+      <label className="settings-field">
+        <span className="settings-label">
+          Show pull requests
+          <small>
+            {settings.showPullRequests
+              ? accountNote(account)
+              : "The reviewed branch's pull request, in the title bar."}
+          </small>
+        </span>
+        <input
+          type="checkbox"
+          checked={settings.showPullRequests}
+          onChange={(event) => onChange({ showPullRequests: event.target.checked })}
+        />
+      </label>
+      {settings.showPullRequests && (
+        <div className="settings-field">
+          <span className="settings-label">Show it in</span>
+          <div className="settings-choices" role="group" aria-label="Show it in">
+            {PULL_REQUEST_PLACES.map(({ place, label }) => (
+              <button
+                key={place}
+                type="button"
+                aria-pressed={settings.pullRequestPlace === place}
+                onClick={() => onChange({ pullRequestPlace: place })}
+              >
+                <span className={`place-thumb ${place}`} aria-hidden="true">
+                  <span />
+                </span>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

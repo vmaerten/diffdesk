@@ -155,7 +155,11 @@ export interface Comment {
   /** Reviewed branch at creation; absent in older state files. */
   branch?: string
   createdAt: string
+  /** Resolved comments are closed but kept; absent until the server has it. */
+  status?: CommentStatus
 }
+
+export type CommentStatus = 'open' | 'resolved'
 
 /**
  * As served: whether the lines it was written against still read the same.
@@ -319,4 +323,51 @@ export interface ReferencesAnswer {
   /** References outside the repository, such as in a module cache. */
   external: number
   truncated: boolean
+}
+
+/** How ghl reaches GitHub, through its CLI: anything but ready shows no pull request. */
+export type GitHubState = 'ready' | 'missing' | 'signed-out' | 'unavailable'
+
+export interface PullRequest {
+  number: number
+  title: string
+  url: string
+  state: 'open' | 'draft' | 'merged' | 'closed'
+  author: string
+  base: string
+  review: 'approved' | 'changes-requested' | 'required' | ''
+  approvedBy: string[]
+  changesRequestedBy: string[]
+  requested: string[]
+  mergeable: 'mergeable' | 'conflicting' | 'unknown'
+  /** The local branch against the pull request's head; null when the checkout lacks that head. */
+  sync: { ahead: number; behind: number } | null
+  /** The branch is checked out with changes to tracked files. */
+  uncommitted: boolean
+  /** The commit GitHub ran the checks on. */
+  head: string
+  /** Check runs and commit statuses, the latest run of each. */
+  checks: Check[]
+}
+
+export interface Check {
+  name: string
+  state: 'passed' | 'failed' | 'skipped' | 'running' | 'pending'
+  url: string
+  startedAt?: string
+  completedAt?: string
+}
+
+/** The body of `GET /r/:repoId/api/pull-request?branch=`. */
+export interface PullRequestPayload {
+  github: GitHubState
+  message?: string
+  pullRequest: PullRequest | null
+}
+
+/** The body of `GET /api/github`: who the GitHub CLI is signed in as. */
+export interface GitHubAccount {
+  github: GitHubState
+  message?: string
+  login?: string
 }

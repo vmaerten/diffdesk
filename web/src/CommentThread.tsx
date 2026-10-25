@@ -37,6 +37,7 @@ interface Props {
   onCancel: () => void
   onEdit: (comment: Comment) => void
   onDelete: (id: string) => void
+  onResolve: (id: string) => void
   onRetry: (comment: ServedComment) => void
 }
 
@@ -54,6 +55,7 @@ export default function CommentThread({
   onCancel,
   onEdit,
   onDelete,
+  onResolve,
   onRetry,
 }: Props) {
   const area = useRef<HTMLTextAreaElement>(null)
@@ -80,6 +82,7 @@ export default function CommentThread({
             onCopy={onCopy}
             onEdit={onEdit}
             onDelete={onDelete}
+            onResolve={onResolve}
             onRetry={onRetry}
           />
         )

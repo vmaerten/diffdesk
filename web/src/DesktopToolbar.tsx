@@ -2,6 +2,8 @@ import { useState } from 'react'
 import Icon from './Icon.tsx'
 import ScopeControls from './ScopeControls.tsx'
 import StackPicker from './StackPicker.tsx'
+import PullRequestPill from './PullRequestPill.tsx'
+import type { PullRequest } from '../../src/types.ts'
 import {
   commitLabel,
   ComparisonSelector,
@@ -22,6 +24,8 @@ export default function DesktopToolbar(
     onToggleComments: () => void
     copiedAll: boolean
     onCopyAll: () => void
+    /** Shown here when the settings put it in the title bar. */
+    pullRequest: PullRequest | null
   },
 ) {
   const {
@@ -44,6 +48,7 @@ export default function DesktopToolbar(
     onToggleComments,
     copiedAll,
     onCopyAll,
+    pullRequest,
   } = props
   const [optionsOpen, setOptionsOpen] = useState(false)
   const stack = data?.base.stack
@@ -118,6 +123,13 @@ export default function DesktopToolbar(
       </div>
 
       <div className="titlebar-actions">
+        {pullRequest && data && (
+          <PullRequestPill
+            pr={pullRequest}
+            workingTree={data.target.workingTree}
+            place="title-bar"
+          />
+        )}
         <div className="segmented" role="group" aria-label="Diff layout">
           <button
             type="button"
@@ -170,7 +182,7 @@ export default function DesktopToolbar(
         <button
           type="button"
           className="titlebar-button titlebar-text copy-all"
-          title="Copy all comments as Markdown (⇧⌘C)"
+          title="Copy all comments for an agent (⇧⌘C)"
           disabled={commentCount === 0}
           onClick={onCopyAll}
         >

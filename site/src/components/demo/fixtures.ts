@@ -85,7 +85,7 @@ export function layerBelow(stack: Layer[], branch: string) {
 `
 
 export const firstComment: DemoComment = {
-  id: 'first',
+  id: '4e23a9bb-1f0c-4c8e-9a51-6d2f0b7e3c11',
   path: 'web/src/stack.ts',
   side: 'additions',
   start: 11,
@@ -95,7 +95,7 @@ export const firstComment: DemoComment = {
 
 // Not on the demo's layer at first: the export further down the page shows it beside the first one.
 export const goComment: DemoComment = {
-  id: 'go',
+  id: '05de55da-7b3e-4f21-8c94-2a6e1d9f4b02',
   path: 'go/internal/app/stack.go',
   side: 'additions',
   start: 8,
@@ -202,7 +202,7 @@ export function StackPicker({ stack, current, onPick }: Props) {
     viewed: ['docs/reviewing.md'],
     comments: [
       {
-        id: 'picker',
+        id: 'c3a8e1f4-5d27-4b90-a613-8e4f7c2d9a53',
         path: 'web/src/StackPicker.tsx',
         side: 'additions',
         start: 10,

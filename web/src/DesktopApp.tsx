@@ -421,6 +421,7 @@ export default function DesktopApp() {
                 settings.codeIntelligence && languageRevision > 0 ? languageRevision : null
               }
               symbolPanel={settings.symbolPanel}
+              pullRequests={settings.showPullRequests ? settings.pullRequestPlace : null}
             />
           )}
         </div>

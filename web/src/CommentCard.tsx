@@ -14,6 +14,7 @@ export default function CommentCard({
   onCopy,
   onEdit,
   onDelete,
+  onResolve,
   onRetry,
   collapsed = false,
   onToggle,
@@ -26,6 +27,7 @@ export default function CommentCard({
   onCopy: (comment: ServedComment) => void
   onEdit: (comment: ServedComment) => void
   onDelete: (id: string) => void
+  onResolve: (id: string) => void
   onRetry: (comment: ServedComment) => void
   collapsed?: boolean
   onToggle?: () => void
@@ -99,9 +101,17 @@ export default function CommentCard({
         )}
         <button
           type="button"
+          className="comment-resolve"
+          title="Close this comment and keep it"
+          onClick={() => onResolve(comment.id)}
+        >
+          Resolve
+        </button>
+        <button
+          type="button"
           className="comment-copy"
           onClick={() => onCopy(comment)}
-          title="Copy comment with code"
+          title="Copy comment"
           aria-label={copied ? 'Copied comment' : 'Copy comment'}
         >
           <Icon name="copy" />
