@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   LanguageServersStatus,
   LanguageStatus,
+  ReferencesAnswer,
   SymbolAnswer,
   SymbolQuery,
 } from '../../src/types.ts'
@@ -133,22 +134,29 @@ export const IDENTIFIER = /^[\p{L}\p{Nl}_$][\p{L}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}_
 /** The file changed on disk since the review loaded: a refresh is needed first. */
 export class StaleSymbolError extends Error {}
 
-export async function lookUpSymbol(
+async function ask<T>(
+  route: 'symbol' | 'references',
   repoId: string,
   query: SymbolQuery,
   signal?: AbortSignal,
-): Promise<SymbolAnswer> {
+): Promise<T> {
   const params = new URLSearchParams({
     path: query.path,
     line: String(query.line),
     character: String(query.character),
     token: query.token,
   })
-  const response = await fetch(`/r/${repoId}/api/lsp/symbol?${params}`, { signal })
+  const response = await fetch(`/r/${repoId}/api/lsp/${route}?${params}`, { signal })
   if (response.status === 409) throw new StaleSymbolError((await failure(response)).message)
   if (!response.ok) throw await failure(response)
-  return (await response.json()) as SymbolAnswer
+  return (await response.json()) as T
 }
+
+export const lookUpSymbol = (repoId: string, query: SymbolQuery, signal?: AbortSignal) =>
+  ask<SymbolAnswer>('symbol', repoId, query, signal)
+
+export const lookUpReferences = (repoId: string, query: SymbolQuery, signal?: AbortSignal) =>
+  ask<ReferencesAnswer>('references', repoId, query, signal)
 
 /** The language server that answers for path, if one can. */
 export function serverFor(languages: readonly LanguageStatus[], path: string) {

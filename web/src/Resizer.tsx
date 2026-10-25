@@ -1,18 +1,44 @@
 import { useCallback, useRef, type KeyboardEvent, type PointerEvent, type RefObject } from 'react'
 
-const MIN = 180
-const DEFAULT = 272
-/** Always leave room for the diff, whatever the window is. */
-const max = () => Math.max(MIN, Math.min(700, window.innerWidth - 420))
-const clamp = (value: number) => Math.max(MIN, Math.min(value, max()))
+/**
+ * The panes either side of the diff. The side panel grows as its handle moves
+ * left, the tree as its handle moves right.
+ */
+const PANES = {
+  sidebar: {
+    element: '.sidebar',
+    property: '--sidebar-width',
+    key: 'ghl.sidebarWidth',
+    min: 180,
+    initial: 272,
+    growth: 1,
+    label: 'Resize the file tree',
+  },
+  panel: {
+    element: '.comments-panel:not([hidden])',
+    property: '--panel-width',
+    key: 'ghl.panelWidth',
+    min: 260,
+    initial: 320,
+    growth: -1,
+    label: 'Resize the side panel',
+  },
+} as const
+export type Pane = keyof typeof PANES
 
-export const storedWidth = (): number => {
-  const stored = Number(localStorage.getItem('ghl.sidebarWidth'))
-  return stored ? clamp(stored) : DEFAULT
+/** Always leave room for the diff, whatever the window is. */
+const clamp = (pane: Pane, value: number) => {
+  const { min } = PANES[pane]
+  return Math.max(min, Math.min(value, Math.max(min, Math.min(700, window.innerWidth - 420))))
+}
+
+export const storedWidth = (pane: Pane = 'sidebar'): number => {
+  const stored = Number(localStorage.getItem(PANES[pane].key))
+  return stored ? clamp(pane, stored) : PANES[pane].initial
 }
 
 /**
- * The drag handle between the tree and the diff.
+ * The drag handle between the diff and a pane beside it.
  *
  * The drag never goes through React: it writes the width straight onto the
  * container as a custom property, and only commits to state when the pointer is
@@ -22,26 +48,28 @@ export const storedWidth = (): number => {
 interface ResizerProps {
   containerRef: RefObject<HTMLElement | null>
   onCommit: (width: number) => void
+  pane?: Pane
 }
 
-export default function Resizer({ containerRef, onCommit }: ResizerProps) {
+export default function Resizer({ containerRef, onCommit, pane = 'sidebar' }: ResizerProps) {
   const widthRef = useRef<number | null>(null)
+  const { element, property, initial, growth, label } = PANES[pane]
 
   const apply = useCallback(
     (width: number) => {
       widthRef.current = width
-      containerRef.current?.style.setProperty('--sidebar-width', `${width}px`)
+      containerRef.current?.style.setProperty(property, `${width}px`)
     },
-    [containerRef],
+    [containerRef, property],
   )
 
   const onPointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
-      const sidebar = containerRef.current?.querySelector('.sidebar')
-      if (!sidebar) return
+      const sized = containerRef.current?.querySelector(element)
+      if (!sized) return
 
       const startX = event.clientX
-      const startWidth = sidebar.getBoundingClientRect().width
+      const startWidth = sized.getBoundingClientRect().width
       event.preventDefault()
       // Stops the drag from selecting the diff, and keeps the cursor from
       // flickering back to `text` over whatever the pointer crosses.
@@ -50,7 +78,7 @@ export default function Resizer({ containerRef, onCommit }: ResizerProps) {
       widthRef.current = null
 
       const onMove = (move: globalThis.PointerEvent) =>
-        apply(clamp(startWidth + move.clientX - startX))
+        apply(clamp(pane, startWidth + (move.clientX - startX) * growth))
       const onUp = () => {
         window.removeEventListener('pointermove', onMove)
         window.removeEventListener('pointerup', onUp)
@@ -61,39 +89,39 @@ export default function Resizer({ containerRef, onCommit }: ResizerProps) {
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', onUp)
     },
-    [apply, containerRef, onCommit],
+    [apply, containerRef, onCommit, element, growth, pane],
   )
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      const step = event.shiftKey ? 50 : 10
-      const sidebar = containerRef.current?.querySelector('.sidebar')
-      if (!sidebar) return
-      const current = sidebar.getBoundingClientRect().width
+      const step = (event.shiftKey ? 50 : 10) * growth
+      const sized = containerRef.current?.querySelector(element)
+      if (!sized) return
+      const current = sized.getBoundingClientRect().width
 
       let next: number | null = null
       if (event.key === 'ArrowLeft') next = current - step
       else if (event.key === 'ArrowRight') next = current + step
-      else if (event.key === 'Home') next = DEFAULT
+      else if (event.key === 'Home') next = initial
       else return
 
       event.preventDefault()
       event.stopPropagation()
-      onCommit(clamp(next))
+      onCommit(clamp(pane, next))
     },
-    [containerRef, onCommit],
+    [containerRef, onCommit, element, growth, initial, pane],
   )
 
   return (
     <div
-      className="resizer"
+      className={`resizer ${pane}-resizer`}
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize the file tree"
+      aria-label={label}
       tabIndex={0}
       onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
-      onDoubleClick={() => onCommit(DEFAULT)}
+      onDoubleClick={() => onCommit(initial)}
       title="Drag to resize, double-click to reset"
     />
   )
