@@ -382,6 +382,9 @@ function WindowPane({ settings, onChange }: PaneProps) {
 const LANGUAGE_LABELS: Record<LanguageId, string> = {
   go: 'Go',
   typescript: 'TypeScript',
+  python: 'Python',
+  terraform: 'Terraform',
+  helm: 'Helm',
   rust: 'Rust',
 }
 

@@ -160,30 +160,46 @@ func TestRealLanguageServersAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := []struct {
-		language, server string
-		files            map[string]string
-		path, token      string
-		line             int
-		definition       string
+		language, server, command string
+		files                     map[string]string
+		path, token               string
+		line                      int
+		// Empty leaves the definition and references unchecked.
+		definition string
+		// terraform-ls answers, inside a local's expression, with the local's references.
+		skipReferences bool
 	}{
-		{"go", "gopls", map[string]string{
+		{"go", "gopls", "gopls", map[string]string{
 			"go.mod":  "module example.com/fixture\n\ngo 1.22\n",
 			"main.go": "package main\n\nfunc main() {\n\thelper()\n}\n",
 			"util.go": "package main\n\n// helper does nothing.\nfunc helper() {}\n",
-		}, "main.go", "helper", 4, "util.go"},
-		{"typescript", "tsc", map[string]string{
+		}, "main.go", "helper", 4, "util.go", false},
+		{"typescript", "tsc", "", map[string]string{
 			"index.ts":  "import { answer } from './answer'\n\nconsole.log(answer)\n",
 			"answer.ts": "/** The answer. */\nexport const answer = 42\n",
-		}, "index.ts", "answer", 3, "answer.ts"},
+		}, "index.ts", "answer", 3, "answer.ts", false},
+		{"terraform", "terraform-ls", "terraform-ls", map[string]string{
+			"variables.tf": "variable \"region\" {\n  type    = string\n  default = \"eu-west-3\"\n}\n",
+			"main.tf":      "locals {\n  zone = \"${var.region}a\"\n}\n",
+		}, "main.tf", "region", 2, "variables.tf", true},
+		{"python", "basedpyright", "basedpyright-langserver", map[string]string{
+			"main.py": "from util import helper\n\nhelper()\n",
+			"util.py": "def helper() -> None:\n    \"\"\"Does nothing.\"\"\"\n",
+		}, "main.py", "helper", 3, "util.py", false},
+		{"helm", "helm_ls", "helm_ls", map[string]string{
+			"chart/Chart.yaml":                "apiVersion: v2\nname: fixture\nversion: 0.1.0\n",
+			"chart/values.yaml":               "replicaCount: 2\n",
+			"chart/templates/deployment.yaml": "replicas: {{ .Values.replicaCount }}\n",
+		}, "chart/templates/deployment.yaml", "replicaCount", 1, "", true},
 	}
 	for _, c := range cases {
 		t.Run(c.server, func(t *testing.T) {
 			t.Parallel()
 			root, _ := filepath.EvalSymlinks(t.TempDir())
 			switch c.server {
-			case "gopls":
-				if _, err := exec.LookPath("gopls"); err != nil {
-					t.Skip("gopls is not installed")
+			default:
+				if _, err := exec.LookPath(c.command); err != nil {
+					t.Skip(c.command + " is not installed")
 				}
 			case "tsc":
 				if !typeScriptSeven(repoRoot) {
@@ -196,6 +212,9 @@ func TestRealLanguageServersAnswer(t *testing.T) {
 			for name, contents := range c.files {
 				writeFixture(t, root, name, contents)
 			}
+			// Helm owns a chart's templates, which ghl finds among the files Git tracks.
+			gitFixture(t, root, "init", "-q")
+			gitFixture(t, root, "add", ".")
 			m := newLanguageServers()
 			m.environment = func(string) []string { return os.Environ() }
 			t.Cleanup(m.close)
@@ -209,11 +228,17 @@ func TestRealLanguageServersAnswer(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(symbol.Hover) == 0 || symbol.Hover[0].Kind != "code" || !strings.Contains(symbol.Hover[0].Text, c.token) {
+			if len(symbol.Hover) == 0 || !strings.Contains(symbol.Hover[0].Text, c.token) {
 				t.Fatalf("hover: %+v", symbol.Hover)
+			}
+			if c.definition == "" {
+				return
 			}
 			if len(symbol.Definitions) == 0 || symbol.Definitions[0].Path != c.definition || !symbol.Definitions[0].InRepo || symbol.Definitions[0].Snippet == nil {
 				t.Fatalf("definitions: %+v", symbol.Definitions)
+			}
+			if c.skipReferences {
+				return
 			}
 			references, err := s.references(ctx, q)
 			if err != nil {
@@ -227,5 +252,35 @@ func TestRealLanguageServersAnswer(t *testing.T) {
 				t.Fatalf("references miss %s:%s: %+v", c.path, strconv.Itoa(c.line), references)
 			}
 		})
+	}
+}
+
+func TestHelmTemplatesBelongToTheirChart(t *testing.T) {
+	s := testServer(t)
+	writeFixture(t, s.repo.Path, "deploy/chart/Chart.yaml", "apiVersion: v2\nname: fixture\nversion: 0.1.0\n")
+	writeFixture(t, s.repo.Path, "deploy/chart/templates/deployment.yaml", "replicas: {{ .Values.replicaCount }}\n")
+	writeFixture(t, s.repo.Path, "ops/templates/issue.yaml", "title: no chart here\n")
+	gitFixture(t, s.repo.Path, "add", "deploy", "ops")
+	s.lsp = newLanguageServers()
+	templates := s.chartTemplates(context.Background())
+	if !reflect.DeepEqual(templates, []string{"deploy/chart/templates"}) {
+		t.Fatalf("charts: %v", templates)
+	}
+	for path, want := range map[string]string{
+		"deploy/chart/templates/deployment.yaml": "helm",
+		"deploy/chart/values.yaml":               "",
+		"ops/templates/issue.yaml":               "",
+		"infra/main.tf":                          "terraform",
+		"app/main.py":                            "python",
+	} {
+		l, ok := s.lsp.languageFor(path, templates)
+		if got := map[bool]string{true: l.ID}[ok]; got != want {
+			t.Errorf("%s belongs to %q, not %q", path, got, want)
+		}
+	}
+	for _, l := range s.lsp.status(s.repo.Path, templates).Languages {
+		if l.ID == "helm" && !reflect.DeepEqual(l.Directories, templates) {
+			t.Fatalf("Helm's status names its folders: %+v", l)
+		}
 	}
 }

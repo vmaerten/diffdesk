@@ -16,7 +16,14 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       compactTitleBar: true,
       codeIntelligence: true,
       symbolPanel: false,
-      languageServers: { go: 'off', typescript: 'tsrs', rust: 'auto' },
+      languageServers: {
+        go: 'off',
+        typescript: 'tsrs',
+        python: 'ty',
+        terraform: 'auto',
+        helm: 'off',
+        rust: 'auto',
+      },
     }),
   )
   check(
@@ -31,7 +38,14 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       compactTitleBar: true,
       codeIntelligence: true,
       symbolPanel: false,
-      languageServers: { go: 'off', typescript: 'tsrs', rust: 'auto' },
+      languageServers: {
+        go: 'off',
+        typescript: 'tsrs',
+        python: 'ty',
+        terraform: 'auto',
+        helm: 'off',
+        rust: 'auto',
+      },
     }),
   )
 

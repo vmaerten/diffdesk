@@ -146,7 +146,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		_, _ = w.Write(data)
 	case route == "lsp" && r.Method == "GET" && s.lsp != nil:
-		reply(w, 200, s.lsp.status(s.repo.Path))
+		reply(w, 200, s.lsp.status(s.repo.Path, s.chartTemplates(r.Context())))
 	case (route == "lsp/symbol" || route == "lsp/references") && r.Method == "GET" && s.lsp != nil:
 		q := r.URL.Query()
 		line, lineErr := strconv.Atoi(q.Get("line"))

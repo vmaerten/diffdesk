@@ -35,6 +35,9 @@ type languageServer struct {
 type language struct {
 	ID, Label  string
 	Extensions []string
+	// Owns only files under a chart's templates folder, which share their
+	// extensions with every other YAML file.
+	Templates bool
 	// In Auto's order.
 	Servers []languageServer
 	// What to run when no server is found.
@@ -56,6 +59,18 @@ func defaultLanguages() []language {
 				{Name: "tsc", Choice: "tsc", checkout: "node_modules/.bin/tsc", args: []string{"--lsp", "--stdio"}, usable: typeScriptSeven},
 				{Name: "typescript-language-server", Choice: "typescript-language-server", command: "typescript-language-server", args: []string{"--stdio"}},
 			}},
+		{ID: "python", Label: "Python", Extensions: []string{".py", ".pyi"}, Install: "uv tool install basedpyright",
+			Servers: []languageServer{
+				{Name: "basedpyright", Choice: "basedpyright", checkout: ".venv/bin/basedpyright-langserver", args: []string{"--stdio"}},
+				{Name: "pyright", Choice: "pyright", checkout: ".venv/bin/pyright-langserver", args: []string{"--stdio"}},
+				{Name: "basedpyright", Choice: "basedpyright", command: "basedpyright-langserver", args: []string{"--stdio"}},
+				{Name: "pyright", Choice: "pyright", command: "pyright-langserver", args: []string{"--stdio"}},
+				{Name: "ty", Choice: "ty", command: "ty", args: []string{"server"}},
+			}},
+		{ID: "terraform", Label: "Terraform", Extensions: []string{".tf", ".tfvars"}, Install: "brew install hashicorp/tap/terraform-ls",
+			Servers: []languageServer{{Name: "terraform-ls", Choice: "terraform-ls", command: "terraform-ls", args: []string{"serve"}}}},
+		{ID: "helm", Label: "Helm", Extensions: []string{".yaml", ".yml", ".tpl", ".txt"}, Templates: true, Install: "brew install helm-ls",
+			Servers: []languageServer{{Name: "helm_ls", Choice: "helm_ls", command: "helm_ls", args: []string{"serve"}}}},
 		{ID: "rust", Label: "Rust", Extensions: []string{".rs"}, Install: "rustup component add rust-analyzer",
 			Servers: []languageServer{{Name: "rust-analyzer", Choice: "rust-analyzer", command: "rust-analyzer"}}},
 	}
@@ -657,13 +672,15 @@ func (c *languageClient) stop() {
 }
 
 type languageStatus struct {
-	ID         string          `json:"id"`
-	Label      string          `json:"label"`
-	Extensions []string        `json:"extensions"`
-	Choice     string          `json:"choice"`
-	Choices    []string        `json:"choices"`
-	Server     *resolvedServer `json:"server"`
-	Version    string          `json:"version,omitempty"`
+	ID         string   `json:"id"`
+	Label      string   `json:"label"`
+	Extensions []string `json:"extensions"`
+	// For Helm, the charts' templates folders, as the language owns no other file.
+	Directories []string        `json:"directories,omitempty"`
+	Choice      string          `json:"choice"`
+	Choices     []string        `json:"choices"`
+	Server      *resolvedServer `json:"server"`
+	Version     string          `json:"version,omitempty"`
 	// off, missing, idle, starting, indexing, ready or failed.
 	State    string          `json:"state"`
 	Progress *progressReport `json:"progress,omitempty"`
@@ -677,7 +694,7 @@ type lspStatus struct {
 }
 
 // status says, for each language, which server root would use and what it is doing.
-func (m *languageServers) status(root string) lspStatus {
+func (m *languageServers) status(root string, templates []string) lspStatus {
 	env := m.env(root)
 	m.mu.Lock()
 	config := m.config
@@ -691,6 +708,9 @@ func (m *languageServers) status(root string) lspStatus {
 	result := lspStatus{Enabled: config.Enabled, Languages: []languageStatus{}}
 	for _, l := range m.languages {
 		entry := languageStatus{ID: l.ID, Label: l.Label, Extensions: l.Extensions, Choice: config.choice(l.ID), Choices: l.choices(), State: "idle"}
+		if l.Templates {
+			entry.Directories = templates
+		}
 		entry.Server = l.find(root, env, entry.Choice)
 		switch client := clients[l.ID]; {
 		case entry.Choice == "off":

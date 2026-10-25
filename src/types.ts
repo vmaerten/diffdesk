@@ -249,6 +249,8 @@ export interface LanguageStatus {
   id: string
   label: string
   extensions: string[]
+  /** For Helm, the charts' templates folders: the language owns no other file. */
+  directories?: string[]
   choice: string
   choices: string[]
   /** The server this checkout would run, or null when none is found. */

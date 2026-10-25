@@ -24,7 +24,7 @@ import { searchDiff } from './diffSearch.ts'
 import { treeOrder } from './fileOrder.ts'
 import { commentRange } from './commentRange.ts'
 import type { SavedView } from './savedView.ts'
-import { SYMBOL_CLASS, type TokenHandlers } from './SymbolCard.tsx'
+import type { TokenHandlers } from './SymbolCard.tsx'
 import type {
   Comment,
   DiffPayload,
@@ -685,14 +685,6 @@ export function useReviewDiff({
           border-bottom: var(--file-header-border, 0);
         }
         [data-diffs-header][data-sticky] { background-color: var(--file-header-bg, var(--diffs-bg)); }
-        [data-char].${SYMBOL_CLASS} {
-          border-radius: 3px;
-          background: color-mix(in srgb, var(--accent) 16%, transparent);
-          text-decoration: underline;
-          text-decoration-color: var(--accent);
-          text-underline-offset: 3px;
-          cursor: pointer;
-        }
       `,
       // Both gutter APIs are declared mutually exclusive and the library throws
       // on the pair, so this is the native "+" button, not a rendered one.
