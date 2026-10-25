@@ -23,14 +23,16 @@ const readPackage = (directory: string): Package =>
   JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'))
 
 // These npm archives omit notices for code and data vendored by Shiki.
-// Review the upstream material again when any of these package versions changes.
-const supplemental: Record<string, { version: string; files: string[] }> = {
+// Review the upstream material again before adding a version of these packages.
+const supplemental: Record<string, Record<string, string[]>> = {
   '@shikijs/engine-oniguruma': {
-    version: '4.4.2',
-    files: ['shiki-oniguruma-4.4.2.LICENSE', 'vscode-oniguruma-1.7.0.NOTICE'],
+    '4.4.2': ['shiki-oniguruma-4.4.2.LICENSE', 'vscode-oniguruma-1.7.0.NOTICE'],
   },
-  '@shikijs/langs': { version: '4.4.2', files: ['tm-grammars-1.32.0.NOTICE'] },
-  '@shikijs/themes': { version: '4.4.2', files: ['tm-themes-1.12.3.NOTICE'] },
+  '@shikijs/langs': { '4.4.2': ['tm-grammars-1.32.0.NOTICE'] },
+  '@shikijs/themes': {
+    '4.4.2': ['tm-themes-1.12.3.NOTICE'],
+    '4.5.0': ['tm-themes-1.12.12.NOTICE'],
+  },
 }
 
 function findPackage(from: string, name: string): string | undefined {
@@ -69,8 +71,9 @@ function visit(directory: string) {
   if (!pkg.license || !text) throw new Error(`Missing license material for ${id}`)
   const extra = supplemental[pkg.name]
   if (extra) {
-    if (pkg.version !== extra.version) throw new Error(`Review vendored license material for ${id}`)
-    for (const file of extra.files) {
+    const vendored = extra[pkg.version]
+    if (!vendored) throw new Error(`Review vendored license material for ${id}`)
+    for (const file of vendored) {
       text += `\n\n${file}\n\n${readFileSync(join(root, 'scripts/licenses', file), 'utf8').trim()}`
     }
   }

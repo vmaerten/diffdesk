@@ -145,7 +145,7 @@ def verify(dist):
         for marker in [
             'Go standard library', '@pierre/diffs@', '@pierre/trees@', 'react@', 'react-dom@', 'cmdk@',
             'Permission is hereby granted', 'Apache License', 'VS Code Oniguruma Bindings',
-            'oniguruma version 6.9.5_rev1', 'tm-grammars-1.32.0.NOTICE', 'tm-themes-1.12.3.NOTICE',
+            'oniguruma version 6.9.5_rev1', 'tm-grammars-1.32.0.NOTICE', 'tm-themes-1.12.3.NOTICE', 'tm-themes-1.12.12.NOTICE',
             'github.com/wailsapp/wails/v3@',
         ]:
             require(marker in text, f'Missing notice: {marker}')
