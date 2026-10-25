@@ -155,7 +155,11 @@ export interface Comment {
   /** Reviewed branch at creation; absent in older state files. */
   branch?: string
   createdAt: string
+  /** Resolved comments are closed but kept; absent until the server has it. */
+  status?: CommentStatus
 }
+
+export type CommentStatus = 'open' | 'resolved'
 
 /**
  * As served: whether the lines it was written against still read the same.

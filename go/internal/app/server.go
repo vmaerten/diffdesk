@@ -299,6 +299,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		reply(w, 200, map[string]any{"comment": saved})
+	case route == "comments/resolve" && r.Method == "POST":
+		var body struct {
+			ID string `json:"id"`
+		}
+		if err := decode(w, r, &body); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		saved, err := (repositoryComments{store: s.store}).setStatus(r.Context(), body.ID, statusResolved)
+		if err != nil {
+			failComment(w, err)
+			return
+		}
+		reply(w, 200, map[string]any{"comment": saved})
 	case route == "comments" && r.Method == "DELETE":
 		comments, err := (repositoryComments{store: s.store}).remove(r.Context(), r.URL.Query().Get("id"))
 		if err != nil {

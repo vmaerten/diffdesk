@@ -78,7 +78,7 @@ func TestExportKeepsCurrentFilesAndReportsCorruption(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
-	err = ExportComments(ctx, r.Path, Selection{Base: "main"}, true, &stdout, &stderr)
+	err = ExportComments(ctx, r.Path, Selection{Base: "main"}, false, true, &stdout, &stderr)
 	if err != nil || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"id": "current"`) || !strings.Contains(stdout.String(), `"id": "untracked"`) || strings.Contains(stdout.String(), `"id": "outside"`) {
 		t.Fatalf("wrong selection: %v %s %s", err, stdout.String(), stderr.String())
 	}
@@ -86,7 +86,7 @@ func TestExportKeepsCurrentFilesAndReportsCorruption(t *testing.T) {
 		t.Fatal(err)
 	}
 	stdout.Reset()
-	err = ExportComments(ctx, r.Path, Selection{Base: "main"}, true, &stdout, &stderr)
+	err = ExportComments(ctx, r.Path, Selection{Base: "main"}, false, true, &stdout, &stderr)
 	if err != nil || !json.Valid(stdout.Bytes()) || !strings.Contains(stderr.String(), ".corrupt") {
 		t.Fatalf("corruption lost or polluted JSON: %v %s %s", err, stdout.String(), stderr.String())
 	}

@@ -1,5 +1,5 @@
 import { createCommentPersistence, type CommentSubmission } from '../web/src/commentPersistence.ts'
-import type { ServedComment } from '../src/types.ts'
+import type { Comment, ServedComment } from '../src/types.ts'
 import type { Check } from './harness.ts'
 
 function deferred<T>() {
@@ -44,6 +44,7 @@ function setup() {
     typeof deferred<ServedComment>
   >)[] = []
   const deletes: ({ id: string } & ReturnType<typeof deferred<void>>)[] = []
+  const resolves: ({ id: string } & ReturnType<typeof deferred<Comment>>)[] = []
   const store = createCommentPersistence({
     save: (comment, query) => {
       const request = { comment, query, ...deferred<ServedComment>() }
@@ -55,9 +56,14 @@ function setup() {
       deletes.push(request)
       return request.promise
     },
+    resolve: (id) => {
+      const request = { id, ...deferred<Comment>() }
+      resolves.push(request)
+      return request.promise
+    },
   })
   store.refresh()([original], scope.commentBranch)
-  return { store, saves, deletes }
+  return { store, saves, deletes, resolves }
 }
 
 export async function runCommentPersistence(check: Check): Promise<void> {
@@ -118,6 +124,7 @@ export async function runCommentPersistence(check: Check): Promise<void> {
         return comment
       },
       remove: async () => {},
+      resolve: async () => original,
     })
     store.refresh()([], scope.commentBranch)
     await store.submit(draft('new comment', null), scope)
@@ -285,5 +292,21 @@ export async function runCommentPersistence(check: Check): Promise<void> {
     )
     saves[1]!.resolve(saves[1]!.comment)
     await retry
+  }
+  {
+    const { store, resolves } = setup()
+    const resolving = store.resolve('one').catch((error: unknown) => error)
+    check(
+      'resolving hides the comment at once',
+      store.getSnapshot().comments[0]?.status === 'resolved',
+    )
+    await Promise.resolve()
+    resolves[0]!.reject(new Error('resolve failed'))
+    check('a failed resolve reaches the caller', (await resolving) instanceof Error)
+    check(
+      '  and brings the comment back as it was',
+      store.getSnapshot().comments[0]?.status === undefined &&
+        store.getSnapshot().saving.size === 0,
+    )
   }
 }

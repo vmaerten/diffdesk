@@ -54,6 +54,7 @@ interface ReviewDiffOptions {
   onViewedChange: (path: string, viewed: boolean) => void
   onSubmit: (comment: CommentSubmission) => void
   onDelete: (id: string) => void
+  onResolve: (id: string) => void
   onRetry: (comment: ServedComment) => void
   onRevealFile: (path: string) => void
 }
@@ -106,6 +107,7 @@ export function useReviewDiff({
   onViewedChange: toggleViewed,
   onSubmit,
   onDelete: deleteComment,
+  onResolve: resolveComment,
   onRetry: save,
   onRevealFile: revealFile,
 }: ReviewDiffOptions) {
@@ -716,6 +718,7 @@ export function useReviewDiff({
           onCancel={closeComposer}
           onEdit={editComment}
           onDelete={deleteComment}
+          onResolve={resolveComment}
           onRetry={save}
         />
       )
@@ -731,6 +734,7 @@ export function useReviewDiff({
       closeComposer,
       editComment,
       deleteComment,
+      resolveComment,
       save,
       collapsedComments,
       toggleComment,
