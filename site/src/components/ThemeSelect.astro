@@ -1,0 +1,69 @@
+---
+// Shares Starlight's storage key, so the guide opens in the theme chosen here and the other way round.
+---
+
+<theme-select class="segmented icons" role="group" aria-label="Theme">
+  <button type="button" data-theme-choice="auto" aria-label="System theme" title="System">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 20h8M12 16v4"></path>
+    </svg>
+  </button>
+  <button type="button" data-theme-choice="light" aria-label="Light theme" title="Light">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+    </svg>
+  </button>
+  <button type="button" data-theme-choice="dark" aria-label="Dark theme" title="Dark">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path>
+    </svg>
+  </button>
+</theme-select>
+
+<script>
+  type Theme = 'auto' | 'light' | 'dark'
+
+  const storageKey = 'starlight-theme'
+  const lightScheme = matchMedia('(prefers-color-scheme: light)')
+
+  // Starlight stores an empty string for the system theme.
+  function loadTheme(): Theme {
+    try {
+      const stored = localStorage.getItem(storageKey)
+      return stored === 'light' || stored === 'dark' ? stored : 'auto'
+    } catch {
+      return 'auto'
+    }
+  }
+
+  function applyTheme(theme: Theme) {
+    document.documentElement.dataset.theme =
+      theme === 'auto' ? (lightScheme.matches ? 'light' : 'dark') : theme
+    for (const button of document.querySelectorAll<HTMLButtonElement>('[data-theme-choice]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.themeChoice === theme))
+    }
+  }
+
+  lightScheme.addEventListener('change', () => {
+    if (loadTheme() === 'auto') applyTheme('auto')
+  })
+
+  class ThemeSelect extends HTMLElement {
+    connectedCallback() {
+      applyTheme(loadTheme())
+      this.addEventListener('click', (event) => {
+        const button = (event.target as Element).closest<HTMLButtonElement>('[data-theme-choice]')
+        if (!button) return
+        const theme = button.dataset.themeChoice as Theme
+        try {
+          localStorage.setItem(storageKey, theme === 'auto' ? '' : theme)
+        } catch {
+          // Private windows may refuse storage: the choice then lasts for this page only.
+        }
+        applyTheme(theme)
+      })
+    }
+  }
+
+  customElements.define('theme-select', ThemeSelect)
+</script>
