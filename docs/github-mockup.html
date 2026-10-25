@@ -1,0 +1,1827 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ghl — GitHub</title>
+<style>
+:root { --page: #f2f2f0; --text: #111111; --dim: rgb(17 17 17 / 60%); --border: rgb(17 17 17 / 12%); --box: #ffffff;
+  --ok: #1f7a44; --ref: #2a66c9; --sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; --mono: ui-monospace, 'SF Mono', Menlo, monospace; color-scheme: light; }
+:root[data-theme='dark'] { --page: #0e0f12; --text: #ebebeb; --dim: rgb(230 230 230 / 56%); --border: rgb(230 230 230 / 12%); --box: #15171c;
+  --ok: #6fd094; --ref: #8fb6ff; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 var(--sans); }
+.page { max-width: 1340px; margin: 0 auto; padding: 40px 24px 80px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; }
+h1 { margin: 0 0 6px; font-size: 26px; }
+.lede { max-width: 860px; margin: 0 0 12px; color: var(--dim); }
+code { font: 12px var(--mono); }
+.theme { display: flex; gap: 4px; }
+.theme button { padding: 4px 10px; border: 1px solid var(--border); border-radius: 7px; background: none; color: var(--dim); font: 500 12px var(--sans); }
+.theme button[aria-pressed='true'] { background: var(--box); color: var(--text); }
+.group { margin: 56px 0 0; }
+h2 { margin: 0 0 4px; font-size: 21px; }
+.variant { margin: 36px 0 0; }
+h3 { display: flex; align-items: baseline; gap: 10px; margin: 0; font-size: 17px; }
+h3 .num { color: var(--dim); font: 600 14px var(--mono); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
+.tag { padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--dim); font: 600 11px var(--sans); }
+.tag.ok { color: var(--ok); } .tag.ref { color: var(--ref); }
+.desc { max-width: 900px; margin: 0 0 14px; color: var(--dim); }
+.frame { overflow-x: auto; }
+#a .win{--bg:#f8f8f6;--raised:#fff;--border:rgb(17 17 17 / 10%);--text:#111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--ok:#1f7a44;--bad:#b8312f;--warn:#9a5508;--merged:#7341c4;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash2:rgb(127 127 127 / 18%);--shadow:0 14px 36px -10px rgb(0 0 0 / 30%),0 0 0 1px rgb(0 0 0 / 7%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;position:relative;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--chrome);color:var(--text);font:13px/1.45 var(--sans)}
+#a .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 62%);--accent:#3d87f5;--ok:#6fd094;--bad:#ee7e7e;--warn:#eb9a3d;--merged:#b48cf2;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash2:rgb(127 127 127 / 26%);--shadow:0 14px 36px -10px rgb(0 0 0 / 70%),0 0 0 1px rgb(255 255 255 / 9%)}
+#a .win{--add:color-mix(in srgb,var(--ok) 10%,var(--raised));--del:color-mix(in srgb,var(--bad) 10%,var(--raised));--soft:color-mix(in srgb,var(--accent) 15%,transparent);--warnsoft:color-mix(in srgb,var(--warn) 11%,var(--raised))}
+#a .win *{box-sizing:border-box}
+#a :where(.win) button{font:inherit;color:inherit;cursor:default}
+#a .win svg{flex-shrink:0}
+#a .tbar{position:relative;flex-shrink:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(max-content,1fr);align-items:center;column-gap:12px;height:52px;padding:0 12px;border-bottom:1px solid var(--border)}
+#a .lights{position:absolute;top:20px;left:20px;display:flex;gap:8px}
+#a .lights i{width:12px;height:12px;border-radius:50%}
+#a .tl{display:flex;align-items:center;gap:4px;min-width:0;padding-left:72px}
+#a .path{padding:0 10px;font:600 12px var(--mono);white-space:nowrap}
+#a .path span{color:var(--dim)}
+#a .cap{grid-column:2;display:flex;align-items:center;gap:2px;height:30px;padding:2px;border:1px solid var(--border);border-radius:15px;background:var(--wash)}
+#a .tr{grid-column:3;justify-self:end;display:flex;align-items:center;gap:4px}
+#a .ib{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#a .ib svg{width:16px;height:16px}
+#a .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#a .ref.commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#a .caret{margin-left:4px;font-size:10px;opacity:.6}
+#a .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#a .seg{display:flex;gap:2px;height:28px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#a .seg button{padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#a .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#a .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#a .count{min-width:16px;padding:0 5px;border-radius:8px;background:var(--wash2);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#a .pr{display:flex;align-items:center;gap:6px;height:24px;padding:0 9px 0 8px;border:1px solid var(--border);border-radius:12px;background:var(--raised);color:var(--text);font:600 12px/1 var(--mono);white-space:nowrap}
+#a .pr svg{width:14px;height:14px}
+#a .pr .vs{width:1px;height:12px;background:var(--border)}
+#a .pr.on{border-color:transparent;background:var(--soft)}
+#a .mono{font-family:var(--mono)}
+#a .dim{color:var(--dim)}
+#a .c-open{color:var(--ok)}
+#a .c-draft{color:var(--dim)}
+#a .c-merged{color:var(--merged)}
+#a .c-closed{color:var(--bad)}
+#a .c-ok{color:var(--ok)}
+#a .c-bad{color:var(--bad)}
+#a .c-warn{color:var(--warn)}
+#a .body{flex:1;min-height:0;display:flex}
+#a .side{width:240px;flex-shrink:0;padding:10px 8px;border-right:1px solid var(--border)}
+#a .sh{display:flex;align-items:baseline;gap:6px;padding:2px 6px 8px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#a .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#a .row.dir{color:var(--dim)}
+#a .row.f{padding-left:24px}
+#a .row.on{background:var(--soft)}
+#a .st{margin-left:auto;font:600 11px var(--mono)}
+#a .st.m{color:var(--warn)}
+#a .st.a{color:var(--ok)}
+#a .main{flex:1;min-width:0;padding:12px 16px 0;overflow:hidden;background:var(--bg)}
+#a .file{overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--raised)}
+#a .fh{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-bottom:1px solid var(--border)}
+#a .fh b{font:600 12px var(--mono)}
+#a .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#a .ln.add{background:var(--add)}
+#a .ln.del{background:var(--del)}
+#a .no{width:44px;flex-shrink:0;padding-right:10px;text-align:right;color:var(--dim)}
+#a .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#a .ln.add .sg{color:var(--ok)}
+#a .ln.del .sg{color:var(--bad)}
+#a .status{flex-shrink:0;display:flex;align-items:center;gap:14px;height:32px;padding:0 14px;border-top:1px solid var(--border);background:var(--bg);color:var(--dim);font-size:12px;white-space:nowrap}
+#a .win kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;font:11px var(--mono)}
+#a .pop{position:absolute;z-index:5;border-radius:12px;background:var(--raised);box-shadow:var(--shadow)}
+#a .ext{display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:12px;font-weight:500;text-decoration:none;white-space:nowrap}
+#a .ext svg{width:12px;height:12px}
+#a .state{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px 0 7px;border-radius:11px;color:#fff;font:600 12px/1 var(--sans)}
+#a .state svg{width:14px;height:14px}
+#a .state.open{background:#1a7f37}
+#a .state.draft{background:#59636e}
+#a .state.merged{background:#7341c4}
+#a .state.closed{background:#b8312f}
+#a .facts{padding:6px 0;border-top:1px solid var(--border)}
+#a .fact{display:grid;grid-template-columns:16px 64px minmax(0,1fr) auto;align-items:center;column-gap:10px;min-height:34px;padding:4px 16px;font-size:12.5px}
+#a .fact svg{width:16px;height:16px}
+#a .fact .k{color:var(--dim)}
+#a .fact.hl{background:var(--warnsoft)}
+#a .chev{color:var(--dim);font-size:14px}
+#a .popfoot{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;border-top:1px solid var(--border);color:var(--dim);font-size:12px}
+#b .win{--bg:#f8f8f6;--raised:#fff;--border:rgb(17 17 17 / 10%);--text:#111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--ok:#1f7a44;--bad:#b8312f;--warn:#9a5508;--merged:#7341c4;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash2:rgb(127 127 127 / 18%);--shadow:0 14px 36px -10px rgb(0 0 0 / 30%),0 0 0 1px rgb(0 0 0 / 7%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;position:relative;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--chrome);color:var(--text);font:13px/1.45 var(--sans)}
+#b .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 62%);--accent:#3d87f5;--ok:#6fd094;--bad:#ee7e7e;--warn:#eb9a3d;--merged:#b48cf2;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash2:rgb(127 127 127 / 26%);--shadow:0 14px 36px -10px rgb(0 0 0 / 70%),0 0 0 1px rgb(255 255 255 / 9%)}
+#b .win{--add:color-mix(in srgb,var(--ok) 10%,var(--raised));--del:color-mix(in srgb,var(--bad) 10%,var(--raised));--soft:color-mix(in srgb,var(--accent) 15%,transparent);--warnsoft:color-mix(in srgb,var(--warn) 11%,var(--raised))}
+#b .win *{box-sizing:border-box}
+#b :where(.win) button{font:inherit;color:inherit;cursor:default}
+#b .win svg{flex-shrink:0}
+#b .tbar{position:relative;flex-shrink:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(max-content,1fr);align-items:center;column-gap:12px;height:52px;padding:0 12px;border-bottom:1px solid var(--border)}
+#b .lights{position:absolute;top:20px;left:20px;display:flex;gap:8px}
+#b .lights i{width:12px;height:12px;border-radius:50%}
+#b .tl{display:flex;align-items:center;gap:4px;min-width:0;padding-left:72px}
+#b .path{padding:0 10px;font:600 12px var(--mono);white-space:nowrap}
+#b .path span{color:var(--dim)}
+#b .cap{grid-column:2;display:flex;align-items:center;gap:2px;height:30px;padding:2px;border:1px solid var(--border);border-radius:15px;background:var(--wash)}
+#b .tr{grid-column:3;justify-self:end;display:flex;align-items:center;gap:4px}
+#b .ib{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#b .ib svg{width:16px;height:16px}
+#b .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#b .ref.commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#b .caret{margin-left:4px;font-size:10px;opacity:.6}
+#b .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#b .seg{display:flex;gap:2px;height:28px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#b .seg button{padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#b .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#b .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#b .count{min-width:16px;padding:0 5px;border-radius:8px;background:var(--wash2);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#b .mono{font-family:var(--mono)}
+#b .dim{color:var(--dim)}
+#b .c-open{color:var(--ok)}
+#b .c-ok{color:var(--ok)}
+#b .c-bad{color:var(--bad)}
+#b .c-warn{color:var(--warn)}
+#b .body{flex:1;min-height:0;display:flex}
+#b .side{width:288px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;padding:10px 8px;border-right:1px solid var(--border)}
+#b .sh{display:flex;align-items:center;gap:6px;padding:2px 6px 8px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#b .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#b .row.dir{color:var(--dim)}
+#b .row.f{padding-left:24px}
+#b .row.on{background:var(--soft)}
+#b .st{margin-left:auto;font:600 11px var(--mono)}
+#b .st.m{color:var(--warn)}
+#b .st.a{color:var(--ok)}
+#b .main{flex:1;min-width:0;padding:12px 16px 0;overflow:hidden;background:var(--bg)}
+#b .file{overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--raised)}
+#b .fh{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-bottom:1px solid var(--border)}
+#b .fh b{font:600 12px var(--mono)}
+#b .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#b .ln.add{background:var(--add)}
+#b .ln.del{background:var(--del)}
+#b .no{width:44px;flex-shrink:0;padding-right:10px;text-align:right;color:var(--dim)}
+#b .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#b .ln.add .sg{color:var(--ok)}
+#b .ln.del .sg{color:var(--bad)}
+#b .status{flex-shrink:0;display:flex;align-items:center;gap:14px;height:32px;padding:0 14px;border-top:1px solid var(--border);background:var(--bg);color:var(--dim);font-size:12px;white-space:nowrap}
+#b .win kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;font:11px var(--mono)}
+#b .ext{display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:12px;font-weight:500;text-decoration:none;white-space:nowrap}
+#b .ext svg{width:12px;height:12px}
+#b .state{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px 0 7px;border-radius:11px;color:#fff;font:600 12px/1 var(--sans)}
+#b .state svg{width:14px;height:14px}
+#b .state.open{background:#1a7f37}
+#b .card{margin:0 2px;padding:10px 10px 6px;border:1px solid var(--border);border-radius:10px;background:var(--raised)}
+#b .items{margin:8px -4px 0;padding:0;list-style:none}
+#b .it{display:flex;align-items:center;gap:8px;min-height:26px;padding:0 4px;border-radius:6px;font-size:12.5px}
+#b .it svg{width:14px;height:14px}
+#b .it.hl{background:var(--warnsoft)}
+#b .sub{margin:0 0 4px;padding:0 0 0 26px;list-style:none;font-size:12px}
+#b .sub li{display:flex;align-items:center;gap:6px;height:22px}
+#b .sub svg{width:12px;height:12px}
+#b .sub .t{margin-left:auto;color:var(--dim);font-family:var(--mono);font-size:11px}
+#c .win{--bg:#f8f8f6;--raised:#fff;--border:rgb(17 17 17 / 10%);--text:#111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--ok:#1f7a44;--bad:#b8312f;--warn:#9a5508;--merged:#7341c4;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash2:rgb(127 127 127 / 18%);--shadow:0 14px 36px -10px rgb(0 0 0 / 30%),0 0 0 1px rgb(0 0 0 / 7%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;position:relative;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--chrome);color:var(--text);font:13px/1.45 var(--sans)}
+#c .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 62%);--accent:#3d87f5;--ok:#6fd094;--bad:#ee7e7e;--warn:#eb9a3d;--merged:#b48cf2;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash2:rgb(127 127 127 / 26%);--shadow:0 14px 36px -10px rgb(0 0 0 / 70%),0 0 0 1px rgb(255 255 255 / 9%)}
+#c .win{--add:color-mix(in srgb,var(--ok) 10%,var(--raised));--del:color-mix(in srgb,var(--bad) 10%,var(--raised));--soft:color-mix(in srgb,var(--accent) 15%,transparent);--warnsoft:color-mix(in srgb,var(--warn) 11%,var(--raised))}
+#c .win *{box-sizing:border-box}
+#c :where(.win) button{font:inherit;color:inherit;cursor:default}
+#c .win svg{flex-shrink:0}
+#c .tbar{position:relative;flex-shrink:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(max-content,1fr);align-items:center;column-gap:12px;height:52px;padding:0 12px;border-bottom:1px solid var(--border)}
+#c .lights{position:absolute;top:20px;left:20px;display:flex;gap:8px}
+#c .lights i{width:12px;height:12px;border-radius:50%}
+#c .tl{display:flex;align-items:center;gap:4px;min-width:0;padding-left:72px}
+#c .path{padding:0 10px;font:600 12px var(--mono);white-space:nowrap}
+#c .path span{color:var(--dim)}
+#c .cap{grid-column:2;display:flex;align-items:center;gap:2px;height:30px;padding:2px;border:1px solid var(--border);border-radius:15px;background:var(--wash)}
+#c .tr{grid-column:3;justify-self:end;display:flex;align-items:center;gap:4px}
+#c .ib{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#c .ib svg{width:16px;height:16px}
+#c .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#c .ref.commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#c .caret{margin-left:4px;font-size:10px;opacity:.6}
+#c .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#c .seg{display:flex;gap:2px;height:28px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#c .seg button{padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#c .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#c .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#c .count{min-width:16px;padding:0 5px;border-radius:8px;background:var(--wash2);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#c .mono{font-family:var(--mono)}
+#c .dim{color:var(--dim)}
+#c .c-open{color:var(--ok)}
+#c .c-ok{color:var(--ok)}
+#c .c-bad{color:var(--bad)}
+#c .c-warn{color:var(--warn)}
+#c .body{flex:1;min-height:0;display:flex}
+#c .side{width:240px;flex-shrink:0;padding:10px 8px;border-right:1px solid var(--border)}
+#c .sh{display:flex;align-items:baseline;gap:6px;padding:2px 6px 8px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#c .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#c .row.dir{color:var(--dim)}
+#c .row.f{padding-left:24px}
+#c .row.on{background:var(--soft)}
+#c .st{margin-left:auto;font:600 11px var(--mono)}
+#c .st.m{color:var(--warn)}
+#c .st.a{color:var(--ok)}
+#c .main{flex:1;min-width:0;padding:12px 16px 0;overflow:hidden;background:var(--bg)}
+#c .file{overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--raised)}
+#c .fh{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-bottom:1px solid var(--border)}
+#c .fh b{font:600 12px var(--mono)}
+#c .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#c .ln.add{background:var(--add)}
+#c .ln.del{background:var(--del)}
+#c .no{width:44px;flex-shrink:0;padding-right:10px;text-align:right;color:var(--dim)}
+#c .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#c .ln.add .sg{color:var(--ok)}
+#c .ln.del .sg{color:var(--bad)}
+#c .status{flex-shrink:0;display:flex;align-items:center;gap:4px;height:32px;padding:0 8px;border-top:1px solid var(--border);background:var(--bg);color:var(--dim);font-size:12px;white-space:nowrap}
+#c .sb{display:flex;align-items:center;gap:6px;height:24px;padding:0 7px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px}
+#c .sb svg{width:14px;height:14px}
+#c .sb b{color:var(--text);font:600 12px var(--mono)}
+#c .sb.on{background:var(--soft);color:var(--text)}
+#c .win kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;font:11px var(--mono)}
+#c .tip{position:absolute;z-index:5;padding:10px 12px;border-radius:10px;background:var(--raised);box-shadow:var(--shadow);font-size:12.5px}
+#c .tip li{display:flex;align-items:center;gap:8px;height:24px}
+#c .tip svg{width:14px;height:14px}
+#c .tip .t{margin-left:auto;padding-left:18px;color:var(--dim);font:11px var(--mono)}
+#states .win{--bg:#f8f8f6;--raised:#fff;--border:rgb(17 17 17 / 10%);--text:#111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--ok:#1f7a44;--bad:#b8312f;--warn:#9a5508;--merged:#7341c4;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash2:rgb(127 127 127 / 18%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;position:relative;box-sizing:border-box;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:13px/1.45 var(--sans)}
+#states .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 62%);--accent:#3d87f5;--ok:#6fd094;--bad:#ee7e7e;--warn:#eb9a3d;--merged:#b48cf2;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash2:rgb(127 127 127 / 26%)}
+#states .win *{box-sizing:border-box}
+#states .win svg{flex-shrink:0}
+#states .mono{font-family:var(--mono)}
+#states .dim{color:var(--dim)}
+#states .c-open{color:var(--ok)}
+#states .c-draft{color:var(--dim)}
+#states .c-merged{color:var(--merged)}
+#states .c-closed{color:var(--bad)}
+#states .c-ok{color:var(--ok)}
+#states .c-bad{color:var(--bad)}
+#states .c-warn{color:var(--warn)}
+#states .pr{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px 0 8px;border:1px solid var(--border);border-radius:12px;background:var(--raised);color:var(--text);font:600 12px/1 var(--mono);white-space:nowrap}
+#states .pr svg{width:14px;height:14px}
+#states .pr .vs{width:1px;height:12px;background:var(--border)}
+#states .pr.none{color:var(--dim);font-family:var(--sans);font-weight:500}
+#states .skel{display:inline-block;width:84px;height:24px;border-radius:12px;background:var(--wash2)}
+#states .tab{width:100%;border-collapse:collapse}
+#states .tab th{padding:0 12px 8px 0;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-align:left;text-transform:uppercase}
+#states .tab td{height:44px;padding:0 12px 0 0;border-top:1px solid var(--border);vertical-align:middle}
+#states .tab td:first-child{width:220px;font-weight:600}
+#states .tab td:nth-child(2){width:190px}
+#states .tab td:last-child{color:var(--dim);font-size:12.5px}
+#states .set{border:1px solid var(--border);border-radius:10px;background:var(--raised)}
+#states .set h3{margin:0;padding:12px 14px 4px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#states .srow{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-top:1px solid var(--border)}
+#states .srow:first-of-type{border-top:0}
+#states .sw{position:relative;flex-shrink:0;width:32px;height:18px;margin-top:1px;border-radius:9px;background:var(--accent)}
+#states .sw::after{content:"";position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+#states .sw.offv{background:var(--wash2)}
+#states .sw.offv::after{right:auto;left:2px}
+#states .lab{font-weight:600}
+#states .help{margin-top:2px;color:var(--dim);font-size:12px}
+#states .help code{font:11.5px var(--mono);color:var(--text)}
+#states .cap{margin:18px 0 6px;color:var(--dim);font-size:12px;font-weight:600}
+#checks .win{--bg:#f8f8f6;--raised:#fff;--border:rgb(17 17 17 / 10%);--text:#111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--ok:#1f7a44;--bad:#b8312f;--warn:#9a5508;--merged:#7341c4;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash2:rgb(127 127 127 / 18%);--shadow:0 14px 36px -10px rgb(0 0 0 / 30%),0 0 0 1px rgb(0 0 0 / 7%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;position:relative;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--chrome);color:var(--text);font:13px/1.45 var(--sans)}
+#checks .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 62%);--accent:#3d87f5;--ok:#6fd094;--bad:#ee7e7e;--warn:#eb9a3d;--merged:#b48cf2;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash2:rgb(127 127 127 / 26%);--shadow:0 14px 36px -10px rgb(0 0 0 / 70%),0 0 0 1px rgb(255 255 255 / 9%)}
+#checks .win{--add:color-mix(in srgb,var(--ok) 10%,var(--raised));--del:color-mix(in srgb,var(--bad) 10%,var(--raised));--soft:color-mix(in srgb,var(--accent) 15%,transparent);--warnsoft:color-mix(in srgb,var(--warn) 11%,var(--raised));--badsoft:color-mix(in srgb,var(--bad) 7%,var(--raised))}
+#checks .win *{box-sizing:border-box}
+#checks :where(.win) button{font:inherit;color:inherit;cursor:default}
+#checks .win svg{flex-shrink:0}
+#checks .tbar{position:relative;flex-shrink:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(max-content,1fr);align-items:center;column-gap:12px;height:52px;padding:0 12px;border-bottom:1px solid var(--border)}
+#checks .lights{position:absolute;top:20px;left:20px;display:flex;gap:8px}
+#checks .lights i{width:12px;height:12px;border-radius:50%}
+#checks .tl{display:flex;align-items:center;gap:4px;min-width:0;padding-left:72px}
+#checks .path{padding:0 10px;font:600 12px var(--mono);white-space:nowrap}
+#checks .path span{color:var(--dim)}
+#checks .cap{grid-column:2;display:flex;align-items:center;gap:2px;height:30px;padding:2px;border:1px solid var(--border);border-radius:15px;background:var(--wash)}
+#checks .tr{grid-column:3;justify-self:end;display:flex;align-items:center;gap:4px}
+#checks .ib{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#checks .ib svg{width:16px;height:16px}
+#checks .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#checks .ref.commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#checks .caret{margin-left:4px;font-size:10px;opacity:.6}
+#checks .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#checks .seg{display:flex;gap:2px;height:28px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#checks .seg button{padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#checks .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#checks .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#checks .count{min-width:16px;padding:0 5px;border-radius:8px;background:var(--wash2);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#checks .pr{display:flex;align-items:center;gap:6px;height:24px;padding:0 9px 0 8px;border:1px solid var(--border);border-radius:12px;background:var(--raised);color:var(--text);font:600 12px/1 var(--mono);white-space:nowrap}
+#checks .pr svg{width:14px;height:14px}
+#checks .pr .vs{width:1px;height:12px;background:var(--border)}
+#checks .pr.on{border-color:transparent;background:var(--soft)}
+#checks .mono{font-family:var(--mono)}
+#checks .dim{color:var(--dim)}
+#checks .c-open{color:var(--ok)}
+#checks .c-ok{color:var(--ok)}
+#checks .c-bad{color:var(--bad)}
+#checks .c-warn{color:var(--warn)}
+#checks .body{flex:1;min-height:0;display:flex}
+#checks .side{width:240px;flex-shrink:0;padding:10px 8px;border-right:1px solid var(--border)}
+#checks .sh{display:flex;align-items:baseline;gap:6px;padding:2px 6px 8px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#checks .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#checks .row.dir{color:var(--dim)}
+#checks .row.f{padding-left:24px}
+#checks .row.on{background:var(--soft)}
+#checks .st{margin-left:auto;font:600 11px var(--mono)}
+#checks .st.m{color:var(--warn)}
+#checks .st.a{color:var(--ok)}
+#checks .main{flex:1;min-width:0;padding:12px 16px 0;overflow:hidden;background:var(--bg)}
+#checks .file{overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--raised)}
+#checks .fh{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-bottom:1px solid var(--border)}
+#checks .fh b{font:600 12px var(--mono)}
+#checks .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#checks .ln.add{background:var(--add)}
+#checks .ln.del{background:var(--del)}
+#checks .no{width:44px;flex-shrink:0;padding-right:10px;text-align:right;color:var(--dim)}
+#checks .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#checks .ln.add .sg{color:var(--ok)}
+#checks .ln.del .sg{color:var(--bad)}
+#checks .status{flex-shrink:0;display:flex;align-items:center;gap:14px;height:32px;padding:0 14px;border-top:1px solid var(--border);background:var(--bg);color:var(--dim);font-size:12px;white-space:nowrap}
+#checks .win kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;font:11px var(--mono)}
+#checks .pop{position:absolute;z-index:5;border-radius:12px;background:var(--raised);box-shadow:var(--shadow)}
+#checks .ext{display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:12px;font-weight:500;text-decoration:none;white-space:nowrap}
+#checks .ext svg{width:12px;height:12px}
+#checks .note{display:flex;align-items:flex-start;gap:8px;margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--warnsoft);font-size:12px}
+#checks .note svg{width:14px;height:14px;margin-top:1px}
+#checks .checks{margin:0;padding:4px 0;list-style:none;border-top:1px solid var(--border)}
+#checks .ck{display:grid;grid-template-columns:16px minmax(0,1fr) auto;column-gap:10px;align-items:center;min-height:36px;padding:4px 16px}
+#checks .ck svg{width:16px;height:16px}
+#checks .ck .n{font-weight:600}
+#checks .ck .w{color:var(--dim);font-weight:400}
+#checks .ck .t{color:var(--dim);font:11.5px var(--mono);text-align:right}
+#checks .ck.fail{background:var(--badsoft)}
+#checks .annot{grid-column:2 / 4;margin:4px 0 6px;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--raised);font:11.5px/1.5 var(--mono);white-space:pre-wrap}
+#checks .more{display:flex;align-items:center;gap:8px;height:34px;padding:0 16px;color:var(--dim);font-size:12.5px}
+#checks .popfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 16px;border-top:1px solid var(--border);color:var(--dim);font-size:12px}
+#checks .btn{height:26px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--raised);color:var(--text);font-size:12px;font-weight:500}
+#stack .win{--bg:#f8f8f6;--raised:#fff;--border:rgb(17 17 17 / 10%);--text:#111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--ok:#1f7a44;--bad:#b8312f;--warn:#9a5508;--merged:#7341c4;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash2:rgb(127 127 127 / 18%);--shadow:0 14px 36px -10px rgb(0 0 0 / 30%),0 0 0 1px rgb(0 0 0 / 7%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;position:relative;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--chrome);color:var(--text);font:13px/1.45 var(--sans)}
+#stack .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 62%);--accent:#3d87f5;--ok:#6fd094;--bad:#ee7e7e;--warn:#eb9a3d;--merged:#b48cf2;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash2:rgb(127 127 127 / 26%);--shadow:0 14px 36px -10px rgb(0 0 0 / 70%),0 0 0 1px rgb(255 255 255 / 9%)}
+#stack .win{--add:color-mix(in srgb,var(--ok) 10%,var(--raised));--del:color-mix(in srgb,var(--bad) 10%,var(--raised));--soft:color-mix(in srgb,var(--accent) 15%,transparent)}
+#stack .win *{box-sizing:border-box}
+#stack :where(.win) button{font:inherit;color:inherit;cursor:default}
+#stack .win svg{flex-shrink:0}
+#stack .tbar{position:relative;flex-shrink:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(max-content,1fr);align-items:center;column-gap:12px;height:52px;padding:0 12px;border-bottom:1px solid var(--border)}
+#stack .lights{position:absolute;top:20px;left:20px;display:flex;gap:8px}
+#stack .lights i{width:12px;height:12px;border-radius:50%}
+#stack .tl{display:flex;align-items:center;gap:4px;min-width:0;padding-left:72px}
+#stack .path{padding:0 10px;font:600 12px var(--mono);white-space:nowrap}
+#stack .path span{color:var(--dim)}
+#stack .cap{grid-column:2;display:flex;align-items:center;gap:2px;height:30px;padding:2px;border:1px solid var(--border);border-radius:15px;background:var(--wash)}
+#stack .tr{grid-column:3;justify-self:end;display:flex;align-items:center;gap:4px}
+#stack .ib{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#stack .ib svg{width:16px;height:16px}
+#stack .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#stack .ref.commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#stack .chip{display:flex;align-items:center;gap:5px;height:24px;padding:0 8px;border:0;border-radius:12px;background:var(--soft);color:var(--accent);font:600 12px/24px var(--mono);white-space:nowrap}
+#stack .chip svg{width:14px;height:14px}
+#stack .caret{margin-left:4px;font-size:10px;opacity:.6}
+#stack .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#stack .seg{display:flex;gap:2px;height:28px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#stack .seg button{padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#stack .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#stack .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#stack .count{min-width:16px;padding:0 5px;border-radius:8px;background:var(--wash2);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#stack .pr{display:flex;align-items:center;gap:6px;height:24px;padding:0 9px 0 8px;border:1px solid var(--border);border-radius:12px;background:var(--raised);color:var(--text);font:600 12px/1 var(--mono);white-space:nowrap}
+#stack .pr svg{width:14px;height:14px}
+#stack .pr .vs{width:1px;height:12px;background:var(--border)}
+#stack .mono{font-family:var(--mono)}
+#stack .dim{color:var(--dim)}
+#stack .c-open{color:var(--ok)}
+#stack .c-draft{color:var(--dim)}
+#stack .c-merged{color:var(--merged)}
+#stack .c-ok{color:var(--ok)}
+#stack .c-bad{color:var(--bad)}
+#stack .c-warn{color:var(--warn)}
+#stack .body{flex:1;min-height:0;display:flex}
+#stack .side{width:240px;flex-shrink:0;padding:10px 8px;border-right:1px solid var(--border)}
+#stack .sh{display:flex;align-items:baseline;gap:6px;padding:2px 6px 8px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#stack .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#stack .row.dir{color:var(--dim)}
+#stack .row.f{padding-left:24px}
+#stack .row.on{background:var(--soft)}
+#stack .st{margin-left:auto;font:600 11px var(--mono)}
+#stack .st.m{color:var(--warn)}
+#stack .st.a{color:var(--ok)}
+#stack .main{flex:1;min-width:0;padding:12px 16px 0;overflow:hidden;background:var(--bg)}
+#stack .file{overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--raised)}
+#stack .fh{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-bottom:1px solid var(--border)}
+#stack .fh b{font:600 12px var(--mono)}
+#stack .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#stack .ln.add{background:var(--add)}
+#stack .ln.del{background:var(--del)}
+#stack .no{width:44px;flex-shrink:0;padding-right:10px;text-align:right;color:var(--dim)}
+#stack .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#stack .ln.add .sg{color:var(--ok)}
+#stack .ln.del .sg{color:var(--bad)}
+#stack .status{flex-shrink:0;display:flex;align-items:center;gap:14px;height:32px;padding:0 14px;border-top:1px solid var(--border);background:var(--bg);color:var(--dim);font-size:12px;white-space:nowrap}
+#stack .win kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;font:11px var(--mono)}
+#stack .pop{position:absolute;z-index:5;border-radius:12px;background:var(--raised);box-shadow:var(--shadow)}
+#stack .stack-head{display:flex;align-items:baseline;gap:6px;padding:6px 8px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#stack .stack-head code{font:600 11px var(--mono);letter-spacing:0;text-transform:none}
+#stack .stack-list{margin:0;padding:0;list-style:none}
+#stack .srow{position:relative;display:grid;grid-template-columns:20px minmax(0,1fr) auto auto auto;align-items:center;gap:8px;height:32px;padding:0 8px 0 4px;border-radius:7px}
+#stack .srow::before{position:absolute;top:0;bottom:0;left:13px;width:2px;background:var(--wash2);content:""}
+#stack .srow:first-child::before{top:50%}
+#stack .srow.trunk::before{bottom:50%}
+#stack .node{position:relative;justify-self:center;width:9px;height:9px;border:1.5px solid var(--dim);border-radius:50%;background:var(--raised)}
+#stack .srow.merged .node{border-color:var(--merged);background:var(--merged)}
+#stack .srow.current{background:var(--soft)}
+#stack .srow.current .node{width:11px;height:11px;border-color:var(--accent);background:var(--accent);box-shadow:0 0 0 3px var(--soft)}
+#stack .srow.trunk .node{border-radius:3px}
+#stack .br{overflow:hidden;font:600 12px var(--mono);text-overflow:ellipsis;white-space:nowrap}
+#stack .srow.merged .br{color:var(--dim);text-decoration:line-through}
+#stack .prn{display:flex;align-items:center;gap:4px;color:var(--text);font:600 12px var(--mono);text-decoration:none}
+#stack .prn svg,#stack .ckc svg{width:14px;height:14px}
+#stack .ckc{display:grid;place-items:center;width:16px}
+#stack .rv{color:var(--dim);font-size:11px;width:72px;text-align:right}
+#stack .legend{padding:8px 10px 10px;border-top:1px solid var(--border);color:var(--dim);font-size:11.5px}
+#threads .win{--bg:#f8f8f6;--raised:#fff;--border:rgb(17 17 17 / 10%);--text:#111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--ok:#1f7a44;--bad:#b8312f;--warn:#9a5508;--merged:#7341c4;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash2:rgb(127 127 127 / 18%);--shadow:0 14px 36px -10px rgb(0 0 0 / 30%),0 0 0 1px rgb(0 0 0 / 7%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;position:relative;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--chrome);color:var(--text);font:13px/1.45 var(--sans)}
+#threads .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 62%);--accent:#3d87f5;--ok:#6fd094;--bad:#ee7e7e;--warn:#eb9a3d;--merged:#b48cf2;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash2:rgb(127 127 127 / 26%);--shadow:0 14px 36px -10px rgb(0 0 0 / 70%),0 0 0 1px rgb(255 255 255 / 9%)}
+#threads .win{--add:color-mix(in srgb,var(--ok) 10%,var(--raised));--del:color-mix(in srgb,var(--bad) 10%,var(--raised));--soft:color-mix(in srgb,var(--accent) 15%,transparent);--warnsoft:color-mix(in srgb,var(--warn) 12%,var(--raised))}
+#threads .win *{box-sizing:border-box}
+#threads :where(.win) button{font:inherit;color:inherit;cursor:default}
+#threads .win svg{flex-shrink:0}
+#threads .tbar{position:relative;flex-shrink:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(max-content,1fr);align-items:center;column-gap:12px;height:52px;padding:0 12px;border-bottom:1px solid var(--border)}
+#threads .lights{position:absolute;top:20px;left:20px;display:flex;gap:8px}
+#threads .lights i{width:12px;height:12px;border-radius:50%}
+#threads .tl{display:flex;align-items:center;gap:4px;min-width:0;padding-left:72px}
+#threads .path{padding:0 10px;font:600 12px var(--mono);white-space:nowrap}
+#threads .path span{color:var(--dim)}
+#threads .cap{grid-column:2;display:flex;align-items:center;gap:2px;height:30px;padding:2px;border:1px solid var(--border);border-radius:15px;background:var(--wash)}
+#threads .tr{grid-column:3;justify-self:end;display:flex;align-items:center;gap:4px}
+#threads .ib{position:relative;display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#threads .ib svg{width:16px;height:16px}
+#threads .badge{position:absolute;top:-1px;right:-2px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:var(--accent);color:#fff;font:700 9px/14px var(--sans);text-align:center}
+#threads .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#threads .ref.commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#threads .caret{margin-left:4px;font-size:10px;opacity:.6}
+#threads .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#threads .seg{display:flex;gap:2px;height:28px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#threads .seg button{padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#threads .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#threads .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#threads .count{min-width:16px;padding:0 5px;border-radius:8px;background:var(--wash2);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#threads .pr{display:flex;align-items:center;gap:6px;height:24px;padding:0 9px 0 8px;border:1px solid var(--border);border-radius:12px;background:var(--raised);color:var(--text);font:600 12px/1 var(--mono);white-space:nowrap}
+#threads .pr svg{width:14px;height:14px}
+#threads .pr .vs{width:1px;height:12px;background:var(--border)}
+#threads .mono{font-family:var(--mono)}
+#threads .dim{color:var(--dim)}
+#threads .c-open{color:var(--ok)}
+#threads .c-ok{color:var(--ok)}
+#threads .c-bad{color:var(--bad)}
+#threads .c-warn{color:var(--warn)}
+#threads .body{flex:1;min-height:0;display:flex}
+#threads .side{width:240px;flex-shrink:0;padding:10px 8px;border-right:1px solid var(--border)}
+#threads .sh{display:flex;align-items:baseline;gap:6px;padding:2px 6px 8px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#threads .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#threads .row.dir{color:var(--dim)}
+#threads .row.f{padding-left:24px}
+#threads .row.on{background:var(--soft)}
+#threads .st{font:600 11px var(--mono)}
+#threads .st.m{color:var(--warn)}
+#threads .st.a{color:var(--ok)}
+#threads .cnt{display:flex;align-items:center;gap:3px;margin-left:auto;color:var(--dim);font-size:11px}
+#threads .cnt svg{width:11px;height:11px}
+#threads .main{flex:1;min-width:0;padding:12px 16px 0;overflow:hidden;background:var(--bg)}
+#threads .file{overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--raised)}
+#threads .fh{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-bottom:1px solid var(--border)}
+#threads .fh b{font:600 12px var(--mono)}
+#threads .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#threads .ln.add{background:var(--add)}
+#threads .ln.del{background:var(--del)}
+#threads .no{width:44px;flex-shrink:0;padding-right:10px;text-align:right;color:var(--dim)}
+#threads .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#threads .ln.add .sg{color:var(--ok)}
+#threads .ln.del .sg{color:var(--bad)}
+#threads .status{flex-shrink:0;display:flex;align-items:center;gap:14px;height:32px;padding:0 14px;border-top:1px solid var(--border);background:var(--bg);color:var(--dim);font-size:12px;white-space:nowrap}
+#threads .win kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;font:11px var(--mono)}
+#threads .ext{display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:12px;font-weight:500;text-decoration:none;white-space:nowrap}
+#threads .ext svg{width:12px;height:12px}
+#threads .thread{padding:6px 12px 8px 60px}
+#threads .cmt{max-width:740px;border:1px solid var(--border);border-radius:6px;background:var(--bg)}
+#threads .ch{display:flex;align-items:center;gap:6px;min-height:34px;padding:2px 10px;color:var(--dim);font-size:12px}
+#threads .ch .gh{width:14px;height:14px;color:var(--text)}
+#threads .lines{font-family:var(--mono)}
+#threads .tag{padding:1px 7px;border-radius:9px;background:var(--wash2);color:var(--dim);font-size:11px;font-weight:600}
+#threads .tag.open{background:var(--warnsoft);color:var(--warn)}
+#threads .msg{display:flex;gap:9px;padding:6px 12px}
+#threads .msg p{margin:2px 0 0;color:var(--text);font-size:13px}
+#threads .meta{font-size:12px}
+#threads .meta b{color:var(--text)}
+#threads .av{display:grid;place-items:center;flex-shrink:0;width:20px;height:20px;margin-top:1px;border-radius:50%;color:#fff;font:700 10px/1 var(--sans)}
+#threads .cf{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-top:1px solid var(--border);color:var(--dim);font-size:12px}
+#threads .hb{height:26px;padding:0 8px;border:1px solid var(--border);border-radius:6px;background:var(--raised);color:var(--text);font-size:12px}
+#threads .body-p{margin:0;padding:2px 12px 10px;font-size:13px}
+#threads .coll{display:flex;align-items:center;gap:6px;max-width:740px;height:34px;padding:0 10px;border:1px solid var(--border);border-radius:6px;color:var(--dim);font-size:12px}
+#threads .coll .gh{width:14px;height:14px}
+#threads .prev{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#panel .win{--bg:#f8f8f6;--raised:#fff;--border:rgb(17 17 17 / 10%);--text:#111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--ok:#1f7a44;--bad:#b8312f;--warn:#9a5508;--merged:#7341c4;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash2:rgb(127 127 127 / 18%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;position:relative;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--chrome);color:var(--text);font:13px/1.45 var(--sans)}
+#panel .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 62%);--accent:#3d87f5;--ok:#6fd094;--bad:#ee7e7e;--warn:#eb9a3d;--merged:#b48cf2;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash2:rgb(127 127 127 / 26%)}
+#panel .win{--add:color-mix(in srgb,var(--ok) 10%,var(--raised));--del:color-mix(in srgb,var(--bad) 10%,var(--raised));--soft:color-mix(in srgb,var(--accent) 15%,transparent);--warnsoft:color-mix(in srgb,var(--warn) 12%,var(--raised))}
+#panel .win *{box-sizing:border-box}
+#panel :where(.win) button{font:inherit;color:inherit;cursor:default}
+#panel .win svg{flex-shrink:0}
+#panel .tbar{position:relative;flex-shrink:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(max-content,1fr);align-items:center;column-gap:12px;height:52px;padding:0 12px;border-bottom:1px solid var(--border)}
+#panel .lights{position:absolute;top:20px;left:20px;display:flex;gap:8px}
+#panel .lights i{width:12px;height:12px;border-radius:50%}
+#panel .tl{display:flex;align-items:center;gap:4px;min-width:0;padding-left:72px}
+#panel .path{padding:0 10px;font:600 12px var(--mono);white-space:nowrap}
+#panel .path span{color:var(--dim)}
+#panel .cap{grid-column:2;display:flex;align-items:center;gap:2px;height:30px;padding:2px;border:1px solid var(--border);border-radius:15px;background:var(--wash)}
+#panel .tr{grid-column:3;justify-self:end;display:flex;align-items:center;gap:4px}
+#panel .ib{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#panel .ib svg{width:16px;height:16px}
+#panel .ib.on{background:var(--soft);color:var(--accent)}
+#panel .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#panel .ref.commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#panel .caret{margin-left:4px;font-size:10px;opacity:.6}
+#panel .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#panel .seg{display:flex;gap:2px;height:28px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#panel .seg button{padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#panel .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#panel .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#panel .count{min-width:16px;padding:0 5px;border-radius:8px;background:var(--wash2);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#panel .pr{display:flex;align-items:center;gap:6px;height:24px;padding:0 9px 0 8px;border:1px solid var(--border);border-radius:12px;background:var(--raised);color:var(--text);font:600 12px/1 var(--mono);white-space:nowrap}
+#panel .pr svg{width:14px;height:14px}
+#panel .pr .vs{width:1px;height:12px;background:var(--border)}
+#panel .mono{font-family:var(--mono)}
+#panel .dim{color:var(--dim)}
+#panel .c-open{color:var(--ok)}
+#panel .c-ok{color:var(--ok)}
+#panel .c-bad{color:var(--bad)}
+#panel .c-warn{color:var(--warn)}
+#panel .body{flex:1;min-height:0;display:flex}
+#panel .side{width:220px;flex-shrink:0;padding:10px 8px;border-right:1px solid var(--border)}
+#panel .sh{display:flex;align-items:baseline;gap:6px;padding:2px 6px 8px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#panel .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#panel .row.dir{color:var(--dim)}
+#panel .row.f{padding-left:24px}
+#panel .row.on{background:var(--soft)}
+#panel .st{margin-left:auto;font:600 11px var(--mono)}
+#panel .st.m{color:var(--warn)}
+#panel .st.a{color:var(--ok)}
+#panel .main{flex:1;min-width:0;padding:12px 16px 0;overflow:hidden;background:var(--bg)}
+#panel .file{overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--raised)}
+#panel .fh{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-bottom:1px solid var(--border)}
+#panel .fh b{font:600 12px var(--mono)}
+#panel .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#panel .ln.add{background:var(--add)}
+#panel .ln.del{background:var(--del)}
+#panel .no{width:44px;flex-shrink:0;padding-right:10px;text-align:right;color:var(--dim)}
+#panel .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#panel .ln.add .sg{color:var(--ok)}
+#panel .ln.del .sg{color:var(--bad)}
+#panel .status{flex-shrink:0;display:flex;align-items:center;gap:14px;height:32px;padding:0 14px;border-top:1px solid var(--border);background:var(--bg);color:var(--dim);font-size:12px;white-space:nowrap}
+#panel .win kbd{padding:0 4px;border:1px solid var(--border);border-radius:4px;font:11px var(--mono)}
+#panel .panel{display:flex;flex-direction:column;flex-shrink:0;width:360px;border-left:1px solid var(--border);background:var(--chrome)}
+#panel .ptop{display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border)}
+#panel .ptop .seg button{padding:0 8px}
+#panel .ptop label{display:flex;align-items:center;gap:5px;margin-left:auto;color:var(--dim);font-size:12px;white-space:nowrap}
+#panel .plist{flex:1;min-height:0;overflow:hidden;padding:8px}
+#panel .psec{display:flex;align-items:center;gap:6px;margin:10px 4px 6px;color:var(--dim);font:600 11px var(--mono)}
+#panel .psec.t{font-family:var(--sans);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#panel .psec:first-child{margin-top:2px}
+#panel .pc{margin-bottom:6px;padding:7px 10px 8px;border:1px solid var(--border);border-radius:6px;background:var(--raised)}
+#panel .pch{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:12px}
+#panel .pch .gh{width:13px;height:13px;color:var(--text)}
+#panel .pch b{color:var(--text);font-weight:600}
+#panel .pc p{display:-webkit-box;margin:3px 0 0;overflow:hidden;font-size:12.5px;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#panel .tag{padding:0 6px;border-radius:8px;background:var(--wash2);color:var(--dim);font-size:10.5px;font-weight:600;line-height:16px}
+#panel .tag.open{background:var(--warnsoft);color:var(--warn)}
+#panel .tag.out{background:var(--wash2)}
+#panel .av{display:grid;place-items:center;flex-shrink:0;width:16px;height:16px;border-radius:50%;color:#fff;font:700 9px/1 var(--sans)}
+#panel .conv{display:flex;gap:8px;margin-bottom:8px;padding:0 4px}
+#panel .conv p{margin:2px 0 0;font-size:12.5px}
+#panel .conv .av{width:20px;height:20px;margin-top:1px;font-size:10px}
+#panel .state-ok{display:inline-flex;align-items:center;gap:3px;color:var(--ok);font-weight:600}
+#panel .state-ok svg{width:12px;height:12px}
+#panel .pfoot{display:flex;gap:6px;padding:8px;border-top:1px solid var(--border)}
+#panel .btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:28px;border:1px solid var(--border);border-radius:7px;background:var(--raised);color:var(--text);font-size:12px;font-weight:500}
+#panel .btn.primary{border-color:transparent;background:var(--accent);color:#fff;font-weight:600}
+#panel .btn svg{width:13px;height:13px}
+#publish .win{--bg:#f8f8f6;--raised:#fff;--border:rgb(17 17 17 / 10%);--text:#111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--ok:#1f7a44;--bad:#b8312f;--warn:#9a5508;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash2:rgb(127 127 127 / 18%);--shadow:0 22px 50px -12px rgb(0 0 0 / 40%),0 0 0 1px rgb(0 0 0 / 8%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;position:relative;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--chrome);color:var(--text);font:13px/1.45 var(--sans)}
+#publish .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 62%);--accent:#3d87f5;--ok:#6fd094;--bad:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash2:rgb(127 127 127 / 26%);--shadow:0 22px 50px -12px rgb(0 0 0 / 80%),0 0 0 1px rgb(255 255 255 / 10%)}
+#publish .win{--add:color-mix(in srgb,var(--ok) 10%,var(--raised));--del:color-mix(in srgb,var(--bad) 10%,var(--raised));--soft:color-mix(in srgb,var(--accent) 15%,transparent);--warnsoft:color-mix(in srgb,var(--warn) 12%,var(--raised))}
+#publish .win *{box-sizing:border-box}
+#publish :where(.win) button{font:inherit;color:inherit;cursor:default}
+#publish .win svg{flex-shrink:0}
+#publish .tbar{position:relative;flex-shrink:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(max-content,1fr);align-items:center;column-gap:12px;height:52px;padding:0 12px;border-bottom:1px solid var(--border)}
+#publish .lights{position:absolute;top:20px;left:20px;display:flex;gap:8px}
+#publish .lights i{width:12px;height:12px;border-radius:50%}
+#publish .tl{display:flex;align-items:center;gap:4px;min-width:0;padding-left:72px}
+#publish .path{padding:0 10px;font:600 12px var(--mono);white-space:nowrap}
+#publish .path span{color:var(--dim)}
+#publish .cap{grid-column:2;display:flex;align-items:center;gap:2px;height:30px;padding:2px;border:1px solid var(--border);border-radius:15px;background:var(--wash)}
+#publish .tr{grid-column:3;justify-self:end;display:flex;align-items:center;gap:4px}
+#publish .ib{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#publish .ib svg{width:16px;height:16px}
+#publish .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#publish .ref.commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#publish .caret{margin-left:4px;font-size:10px;opacity:.6}
+#publish .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#publish .seg{display:flex;gap:2px;height:28px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#publish .seg button{padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#publish .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#publish .seg button:disabled{opacity:.45}
+#publish .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#publish .count{min-width:16px;padding:0 5px;border-radius:8px;background:var(--wash2);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#publish .pr{display:flex;align-items:center;gap:6px;height:24px;padding:0 9px 0 8px;border:1px solid var(--border);border-radius:12px;background:var(--raised);color:var(--text);font:600 12px/1 var(--mono);white-space:nowrap}
+#publish .pr svg{width:14px;height:14px}
+#publish .pr .vs{width:1px;height:12px;background:var(--border)}
+#publish .mono{font-family:var(--mono)}
+#publish .dim{color:var(--dim)}
+#publish .c-open{color:var(--ok)}
+#publish .c-ok{color:var(--ok)}
+#publish .c-bad{color:var(--bad)}
+#publish .c-warn{color:var(--warn)}
+#publish .body{position:relative;flex:1;min-height:0;display:flex}
+#publish .side{width:240px;flex-shrink:0;padding:10px 8px;border-right:1px solid var(--border)}
+#publish .sh{display:flex;align-items:baseline;gap:6px;padding:2px 6px 8px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#publish .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#publish .row.dir{color:var(--dim)}
+#publish .row.f{padding-left:24px}
+#publish .row.on{background:var(--soft)}
+#publish .st{margin-left:auto;font:600 11px var(--mono)}
+#publish .st.m{color:var(--warn)}
+#publish .st.a{color:var(--ok)}
+#publish .main{flex:1;min-width:0;padding:12px 16px 0;overflow:hidden;background:var(--bg)}
+#publish .file{overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--raised)}
+#publish .fh{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-bottom:1px solid var(--border)}
+#publish .fh b{font:600 12px var(--mono)}
+#publish .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#publish .ln.add{background:var(--add)}
+#publish .ln.del{background:var(--del)}
+#publish .no{width:44px;flex-shrink:0;padding-right:10px;text-align:right;color:var(--dim)}
+#publish .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#publish .ln.add .sg{color:var(--ok)}
+#publish .ln.del .sg{color:var(--bad)}
+#publish .scrim{position:absolute;inset:0;z-index:4;background:rgb(0 0 0 / 18%)}
+#publish .sheet{position:absolute;z-index:5;top:52px;left:50%;width:620px;margin-left:-310px;border-radius:0 0 12px 12px;background:var(--raised);box-shadow:var(--shadow)}
+#publish .sheet h2{margin:0;font-size:15px}
+#publish .pick{margin:0;padding:0;list-style:none;border-top:1px solid var(--border)}
+#publish .pick li{display:grid;grid-template-columns:18px minmax(0,1fr);column-gap:10px;padding:9px 20px;border-bottom:1px solid var(--border)}
+#publish .pick input{margin:2px 0 0}
+#publish .pick .loc{font:600 12px var(--mono)}
+#publish .pick .loc span{color:var(--dim);font-weight:500}
+#publish .pick p{margin:2px 0 0;color:var(--dim);font-size:12.5px}
+#publish .pick li.no-go .loc,#publish .pick li.no-go p{opacity:.6}
+#publish .warn{display:flex;align-items:flex-start;gap:7px;grid-column:2;margin-top:6px;padding:7px 9px;border-radius:7px;background:var(--warnsoft);color:var(--text);font-size:12px}
+#publish .warn svg{width:14px;height:14px;margin-top:1px;color:var(--warn)}
+#publish .fld{padding:12px 20px 0}
+#publish .fld label.l{display:block;margin-bottom:5px;color:var(--dim);font-size:12px;font-weight:600}
+#publish .fld textarea{display:block;width:100%;height:58px;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);font:13px/1.45 var(--sans);resize:none}
+#publish .help{margin-top:5px;color:var(--dim);font-size:12px}
+#publish .chk{display:flex;align-items:center;gap:7px;padding:12px 20px 0;font-size:12.5px}
+#publish .foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:14px;padding:12px 20px;border-top:1px solid var(--border)}
+#publish .btn{height:28px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--raised);color:var(--text);font-size:12.5px;font-weight:500}
+#publish .btn.primary{border-color:transparent;background:var(--accent);color:#fff;font-weight:600}
+#create .win{--bg:#f8f8f6;--raised:#fff;--border:rgb(17 17 17 / 10%);--text:#111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--ok:#1f7a44;--bad:#b8312f;--warn:#9a5508;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash2:rgb(127 127 127 / 18%);--shadow:0 22px 50px -12px rgb(0 0 0 / 40%),0 0 0 1px rgb(0 0 0 / 8%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;position:relative;display:flex;flex-direction:column;box-sizing:border-box;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--chrome);color:var(--text);font:13px/1.45 var(--sans)}
+#create .win.dark{--bg:#141414;--raised:#1c1c1c;--border:rgb(230 230 230 / 10%);--text:#ebebeb;--dim:rgb(230 230 230 / 62%);--accent:#3d87f5;--ok:#6fd094;--bad:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash2:rgb(127 127 127 / 26%);--shadow:0 22px 50px -12px rgb(0 0 0 / 80%),0 0 0 1px rgb(255 255 255 / 10%)}
+#create .win{--add:color-mix(in srgb,var(--ok) 10%,var(--raised));--del:color-mix(in srgb,var(--bad) 10%,var(--raised));--soft:color-mix(in srgb,var(--accent) 15%,transparent);--warnsoft:color-mix(in srgb,var(--warn) 12%,var(--raised))}
+#create .win *{box-sizing:border-box}
+#create :where(.win) button{font:inherit;color:inherit;cursor:default}
+#create .win svg{flex-shrink:0}
+#create .tbar{position:relative;flex-shrink:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(max-content,1fr);align-items:center;column-gap:12px;height:52px;padding:0 12px;border-bottom:1px solid var(--border)}
+#create .lights{position:absolute;top:20px;left:20px;display:flex;gap:8px}
+#create .lights i{width:12px;height:12px;border-radius:50%}
+#create .tl{display:flex;align-items:center;gap:4px;min-width:0;padding-left:72px}
+#create .path{padding:0 10px;font:600 12px var(--mono);white-space:nowrap}
+#create .path span{color:var(--dim)}
+#create .cap{grid-column:2;display:flex;align-items:center;gap:2px;height:30px;padding:2px;border:1px solid var(--border);border-radius:15px;background:var(--wash)}
+#create .tr{grid-column:3;justify-self:end;display:flex;align-items:center;gap:4px}
+#create .ib{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#create .ib svg{width:16px;height:16px}
+#create .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#create .ref.commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#create .caret{margin-left:4px;font-size:10px;opacity:.6}
+#create .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#create .seg{display:flex;gap:2px;height:28px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#create .seg button{padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#create .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#create .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#create .count{min-width:16px;padding:0 5px;border-radius:8px;background:var(--wash2);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#create .pr{display:flex;align-items:center;gap:6px;height:24px;padding:0 9px 0 8px;border:0;border-radius:12px;background:var(--soft);color:var(--text);font:500 12px/1 var(--sans);white-space:nowrap}
+#create .pr svg{width:14px;height:14px;color:var(--dim)}
+#create .mono{font-family:var(--mono)}
+#create .dim{color:var(--dim)}
+#create .c-ok{color:var(--ok)}
+#create .c-bad{color:var(--bad)}
+#create .c-warn{color:var(--warn)}
+#create .body{position:relative;flex:1;min-height:0;display:flex}
+#create .side{width:240px;flex-shrink:0;padding:10px 8px;border-right:1px solid var(--border)}
+#create .sh{display:flex;align-items:baseline;gap:6px;padding:2px 6px 8px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#create .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#create .row.dir{color:var(--dim)}
+#create .row.f{padding-left:24px}
+#create .row.on{background:var(--soft)}
+#create .st{margin-left:auto;font:600 11px var(--mono)}
+#create .st.m{color:var(--warn)}
+#create .st.a{color:var(--ok)}
+#create .main{flex:1;min-width:0;padding:12px 16px 0;overflow:hidden;background:var(--bg)}
+#create .file{overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--raised)}
+#create .fh{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-bottom:1px solid var(--border)}
+#create .fh b{font:600 12px var(--mono)}
+#create .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#create .ln.add{background:var(--add)}
+#create .no{width:44px;flex-shrink:0;padding-right:10px;text-align:right;color:var(--dim)}
+#create .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#create .ln.add .sg{color:var(--ok)}
+#create .scrim{position:absolute;inset:0;z-index:4;background:rgb(0 0 0 / 18%)}
+#create .sheet{position:absolute;z-index:5;top:52px;left:50%;width:620px;margin-left:-310px;border-radius:0 0 12px 12px;background:var(--raised);box-shadow:var(--shadow)}
+#create .sheet h2{margin:0;font-size:15px}
+#create .fld{padding:10px 20px 0}
+#create .fld .l{display:block;margin-bottom:5px;color:var(--dim);font-size:12px;font-weight:600}
+#create .inp{display:block;width:100%;height:30px;padding:0 9px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);font:13px var(--sans)}
+#create .fld textarea{display:block;width:100%;height:112px;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);font:12.5px/1.5 var(--mono);resize:none}
+#create .branches{display:flex;align-items:center;gap:8px}
+#create .sel{display:flex;align-items:center;height:28px;padding:0 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);font:600 12px var(--mono)}
+#create .note{display:flex;align-items:flex-start;gap:7px;margin:10px 20px 0;padding:8px 10px;border-radius:7px;background:var(--warnsoft);font-size:12px}
+#create .note svg{width:14px;height:14px;margin-top:1px;color:var(--warn)}
+#create .note.plain{background:var(--wash)}
+#create .note.plain svg{color:var(--dim)}
+#create .chk{display:flex;align-items:center;gap:7px;padding:12px 20px 0;font-size:12.5px}
+#create .foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:14px;padding:12px 20px;border-top:1px solid var(--border)}
+#create .btn{height:28px;padding:0 12px;border:1px solid var(--border);border-radius:7px;background:var(--raised);color:var(--text);font-size:12.5px;font-weight:500}
+#create .btn.primary{border-color:transparent;background:var(--accent);color:#fff;font-weight:600}
+</style>
+</head>
+<body>
+<main class="page">
+<header class="top">
+<div>
+<h1>ghl — GitHub</h1>
+<p class="lede">Maquettes du 25 octobre 2026 pour la PR de la branche relue : son état, ses checks, ses commentaires, puis la publication des commentaires ghl en review. Suivi dans #229.</p>
+</div>
+<div class="theme" role="group" aria-label="Apparence">
+<button type="button" data-mode="light">Clair</button>
+<button type="button" data-mode="dark">Sombre</button>
+</div>
+</header>
+<section class="group">
+<h2>Statut de la PR : où l’afficher</h2>
+<p class="desc">Une requête GraphQL par <code>gh api</code> à chaque rafraîchissement ; le diff s’affiche d’abord, la PR arrive après. Particularité de ghl : on relit du local, la PR montre ce qui est poussé, donc on dit ce qui ne l’est pas.</p>
+<article class="variant" id="a">
+<h3><span class="num">A</span> Pastille dans la barre de titre</h3>
+<div class="tags"><span class="tag ok">retenu</span><span class="tag ref">#230</span></div>
+<p class="desc">État et numéro, puis les avertissements : checks, commits pas poussés, conflits. Le popover donne le titre, les reviews, le merge, ce qui n’est pas poussé et les fils non résolus.</p>
+<div class="frame">
+<div class="win" style="width: 1280px; height: 760px">
+<header class="tbar">
+<span class="lights" aria-hidden="true"><i style="background: #ff5f57"></i><i style="background: #febc2e"></i><i style="background: #28c840"></i></span>
+<div class="tl">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span class="path"><span>~/dev/perso/</span>github-like</span>
+</div>
+<div class="cap" role="group" aria-label="Comparison">
+<button class="ref" type="button">main<span class="caret">▾</span></button>
+<span class="dim" aria-hidden="true" style="font-size: 12px">→</span>
+<button class="ref" type="button">feat/resolve-comments<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div class="tr">
+<button class="pr on" type="button" aria-label="Pull request 227, open, 1 check failing, 2 commits not pushed" aria-expanded="true">
+<svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>
+#227
+<span class="vs" aria-hidden="true"></span>
+<svg class="c-bad" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path></svg>
+<span class="vs" aria-hidden="true"></span>
+<svg class="c-warn" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.47 7.78a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018L9 4.81v7.44a.75.75 0 0 1-1.5 0V4.81L4.53 7.78a.75.75 0 0 1-1.06 0Z"></path></svg>
+<span class="c-warn">2</span>
+</button>
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button">Unified</button><button type="button">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">2</span></button>
+<button class="ib" type="button" aria-label="Comments"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div class="body">
+<aside class="side">
+<div class="sh">Files <span style="letter-spacing: 0">6</span></div>
+<div class="row dir">go/internal/app</div>
+<div class="row f on"><span>comments.go</span><span class="st m">M</span></div>
+<div class="row f"><span>state.go</span><span class="st m">M</span></div>
+<div class="row dir">web/src</div>
+<div class="row f"><span>CommentCard.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>CommentsPanel.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>Icon.tsx</span><span class="st m">M</span></div>
+<div class="row dir">test/suites</div>
+<div class="row f"><span>comment-resolve.spec.ts</span><span class="st a">A</span></div>
+</aside>
+<main class="main">
+<section class="file">
+<div class="fh">
+<b>go/internal/app/comments.go</b>
+<span class="c-ok mono" style="font-size: 12px; font-weight: 600">+5</span>
+<span class="c-bad mono" style="font-size: 12px; font-weight: 600">−1</span>
+<label class="dim" style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln"><span class="no">112</span><span class="sg"> </span><span>// Resolve marks a comment resolved without deleting it, so its thread</span></div>
+<div class="ln"><span class="no">113</span><span class="sg"> </span><span>// and anchor survive for the reviewer to reopen.</span></div>
+<div class="ln"><span class="no">114</span><span class="sg"> </span><span>func (s *State) Resolve(branch, id string) error {</span></div>
+<div class="ln"><span class="no">115</span><span class="sg"> </span><span>    comment, ok := s.find(branch, id)</span></div>
+<div class="ln"><span class="no">116</span><span class="sg"> </span><span>    if !ok {</span></div>
+<div class="ln del"><span class="no">117</span><span class="sg">−</span><span>        return fmt.Errorf("no comment %s", id)</span></div>
+<div class="ln add"><span class="no">117</span><span class="sg">+</span><span>        return ErrNoComment</span></div>
+<div class="ln"><span class="no">118</span><span class="sg"> </span><span>    }</span></div>
+<div class="ln add"><span class="no">119</span><span class="sg">+</span><span>    if comment.Status == StatusResolved {</span></div>
+<div class="ln add"><span class="no">120</span><span class="sg">+</span><span>        return nil</span></div>
+<div class="ln add"><span class="no">121</span><span class="sg">+</span><span>    }</span></div>
+<div class="ln add"><span class="no">122</span><span class="sg">+</span><span></span></div>
+<div class="ln"><span class="no">123</span><span class="sg"> </span><span>    comment.Status = StatusResolved</span></div>
+<div class="ln"><span class="no">124</span><span class="sg"> </span><span>    comment.Updated = time.Now().UTC()</span></div>
+<div class="ln"><span class="no">125</span><span class="sg"> </span><span>    return s.save()</span></div>
+<div class="ln"><span class="no">126</span><span class="sg"> </span><span>}</span></div>
+<div class="ln"><span class="no">127</span><span class="sg"> </span><span></span></div>
+<div class="ln"><span class="no">128</span><span class="sg"> </span><span>// Reopen puts a resolved comment back in the review.</span></div>
+<div class="ln"><span class="no">129</span><span class="sg"> </span><span>func (s *State) Reopen(branch, id string) error {</span></div>
+<div class="ln"><span class="no">130</span><span class="sg"> </span><span>    comment, ok := s.find(branch, id)</span></div>
+<div class="ln"><span class="no">131</span><span class="sg"> </span><span>    if !ok {</span></div>
+<div class="ln"><span class="no">132</span><span class="sg"> </span><span>        return ErrNoComment</span></div>
+<div class="ln"><span class="no">133</span><span class="sg"> </span><span>    }</span></div>
+<div class="ln"><span class="no">134</span><span class="sg"> </span><span>    comment.Status = StatusOpen</span></div>
+<div class="ln"><span class="no">135</span><span class="sg"> </span><span>    comment.Updated = time.Now().UTC()</span></div>
+<div class="ln"><span class="no">136</span><span class="sg"> </span><span>    return s.save()</span></div>
+<div class="ln"><span class="no">137</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer class="status">
+<span>base from the branch</span>
+<span>working tree included</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0; border: 0; background: none; font-size: 12px">Next <b class="mono" style="color: var(--text); font-size: 12px">go/internal/app/state.go</b> <kbd>j</kbd></button>
+</footer>
+<div class="pop" role="dialog" aria-label="Pull request 227" style="top: 46px; right: 292px; width: 410px">
+<div style="padding: 14px 16px 12px">
+<div style="display: flex; align-items: center; gap: 8px">
+<span class="state open"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>Open</span>
+<span class="mono dim" style="font-size: 12px">#227</span>
+<a class="ext" href="https://github.com/vmaerten/ghl/pull/227" style="margin-left: auto">Open on GitHub<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a>
+</div>
+<div style="margin-top: 8px; font-size: 14px; font-weight: 600; line-height: 1.35">feat(desktop): resolve comments without deleting them</div>
+<div class="dim" style="margin-top: 3px; font-size: 12px">vmaerten wants to merge 3 commits into <span class="mono">main</span></div>
+</div>
+<div class="facts">
+<div class="fact">
+<svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg>
+<span class="k">Reviews</span>
+<span>Approved by alice <span class="dim">· bob requested</span></span>
+<span></span>
+</div>
+<div class="fact">
+<svg class="c-bad" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path></svg>
+<span class="k">Checks</span>
+<span>1 failing <span class="dim">· 1 running · 10 passed</span></span>
+<span class="chev" aria-hidden="true">›</span>
+</div>
+<div class="fact">
+<svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path></svg>
+<span class="k">Merge</span>
+<span>No conflicts with <span class="mono">main</span></span>
+<span></span>
+</div>
+<div class="fact hl">
+<svg class="c-warn" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.47 7.78a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018L9 4.81v7.44a.75.75 0 0 1-1.5 0V4.81L4.53 7.78a.75.75 0 0 1-1.06 0Z"></path></svg>
+<span class="k">Pushed</span>
+<span>2 local commits not on GitHub <span class="dim">· plus uncommitted work</span></span>
+<span></span>
+</div>
+<div class="fact">
+<svg class="dim" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>
+<span class="k">Threads</span>
+<span>1 unresolved <span class="dim">of 4 on GitHub</span></span>
+<span class="chev" aria-hidden="true">›</span>
+</div>
+</div>
+<div class="popfoot"><span>Updated 20 s ago</span><span>Refresh <kbd>r</kbd></span></div>
+</div>
+</div>
+</div>
+</article>
+<article class="variant" id="b">
+<h3><span class="num">B</span> Section dans la barre latérale</h3>
+<div class="tags"><span class="tag ">non retenu</span></div>
+<p class="desc">Tout se lit d’un coup d’œil, mais la liste des fichiers perd de la place.</p>
+<div class="frame">
+<div class="win" style="width: 1280px; height: 760px">
+<header class="tbar">
+<span class="lights" aria-hidden="true"><i style="background: #ff5f57"></i><i style="background: #febc2e"></i><i style="background: #28c840"></i></span>
+<div class="tl">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span class="path"><span>~/dev/perso/</span>github-like</span>
+</div>
+<div class="cap" role="group" aria-label="Comparison">
+<button class="ref" type="button">main<span class="caret">▾</span></button>
+<span class="dim" aria-hidden="true" style="font-size: 12px">→</span>
+<button class="ref" type="button">feat/resolve-comments<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div class="tr">
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button">Unified</button><button type="button">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">2</span></button>
+<button class="ib" type="button" aria-label="Comments"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div class="body">
+<aside class="side">
+<section>
+<div class="sh">Pull request<a class="ext" href="https://github.com/vmaerten/ghl/pull/227" style="margin-left: auto; letter-spacing: 0; text-transform: none">#227<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a></div>
+<div class="card">
+<span class="state open"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>Open</span>
+<div style="margin-top: 7px; font-weight: 600; line-height: 1.35">feat(desktop): resolve comments without deleting them</div>
+<ul class="items">
+<li class="it"><svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg>Approved by alice</li>
+<li class="it"><svg class="c-bad" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path></svg>1 of 12 checks failing</li>
+</ul>
+<ul class="sub">
+<li><svg class="c-bad" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path></svg>test / ui<span class="t">2m 14s</span></li>
+<li><svg class="c-warn" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8" cy="8" r="6" opacity=".3"></circle><path d="M8 2a6 6 0 0 1 6 6" stroke-linecap="round"></path></svg>build / desktop<span class="t">running</span></li>
+<li class="dim"><svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg>10 passed<span class="t">›</span></li>
+</ul>
+<ul class="items" style="margin-top: 0">
+<li class="it hl"><svg class="c-warn" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.47 7.78a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018L9 4.81v7.44a.75.75 0 0 1-1.5 0V4.81L4.53 7.78a.75.75 0 0 1-1.06 0Z"></path></svg>2 local commits not pushed</li>
+<li class="it"><svg class="dim" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>1 unresolved thread</li>
+</ul>
+</div>
+</section>
+<section>
+<div class="sh">Files <span style="letter-spacing: 0">6</span></div>
+<div class="row dir">go/internal/app</div>
+<div class="row f on"><span>comments.go</span><span class="st m">M</span></div>
+<div class="row f"><span>state.go</span><span class="st m">M</span></div>
+<div class="row dir">web/src</div>
+<div class="row f"><span>CommentCard.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>CommentsPanel.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>Icon.tsx</span><span class="st m">M</span></div>
+<div class="row dir">test/suites</div>
+<div class="row f"><span>comment-resolve.spec.ts</span><span class="st a">A</span></div>
+</section>
+</aside>
+<main class="main">
+<section class="file">
+<div class="fh">
+<b>go/internal/app/comments.go</b>
+<span class="c-ok mono" style="font-size: 12px; font-weight: 600">+5</span>
+<span class="c-bad mono" style="font-size: 12px; font-weight: 600">−1</span>
+<label class="dim" style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln"><span class="no">112</span><span class="sg"> </span><span>// Resolve marks a comment resolved without deleting it, so its thread</span></div>
+<div class="ln"><span class="no">113</span><span class="sg"> </span><span>// and anchor survive for the reviewer to reopen.</span></div>
+<div class="ln"><span class="no">114</span><span class="sg"> </span><span>func (s *State) Resolve(branch, id string) error {</span></div>
+<div class="ln"><span class="no">115</span><span class="sg"> </span><span>    comment, ok := s.find(branch, id)</span></div>
+<div class="ln"><span class="no">116</span><span class="sg"> </span><span>    if !ok {</span></div>
+<div class="ln del"><span class="no">117</span><span class="sg">−</span><span>        return fmt.Errorf("no comment %s", id)</span></div>
+<div class="ln add"><span class="no">117</span><span class="sg">+</span><span>        return ErrNoComment</span></div>
+<div class="ln"><span class="no">118</span><span class="sg"> </span><span>    }</span></div>
+<div class="ln add"><span class="no">119</span><span class="sg">+</span><span>    if comment.Status == StatusResolved {</span></div>
+<div class="ln add"><span class="no">120</span><span class="sg">+</span><span>        return nil</span></div>
+<div class="ln add"><span class="no">121</span><span class="sg">+</span><span>    }</span></div>
+<div class="ln add"><span class="no">122</span><span class="sg">+</span><span></span></div>
+<div class="ln"><span class="no">123</span><span class="sg"> </span><span>    comment.Status = StatusResolved</span></div>
+<div class="ln"><span class="no">124</span><span class="sg"> </span><span>    comment.Updated = time.Now().UTC()</span></div>
+<div class="ln"><span class="no">125</span><span class="sg"> </span><span>    return s.save()</span></div>
+<div class="ln"><span class="no">126</span><span class="sg"> </span><span>}</span></div>
+<div class="ln"><span class="no">127</span><span class="sg"> </span><span></span></div>
+<div class="ln"><span class="no">128</span><span class="sg"> </span><span>// Reopen puts a resolved comment back in the review.</span></div>
+<div class="ln"><span class="no">129</span><span class="sg"> </span><span>func (s *State) Reopen(branch, id string) error {</span></div>
+<div class="ln"><span class="no">130</span><span class="sg"> </span><span>    comment, ok := s.find(branch, id)</span></div>
+<div class="ln"><span class="no">131</span><span class="sg"> </span><span>    if !ok {</span></div>
+<div class="ln"><span class="no">132</span><span class="sg"> </span><span>        return ErrNoComment</span></div>
+<div class="ln"><span class="no">133</span><span class="sg"> </span><span>    }</span></div>
+<div class="ln"><span class="no">134</span><span class="sg"> </span><span>    comment.Status = StatusOpen</span></div>
+<div class="ln"><span class="no">135</span><span class="sg"> </span><span>    comment.Updated = time.Now().UTC()</span></div>
+<div class="ln"><span class="no">136</span><span class="sg"> </span><span>    return s.save()</span></div>
+<div class="ln"><span class="no">137</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer class="status">
+<span>base from the branch</span>
+<span>working tree included</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0; border: 0; background: none; font-size: 12px">Next <b class="mono" style="color: var(--text); font-size: 12px">go/internal/app/state.go</b> <kbd>j</kbd></button>
+</footer>
+</div>
+</div>
+</article>
+<article class="variant" id="c">
+<h3><span class="num">C</span> Dans la barre d’état</h3>
+<div class="tags"><span class="tag ref">réglage, #240</span></div>
+<p class="desc">Du texte toujours lisible, à côté de Next ; un clic ouvre le même popover, vers le haut. Proposé comme réglage à la place de A.</p>
+<div class="frame">
+<div class="win" style="width: 1280px; height: 760px">
+<header class="tbar">
+<span class="lights" aria-hidden="true"><i style="background: #ff5f57"></i><i style="background: #febc2e"></i><i style="background: #28c840"></i></span>
+<div class="tl">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span class="path"><span>~/dev/perso/</span>github-like</span>
+</div>
+<div class="cap" role="group" aria-label="Comparison">
+<button class="ref" type="button">main<span class="caret">▾</span></button>
+<span class="dim" aria-hidden="true" style="font-size: 12px">→</span>
+<button class="ref" type="button">feat/resolve-comments<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div class="tr">
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button">Unified</button><button type="button">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">2</span></button>
+<button class="ib" type="button" aria-label="Comments"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div class="body">
+<aside class="side">
+<div class="sh">Files <span style="letter-spacing: 0">6</span></div>
+<div class="row dir">go/internal/app</div>
+<div class="row f on"><span>comments.go</span><span class="st m">M</span></div>
+<div class="row f"><span>state.go</span><span class="st m">M</span></div>
+<div class="row dir">web/src</div>
+<div class="row f"><span>CommentCard.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>CommentsPanel.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>Icon.tsx</span><span class="st m">M</span></div>
+<div class="row dir">test/suites</div>
+<div class="row f"><span>comment-resolve.spec.ts</span><span class="st a">A</span></div>
+</aside>
+<main class="main">
+<section class="file">
+<div class="fh">
+<b>go/internal/app/comments.go</b>
+<span class="c-ok mono" style="font-size: 12px; font-weight: 600">+5</span>
+<span class="c-bad mono" style="font-size: 12px; font-weight: 600">−1</span>
+<label class="dim" style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln"><span class="no">112</span><span class="sg"> </span><span>// Resolve marks a comment resolved without deleting it, so its thread</span></div>
+<div class="ln"><span class="no">113</span><span class="sg"> </span><span>// and anchor survive for the reviewer to reopen.</span></div>
+<div class="ln"><span class="no">114</span><span class="sg"> </span><span>func (s *State) Resolve(branch, id string) error {</span></div>
+<div class="ln"><span class="no">115</span><span class="sg"> </span><span>    comment, ok := s.find(branch, id)</span></div>
+<div class="ln"><span class="no">116</span><span class="sg"> </span><span>    if !ok {</span></div>
+<div class="ln del"><span class="no">117</span><span class="sg">−</span><span>        return fmt.Errorf("no comment %s", id)</span></div>
+<div class="ln add"><span class="no">117</span><span class="sg">+</span><span>        return ErrNoComment</span></div>
+<div class="ln"><span class="no">118</span><span class="sg"> </span><span>    }</span></div>
+<div class="ln add"><span class="no">119</span><span class="sg">+</span><span>    if comment.Status == StatusResolved {</span></div>
+<div class="ln add"><span class="no">120</span><span class="sg">+</span><span>        return nil</span></div>
+<div class="ln add"><span class="no">121</span><span class="sg">+</span><span>    }</span></div>
+<div class="ln add"><span class="no">122</span><span class="sg">+</span><span></span></div>
+<div class="ln"><span class="no">123</span><span class="sg"> </span><span>    comment.Status = StatusResolved</span></div>
+<div class="ln"><span class="no">124</span><span class="sg"> </span><span>    comment.Updated = time.Now().UTC()</span></div>
+<div class="ln"><span class="no">125</span><span class="sg"> </span><span>    return s.save()</span></div>
+<div class="ln"><span class="no">126</span><span class="sg"> </span><span>}</span></div>
+<div class="ln"><span class="no">127</span><span class="sg"> </span><span></span></div>
+<div class="ln"><span class="no">128</span><span class="sg"> </span><span>// Reopen puts a resolved comment back in the review.</span></div>
+<div class="ln"><span class="no">129</span><span class="sg"> </span><span>func (s *State) Reopen(branch, id string) error {</span></div>
+<div class="ln"><span class="no">130</span><span class="sg"> </span><span>    comment, ok := s.find(branch, id)</span></div>
+<div class="ln"><span class="no">131</span><span class="sg"> </span><span>    if !ok {</span></div>
+<div class="ln"><span class="no">132</span><span class="sg"> </span><span>        return ErrNoComment</span></div>
+<div class="ln"><span class="no">133</span><span class="sg"> </span><span>    }</span></div>
+<div class="ln"><span class="no">134</span><span class="sg"> </span><span>    comment.Status = StatusOpen</span></div>
+<div class="ln"><span class="no">135</span><span class="sg"> </span><span>    comment.Updated = time.Now().UTC()</span></div>
+<div class="ln"><span class="no">136</span><span class="sg"> </span><span>    return s.save()</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer class="status">
+<button class="sb" type="button"><svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg><b>#227</b> Open</button>
+<button class="sb on" type="button" aria-expanded="true"><svg class="c-bad" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path></svg>1 failing check</button>
+<span class="sb"><svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg>Approved</span>
+<span class="sb"><svg class="c-warn" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.47 7.78a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018L9 4.81v7.44a.75.75 0 0 1-1.5 0V4.81L4.53 7.78a.75.75 0 0 1-1.06 0Z"></path></svg><span class="c-warn">2 not pushed</span></span>
+<span class="sep" aria-hidden="true" style="margin: 0 8px"></span>
+<span class="sb">base from the branch</span>
+<span class="sb">working tree included</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0 6px; border: 0; background: none; color: var(--dim); font-size: 12px">Next <b class="mono" style="color: var(--text); font-size: 12px">go/internal/app/state.go</b> <kbd>j</kbd></button>
+</footer>
+<div class="tip" role="dialog" aria-label="Checks" style="left: 100px; bottom: 38px; width: 300px">
+<ul style="margin: 0; padding: 0; list-style: none">
+<li><svg class="c-bad" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path></svg>test / ui<span class="t">2m 14s</span></li>
+<li><svg class="c-warn" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8" cy="8" r="6" opacity=".3"></circle><path d="M8 2a6 6 0 0 1 6 6" stroke-linecap="round"></path></svg>build / desktop<span class="t">running</span></li>
+<li class="dim"><svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg>10 passed<span class="t">›</span></li>
+</ul>
+</div>
+</div>
+</div>
+</article>
+</section>
+<section class="group">
+<h2>États, checks, stack</h2>
+<p class="desc">La pastille porte l’état de la PR, les checks et un avertissement ; la décision de review reste dans le popover. Les checks portent sur le head poussé, ce qu’on signale quand le local est en avance.</p>
+<article class="variant" id="states">
+<h3>États de la pastille</h3>
+<div class="tags"><span class="tag ref">#230</span></div>
+<p class="desc">Chaque état de PR a son icône ; sans <code>gh</code> ou sans connexion, pas de pastille du tout.</p>
+<div class="frame">
+<div class="win" style="width: 1280px; height: 760px; padding: 32px 36px">
+<h1 style="margin: 0; font-size: 20px">États de la pastille</h1>
+<p class="dim" style="margin: 4px 0 22px; max-width: 760px">Icône et couleur pour l'état de la PR, puis les checks, puis un avertissement quand il y en a un. Tout le détail reste dans le popover.</p>
+<div style="display: flex; gap: 40px; align-items: flex-start">
+<table class="tab" style="flex: 1">
+<thead><tr><th>État</th><th>Pastille</th><th>Ce que ça dit</th></tr></thead>
+<tbody>
+<tr><td>Ouverte, checks verts</td><td><span class="pr"><svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>#227<span class="vs"></span><svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg></span></td><td>Rien à faire côté CI. La décision de review est dans le popover.</td></tr>
+<tr><td>Checks en cours</td><td><span class="pr"><svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>#227<span class="vs"></span><svg class="c-warn" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8" cy="8" r="6" opacity=".3"></circle><path d="M8 2a6 6 0 0 1 6 6" stroke-linecap="round"></path></svg><span class="c-warn">7/12</span></span></td><td>Rafraîchi toutes les 15 s tant qu'un check tourne et que la fenêtre a le focus.</td></tr>
+<tr><td>Checks en échec</td><td><span class="pr"><svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>#227<span class="vs"></span><svg class="c-bad" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path></svg><span class="c-bad">2</span></span></td><td>Le nombre de checks en échec ; le popover les liste avec un lien vers les logs.</td></tr>
+<tr><td>Commits pas poussés</td><td><span class="pr"><svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>#227<span class="vs"></span><svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg><span class="vs"></span><svg class="c-warn" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.47 7.78a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018L9 4.81v7.44a.75.75 0 0 1-1.5 0V4.81L4.53 7.78a.75.75 0 0 1-1.06 0Z"></path></svg><span class="c-warn">2</span></span></td><td>HEAD local en avance sur le head de la PR : les checks verts ne couvrent pas ce qu'on relit.</td></tr>
+<tr><td>Conflits avec la base</td><td><span class="pr"><svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>#227<span class="vs"></span><svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg><span class="vs"></span><svg class="c-warn" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg></span></td><td>GitHub dit que la PR ne merge pas proprement (<span class="mono">mergeable: CONFLICTING</span>).</td></tr>
+<tr><td>Brouillon</td><td><span class="pr"><svg class="c-draft" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 14a2.25 2.25 0 1 1 0-4.5 2.25 2.25 0 0 1 0 4.5ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM14 7.5a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm0-4.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z"></path></svg>#227<span class="vs"></span><svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg></span></td><td>Même pastille, icône brouillon grise.</td></tr>
+<tr><td>Mergée</td><td><span class="pr"><svg class="c-merged" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z"></path></svg>#227</span></td><td>Plus de checks ni d'avertissement : la review porte sur une branche déjà mergée.</td></tr>
+<tr><td>Fermée</td><td><span class="pr"><svg class="c-closed" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 5.5a.75.75 0 0 1 .75.75v3.378a2.251 2.251 0 1 1-1.5 0V7.25a.75.75 0 0 1 .75-.75Zm-2.03-5.273a.75.75 0 0 1 1.06 0l.97.97.97-.97a.748.748 0 0 1 1.265.332.75.75 0 0 1-.205.729l-.97.97.97.97a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018l-.97-.97-.97.97a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734l.97-.97-.97-.97a.75.75 0 0 1 0-1.06ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z"></path></svg>#227</span></td><td>Fermée sans merge. Si une PR ouverte existe aussi pour la branche, c'est elle qui gagne.</td></tr>
+<tr><td>Pas de PR</td><td><span class="pr none"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>No PR</span></td><td>Le cas d'usage de base de ghl. Plus tard : ouvre la feuille « Open a pull request ».</td></tr>
+<tr><td>Chargement</td><td><span class="skel" aria-label="Loading"></span></td><td>Le diff s'affiche d'abord ; la pastille arrive quand <span class="mono">gh</span> répond.</td></tr>
+</tbody>
+</table>
+<div style="width: 380px; flex-shrink: 0">
+<div class="cap">Settings › GitHub</div>
+<div class="set">
+<h3>GitHub</h3>
+<div class="srow"><span class="sw" aria-hidden="true"></span><div><div class="lab">Show pull requests</div><div class="help">Through the GitHub CLI, signed in as <code>vmaerten</code> on github.com.</div></div></div>
+</div>
+<div class="cap">Si <span class="mono">gh</span> manque</div>
+<div class="set">
+<div class="srow"><span class="sw offv" aria-hidden="true"></span><div><div class="lab">Show pull requests</div><div class="help">Needs the GitHub CLI. Install it with <code>brew install gh</code>, then run <code>gh auth login</code>.</div></div></div>
+</div>
+<div class="cap">Si <span class="mono">gh</span> n'est pas connecté</div>
+<div class="set">
+<div class="srow"><span class="sw offv" aria-hidden="true"></span><div><div class="lab">Show pull requests</div><div class="help">Not signed in to github.com. Run <code>gh auth login</code> in a terminal.</div></div></div>
+</div>
+<p class="dim" style="margin: 14px 2px 0; font-size: 12px">Dans ces deux cas, pas de pastille du tout : ghl reste un outil local qui marche sans réseau.</p>
+</div>
+</div>
+</div>
+</div>
+</article>
+<article class="variant" id="checks">
+<h3>Checks</h3>
+<div class="tags"><span class="tag ref">#232</span></div>
+<p class="desc">Les échecs d’abord, avec les logs ; le commit vérifié, et l’écart avec le local. Rafraîchi toutes les 15 s tant qu’un check tourne et que la fenêtre a le focus.</p>
+<div class="frame">
+<div class="win" style="width: 1280px; height: 760px">
+<header class="tbar">
+<span class="lights" aria-hidden="true"><i style="background: #ff5f57"></i><i style="background: #febc2e"></i><i style="background: #28c840"></i></span>
+<div class="tl">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span class="path"><span>~/dev/perso/</span>github-like</span>
+</div>
+<div class="cap" role="group" aria-label="Comparison">
+<button class="ref" type="button">main<span class="caret">▾</span></button>
+<span class="dim" aria-hidden="true" style="font-size: 12px">→</span>
+<button class="ref" type="button">feat/resolve-comments<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div class="tr">
+<button class="pr on" type="button" aria-expanded="true" aria-label="Pull request 227, 1 check failing">
+<svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>
+#227
+<span class="vs" aria-hidden="true"></span>
+<svg class="c-bad" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path></svg>
+<span class="c-bad">1</span>
+<span class="vs" aria-hidden="true"></span>
+<svg class="c-warn" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.47 7.78a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018L9 4.81v7.44a.75.75 0 0 1-1.5 0V4.81L4.53 7.78a.75.75 0 0 1-1.06 0Z"></path></svg>
+<span class="c-warn">2</span>
+</button>
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button">Unified</button><button type="button">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">2</span></button>
+<button class="ib" type="button" aria-label="Comments"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div class="body">
+<aside class="side">
+<div class="sh">Files <span style="letter-spacing: 0">6</span></div>
+<div class="row dir">go/internal/app</div>
+<div class="row f on"><span>comments.go</span><span class="st m">M</span></div>
+<div class="row f"><span>state.go</span><span class="st m">M</span></div>
+<div class="row dir">web/src</div>
+<div class="row f"><span>CommentCard.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>CommentsPanel.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>Icon.tsx</span><span class="st m">M</span></div>
+<div class="row dir">test/suites</div>
+<div class="row f"><span>comment-resolve.spec.ts</span><span class="st a">A</span></div>
+</aside>
+<main class="main">
+<section class="file">
+<div class="fh">
+<b>go/internal/app/comments.go</b>
+<span class="c-ok mono" style="font-size: 12px; font-weight: 600">+5</span>
+<span class="c-bad mono" style="font-size: 12px; font-weight: 600">−1</span>
+<label class="dim" style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln"><span class="no">112</span><span class="sg"> </span><span>// Resolve marks a comment resolved without deleting it, so its thread</span></div>
+<div class="ln"><span class="no">113</span><span class="sg"> </span><span>// and anchor survive for the reviewer to reopen.</span></div>
+<div class="ln"><span class="no">114</span><span class="sg"> </span><span>func (s *State) Resolve(branch, id string) error {</span></div>
+<div class="ln"><span class="no">115</span><span class="sg"> </span><span>    comment, ok := s.find(branch, id)</span></div>
+<div class="ln"><span class="no">116</span><span class="sg"> </span><span>    if !ok {</span></div>
+<div class="ln del"><span class="no">117</span><span class="sg">−</span><span>        return fmt.Errorf("no comment %s", id)</span></div>
+<div class="ln add"><span class="no">117</span><span class="sg">+</span><span>        return ErrNoComment</span></div>
+<div class="ln"><span class="no">118</span><span class="sg"> </span><span>    }</span></div>
+<div class="ln add"><span class="no">119</span><span class="sg">+</span><span>    if comment.Status == StatusResolved {</span></div>
+<div class="ln add"><span class="no">120</span><span class="sg">+</span><span>        return nil</span></div>
+<div class="ln add"><span class="no">121</span><span class="sg">+</span><span>    }</span></div>
+<div class="ln add"><span class="no">122</span><span class="sg">+</span><span></span></div>
+<div class="ln"><span class="no">123</span><span class="sg"> </span><span>    comment.Status = StatusResolved</span></div>
+<div class="ln"><span class="no">124</span><span class="sg"> </span><span>    comment.Updated = time.Now().UTC()</span></div>
+<div class="ln"><span class="no">125</span><span class="sg"> </span><span>    return s.save()</span></div>
+<div class="ln"><span class="no">126</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer class="status">
+<span>base from the branch</span>
+<span>working tree included</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0; border: 0; background: none; font-size: 12px">Next <b class="mono" style="color: var(--text); font-size: 12px">go/internal/app/state.go</b> <kbd>j</kbd></button>
+</footer>
+<div class="pop" role="dialog" aria-label="Checks" style="top: 46px; right: 270px; width: 460px">
+<div style="padding: 14px 16px 12px">
+<div style="display: flex; align-items: center; gap: 8px">
+<button type="button" aria-label="Back to the pull request" style="padding: 0 4px 0 0; border: 0; background: none; color: var(--dim); font-size: 15px">‹</button>
+<b style="font-size: 14px">Checks</b>
+<span class="mono dim" style="font-size: 12px">on 4f2a91c</span>
+<a class="ext" href="https://github.com/vmaerten/ghl/pull/227/checks" style="margin-left: auto">All checks on GitHub<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a>
+</div>
+<div class="dim" style="margin-top: 2px; font-size: 12px">1 failing · 1 running · 10 passed</div>
+<div class="note"><svg class="c-warn" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.47 7.78a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018L9 4.81v7.44a.75.75 0 0 1-1.5 0V4.81L4.53 7.78a.75.75 0 0 1-1.06 0Z"></path></svg><span>These ran on the pushed head. Your 2 local commits and uncommitted work have not been checked.</span></div>
+</div>
+<ul class="checks">
+<li class="ck fail">
+<svg class="c-bad" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path></svg>
+<span><span class="n">test / ui</span> <span class="w">· Failed after 2m 14s</span></span>
+<a class="ext" href="https://github.com/vmaerten/ghl/actions">Logs<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a>
+<div class="annot">test/suites/comment-resolve.spec.ts:42
+resolves a comment and hides it from the diff
+Expected 0 cards, received 1</div>
+</li>
+<li class="ck">
+<svg class="c-warn" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8" cy="8" r="6" opacity=".3"></circle><path d="M8 2a6 6 0 0 1 6 6" stroke-linecap="round"></path></svg>
+<span><span class="n">build / desktop</span> <span class="w">· Running</span></span>
+<span class="t">1m 02s</span>
+</li>
+<li class="ck">
+<svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg>
+<span><span class="n">test / go</span></span>
+<span class="t">48s</span>
+</li>
+<li class="ck">
+<svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg>
+<span><span class="n">check / lint</span></span>
+<span class="t">31s</span>
+</li>
+<li class="ck">
+<svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg>
+<span><span class="n">deploy/netlify</span> <span class="w">· Deploy preview ready</span></span>
+<a class="ext" href="https://ghl.vmaerten.fr">Preview<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a>
+</li>
+</ul>
+<div class="more"><span aria-hidden="true">▸</span>7 more passed</div>
+<div class="popfoot"><span>Refreshes every 15 s while a check runs</span><button class="btn" type="button">Re-run failed</button></div>
+</div>
+</div>
+</div>
+</article>
+<article class="variant" id="stack">
+<h3>État des PR dans la stack</h3>
+<div class="tags"><span class="tag ref">#233</span></div>
+<p class="desc">Le popover de stack actuel, avec l’état, la décision de review et les checks de chaque couche.</p>
+<div class="frame">
+<div class="win" style="width: 1280px; height: 760px">
+<header class="tbar">
+<span class="lights" aria-hidden="true"><i style="background: #ff5f57"></i><i style="background: #febc2e"></i><i style="background: #28c840"></i></span>
+<div class="tl">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span class="path"><span>~/dev/perso/</span>github-like</span>
+</div>
+<div class="cap" role="group" aria-label="Comparison">
+<button class="chip" type="button" aria-expanded="true" aria-label="Stack: layer 3 of 4"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.122.392a1.75 1.75 0 0 1 1.756 0l5.003 2.902c.83.481.83 1.68 0 2.162L8.878 8.358a1.75 1.75 0 0 1-1.756 0L2.119 5.456a1.251 1.251 0 0 1 0-2.162ZM8.125 1.69a.248.248 0 0 0-.25 0l-4.63 2.685 4.63 2.685a.248.248 0 0 0 .25 0l4.63-2.685ZM1.601 7.789a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0L1.874 8.814A.75.75 0 0 1 1.6 7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z"></path></svg>3/4<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref" type="button">agent-comments/01-cli<span class="caret">▾</span></button>
+<span class="dim" aria-hidden="true" style="font-size: 12px">→</span>
+<button class="ref" type="button">agent-comments/02-window<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div class="tr">
+<button class="pr" type="button" aria-label="Pull request 215, open, 1 check failing">
+<svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>
+#215
+<span class="vs" aria-hidden="true"></span>
+<svg class="c-bad" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path></svg>
+<span class="c-bad">1</span>
+</button>
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button">Unified</button><button type="button">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">0</span></button>
+</div>
+</header>
+<div class="body">
+<aside class="side">
+<div class="sh">Files <span style="letter-spacing: 0">4</span></div>
+<div class="row dir">web/src</div>
+<div class="row f on"><span>CommentCard.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>CommentsPanel.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>useReviewDiff.tsx</span><span class="st m">M</span></div>
+<div class="row dir">test/suites</div>
+<div class="row f"><span>comment-replies.spec.ts</span><span class="st a">A</span></div>
+</aside>
+<main class="main">
+<section class="file">
+<div class="fh">
+<b>web/src/CommentCard.tsx</b>
+<span class="c-ok mono" style="font-size: 12px; font-weight: 600">+4</span>
+<span class="c-bad mono" style="font-size: 12px; font-weight: 600">−0</span>
+<label class="dim" style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln"><span class="no">82</span><span class="sg"> </span><span>        {comment.stale &amp;&amp; (</span></div>
+<div class="ln"><span class="no">83</span><span class="sg"> </span><span>          &lt;span className="badge" title="The code has changed since this comment was written"&gt;</span></div>
+<div class="ln"><span class="no">84</span><span class="sg"> </span><span>            Stale</span></div>
+<div class="ln"><span class="no">85</span><span class="sg"> </span><span>          &lt;/span&gt;</span></div>
+<div class="ln"><span class="no">86</span><span class="sg"> </span><span>        )}</span></div>
+<div class="ln add"><span class="no">87</span><span class="sg">+</span><span>        {comment.status === 'answered' &amp;&amp; (</span></div>
+<div class="ln add"><span class="no">88</span><span class="sg">+</span><span>          &lt;span className="badge answered"&gt;Answered&lt;/span&gt;</span></div>
+<div class="ln add"><span class="no">89</span><span class="sg">+</span><span>        )}</span></div>
+<div class="ln add"><span class="no">90</span><span class="sg">+</span><span></span></div>
+<div class="ln"><span class="no">91</span><span class="sg"> </span><span>        &lt;button type="button" onClick={() =&gt; onCopy(comment)}&gt;</span></div>
+<div class="ln"><span class="no">92</span><span class="sg"> </span><span>          {copied ? 'Copied' : 'Copy'}</span></div>
+<div class="ln"><span class="no">93</span><span class="sg"> </span><span>        &lt;/button&gt;</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer class="status">
+<span>base from the stack</span>
+<span>working tree included</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0; border: 0; background: none; font-size: 12px">Next <b class="mono" style="color: var(--text); font-size: 12px">web/src/CommentsPanel.tsx</b> <kbd>j</kbd></button>
+</footer>
+<div class="pop" role="dialog" aria-label="Stack" style="top: 46px; left: 380px; width: 420px; padding: 6px 6px 0">
+<div class="stack-head">Stack <code>agent-comments/</code></div>
+<ol class="stack-list">
+<li class="srow">
+<span class="node" aria-hidden="true"></span>
+<span class="br">03-skill</span>
+<span class="rv"></span>
+<span class="ckc"><svg class="c-warn" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-label="Checks running" role="img"><circle cx="8" cy="8" r="6" opacity=".3"></circle><path d="M8 2a6 6 0 0 1 6 6" stroke-linecap="round"></path></svg></span>
+<a class="prn" href="https://github.com/vmaerten/ghl/pull/216"><svg class="c-draft" viewBox="0 0 16 16" fill="currentColor" aria-label="Draft" role="img"><path d="M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 14a2.25 2.25 0 1 1 0-4.5 2.25 2.25 0 0 1 0 4.5ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM14 7.5a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm0-4.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z"></path></svg>#216</a>
+</li>
+<li class="srow current">
+<span class="node" aria-hidden="true"></span>
+<span class="br">02-window</span>
+<span class="rv">review required</span>
+<span class="ckc"><svg class="c-bad" viewBox="0 0 16 16" fill="currentColor" aria-label="1 check failing" role="img"><path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path></svg></span>
+<a class="prn" href="https://github.com/vmaerten/ghl/pull/215"><svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-label="Open" role="img"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>#215</a>
+</li>
+<li class="srow">
+<span class="node" aria-hidden="true"></span>
+<span class="br">01-cli</span>
+<span class="rv c-ok">approved</span>
+<span class="ckc"><svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-label="Checks passed" role="img"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg></span>
+<a class="prn" href="https://github.com/vmaerten/ghl/pull/212"><svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-label="Open" role="img"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>#212</a>
+</li>
+<li class="srow merged">
+<span class="node" aria-hidden="true"></span>
+<span class="br">plan</span>
+<span class="rv"></span>
+<span class="ckc"></span>
+<a class="prn" href="https://github.com/vmaerten/ghl/pull/211"><svg class="c-merged" viewBox="0 0 16 16" fill="currentColor" aria-label="Merged" role="img"><path d="M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z"></path></svg>#211</a>
+</li>
+<li class="srow trunk">
+<span class="node" aria-hidden="true"></span>
+<span class="br">main</span>
+<span class="rv">trunk</span>
+<span class="ckc"></span>
+<span></span>
+</li>
+</ol>
+<div class="legend">Today the popover shows <span class="mono">#n</span> and merged, read from <span class="mono">gh-stack</span>. GitHub adds draft and closed, the review decision and the checks of each layer.</div>
+</div>
+</div>
+</div>
+</article>
+</section>
+<section class="group">
+<h2>Commentaires GitHub, en lecture</h2>
+<p class="desc">Fils de review et conversation de la PR, à côté des commentaires ghl, sans les mêler à <code>state.json</code>. Un fil dont la ligne n’est pas dans le diff affiché passe dans « Outdated on GitHub ».</p>
+<article class="variant" id="threads">
+<h3>Fils GitHub dans le diff</h3>
+<div class="tags"><span class="tag ref">#234</span></div>
+<p class="desc">Fil ouvert en lecture seule, avec Reply on GitHub ; commentaire ghl pour comparer ; fil résolu replié.</p>
+<div class="frame">
+<div class="win" style="width: 1280px; height: 760px">
+<header class="tbar">
+<span class="lights" aria-hidden="true"><i style="background: #ff5f57"></i><i style="background: #febc2e"></i><i style="background: #28c840"></i></span>
+<div class="tl">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span class="path"><span>~/dev/perso/</span>github-like</span>
+</div>
+<div class="cap" role="group" aria-label="Comparison">
+<button class="ref" type="button">main<span class="caret">▾</span></button>
+<span class="dim" aria-hidden="true" style="font-size: 12px">→</span>
+<button class="ref" type="button">feat/resolve-comments<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div class="tr">
+<button class="pr" type="button" aria-label="Pull request 227, open, checks passed">
+<svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>
+#227
+<span class="vs" aria-hidden="true"></span>
+<svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg>
+</button>
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button">Unified</button><button type="button">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">2</span></button>
+<button class="ib" type="button" aria-label="Comments, 1 unresolved on GitHub"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg><span class="badge">3</span></button>
+</div>
+</header>
+<div class="body">
+<aside class="side">
+<div class="sh">Files <span style="letter-spacing: 0">6</span></div>
+<div class="row dir">go/internal/app</div>
+<div class="row f on"><span>comments.go</span><span class="cnt"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Z"></path></svg>3</span><span class="st m">M</span></div>
+<div class="row f"><span>state.go</span><span class="cnt"></span><span class="st m">M</span></div>
+<div class="row dir">web/src</div>
+<div class="row f"><span>CommentCard.tsx</span><span class="cnt"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Z"></path></svg>1</span><span class="st m">M</span></div>
+<div class="row f"><span>CommentsPanel.tsx</span><span class="cnt"></span><span class="st m">M</span></div>
+<div class="row f"><span>Icon.tsx</span><span class="cnt"></span><span class="st m">M</span></div>
+<div class="row dir">test/suites</div>
+<div class="row f"><span>comment-resolve.spec.ts</span><span class="cnt"></span><span class="st a">A</span></div>
+</aside>
+<main class="main">
+<section class="file">
+<div class="fh">
+<b>go/internal/app/comments.go</b>
+<span class="c-ok mono" style="font-size: 12px; font-weight: 600">+5</span>
+<span class="c-bad mono" style="font-size: 12px; font-weight: 600">−1</span>
+<label class="dim" style="display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln"><span class="no">112</span><span class="sg"> </span><span>// Resolve marks a comment resolved without deleting it, so its thread</span></div>
+<div class="ln"><span class="no">113</span><span class="sg"> </span><span>// and anchor survive for the reviewer to reopen.</span></div>
+<div class="ln"><span class="no">114</span><span class="sg"> </span><span>func (s *State) Resolve(branch, id string) error {</span></div>
+<div class="ln"><span class="no">115</span><span class="sg"> </span><span>    comment, ok := s.find(branch, id)</span></div>
+<div class="ln"><span class="no">116</span><span class="sg"> </span><span>    if !ok {</span></div>
+<div class="ln del"><span class="no">117</span><span class="sg">−</span><span>        return fmt.Errorf("no comment %s", id)</span></div>
+<div class="ln add"><span class="no">117</span><span class="sg">+</span><span>        return ErrNoComment</span></div>
+<div class="thread">
+<article class="cmt" aria-label="GitHub thread on line 117">
+<header class="ch">
+<svg class="gh" viewBox="0 0 16 16" fill="currentColor" role="img" aria-label="GitHub"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>
+<span class="lines">L117</span>
+<span class="tag open">Unresolved</span>
+<a class="ext" href="https://github.com/vmaerten/ghl/pull/227#discussion_r1" style="margin-left: auto">Reply on GitHub<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a>
+</header>
+<div class="msg"><span class="av" style="background: #a0522d" aria-hidden="true">A</span><div><div class="meta dim"><b>alice</b> · 2 h ago</div><p>The sentinel is nicer, but the CLI used to print the ID. Does it still say which comment was missing?</p></div></div>
+<div class="msg" style="padding-bottom: 10px"><span class="av" style="background: #2a66c9" aria-hidden="true">V</span><div><div class="meta dim"><b>vmaerten</b> · 1 h ago</div><p>Yes, the command wraps it with the ID before printing.</p></div></div>
+</article>
+</div>
+<div class="ln"><span class="no">118</span><span class="sg"> </span><span>    }</span></div>
+<div class="ln add"><span class="no">119</span><span class="sg">+</span><span>    if comment.Status == StatusResolved {</span></div>
+<div class="ln add"><span class="no">120</span><span class="sg">+</span><span>        return nil</span></div>
+<div class="ln add"><span class="no">121</span><span class="sg">+</span><span>    }</span></div>
+<div class="thread">
+<article class="cmt" aria-label="Your ghl comment on lines 119 to 121">
+<header class="ch">
+<span class="lines">L119–L121</span>
+<span style="margin-left: auto; display: flex; gap: 4px"><button class="hb" type="button">Resolve</button><button class="hb" type="button">Copy</button><button class="hb" type="button" aria-label="More actions">⋯</button></span>
+</header>
+<p class="body-p">Early return keeps Updated from moving on a no-op. Worth a test.</p>
+</article>
+</div>
+<div class="ln add"><span class="no">122</span><span class="sg">+</span><span></span></div>
+<div class="ln"><span class="no">123</span><span class="sg"> </span><span>    comment.Status = StatusResolved</span></div>
+<div class="ln"><span class="no">124</span><span class="sg"> </span><span>    comment.Updated = time.Now().UTC()</span></div>
+<div class="thread">
+<button class="coll" type="button" aria-expanded="false" style="width: 100%; background: none; text-align: left">
+<span aria-hidden="true">▸</span>
+<svg class="gh" viewBox="0 0 16 16" fill="currentColor" role="img" aria-label="GitHub"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.950 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>
+<span class="lines">L124</span>
+<span class="tag">Resolved</span>
+<span class="prev">bob: Use time.Now().UTC() like the rest of state.go</span>
+<span style="margin-left: auto; flex-shrink: 0">2 comments</span>
+</button>
+</div>
+<div class="ln"><span class="no">125</span><span class="sg"> </span><span>    return s.save()</span></div>
+<div class="ln"><span class="no">126</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer class="status">
+<span>base from the branch</span>
+<span>working tree included</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0; border: 0; background: none; font-size: 12px">Next <b class="mono" style="color: var(--text); font-size: 12px">go/internal/app/state.go</b> <kbd>j</kbd></button>
+</footer>
+</div>
+</div>
+</article>
+<article class="variant" id="panel">
+<h3>Panneau des commentaires</h3>
+<div class="tags"><span class="tag ref">#234</span></div>
+<p class="desc">Filtre par source, fils obsolètes et conversation ; Publish to GitHub mène à la feuille suivante.</p>
+<div class="frame">
+<div class="win" style="width: 1280px; height: 760px">
+<header class="tbar">
+<span class="lights" aria-hidden="true"><i style="background: #ff5f57"></i><i style="background: #febc2e"></i><i style="background: #28c840"></i></span>
+<div class="tl">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span class="path"><span>~/dev/perso/</span>github-like</span>
+</div>
+<div class="cap" role="group" aria-label="Comparison">
+<button class="ref" type="button">main<span class="caret">▾</span></button>
+<span class="dim" aria-hidden="true" style="font-size: 12px">→</span>
+<button class="ref" type="button">feat/resolve-comments<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div class="tr">
+<button class="pr" type="button" aria-label="Pull request 227, open, checks passed">
+<svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>
+#227
+<span class="vs" aria-hidden="true"></span>
+<svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg>
+</button>
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button">Unified</button><button type="button">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">2</span></button>
+<button class="ib on" type="button" aria-label="Comments" aria-pressed="true"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div class="body">
+<aside class="side">
+<div class="sh">Files <span style="letter-spacing: 0">6</span></div>
+<div class="row dir">go/internal/app</div>
+<div class="row f on"><span>comments.go</span><span class="st m">M</span></div>
+<div class="row f"><span>state.go</span><span class="st m">M</span></div>
+<div class="row dir">web/src</div>
+<div class="row f"><span>CommentCard.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>CommentsPanel.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>Icon.tsx</span><span class="st m">M</span></div>
+<div class="row dir">test/suites</div>
+<div class="row f"><span>comment-resolve.spec.ts</span><span class="st a">A</span></div>
+</aside>
+<main class="main">
+<section class="file">
+<div class="fh">
+<b>go/internal/app/comments.go</b>
+<span class="c-ok mono" style="font-size: 12px; font-weight: 600">+5</span>
+<span class="c-bad mono" style="font-size: 12px; font-weight: 600">−1</span>
+</div>
+<div style="padding: 4px 0">
+<div class="ln"><span class="no">114</span><span class="sg"> </span><span>func (s *State) Resolve(branch, id string) error {</span></div>
+<div class="ln"><span class="no">115</span><span class="sg"> </span><span>    comment, ok := s.find(branch, id)</span></div>
+<div class="ln"><span class="no">116</span><span class="sg"> </span><span>    if !ok {</span></div>
+<div class="ln del"><span class="no">117</span><span class="sg">−</span><span>        return fmt.Errorf("no comment %s", id)</span></div>
+<div class="ln add"><span class="no">117</span><span class="sg">+</span><span>        return ErrNoComment</span></div>
+<div class="ln"><span class="no">118</span><span class="sg"> </span><span>    }</span></div>
+<div class="ln add"><span class="no">119</span><span class="sg">+</span><span>    if comment.Status == StatusResolved {</span></div>
+<div class="ln add"><span class="no">120</span><span class="sg">+</span><span>        return nil</span></div>
+<div class="ln add"><span class="no">121</span><span class="sg">+</span><span>    }</span></div>
+<div class="ln add"><span class="no">122</span><span class="sg">+</span><span></span></div>
+<div class="ln"><span class="no">123</span><span class="sg"> </span><span>    comment.Status = StatusResolved</span></div>
+<div class="ln"><span class="no">124</span><span class="sg"> </span><span>    comment.Updated = time.Now().UTC()</span></div>
+<div class="ln"><span class="no">125</span><span class="sg"> </span><span>    return s.save()</span></div>
+<div class="ln"><span class="no">126</span><span class="sg"> </span><span>}</span></div>
+</div>
+</section>
+</main>
+<aside class="panel" aria-label="Comments">
+<div class="ptop">
+<div class="seg" role="group" aria-label="Source"><button class="on" type="button">All 5</button><button type="button">ghl 2</button><button type="button">GitHub 3</button></div>
+<label><input type="checkbox" checked> Hide resolved</label>
+</div>
+<div class="plist">
+<div class="psec">go/internal/app/comments.go</div>
+<div class="pc">
+<div class="pch"><svg class="gh" viewBox="0 0 16 16" fill="currentColor" role="img" aria-label="GitHub"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg><span class="mono">L117</span><b>alice</b><span class="tag open">Unresolved</span><span style="margin-left: auto">1 reply</span></div>
+<p>The sentinel is nicer, but the CLI used to print the ID. Does it still say which comment was missing?</p>
+</div>
+<div class="pc">
+<div class="pch"><span class="mono">L119–L121</span><b>You</b></div>
+<p>Early return keeps Updated from moving on a no-op. Worth a test.</p>
+</div>
+<div class="psec">web/src/CommentCard.tsx</div>
+<div class="pc">
+<div class="pch"><span class="mono">L87</span><b>You</b></div>
+<p>Resolve should stay reachable from a collapsed card.</p>
+</div>
+<div class="psec t">Outdated on GitHub</div>
+<div class="pc">
+<div class="pch"><svg class="gh" viewBox="0 0 16 16" fill="currentColor" role="img" aria-label="GitHub"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg><span class="mono">state.go L40</span><b>bob</b><span class="tag out">Outdated</span></div>
+<p>Should state v2 refuse a v3 file instead of reading it as corrupt?</p>
+</div>
+<div class="psec t">Conversation</div>
+<div class="conv"><span class="av" style="background: #a0522d" aria-hidden="true">A</span><div><div class="dim" style="font-size: 12px"><b style="color: var(--text)">alice</b> <span class="state-ok"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path></svg>approved</span> · 1 h ago</div><p>Looks good once the spec passes.</p></div></div>
+<div class="conv"><span class="av" style="background: #3d7a5a" aria-hidden="true">B</span><div><div class="dim" style="font-size: 12px"><b style="color: var(--text)">bob</b> commented · 3 h ago</div><p>Could the Markdown export keep resolved ones behind --all?</p></div></div>
+</div>
+<div class="pfoot">
+<button class="btn" type="button">Copy 2</button>
+<button class="btn primary" type="button"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg>Publish to GitHub…</button>
+</div>
+</aside>
+</div>
+<footer class="status">
+<span>base from the branch</span>
+<span>working tree included</span>
+<button type="button" style="display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 0; border: 0; background: none; font-size: 12px">Next <b class="mono" style="color: var(--text); font-size: 12px">go/internal/app/state.go</b> <kbd>j</kbd></button>
+</footer>
+</div>
+</div>
+</article>
+</section>
+<section class="group">
+<h2>Publier une review, ouvrir la PR</h2>
+<p class="desc">Une ligne qui n’existe qu’en local ne peut pas être commentée sur GitHub, et sur sa propre PR GitHub n’accepte que Comment.</p>
+<article class="variant" id="publish">
+<h3>Publier les commentaires ghl</h3>
+<div class="tags"><span class="tag ref">#235</span></div>
+<p class="desc">Une seule review avec les commentaires choisis ; ceux que GitHub ne peut pas ancrer sont exclus, avec la raison.</p>
+<div class="frame">
+<div class="win" style="width: 1280px; height: 760px">
+<header class="tbar">
+<span class="lights" aria-hidden="true"><i style="background: #ff5f57"></i><i style="background: #febc2e"></i><i style="background: #28c840"></i></span>
+<div class="tl">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span class="path"><span>~/dev/perso/</span>github-like</span>
+</div>
+<div class="cap" role="group" aria-label="Comparison">
+<button class="ref" type="button">main<span class="caret">▾</span></button>
+<span class="dim" aria-hidden="true" style="font-size: 12px">→</span>
+<button class="ref" type="button">feat/resolve-comments<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div class="tr">
+<button class="pr" type="button" aria-label="Pull request 227, open, checks passed">
+<svg class="c-open" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>
+#227
+<span class="vs" aria-hidden="true"></span>
+<svg class="c-ok" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 16A8 8 0 1 1 8 0a8 8 0 0 1 0 16Zm3.78-9.72a.751.751 0 0 0-.018-1.042.751.751 0 0 0-1.042-.018L6.75 9.19 5.28 7.72a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042l2 2a.75.75 0 0 0 1.06 0Z"></path></svg>
+</button>
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button">Unified</button><button type="button">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">3</span></button>
+<button class="ib" type="button" aria-label="Comments"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div class="body">
+<aside class="side">
+<div class="sh">Files <span style="letter-spacing: 0">6</span></div>
+<div class="row dir">go/internal/app</div>
+<div class="row f on"><span>comments.go</span><span class="st m">M</span></div>
+<div class="row f"><span>state.go</span><span class="st m">M</span></div>
+<div class="row dir">web/src</div>
+<div class="row f"><span>CommentCard.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>CommentsPanel.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>Icon.tsx</span><span class="st m">M</span></div>
+</aside>
+<main class="main">
+<section class="file">
+<div class="fh"><b>go/internal/app/comments.go</b></div>
+<div style="padding: 4px 0">
+<div class="ln"><span class="no">114</span><span class="sg"> </span><span>func (s *State) Resolve(branch, id string) error {</span></div>
+<div class="ln"><span class="no">115</span><span class="sg"> </span><span>    comment, ok := s.find(branch, id)</span></div>
+<div class="ln"><span class="no">116</span><span class="sg"> </span><span>    if !ok {</span></div>
+<div class="ln add"><span class="no">117</span><span class="sg">+</span><span>        return ErrNoComment</span></div>
+<div class="ln"><span class="no">118</span><span class="sg"> </span><span>    }</span></div>
+<div class="ln add"><span class="no">119</span><span class="sg">+</span><span>    if comment.Status == StatusResolved {</span></div>
+<div class="ln add"><span class="no">120</span><span class="sg">+</span><span>        return nil</span></div>
+<div class="ln add"><span class="no">121</span><span class="sg">+</span><span>    }</span></div>
+</div>
+</section>
+</main>
+<div class="scrim" aria-hidden="true"></div>
+</div>
+<div class="sheet" role="dialog" aria-label="Publish to GitHub">
+<div style="padding: 16px 20px 12px">
+<h2>Publish to GitHub</h2>
+<p class="dim" style="margin: 3px 0 0; font-size: 12.5px">Your ghl comments become one review on <b class="mono" style="color: var(--text)">#227</b> feat(desktop): resolve comments without deleting them.</p>
+</div>
+<ul class="pick">
+<li><input type="checkbox" checked aria-label="Include"><div><div class="loc">go/internal/app/comments.go <span>L119–L121</span></div><p>Early return keeps Updated from moving on a no-op. Worth a test.</p></div></li>
+<li><input type="checkbox" checked aria-label="Include"><div><div class="loc">web/src/CommentCard.tsx <span>L87</span></div><p>Resolve should stay reachable from a collapsed card.</p></div></li>
+<li class="no-go"><input type="checkbox" disabled aria-label="Cannot include"><div><div class="loc">web/src/Icon.tsx <span>L12</span></div><p>The check icon is 1px off next to the chevron.</p></div>
+<div class="warn"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg><span>This line is only in your working tree, so GitHub cannot anchor it. Commit and push, or quote it in the summary.</span></div>
+</li>
+</ul>
+<div class="fld">
+<label class="l" for="summary">Summary</label>
+<textarea id="summary">Self-review before asking for one.</textarea>
+</div>
+<div class="fld">
+<span class="l" style="display: block; margin-bottom: 5px; color: var(--dim); font-size: 12px; font-weight: 600">Review as</span>
+<div class="seg" role="radiogroup" aria-label="Review as" style="display: inline-flex"><button class="on" type="button" role="radio" aria-checked="true">Comment</button><button type="button" role="radio" aria-checked="false" disabled>Approve</button><button type="button" role="radio" aria-checked="false" disabled>Request changes</button></div>
+<div class="help">GitHub does not let you approve or request changes on your own pull request.</div>
+</div>
+<label class="chk"><input type="checkbox" checked> Resolve the published comments in ghl</label>
+<div class="foot">
+<button class="btn" type="button">Cancel</button>
+<button class="btn primary" type="button">Publish 2 comments</button>
+</div>
+</div>
+</div>
+</div>
+</article>
+<article class="variant" id="create">
+<h3>Ouvrir la PR depuis ghl</h3>
+<div class="tags"><span class="tag ">plus tard, pas d’issue</span></div>
+<p class="desc">Base reprise de la review, push explicite, brouillon par défaut.</p>
+<div class="frame">
+<div class="win" style="width: 1280px; height: 760px">
+<header class="tbar">
+<span class="lights" aria-hidden="true"><i style="background: #ff5f57"></i><i style="background: #febc2e"></i><i style="background: #28c840"></i></span>
+<div class="tl">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span class="path"><span>~/dev/perso/</span>github-like</span>
+</div>
+<div class="cap" role="group" aria-label="Comparison">
+<button class="ref" type="button">main<span class="caret">▾</span></button>
+<span class="dim" aria-hidden="true" style="font-size: 12px">→</span>
+<button class="ref" type="button">feat/github-status<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div class="tr">
+<button class="pr" type="button" aria-expanded="true"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>Open PR…</button>
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button">Unified</button><button type="button">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">0</span></button>
+<button class="ib" type="button" aria-label="Comments"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div class="body">
+<aside class="side">
+<div class="sh">Files <span style="letter-spacing: 0">5</span></div>
+<div class="row dir">go/internal/app</div>
+<div class="row f on"><span>github.go</span><span class="st a">A</span></div>
+<div class="row f"><span>server.go</span><span class="st m">M</span></div>
+<div class="row dir">web/src</div>
+<div class="row f"><span>PullRequestPill.tsx</span><span class="st a">A</span></div>
+<div class="row f"><span>DesktopToolbar.tsx</span><span class="st m">M</span></div>
+<div class="row f"><span>desktop.css</span><span class="st m">M</span></div>
+</aside>
+<main class="main">
+<section class="file">
+<div class="fh"><b>go/internal/app/github.go</b></div>
+<div style="padding: 4px 0">
+<div class="ln add"><span class="no">1</span><span class="sg">+</span><span>package app</span></div>
+<div class="ln add"><span class="no">2</span><span class="sg">+</span><span></span></div>
+<div class="ln add"><span class="no">3</span><span class="sg">+</span><span>// PullRequest is what the title bar shows for the reviewed branch.</span></div>
+<div class="ln add"><span class="no">4</span><span class="sg">+</span><span>type PullRequest struct {</span></div>
+<div class="ln add"><span class="no">5</span><span class="sg">+</span><span>    Number int    `json:"number"`</span></div>
+<div class="ln add"><span class="no">6</span><span class="sg">+</span><span>    State  string `json:"state"`</span></div>
+</div>
+</section>
+</main>
+<div class="scrim" aria-hidden="true"></div>
+</div>
+<div class="sheet" role="dialog" aria-label="Open a pull request">
+<div style="padding: 16px 20px 6px">
+<h2>Open a pull request</h2>
+</div>
+<div class="fld">
+<div class="branches"><span class="sel">main<span class="caret">▾</span></span><span class="dim">←</span><span class="sel" style="background: none">feat/github-status</span><span class="dim" style="font-size: 12px">base from this review</span></div>
+</div>
+<div class="fld">
+<label class="l" for="title">Title</label>
+<input class="inp" id="title" value="feat(desktop): show the branch's pull request in the title bar">
+</div>
+<div class="fld">
+<label class="l" for="desc">Description</label>
+<textarea id="desc">## Summary
+
+ghl shows nothing about the pull request of the branch under review. …
+
+## Test plan</textarea>
+</div>
+<div class="note"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3.47 7.78a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018L9 4.81v7.44a.75.75 0 0 1-1.5 0V4.81L4.53 7.78a.75.75 0 0 1-1.06 0Z"></path></svg><span><b class="mono">feat/github-status</b> is not on GitHub yet: ghl pushes it to <span class="mono">origin</span> first.</span></div>
+<div class="note plain"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg><span>2 files with uncommitted changes stay out of the pull request.</span></div>
+<label class="chk"><input type="checkbox" checked> Open as draft</label>
+<div class="foot">
+<button class="btn" type="button">Cancel</button>
+<button class="btn primary" type="button">Push and open draft</button>
+</div>
+</div>
+</div>
+</div>
+</article>
+</section>
+</main>
+<script>
+const buttons = document.querySelectorAll('.theme button')
+function apply(mode) {
+  document.documentElement.dataset.theme = mode
+  for (const win of document.querySelectorAll('.win')) win.classList.toggle('dark', mode === 'dark')
+  for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.mode === mode))
+}
+for (const button of buttons) button.addEventListener('click', () => apply(button.dataset.mode))
+apply(matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+</script>
+</body>
+</html>

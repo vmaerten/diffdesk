@@ -1,6 +1,6 @@
 ---
 title: Reviewing code
-description: Comparisons, comments, Viewed files, bases and stacks, images and appearance.
+description: Comparisons, comments, Viewed files, bases and stacks, pull requests, images and appearance.
 ---
 
 Run `ghl` in a Git repository to open its review in the ghl window; running it in another checkout replaces that review. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, expand unchanged context, and search the whole diff with `Cmd+f`, including files outside the current viewport.
@@ -25,9 +25,11 @@ Each comment saves its original code. When those lines change, the comment shows
 
 **Comments** opens a side panel listing the branch's comments by file, including files outside the current diff. **View in diff** reveals available lines without clearing Viewed, and the panel stays open beside the diff. Inline cards can be collapsed; their folded state survives reloads.
 
-**Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments as Markdown, including viewed files and files outside the diff. Individual cards have their own copy button. Exports include paths, line numbers and current code, with original code labelled when current code is unavailable.
+**Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments, including viewed files and files outside the diff. Individual cards have their own copy button. The text is sized for an agent, which reads the code in the file it edits: each comment gives its ID, `path:lines` and body, and quotes only the lines the file no longer has, under `code:` for lines the change removed and `was:` for lines changed since the remark or outside the comparison.
 
-`ghl comments` exports the reviewed branch's comments on files in the selected comparison, including untracked files in working-tree reviews. Add `--json` for structured output or a revision argument to review another target. It prints without opening the window; its file scope can be narrower than the panel's.
+**Resolve** on a card closes the comment without deleting it: it leaves the diff, the panel, the count and Copy, and stays in the state file. `ghl comments reopen <id>` brings it back, and `ghl comments resolve <id>` closes one from the terminal; any unique prefix of 4 or more characters of the ID works.
+
+`ghl comments` exports the reviewed branch's open comments on files in the selected comparison, including untracked files in working-tree reviews. It prints the same text as Copy; add `--code` to quote every comment's current lines, `--json` for structured output, `--all` to include resolved comments, or a revision argument to review another target. It prints without opening the window; its file scope can be narrower than the panel's.
 
 Older comments recover their branch from the target in their saved comparison. If only commit hashes were recorded, the branch is unknown. Those comments stay in the state file and can be read by explicitly reviewing the recorded target.
 
@@ -75,10 +77,16 @@ Settings list each language's server for the review shown, with where it comes f
 
 Highlighters often merge several names into one token, such as a Helm template's `.Values.replicaCount`: ghl looks up, and underlines, the name under the pointer. The servers run on the reviewed code, as your editor would; ghl finds them through your login shell, so tools installed with Homebrew or mise work even when the app was opened from the Finder. A server starts on the first lookup and stops after 10 minutes without one. The status bar shows the diff's servers and whether they are starting, indexing or failed.
 
+## Pull requests
+
+When the reviewed branch has a pull request on GitHub, its number shows in the title bar, with the icon and colour of its state: open, draft, merged or closed. Then come its checks — GitHub Actions runs and commit statuses: a cross with the number failing, a dot with how many are done while they run, a tick once all pass. An arrow counts the local commits GitHub does not have yet, and a warning sign says the pull request conflicts with its base. Click it for the title, the reviews, the merge status, what is not pushed, the checks with their logs, failing ones first, and a link to GitHub. Checks ran on GitHub's head: the popover says so when you have local changes. While one runs, the pull request refreshes every 15 seconds as long as the window is in front.
+
+ghl asks the [GitHub CLI](https://cli.github.com/): install it and run `gh auth login` once. Without it, or signed out, ghl works as before, without the network. The pull request is the one whose head is the reviewed branch, or the branch it pushes to; an open one wins over closed ones. It refreshes with the review (`r`) and when you come back to the window. **Settings › GitHub** says which account gh uses, turns pull requests off, or shows them in the status bar instead of the title bar: the same items, in words, with the popover opening above.
+
 ## Images and appearance
 
 Image changes show before/after previews; click to enlarge and Escape to close. PNG, JPEG, GIF, WebP, AVIF, SVG, ICO and BMP are supported. Unavailable or oversized previews show an explanation; the image limit is 20 MiB.
 
-**Settings** (`Cmd+,`) opens in a window of its own, beside the review, which follows each change as you make it. **Appearance** chooses System (follows macOS), Light or Dark and a syntax theme for each mode, **Code** the code font and size, and **Window** the title bar: standard (52 px, the default) or compact (38 px), applied the next time ghl opens. The interface keeps neutral colours; only the code takes the theme's.
+**Settings** (`Cmd+,`) opens in a window of its own, beside the review, which follows each change as you make it. **Appearance** chooses System (follows macOS), Light or Dark and a syntax theme for each mode, **Code** the code font and size, **Window** the title bar: standard (52 px, the default) or compact (38 px), applied the next time ghl opens, and **GitHub** whether and where to show pull requests. The interface keeps neutral colours; only the code takes the theme's.
 
 For setup and upgrades, see [installation](../installation/).

@@ -3,11 +3,18 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
 
 var errCommentMissing = errors.New("Comment no longer exists")
+
+// A resolved comment is closed but kept, unlike a deleted one.
+const (
+	statusOpen     = "open"
+	statusResolved = "resolved"
+)
 
 type invalidComment string
 
@@ -44,6 +51,7 @@ func (c repositoryComments) create(ctx context.Context, review *Review, draft Co
 		draft.Anchor = anchor
 		draft.Branch = review.CommentBranch
 		draft.CreatedAt = time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+		draft.Status = statusOpen
 		state.Comments = append(state.Comments, draft)
 		saved = draft
 		return nil
@@ -108,4 +116,43 @@ func (c repositoryComments) remove(ctx context.Context, id string) ([]Comment, e
 		return nil
 	})
 	return state.Comments, err
+}
+
+// findComment accepts a whole ID or, as Git does for commits, a unique prefix
+// of at least four characters: the terminal shows IDs shortened.
+func findComment(comments []Comment, id string) (int, error) {
+	found := -1
+	for i, comment := range comments {
+		if comment.ID == id {
+			return i, nil
+		}
+		if len(id) >= 4 && strings.HasPrefix(comment.ID, id) {
+			if found >= 0 {
+				return -1, invalidComment(fmt.Sprintf("Comment ID %s is ambiguous; give more characters", id))
+			}
+			found = i
+		}
+	}
+	if found < 0 {
+		return -1, errCommentMissing
+	}
+	return found, nil
+}
+
+// setStatus resolves or reopens the comment whose ID starts with id.
+func (c repositoryComments) setStatus(ctx context.Context, id, status string) (Comment, error) {
+	if status != statusOpen && status != statusResolved {
+		return Comment{}, invalidComment(fmt.Sprintf("Unknown comment status %q", status))
+	}
+	var saved Comment
+	_, err := c.store.Mutate(ctx, func(state *StoredState) error {
+		i, err := findComment(state.Comments, id)
+		if err != nil {
+			return err
+		}
+		state.Comments[i].Status = status
+		saved = state.Comments[i]
+		return nil
+	})
+	return saved, err
 }

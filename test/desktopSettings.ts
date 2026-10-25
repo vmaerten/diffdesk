@@ -24,6 +24,8 @@ export async function runDesktopSettings(check: Check): Promise<void> {
         helm: 'off',
         rust: 'auto',
       },
+      showPullRequests: false,
+      pullRequestPlace: 'status-bar',
     }),
   )
   check(
@@ -46,6 +48,8 @@ export async function runDesktopSettings(check: Check): Promise<void> {
         helm: 'off',
         rust: 'auto',
       },
+      showPullRequests: false,
+      pullRequestPlace: 'status-bar',
     }),
   )
 
@@ -62,6 +66,8 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       symbolPanel: 'no',
       // A Go setting may not name a TypeScript server, nor any setting a language Go does not know.
       languageServers: { go: 'tsrs', cobol: 'auto' },
+      showPullRequests: 'no',
+      pullRequestPlace: 'sidebar',
     }),
   )
   // The light slot holds a dark theme: each slot only takes its own mode.

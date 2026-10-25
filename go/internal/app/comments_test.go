@@ -156,3 +156,32 @@ func TestConcurrentCommentCreationKeepsFirstProvenance(t *testing.T) {
 		t.Fatalf("concurrent creation duplicated or lost the comment: %+v %v", state, err)
 	}
 }
+
+func TestCommentResolution(t *testing.T) {
+	ctx := context.Background()
+	repo := fixture(t)
+	comments := repositoryComments{store: storeFor(repo)}
+	review := compare(t, repo, false)
+	for _, draft := range []Comment{
+		{ID: "a1b2c3d4-one", Path: "context.txt", Side: "additions", Start: 80, End: 80, Range: review.Range, Body: "rename"},
+		{ID: "a1b2ffff-two", Path: "added.txt", Side: "additions", Start: 1, End: 1, Range: review.Range, Body: "test"},
+	} {
+		created, err := comments.create(ctx, review, draft)
+		if err != nil || created.Comment.Status != statusOpen {
+			t.Fatalf("a new comment is not open: %+v %v", created, err)
+		}
+	}
+	var invalid invalidComment
+	if _, err := comments.setStatus(ctx, "a1b2", statusResolved); !errors.As(err, &invalid) {
+		t.Fatalf("ambiguous prefix: %v", err)
+	}
+	if _, err := comments.setStatus(ctx, "a1b", statusResolved); !errors.Is(err, errCommentMissing) {
+		t.Fatalf("prefix under four characters: %v", err)
+	}
+	if saved, err := comments.setStatus(ctx, "a1b2c3", statusResolved); err != nil || saved.Status != statusResolved || saved.Body != "rename" {
+		t.Fatalf("resolve: %+v %v", saved, err)
+	}
+	if saved, err := comments.setStatus(ctx, "a1b2c3d4-one", statusOpen); err != nil || saved.Status != statusOpen {
+		t.Fatalf("reopen: %+v %v", saved, err)
+	}
+}

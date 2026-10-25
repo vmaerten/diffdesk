@@ -75,7 +75,7 @@ Move `ghl.app` to `/Applications` and link `ghl.app/Contents/MacOS/ghl` into a f
 
 ## After installing, upgrading or rolling back
 
-A running window keeps the version it started with: quit ghl (`Cmd+Q`) to use the new one. Comments and Viewed stay in each checkout's version-1 `.git/ghl/state.json` across upgrades, rollbacks and uninstalls; rollback requires releases that read that schema. Settings live in `~/Library/Application Support/ghl/settings.json`.
+A running window keeps the version it started with: quit ghl (`Cmd+Q`) to use the new one. Comments and Viewed stay in each checkout's `.git/ghl/state.json` across upgrades, rollbacks and uninstalls. A release that resolves comments writes it as version 2 at the first change, which earlier releases refuse rather than reopen resolved comments: rolling back past it requires moving that file aside. Settings live in `~/Library/Application Support/ghl/settings.json`.
 
 ## Moving from the 0.2.0 browser CLI
 

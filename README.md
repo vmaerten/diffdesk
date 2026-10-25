@@ -36,7 +36,7 @@ ghl                    # review the current branch, including uncommitted work
 ghl feature            # review another revision without checking it out
 ghl --base main        # choose the comparison base
 ghl --repo ../other    # review another checkout
-ghl comments           # print this comparison's comments with their code, as Markdown
+ghl comments           # print this comparison's comments, compact for an agent
 ghl comments --json    # the same, as JSON
 ```
 
@@ -44,7 +44,7 @@ ghl comments --json    # the same, as JSON
 
 - Unified or split diffs, file tree, full-diff search and expandable context.
 - Branch, base and commit pickers, with `gh stack` navigation.
-- Persistent comments per branch, code anchors, a comments side panel and Markdown copy.
+- Persistent comments per branch, code anchors, a comments side panel and a compact copy for agents.
 - Viewed files, working-tree/untracked controls and whitespace filtering.
 - Image previews, native menus, and light and dark appearance with a syntax theme for each.
 

@@ -206,6 +206,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		reply(w, 200, map[string]any{"commits": commits})
+	case route == "pull-request" && r.Method == "GET":
+		branch := r.URL.Query().Get("branch")
+		if !validRef(branch) {
+			fail(w, 400, fmt.Errorf("Invalid branch"))
+			return
+		}
+		status, err := s.repo.pullRequest(r.Context(), branch)
+		if err != nil {
+			fail(w, 422, err)
+			return
+		}
+		reply(w, 200, status)
 	case route == "diff" && r.Method == "GET":
 		if err := review.attachImages(r.Context(), s.id); err != nil {
 			fail(w, 422, err)
@@ -327,6 +339,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		saved, err := (repositoryComments{store: s.store}).edit(r.Context(), review, body.ID, body.Body)
+		if err != nil {
+			failComment(w, err)
+			return
+		}
+		reply(w, 200, map[string]any{"comment": saved})
+	case route == "comments/resolve" && r.Method == "POST":
+		var body struct {
+			ID string `json:"id"`
+		}
+		if err := decode(w, r, &body); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		saved, err := (repositoryComments{store: s.store}).setStatus(r.Context(), body.ID, statusResolved)
 		if err != nil {
 			failComment(w, err)
 			return

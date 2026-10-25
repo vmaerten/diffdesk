@@ -1,4 +1,4 @@
-import { asMarkdown } from '../../src/export.ts'
+import { asText } from '../../src/export.ts'
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -99,13 +99,13 @@ export default {
     check(
       'copy all includes every listed comment and its code',
       (await page.evaluate(() => document.documentElement.dataset.copied)) ===
-        asMarkdown(payload.comments, { range: payload.range }),
+        asText(payload.comments, { range: payload.range }),
     )
     await page.click('.comments-panel [data-comment-id="panel-first"] .comment-copy')
     check(
       'individual copy contains only that comment',
       (await page.evaluate(() => document.documentElement.dataset.copied)) ===
-        asMarkdown(
+        asText(
           payload.comments.filter((comment) => comment.id === first.id),
           { range: payload.range },
         ),
