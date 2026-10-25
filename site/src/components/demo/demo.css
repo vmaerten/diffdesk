@@ -127,18 +127,19 @@
   color: var(--text);
 }
 
-.demo-note .delete {
+.demo-note .resolve {
+  height: 24px;
   margin-left: auto;
-  padding: 0 4px;
-  border: 0;
-  background: none;
-  color: var(--faint);
-  font-size: 16px;
-  line-height: 1;
+  padding: 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--raised);
+  color: var(--dim);
+  font: 500 12px var(--sans);
   cursor: pointer;
 }
 
-.demo-note .delete:hover {
+.demo-note .resolve:hover {
   color: var(--text);
 }
 
@@ -387,4 +388,258 @@ button.stack-branch:focus-visible::after {
   border-bottom-width: 2px;
   border-radius: 4px;
   font: 11px var(--mono);
+}
+
+/* The app's pull request pill and popover, from web/src/desktop.css in the landing's colours. */
+.window.demo .base-anchor {
+  position: relative;
+  display: flex;
+}
+
+.window.demo .pr-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--text);
+  font: 600 12px var(--mono);
+}
+
+.window.demo .pr-pill:is(:hover, [aria-expanded='true']) {
+  background: var(--wash);
+}
+
+.window.demo :is(.pr-pill, .pr-popover) .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.pr-state {
+  display: grid;
+}
+
+.pr-state.open {
+  color: var(--green);
+}
+
+.pr-state.merged {
+  color: var(--merged);
+}
+
+.pr-warning,
+.pr-checks-slot {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+}
+
+.pr-warning,
+.pr-checks-slot.running {
+  color: var(--orange);
+}
+
+.pr-checks-slot.failed {
+  color: var(--red);
+}
+
+.pr-checks-slot.passed {
+  color: var(--green);
+}
+
+.pr-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 3;
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  padding: 14px 16px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 18%);
+  color: var(--text);
+  font: 400 12.5px var(--sans);
+  text-align: left;
+}
+
+.pr-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* White on a fixed fill, like GitHub's: the same in both appearances. */
+.pr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px 0 7px;
+  border-radius: 11px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pr-badge.open {
+  background: #1a7f37;
+}
+
+.pr-badge.merged {
+  background: #7341c4;
+}
+
+.pr-number {
+  color: var(--dim);
+  font: 12px var(--mono);
+}
+
+.pr-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.window.demo .pr-popover a .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.pr-title {
+  margin: 8px 0 2px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.pr-byline {
+  margin: 0;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.pr-byline code,
+.pr-checks-head code {
+  color: var(--dim);
+  font: 11.5px var(--mono);
+}
+
+.pr-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  margin: 12px -16px 0;
+  padding: 4px 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.pr-facts > div {
+  display: contents;
+}
+
+.pr-facts dt {
+  position: relative;
+  padding: 6px 0 6px 16px;
+  color: var(--dim);
+}
+
+.pr-facts dt::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  content: '';
+}
+
+.pr-facts .ok dt::before {
+  background: var(--green);
+}
+
+.pr-facts .warn dt::before {
+  background: var(--orange);
+}
+
+.pr-facts .bad dt::before {
+  background: var(--red);
+}
+
+.pr-facts dd {
+  margin: 0;
+  padding: 6px 0;
+}
+
+.pr-checks {
+  margin: 6px -16px 0;
+  padding: 10px 16px 0;
+  border-top: 1px solid var(--border);
+}
+
+.pr-checks-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.pr-checks-head span {
+  margin-left: auto;
+  color: var(--dim);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.pr-checks-note {
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--orange) 12%, var(--raised));
+  font-size: 12px;
+}
+
+.pr-checks ul {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pr-check {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto 14px;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.pr-check-time {
+  color: var(--dim);
+  font: 11.5px var(--mono);
+}
+
+.pr-check:is(.running, .pending) > .icon {
+  color: var(--orange);
+}
+
+.pr-check.passed > .icon {
+  color: var(--green);
+}
+
+.pr-checks summary {
+  padding: 6px 0;
+  color: var(--dim);
+  cursor: pointer;
 }

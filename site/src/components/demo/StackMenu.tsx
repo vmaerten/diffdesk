@@ -75,7 +75,7 @@ export default function StackMenu({
                   >
                     {layer.branch}
                   </button>
-                  <span className="stack-pr">#{layer.pr}</span>
+                  <span className="stack-pr">#{layer.pr.number}</span>
                   {badge ? <span className={`badge ${badge}`}>{badge}</span> : <span />}
                 </li>
               )

@@ -6,9 +6,17 @@ import {
 } from '@pierre/diffs'
 import { FileDiff } from '@pierre/diffs/react'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import type { DiffSide } from '../../../../src/types.ts'
-import { exportComments } from './comments.ts'
-import { layers, startLayer, type DemoComment, type DemoFile } from './fixtures.ts'
+import type { DiffSide, PullRequest } from '../../../../src/types.ts'
+import { commentRange } from '../../../../web/src/commentRange.ts'
+import PullRequestPill from '../../../../web/src/PullRequestPill.tsx'
+import { exportComments, exportLines } from './comments.ts'
+import {
+  layers,
+  startLayer,
+  type DemoComment,
+  type DemoFile,
+  type DemoLayer,
+} from './fixtures.ts'
 import StackMenu from './StackMenu.tsx'
 import './demo.css'
 
@@ -38,6 +46,22 @@ const reviews = layers.map((layer) => {
   }
 })
 
+/** A layer's pull request, as the app hears of it from gh. */
+const pullRequestOf = ({ pr: { ahead, ...pr }, base, pruned }: DemoLayer): PullRequest => ({
+  ...pr,
+  url: 'https://github.com/vmaerten/ghl/pulls',
+  state: pruned ? 'merged' : 'open',
+  author: 'you',
+  base,
+  review: 'required',
+  approvedBy: [],
+  changesRequestedBy: [],
+  requested: [],
+  mergeable: 'mergeable',
+  sync: { ahead, behind: 0 },
+  uncommitted: false,
+})
+
 /** The nearest layer left to open above (1) or below (-1); a pruned one has nothing to diff. */
 function neighbour(index: number, step: 1 | -1): number | null {
   for (let at = index + step; at >= 0 && at < layers.length; at += step)
@@ -51,18 +75,11 @@ const firstUnread = (index: number) => {
   return (layer.files.find((file) => !layer.viewed.includes(file.path)) ?? layer.files[0]!).path
 }
 
-/** One side and one span, as ghl stores a comment: a selection across both sides keeps its last line. */
-function linesOf(path: string, selected: SelectedLineRange): Lines {
-  const side = selected.endSide ?? selected.side ?? 'additions'
-  if (selected.side && selected.side !== side)
-    return { path, side, start: selected.end, end: selected.end }
-  return {
-    path,
-    side,
-    start: Math.min(selected.start, selected.end),
-    end: Math.max(selected.start, selected.end),
-  }
-}
+/** The lines a selection comments on, by the app's own rule. */
+const linesOf = (file: { path: string; diff: FileDiffMetadata }, selected: SelectedLineRange) => ({
+  path: file.path,
+  ...commentRange(file.diff.hunks, selected),
+})
 
 function useDocumentTheme(): 'light' | 'dark' {
   const read = (): 'light' | 'dark' =>
@@ -216,6 +233,9 @@ export default function DiffDemo() {
             )}
           </div>
           <div className="actions">
+            <span className="optional">
+              <PullRequestPill pr={pullRequestOf(layer)} workingTree place="title-bar" />
+            </span>
             <div className="segmented optional" role="group" aria-label="Diff layout">
               {(['unified', 'split'] as const).map((style) => (
                 <button
@@ -269,15 +289,15 @@ export default function DiffDemo() {
                   onToggleViewed={() => toggleViewed(file.path)}
                   onGutter={(selected) => {
                     setActive(file.path)
-                    setComposer(linesOf(file.path, selected))
+                    setComposer(linesOf(file, selected))
                   }}
                   onSelect={(selected) => {
                     setActive(file.path)
-                    setSelection(selected ? linesOf(file.path, selected) : null)
+                    setSelection(selected ? linesOf(file, selected) : null)
                   }}
                   onSubmit={addComment}
                   onCancel={() => setComposer(null)}
-                  onDelete={(id) =>
+                  onResolve={(id) =>
                     update((each) => ({
                       ...each,
                       comments: each.comments.filter((comment) => comment.id !== id),
@@ -306,19 +326,12 @@ export default function DiffDemo() {
         </div>
         <pre>
           <span className="prompt">$</span> ghl comments{'\n'}
-          {text
-            .trimEnd()
-            .split('\n')
-            .map((line, index) => (
-              // The count, then each comment's ID and lines, stand out like the headings they replace.
-              <span
-                key={index}
-                className={index === 0 || /^[0-9a-f]{8} \S/.test(line) ? 'heading' : undefined}
-              >
-                {line}
-                {'\n'}
-              </span>
-            ))}
+          {exportLines(text).map(({ line, heading }, index) => (
+            <span key={index} className={heading ? 'heading' : undefined}>
+              {line}
+              {'\n'}
+            </span>
+          ))}
         </pre>
       </div>
     </>
@@ -362,7 +375,7 @@ interface DemoFileDiffProps {
   onSelect: (selected: SelectedLineRange | null) => void
   onSubmit: (body: string) => void
   onCancel: () => void
-  onDelete: (id: string) => void
+  onResolve: (id: string) => void
 }
 
 function DemoFileDiff(props: DemoFileDiffProps) {
@@ -418,7 +431,7 @@ function DemoFileDiff(props: DemoFileDiffProps) {
         if (metadata && 'comment' in metadata) {
           const { comment } = metadata
           return (
-            <CommentCard comment={comment} onDelete={() => latest.current.onDelete(comment.id)} />
+            <CommentCard comment={comment} onResolve={() => latest.current.onResolve(comment.id)} />
           )
         }
         return (
@@ -432,15 +445,20 @@ function DemoFileDiff(props: DemoFileDiffProps) {
   )
 }
 
-function CommentCard({ comment, onDelete }: { comment: DemoComment; onDelete: () => void }) {
+function CommentCard({ comment, onResolve }: { comment: DemoComment; onResolve: () => void }) {
   const lines =
     comment.start === comment.end ? `L${comment.start}` : `L${comment.start}–L${comment.end}`
   return (
     <div className="demo-note">
       <div className="who">
         <b>You</b> on {lines}
-        <button type="button" className="delete" aria-label="Delete the comment" onClick={onDelete}>
-          ×
+        <button
+          type="button"
+          className="resolve"
+          title="Close this comment and keep it"
+          onClick={onResolve}
+        >
+          Resolve
         </button>
       </div>
       <p>{comment.body}</p>

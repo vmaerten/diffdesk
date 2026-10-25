@@ -5,6 +5,8 @@ description: Comparisons, comments, Viewed files, bases and stacks, pull request
 
 Run `ghl` in a Git repository to open its review in the ghl window; running it in another checkout replaces that review. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, expand unchanged context, and search the whole diff with `Cmd+f`, including files outside the current viewport.
 
+`Cmd+K` opens a command palette that finds a command by name and shows its shortcut, with a check on those that show a state, such as Split or Ignore Whitespace. `Cmd+P` lists the review's files with their folder, line counts and status, to jump to one by name; the palette's Commands and Files tabs switch between the two.
+
 This guide describes `main`. See the [changelog](https://github.com/vmaerten/ghl/blob/main/CHANGELOG.md) for changes that have not reached a published release.
 
 ## Choose a comparison
