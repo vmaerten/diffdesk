@@ -948,3 +948,31 @@ button.stack-branch:focus-visible::after {
 .desktop-review .comments-panel.inline .comment {
   background: var(--bg-raised);
 }
+
+/* The compact toolbar (Settings, Window): macOS centres the window buttons in
+   38 px, so the title bar and its controls shrink with it. */
+:root[data-titlebar='compact'] .desktop-titlebar {
+  height: 38px;
+}
+:root[data-titlebar='compact'] :is(.titlebar-button, .titlebar-more) {
+  height: 24px;
+}
+:root[data-titlebar='compact'] :is(.titlebar-button:not(.titlebar-text), .titlebar-more) {
+  width: 24px;
+}
+:root[data-titlebar='compact'] :is(.desktop-tab, .segmented) {
+  height: 24px;
+}
+:root[data-titlebar='compact'] .desktop-sheet {
+  margin-top: 38px;
+}
+:root[data-titlebar='compact'] .compare-capsule {
+  height: 26px;
+  border-radius: 13px;
+}
+:root[data-titlebar='compact'] .compare-capsule :is(.capsule-ref, .capsule-commit),
+:root[data-titlebar='compact'] .compare-capsule button.capsule-stack {
+  height: 20px;
+  border-radius: 10px;
+  line-height: 20px;
+}

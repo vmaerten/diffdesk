@@ -167,6 +167,21 @@ export default function SettingsSheet({
         </div>
       </div>
 
+      <h3>Window</h3>
+      <div className="settings-group">
+        <label className="settings-field">
+          <span className="settings-label">
+            Compact title bar
+            <small>Applies the next time ghl opens.</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={settings.compactTitleBar}
+            onChange={(event) => onChange({ compactTitleBar: event.target.checked })}
+          />
+        </label>
+      </div>
+
       <h3>Preview</h3>
       <div className="settings-previews">
         {(['light', 'dark'] as const).map((mode) => (

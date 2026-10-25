@@ -156,7 +156,8 @@ func run() error {
 	desktop := &desktopApp{backend: backend, requests: requests, settings: settings}
 	// Tabs are off for now; GHL_DESKTOP_TABS=1 keeps them for the smoke tests.
 	desktop.tabs.single = os.Getenv("GHL_DESKTOP_TABS") != "1"
-	handler, err := desktopAssets(assets, backend.handler())
+	compact := settings.compactTitleBar()
+	handler, err := desktopAssets(assets, backend.handler(), compact)
 	if err != nil {
 		return err
 	}
@@ -181,7 +182,7 @@ func run() error {
 		// either appearance instead of a fixed colour.
 		BackgroundType: application.BackgroundTypeTranslucent,
 		Mac: application.MacWindow{
-			TitleBar: application.MacTitleBarHiddenInset,
+			TitleBar: titleBar(compact),
 			Backdrop: application.MacBackdropTranslucent,
 		},
 	})
@@ -249,4 +250,13 @@ func run() error {
 	native.Menu.Set(appMenu)
 	// Wails quits on SIGINT and SIGTERM itself, through OnShutdown.
 	return native.Run()
+}
+
+// titleBar centres the window buttons in a 38 px compact toolbar, or in the 52 px unified one.
+func titleBar(compact bool) application.MacTitleBar {
+	bar := application.MacTitleBarHiddenInset
+	if compact {
+		bar.ToolbarStyle = application.MacToolbarStyleUnifiedCompact
+	}
+	return bar
 }

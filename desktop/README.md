@@ -33,7 +33,7 @@ Installation creates a symlink in `~/.local/bin` pointing to the local bundle; t
 
 The application menu supplies **File → Open repository** (`Cmd+O`), **File → Settings…** (`Cmd+,`), native Edit commands, close tab (`Cmd+W`), reload (`Cmd+R`) and quit (`Cmd+Q`). Settings sits under File. Closing the window quits the app.
 
-The app uses its own neutral light and dark palettes. Settings chooses the appearance (System follows macOS, or Light or Dark), one syntax theme for each mode, and the code font and size. Changes apply immediately and persist in `~/Library/Application Support/ghl/settings.json`; settings saved by the earlier `ghl Desktop` app are read until the first change. A font that is not installed falls back to SF Mono, and Settings says so. Git and macOS system WebKit are the runtime requirements; a copied bundle needs no Node, pnpm, Task or Go.
+The app uses its own neutral light and dark palettes. Settings chooses the appearance (System follows macOS, or Light or Dark), one syntax theme for each mode, the code font and size, and the compact title bar. The title bar applies at the next launch, since Wails sets a window's toolbar style only when it creates the window; the other changes apply immediately. Settings persist in `~/Library/Application Support/ghl/settings.json`; settings saved by the earlier `ghl Desktop` app are read until the first change. A font that is not installed falls back to SF Mono, and Settings says so. Git and macOS system WebKit are the runtime requirements; a copied bundle needs no Node, pnpm, Task or Go.
 
 ## App icon
 

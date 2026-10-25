@@ -10,7 +10,8 @@ import (
 )
 
 // settingsStore keeps the desktop settings between launches. Their schema
-// belongs to the UI; this side only keeps a bounded, versioned JSON document.
+// belongs to the UI; this side only keeps a bounded, versioned JSON document,
+// and reads compactTitleBar, which the window needs before it exists.
 type settingsStore struct {
 	mu   sync.Mutex
 	path string
@@ -88,6 +89,20 @@ func (s *settingsStore) save(raw string) error {
 		return err
 	}
 	return os.Rename(temp.Name(), s.path)
+}
+
+// compactTitleBar says whether to open the window with the 38 px toolbar.
+// Its style is fixed when the window is created, so a change applies at the
+// next launch. Off unless the settings turn it on.
+func (s *settingsStore) compactTitleBar() bool {
+	raw, err := s.load()
+	var stored struct {
+		CompactTitleBar *bool `json:"compactTitleBar"`
+	}
+	if err != nil || raw == "" || json.Unmarshal([]byte(raw), &stored) != nil || stored.CompactTitleBar == nil {
+		return false
+	}
+	return *stored.CompactTitleBar
 }
 
 func (d *desktopApp) Settings() (string, error)     { return d.settings.load() }
