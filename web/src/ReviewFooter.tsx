@@ -8,6 +8,8 @@ function stateNote(language: LanguageStatus): string {
     ? ''
     : ` ${stateLabel(language).toLowerCase()}`
 }
+import PullRequestPill from './PullRequestPill.tsx'
+import type { PullRequest } from '../../src/types.ts'
 
 /** The desktop status bar: what the diff covers and what comes next. */
 export default function ReviewFooter({
@@ -17,6 +19,7 @@ export default function ReviewFooter({
   nextPath,
   onNext,
   languages,
+  pullRequest,
 }: {
   data: LoadedReviewDiff | null
   baseSource: string | null
@@ -25,6 +28,8 @@ export default function ReviewFooter({
   onNext: () => void
   /** The diff's languages and their servers; null while code intelligence is off. */
   languages: LanguageStatus[] | null
+  /** Shown here when the settings put it in the status bar. */
+  pullRequest: PullRequest | null
 }) {
   const untracked = data?.untracked.length ?? 0
   const status = [
@@ -34,6 +39,13 @@ export default function ReviewFooter({
   ].filter(Boolean)
   return (
     <footer className="review-footer">
+      {pullRequest && data && (
+        <PullRequestPill
+          pr={pullRequest}
+          workingTree={data.target.workingTree}
+          place="status-bar"
+        />
+      )}
       {status.map((item) => (
         <span key={item as string}>{item}</span>
       ))}

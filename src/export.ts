@@ -1,8 +1,8 @@
 /**
  * Turning comments into something to hand over.
  *
- * The review panel's Markdown. Shared golden fixtures keep it identical to what
- * `ghl comments` prints for the same review.
+ * What Copy puts on the clipboard. Shared golden fixtures keep it identical to
+ * what `ghl comments` prints for the same review.
  */
 
 import type { ServedComment } from './types.ts'
@@ -20,47 +20,34 @@ const inReadingOrder = (comments: ServedComment[]): ServedComment[] =>
       (left.path < right.path ? -1 : left.path > right.path ? 1 : 0) || left.start - right.start,
   )
 
-const lineLabel = (comment: ServedComment) =>
-  comment.start === comment.end ? `L${comment.start}` : `L${comment.start}–L${comment.end}`
-
 /**
- * The same thing to read rather than to parse.
+ * The same thing to read rather than to parse, sized for an agent.
  *
- * The commented lines are quoted because a path and a line number alone go stale
- * between taking the export and acting on it. The surrounding hunk is not: that
- * is what `git diff` is for, and it would bury the remark it came with.
+ * Each comment gives its ID, `path:lines` and text. Its lines are quoted only
+ * when the file no longer has them: removed by the change (`code:`), or changed
+ * since the remark was written (`was:`). An agent reads the rest in the file it
+ * is about to edit, and every quoted line would cost it tokens twice.
  *
  * No instruction to the reader either — "apply these" is the prompt of whoever
  * pastes this, and it is not this tool's place to write it for them.
  */
-export function asMarkdown(comments: ServedComment[], { range }: { range: string }): string {
+export function asText(comments: ServedComment[], { range }: { range: string }): string {
   if (comments.length === 0) return `No comments on ${range}.\n`
 
-  const out: string[] = [
-    `# ${comments.length} comment${comments.length > 1 ? 's' : ''} on ${range}`,
-  ]
-  let file: string | null = null
+  const out = [`${comments.length} comment${comments.length > 1 ? 's' : ''} on ${range}`]
+  const block = (label: string, lines: string[]) =>
+    out.push(`${label}:`, ...lines.map((line) => `  ${line}`))
 
   for (const comment of inReadingOrder(comments)) {
-    if (comment.path !== file) {
-      file = comment.path
-      out.push('', `## ${file}`)
-    }
-    out.push('', `**${lineLabel(comment)}**`)
-    if (comment.code.length > 0) out.push('', '```', ...comment.code, '```')
-    out.push('', comment.body)
-    if ((comment.stale || comment.code.length === 0) && comment.anchor.length > 0) {
-      out.push(
-        '',
-        comment.code.length === 0
-          ? '> Code is unavailable in the current comparison. Original lines:'
-          : '> These lines have changed since the remark was written. They read:',
-        '',
-        '```',
-        ...comment.anchor,
-        '```',
-      )
-    }
+    // The ID is what `ghl comments resolve` and `reopen` take back.
+    const lines = comment.start === comment.end ? comment.start : `${comment.start}-${comment.end}`
+    const removed = comment.side === 'deletions' ? ' (removed lines)' : ''
+    const status = comment.status && comment.status !== 'open' ? ` · ${comment.status}` : ''
+    out.push('', `${comment.id.slice(0, 8)} ${comment.path}:${lines}${removed}${status}`)
+    out.push(comment.body)
+    if (comment.side === 'deletions' && comment.code.length > 0) block('code', comment.code)
+    if ((comment.stale || comment.code.length === 0) && comment.anchor.length > 0)
+      block('was', comment.anchor)
   }
 
   return out.join('\n') + '\n'

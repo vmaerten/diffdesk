@@ -26,6 +26,8 @@ import { comparisonNote, type Picker, type ComparisonProps } from './ComparisonC
 import { untrackedToggleable, workingTreeToggleable } from './ScopeControls.tsx'
 import DesktopToolbar from './DesktopToolbar.tsx'
 import ReviewFooter from './ReviewFooter.tsx'
+import { usePullRequest } from './PullRequestPill.tsx'
+import type { PullRequestPlace } from './desktopSettings.ts'
 import { layerTarget, neighbourLayer } from './StackPicker.tsx'
 import { DesktopSidebarFoot, DesktopSidebarHead } from './DesktopSidebar.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
@@ -45,7 +47,7 @@ import { languagesOf, useLanguageStatus } from './codeIntelligence.ts'
 import { useSymbolCard } from './SymbolCard.tsx'
 import SymbolPanel, { PanelTabs, type PanelTab, type SymbolTarget } from './SymbolPanel.tsx'
 import type { LanguageStatus } from '../../src/types.ts'
-import { asMarkdown } from '../../src/export.ts'
+import { asText } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
 import type { SavedView, SavedViewHandle } from './savedView.ts'
 
@@ -96,6 +98,7 @@ export default function App({
   onFileMenu,
   languageRevision = null,
   symbolPanel = false,
+  pullRequests = null,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -118,6 +121,8 @@ export default function App({
   languageRevision?: number | null
   /** Offers a Symbol tab beside Comments, with references, while code intelligence is on. */
   symbolPanel?: boolean
+  /** Where to show the reviewed branch's GitHub pull request; null shows none. */
+  pullRequests?: PullRequestPlace | null
 }) {
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
@@ -139,7 +144,15 @@ export default function App({
   const palette = useRef<PaletteHandle>(null)
   const [selection, select] = useReviewSelection(onRouteChange)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
-  const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId, commentStore)
+  const [{ comments: stored, saving }, commentPersistence] = useCommentPersistence(
+    repoId,
+    commentStore,
+  )
+  /** Resolved comments are closed; `ghl comments` leaves them out too. */
+  const comments = useMemo(
+    () => stored.filter((comment) => comment.status !== 'resolved'),
+    [stored],
+  )
   /** Momentary, so the button can say the clipboard actually took it. */
   const [copied, setCopied] = useState<string | null>(null)
   const [copyError, setCopyError] = useState<string | null>(null)
@@ -261,10 +274,18 @@ export default function App({
     }
   })
 
+  const resolveComment = useStableCallback(async (id: string) => {
+    try {
+      await commentPersistence.resolve(id)
+    } catch (cause) {
+      setError(`could not resolve the comment: ${cause instanceof Error ? cause.message : cause}`)
+    }
+  })
+
   /**
-   * Put the whole review on the clipboard, as markdown.
+   * Put the whole review on the clipboard, as the text an agent is handed.
    *
-   * `asMarkdown` is the CLI's too, so the button and `ghl comments` cannot
+   * `asText` is the CLI's too, so the button and `ghl comments` cannot
    * produce different text for the same review. Failing to reach the clipboard is
    * said out loud: the point of the gesture is that the text left the page.
    */
@@ -274,7 +295,7 @@ export default function App({
     setCopied(null)
     try {
       await navigator.clipboard.writeText(
-        asMarkdown(comment ? [comment] : comments, { range: data.range }),
+        asText(comment ? [comment] : comments, { range: data.range }),
       )
       setCopied(comment?.id ?? 'all')
       if (copyTimer.current) clearTimeout(copyTimer.current)
@@ -350,6 +371,7 @@ export default function App({
     onViewedChange: toggleViewed,
     onSubmit: submitComment,
     onDelete: deleteComment,
+    onResolve: resolveComment,
     onRetry: (comment) => {
       void commentPersistence.retry(comment.id)
     },
@@ -573,6 +595,12 @@ export default function App({
   }, [])
 
   const baseSource = data ? BASE_SOURCES[data.base.source] : null
+  // Loaded here, not where it shows: changing its place moves it without asking GitHub again.
+  const pullRequest = usePullRequest(
+    pullRequests ? repoId : null,
+    data && data.target.ref !== 'HEAD' ? data.target.ref : null,
+    data?.loadId ?? 0,
+  )
 
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
   const comparison: ComparisonProps = {
@@ -609,6 +637,7 @@ export default function App({
               data.files.map((file) => file.path),
             )
       }
+      pullRequest={pullRequests === 'status-bar' ? pullRequest : null}
     />
   )
   const tabs = symbolTab ? (
@@ -640,6 +669,7 @@ export default function App({
           })
         }
         onDelete={deleteComment}
+        onResolve={resolveComment}
         onRetry={(comment) => {
           void commentPersistence.retry(comment.id)
         }}
@@ -675,6 +705,7 @@ export default function App({
             onToggleComments={toggleComments}
             copiedAll={copied === 'all'}
             onCopyAll={() => copyComments()}
+            pullRequest={pullRequests === 'title-bar' ? pullRequest : null}
           />,
           toolbar,
         )}

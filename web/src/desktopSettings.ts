@@ -2,6 +2,9 @@ import type { CSSProperties } from 'react'
 import { DEFAULT_APPEARANCE, type Appearance, type AppearanceSettings } from './appearance.ts'
 import { THEMES, type ThemeId } from './theme.ts'
 
+/** Where the pull request shows: a pill in the title bar, or text in the status bar. */
+export type PullRequestPlace = 'title-bar' | 'status-bar'
+
 export const CODE_FONTS = ['SF Mono', 'Menlo', 'JetBrains Mono', 'Fira Code'] as const
 export const CODE_SIZE = { min: 10, max: 18 } as const
 
@@ -28,6 +31,9 @@ export interface DesktopSettings extends AppearanceSettings {
   /** References in a Symbol tab beside Comments, under code intelligence. */
   symbolPanel: boolean
   languageServers: Record<LanguageId, string>
+  /** Through the GitHub CLI, when it is installed and signed in. */
+  showPullRequests: boolean
+  pullRequestPlace: PullRequestPlace
 }
 
 export const DEFAULT_SETTINGS: DesktopSettings = {
@@ -46,9 +52,12 @@ export const DEFAULT_SETTINGS: DesktopSettings = {
     helm: 'auto',
     rust: 'auto',
   },
+  showPullRequests: true,
+  pullRequestPlace: 'title-bar',
 }
 
 const APPEARANCES: readonly Appearance[] = ['system', 'light', 'dark']
+const PULL_REQUEST_PLACES: readonly PullRequestPlace[] = ['title-bar', 'status-bar']
 
 /** A family name that is safe to quote into a CSS font-family list. */
 export function isFontName(name: string): boolean {
@@ -76,6 +85,8 @@ export function readSettings(raw: string): DesktopSettings {
     codeIntelligence,
     symbolPanel,
     languageServers,
+    showPullRequests,
+    pullRequestPlace,
   } = stored
   const servers = (
     languageServers && typeof languageServers === 'object' ? languageServers : {}
@@ -106,6 +117,11 @@ export function readSettings(raw: string): DesktopSettings {
         return [id, (choices as readonly unknown[]).includes(choice) ? choice : 'auto']
       }),
     ) as Record<LanguageId, string>,
+    showPullRequests:
+      typeof showPullRequests === 'boolean' ? showPullRequests : DEFAULT_SETTINGS.showPullRequests,
+    pullRequestPlace:
+      PULL_REQUEST_PLACES.find((value) => value === pullRequestPlace) ??
+      DEFAULT_SETTINGS.pullRequestPlace,
   }
 }
 

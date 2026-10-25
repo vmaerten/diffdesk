@@ -96,13 +96,12 @@ export default function DiffDemo() {
   const [picker, setPicker] = useState(false)
   const [copied, setCopied] = useState(false)
   const pane = useRef<HTMLDivElement>(null)
-  const nextId = useRef(0)
   const cards = useRef(new Map<string, HTMLElement>())
 
   const layer = layers[current]!
   const state = states[current]!
   const review = reviews[current]!
-  const markdown = useMemo(() => exportComments(layer, state.comments), [layer, state.comments])
+  const text = useMemo(() => exportComments(layer, state.comments), [layer, state.comments])
   const closePicker = useCallback(() => setPicker(false), [])
 
   function update(change: (state: LayerState) => LayerState) {
@@ -142,14 +141,14 @@ export default function DiffDemo() {
 
   function addComment(body: string) {
     if (!composer) return
-    const comment = { ...composer, id: String(nextId.current++), body }
+    const comment = { ...composer, id: crypto.randomUUID(), body }
     update((each) => ({ ...each, comments: [...each.comments, comment] }))
     setComposer(null)
   }
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(markdown)
+      await navigator.clipboard.writeText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
@@ -307,11 +306,15 @@ export default function DiffDemo() {
         </div>
         <pre>
           <span className="prompt">$</span> ghl comments{'\n'}
-          {markdown
+          {text
             .trimEnd()
             .split('\n')
             .map((line, index) => (
-              <span key={index} className={line.startsWith('#') ? 'heading' : undefined}>
+              // The count, then each comment's ID and lines, stand out like the headings they replace.
+              <span
+                key={index}
+                className={index === 0 || /^[0-9a-f]{8} \S/.test(line) ? 'heading' : undefined}
+              >
                 {line}
                 {'\n'}
               </span>

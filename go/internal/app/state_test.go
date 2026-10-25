@@ -49,7 +49,7 @@ func TestIndependentStoresSerializeTransactions(t *testing.T) {
 
 func TestFutureSchemaIsLeftUntouched(t *testing.T) {
 	s := stateFixture(t)
-	raw := []byte(`{"version":2,"viewed":{},"comments":[]}`)
+	raw := []byte(`{"version":3,"viewed":{},"comments":[]}`)
 	if err := os.WriteFile(s.path, raw, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -62,6 +62,24 @@ func TestFutureSchemaIsLeftUntouched(t *testing.T) {
 	actual, err := os.ReadFile(s.path)
 	if err != nil || !bytes.Equal(actual, raw) {
 		t.Fatal("future file changed")
+	}
+}
+
+func TestVersionOneCommentsAreOpen(t *testing.T) {
+	s := stateFixture(t)
+	raw := `{"version":1,"viewed":{},"comments":[{"id":"c","path":"a.txt","side":"additions","start":1,"end":1,"body":"b","anchor":[],"range":"main..f","createdAt":"t"}]}`
+	if err := os.WriteFile(s.path, []byte(raw), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Mutate(context.Background(), func(*StoredState) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	var written StoredState
+	if data, err := os.ReadFile(s.path); err != nil || json.Unmarshal(data, &written) != nil {
+		t.Fatalf("unreadable state: %v", err)
+	}
+	if written.Version != 2 || written.Comments[0].Status != "open" {
+		t.Fatalf("version 1 was not migrated: %+v", written)
 	}
 }
 
@@ -209,7 +227,8 @@ func TestConcurrentStateAndPersistence(t *testing.T) {
 	}
 }
 func TestCorruptionNotice(t *testing.T) {
-	for _, raw := range []string{"{", "null", `{"version":1,"comments":"wrong"}`} {
+	unknownStatus := `{"version":2,"comments":[{"id":"c","path":"a.txt","side":"additions","start":1,"end":1,"anchor":[],"range":"main..f","createdAt":"t","status":"done"}]}`
+	for _, raw := range []string{"{", "null", `{"version":1,"comments":"wrong"}`, unknownStatus} {
 		s := stateFixture(t)
 		if err := os.WriteFile(s.path, []byte(raw), 0600); err != nil {
 			t.Fatal(err)

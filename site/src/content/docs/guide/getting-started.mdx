@@ -49,10 +49,10 @@ Move through files with `j` and `k`, tick a file Viewed with `v`, and switch bet
 
 Select lines and press `c`, or click the gutter's `+`. Comments belong to the reviewed branch and survive refreshes, restarts and reinstalls.
 
-`Shift+Cmd+C` copies every comment as Markdown, with paths, line numbers and the code each one is about. From the terminal, without opening the window:
+`Shift+Cmd+C` copies every comment for an agent: its ID, path, lines and text, and only the code the file no longer has. From the terminal, without opening the window:
 
 ```bash
-ghl comments           # this comparison's comments with their code, as Markdown
+ghl comments           # the same text
 ghl comments --json    # the same, as JSON
 ```
 

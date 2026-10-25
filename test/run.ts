@@ -29,6 +29,8 @@ import search from './suites/search.ts'
 import whitespace from './suites/whitespace.ts'
 import fileMenu from './suites/fileMenu.ts'
 import codeIntelligence from './suites/codeIntelligence.ts'
+import resolve from './suites/resolve.ts'
+import github from './suites/github.ts'
 import palette from './suites/palette.ts'
 
 const SUITES: Suite[] = [
@@ -50,6 +52,8 @@ const SUITES: Suite[] = [
   whitespace,
   fileMenu,
   codeIntelligence,
+  resolve,
+  github,
   palette,
 ]
 
