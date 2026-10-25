@@ -7,6 +7,7 @@ import {
 import { FileDiff } from '@pierre/diffs/react'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { DiffSide } from '../../../../src/types.ts'
+import { commentRange } from '../../../../web/src/commentRange.ts'
 import { exportComments, exportLines } from './comments.ts'
 import { layers, startLayer, type DemoComment, type DemoFile } from './fixtures.ts'
 import StackMenu from './StackMenu.tsx'
@@ -51,18 +52,11 @@ const firstUnread = (index: number) => {
   return (layer.files.find((file) => !layer.viewed.includes(file.path)) ?? layer.files[0]!).path
 }
 
-/** One side and one span, as ghl stores a comment: a selection across both sides keeps its last line. */
-function linesOf(path: string, selected: SelectedLineRange): Lines {
-  const side = selected.endSide ?? selected.side ?? 'additions'
-  if (selected.side && selected.side !== side)
-    return { path, side, start: selected.end, end: selected.end }
-  return {
-    path,
-    side,
-    start: Math.min(selected.start, selected.end),
-    end: Math.max(selected.start, selected.end),
-  }
-}
+/** The lines a selection comments on, by the app's own rule. */
+const linesOf = (file: { path: string; diff: FileDiffMetadata }, selected: SelectedLineRange) => ({
+  path: file.path,
+  ...commentRange(file.diff.hunks, selected),
+})
 
 function useDocumentTheme(): 'light' | 'dark' {
   const read = (): 'light' | 'dark' =>
@@ -269,11 +263,11 @@ export default function DiffDemo() {
                   onToggleViewed={() => toggleViewed(file.path)}
                   onGutter={(selected) => {
                     setActive(file.path)
-                    setComposer(linesOf(file.path, selected))
+                    setComposer(linesOf(file, selected))
                   }}
                   onSelect={(selected) => {
                     setActive(file.path)
-                    setSelection(selected ? linesOf(file.path, selected) : null)
+                    setSelection(selected ? linesOf(file, selected) : null)
                   }}
                   onSubmit={addComment}
                   onCancel={() => setComposer(null)}
