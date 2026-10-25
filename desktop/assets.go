@@ -14,7 +14,8 @@ var nativeScript string
 
 // desktopAssets loads the host interface before React on every page load. Wails
 // serves its matching runtime at /wails/runtime.js; the rest goes to next.
-func desktopAssets(assets fs.FS, next http.Handler) (http.Handler, error) {
+// compact marks the page for the window's 38 px title bar from its first paint.
+func desktopAssets(assets fs.FS, next http.Handler, compact bool) (http.Handler, error) {
 	index, err := fs.ReadFile(assets, "index.html")
 	if err != nil {
 		return nil, err
@@ -23,6 +24,9 @@ func desktopAssets(assets fs.FS, next http.Handler) (http.Handler, error) {
 		return nil, fmt.Errorf("desktop index.html is missing its head element")
 	}
 	index = bytes.Replace(index, []byte("<head>"), []byte(`<head><script type="module" src="/desktop-native.js"></script>`), 1)
+	if compact {
+		index = bytes.Replace(index, []byte("<html"), []byte(`<html data-titlebar="compact"`), 1)
+	}
 	script := []byte(nativeScript + "\n" + bridge)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")

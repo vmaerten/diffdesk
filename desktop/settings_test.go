@@ -60,3 +60,24 @@ func TestSettingsStoreReadsTheLegacyFileUntilSaved(t *testing.T) {
 		t.Fatalf("legacy file changed: %q, %v", raw, err)
 	}
 }
+
+func TestCompactTitleBarSetting(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	store := &settingsStore{path: path}
+	if store.compactTitleBar() {
+		t.Error("no settings must open the standard title bar")
+	}
+	for raw, want := range map[string]bool{
+		`{"version":1,"compactTitleBar":false}`:  false,
+		`{"version":1,"compactTitleBar":true}`:   true,
+		`{"version":1,"appearance":"dark"}`:      false,
+		`{"version":1,"compactTitleBar":"true"}`: false,
+	} {
+		if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := store.compactTitleBar(); got != want {
+			t.Errorf("%s: got %v, want %v", raw, got, want)
+		}
+	}
+}

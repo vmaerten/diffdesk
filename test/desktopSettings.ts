@@ -13,6 +13,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       dark: 'catppuccin-mocha',
       codeFont: 'Berkeley Mono',
       codeSize: 14,
+      compactTitleBar: true,
     }),
   )
   check(
@@ -24,6 +25,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       dark: 'catppuccin-mocha',
       codeFont: 'Berkeley Mono',
       codeSize: 14,
+      compactTitleBar: true,
     }),
   )
 
@@ -35,6 +37,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       dark: 'no-such-theme',
       codeFont: 'Evil", serif; x',
       codeSize: 40,
+      compactTitleBar: 'yes',
     }),
   )
   // The light slot holds a dark theme: each slot only takes its own mode.

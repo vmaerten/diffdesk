@@ -9,6 +9,8 @@ export interface DesktopSettings extends AppearanceSettings {
   /** One of CODE_FONTS, or any font installed on the Mac. */
   codeFont: string
   codeSize: number
+  /** Read by the app when it opens its window: a change applies at the next launch. */
+  compactTitleBar: boolean
 }
 
 export const DEFAULT_SETTINGS: DesktopSettings = {
@@ -16,6 +18,7 @@ export const DEFAULT_SETTINGS: DesktopSettings = {
   ...DEFAULT_APPEARANCE,
   codeFont: 'SF Mono',
   codeSize: 12,
+  compactTitleBar: false,
 }
 
 const APPEARANCES: readonly Appearance[] = ['system', 'light', 'dark']
@@ -38,7 +41,7 @@ export function readSettings(raw: string): DesktopSettings {
     const entry = THEMES.find((option) => option.id === stored[mode] && option.mode === mode)
     return entry ? entry.id : DEFAULT_SETTINGS[mode]
   }
-  const { appearance, codeFont, codeSize } = stored
+  const { appearance, codeFont, codeSize, compactTitleBar } = stored
   return {
     version: 1,
     appearance: APPEARANCES.find((value) => value === appearance) ?? DEFAULT_SETTINGS.appearance,
@@ -54,6 +57,8 @@ export function readSettings(raw: string): DesktopSettings {
       (codeSize as number) <= CODE_SIZE.max
         ? (codeSize as number)
         : DEFAULT_SETTINGS.codeSize,
+    compactTitleBar:
+      typeof compactTitleBar === 'boolean' ? compactTitleBar : DEFAULT_SETTINGS.compactTitleBar,
   }
 }
 
