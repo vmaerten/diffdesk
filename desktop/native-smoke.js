@@ -171,9 +171,9 @@
       // Settings saves from its own window, and Go hands each save to every
       // window: save as it would, check the review follows and Go kept it, then
       // put them back for the rest of the run.
-      const api = window.go.main.desktopApp
-      const original = (await api.Settings()) || JSON.stringify({ version: 1 })
-      await api.SaveSettings(
+      const desktopApp = window.go.main.desktopApp
+      const original = (await desktopApp.Settings()) || JSON.stringify({ version: 1 })
+      await desktopApp.SaveSettings(
         JSON.stringify({
           ...JSON.parse(original),
           appearance: dark ? 'light' : 'dark',
@@ -190,8 +190,8 @@
           document.querySelector('.desktop-shell').style.getPropertyValue('--code-size') === '13px',
         'Code size did not apply',
       )
-      check(JSON.parse(await api.Settings()).codeSize === 13, 'Settings not saved')
-      await api.SaveSettings(original)
+      check(JSON.parse(await desktopApp.Settings()).codeSize === 13, 'Settings not saved')
+      await desktopApp.SaveSettings(original)
       await wait(
         () => root.dataset.theme === (dark ? 'github-dimmed' : 'github-light'),
         'System appearance did not return',
