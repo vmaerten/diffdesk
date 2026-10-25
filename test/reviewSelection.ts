@@ -26,8 +26,8 @@ export async function runReviewSelection(check: Check): Promise<void> {
     target.target === 'other/ref' && target.commit === null && !url.searchParams.has('commit'),
   )
   check(
-    'target changes preserve base, scope flags, unrelated parameters and fragment',
-    target.query === '?base=release&target=other%2Fref&committed=1&untracked=1' &&
+    'target changes drop the chosen base and keep scope flags, unrelated parameters and fragment',
+    target.query === '?target=other%2Fref&committed=1&untracked=1' &&
       url.searchParams.get('extra') === 'keep' &&
       url.hash === '#file',
   )
@@ -47,7 +47,7 @@ export async function runReviewSelection(check: Check): Promise<void> {
   selection.toggleUntracked()
   check(
     'scope toggles clear flags in the URL and request',
-    selection.getSnapshot().query === '?base=release' &&
+    selection.getSnapshot().query === '' &&
       !url.searchParams.has('committed') &&
       !url.searchParams.has('untracked'),
   )

@@ -134,6 +134,22 @@ export default {
     )
     check('the automatic base drops the choice', automatic.base === 'main', automatic.base ?? '')
 
+    // Reviewing another branch resolves its base again.
+    await load('?target=feature&base=release')
+    await openPicker(page, 't')
+    await page.keyboard.type('other')
+    await pickerShows(page, 'other')
+    await page.keyboard.press('Enter')
+    const switched = await titlebarWhen(
+      page,
+      (state) => state.target === 'other' && state.base === 'main',
+    )
+    check(
+      'another branch drops the chosen base',
+      switched.base === 'main' && !switched.search.includes('base='),
+      `${switched.base} ${switched.search}`,
+    )
+
     // A lower stack layer reviewed against the one above it: the base already
     // holds the whole branch, which is what a mistaken pick looked like.
     // Not `load`: an empty review has no file tree to wait for.

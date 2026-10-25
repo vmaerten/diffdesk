@@ -72,10 +72,12 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
         listeners.delete(listener)
       }
     },
+    /** Another branch resolves its own base: a base chosen for this one does not carry over. */
     pickTarget: (target: string | null) => {
       update((params) => {
         pick(params, 'target', target)
         params.delete('commit')
+        params.delete('base')
       })
     },
     pickCommit: (commit: string | null) => update((params) => pick(params, 'commit', commit)),
