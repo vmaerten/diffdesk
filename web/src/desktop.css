@@ -1390,3 +1390,14 @@ button.stack-branch:focus-visible::after {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* The name under the pointer while ⌘ is held, drawn over the diff: a highlighter
+   token can hold several names, and the diff's own markup is not ours to change. */
+.symbol-underline {
+  position: fixed;
+  z-index: 30;
+  border-bottom: 1.5px solid var(--accent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  pointer-events: none;
+}

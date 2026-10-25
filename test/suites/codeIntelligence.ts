@@ -24,6 +24,7 @@ const INDEX = [
   '',
   'export const answer = engine_3 + parser_2',
   'export const twice = answer * 2',
+  '// engine_3 comes from the core',
   '',
 ].join('\n')
 
@@ -233,11 +234,36 @@ export default {
           (button) => button.textContent,
         ),
       )
+    /** The underline's width, or null when nothing is underlined. */
     const underlined = () =>
-      page.evaluate(() =>
-        [...document.querySelectorAll('.diff diffs-container')]
-          .flatMap((host) => [...(host.shadowRoot?.querySelectorAll('.ghl-symbol') ?? [])])
-          .map((element) => element.textContent),
+      page.evaluate(
+        () => document.querySelector('.symbol-underline')?.getBoundingClientRect().width ?? null,
+      )
+    /** The centre of a word inside a line's text, whatever tokens hold it. */
+    const wordPoint = (path: string, line: number, word: string) =>
+      page.evaluate(
+        (wanted) => {
+          for (const host of document.querySelectorAll('.diff diffs-container')) {
+            const root = host.shadowRoot
+            if (!root?.querySelector('[data-diffs-header]')?.textContent?.includes(wanted.path))
+              continue
+            const row = root.querySelector(
+              `[data-line="${wanted.line}"][data-line-type="change-addition"]`,
+            )
+            const walker = row && document.createTreeWalker(row, NodeFilter.SHOW_TEXT)
+            for (let node = walker?.nextNode(); node; node = walker?.nextNode()) {
+              const at = node.textContent?.indexOf(wanted.word) ?? -1
+              if (at < 0) continue
+              const range = document.createRange()
+              range.setStart(node, at)
+              range.setEnd(node, at + wanted.word.length)
+              const rect = range.getBoundingClientRect()
+              return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, width: rect.width }
+            }
+          }
+          return null
+        },
+        { path, line, word },
       )
 
     const engine = await token('src/index.ts', 4, 'engine_3')
@@ -260,7 +286,7 @@ export default {
       (await actions()).includes('Go to definition ⌘ click'),
       JSON.stringify(await actions()),
     )
-    check('  and underlines it', (await underlined()).join() === 'engine_3')
+    check('  and underlines it', ((await underlined()) ?? 0) > 0)
     check(
       '  and the status bar shows its server running',
       (await poll(footer, (state) => state.servers.join() === 'tsrs=ready')).servers.join() ===
@@ -315,13 +341,31 @@ export default {
     await page.keyboard.press('Escape')
     check('Escape closes the card', (await poll(card, (state) => state === null)) === null)
 
+    // A comment is one token: the name under the pointer is found inside it.
+    const inComment = await wordPoint('src/index.ts', 6, 'engine_3')
+    if (inComment) await page.mouse.move(inComment.x, inComment.y)
+    await page.keyboard.down('Meta')
+    const commented = await poll(card, (state) => Boolean(state?.signature))
+    const width = await underlined()
+    check(
+      'a name inside a longer token is looked up, and underlined alone',
+      commented?.signature === 'const engine_3: number' &&
+        inComment !== null &&
+        width !== null &&
+        Math.abs(width - inComment.width) < 2,
+      JSON.stringify({ commented, width, inComment }),
+    )
+    await page.keyboard.up('Meta')
+    await page.keyboard.press('Escape')
+    await poll(card, (state) => state === null)
+
     const deleted = await token('src/index.ts', 1, 'index_0', 'change-deletion')
     await page.keyboard.down('Meta')
     if (deleted) await page.mouse.move(deleted.x, deleted.y)
     await sleep(400)
     check(
       'a deleted line is not looked up: the disk no longer has it',
-      deleted !== null && (await card()) === null && (await underlined()).length === 0,
+      deleted !== null && (await card()) === null && (await underlined()) === null,
     )
     await page.keyboard.up('Meta')
 
@@ -393,7 +437,7 @@ export default {
     )
     check(
       '  and the references by file, those in the diff marked',
-      listed.groups.join() === 'src/extra.ts:2,src/index.ts:2' && listed.inDiff === 2,
+      listed.groups.join() === 'src/extra.ts:2,src/index.ts:3' && listed.inDiff === 3,
       JSON.stringify(listed),
     )
     const panelWidth = () =>
@@ -410,7 +454,7 @@ export default {
       await page.mouse.move(box.x - 120, box.y + box.height / 2, { steps: 4 })
       await page.mouse.up()
     }
-    const widened = await poll(panelWidth, (width) => width > narrow + 100)
+    const widened = await poll(panelWidth, (size) => size > narrow + 100)
     check(
       'the side panel widens as its handle moves left',
       Math.abs(widened - narrow - 120) < 4,
@@ -420,7 +464,7 @@ export default {
     const filtered = await poll(panel, (state) => state.groups.length === 1)
     check(
       'In this diff only leaves the references the diff shows',
-      filtered.groups.join() === 'src/index.ts:2',
+      filtered.groups.join() === 'src/index.ts:3',
       JSON.stringify(filtered),
     )
     await page.evaluate(() =>

@@ -34,10 +34,49 @@ interface Card {
   expanded: boolean
 }
 
-/** Marks the token under the pointer while ⌘ is held; styled in the diff's shadow CSS. */
-export const SYMBOL_CLASS = 'ghl-symbol'
 const OPEN_DELAY = 150
 const CLOSE_DELAY = 250
+/** The characters of a symbol's name, in any language ghl serves. */
+const WORD = /[\p{L}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}_$]+/gu
+
+/**
+ * The word of a token under x, with its place on screen.
+ *
+ * Highlighters merge neighbouring tokens: Python's ` helper(name)`, or a Helm
+ * template's `.Values.replicaCount`, are one token each. Measuring the token's
+ * characters finds the name the pointer is on, and underlining that rectangle
+ * rather than the token marks just the name.
+ */
+function wordAt(
+  token: TokenEvent,
+  x: number,
+): { start: number; text: string; rect: DOMRect } | null {
+  const range = document.createRange()
+  const rects: DOMRect[] = []
+  const walker = document.createTreeWalker(token.tokenElement, NodeFilter.SHOW_TEXT)
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    for (let index = 0; index < (node.textContent?.length ?? 0); index++) {
+      range.setStart(node, index)
+      range.setEnd(node, index + 1)
+      rects.push(range.getBoundingClientRect())
+    }
+  }
+  const hit = rects.findIndex((rect) => x >= rect.left && x < rect.right)
+  if (hit < 0) return null
+  for (const match of token.tokenText.matchAll(WORD)) {
+    const end = match.index + match[0].length
+    if (hit < match.index || hit >= end) continue
+    if (!IDENTIFIER.test(match[0])) return null
+    const first = rects[match.index]!
+    const last = rects[end - 1]!
+    return {
+      start: match.index,
+      text: match[0],
+      rect: new DOMRect(first.left, first.top, last.right - first.left, first.height),
+    }
+  }
+  return null
+}
 
 /**
  * Hover and ⌘-click on the diff's symbols, answered by the language servers.
@@ -73,31 +112,43 @@ export function useSymbolCard({
   theme: SyntaxTheme
 }): { handlers: TokenHandlers; card: ReactNode } {
   const [card, setCard] = useState<Card | null>(null)
-  const hovered = useRef<{ query: SymbolQuery; element: HTMLElement } | null>(null)
+  const [underline, setUnderline] = useState<DOMRect | null>(null)
+  const hovered = useRef<{ token: TokenEvent; path: string } | null>(null)
+  const pointer = useRef(0)
   const commandHeld = useRef(false)
   const openTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const answers = useRef(new Map<string, Promise<SymbolAnswer>>())
   const back = useRef<{ path: string; line: number }[]>([])
+  const armed = useRef<string | null>(null)
 
   useEffect(() => {
     answers.current.clear()
     setCard(null)
   }, [loadId])
 
-  const queryOf = useStableCallback(
-    (token: TokenEvent, context: TokenContext): SymbolQuery | null => {
-      const path = context?.item?.type === 'diff' ? context.item.fileDiff?.name : undefined
-      if (!enabled || !repoId || !path || token.side !== 'additions') return null
-      if (!IDENTIFIER.test(token.tokenText) || !serverFor(languages, path)) return null
-      return {
-        path,
-        line: token.lineNumber,
-        character: token.lineCharStart,
-        token: token.tokenText,
-      }
-    },
-  )
+  /** The file of a token code intelligence answers for, or null. */
+  const pathOf = useStableCallback((token: TokenEvent, context: TokenContext): string | null => {
+    const path = context?.item?.type === 'diff' ? context.item.fileDiff?.name : undefined
+    if (!enabled || !repoId || !path || token.side !== 'additions') return null
+    return serverFor(languages, path) ? path : null
+  })
+
+  /** The symbol under the pointer in the hovered token, as the server is asked about it. */
+  const symbolAt = useStableCallback((x: number): { query: SymbolQuery; rect: DOMRect } | null => {
+    const token = hovered.current
+    const word = token && wordAt(token.token, x)
+    if (!token || !word) return null
+    return {
+      query: {
+        path: token.path,
+        line: token.token.lineNumber,
+        character: token.token.lineCharStart + word.start,
+        token: word.text,
+      },
+      rect: word.rect,
+    }
+  })
 
   const lookUp = (query: SymbolQuery): Promise<SymbolAnswer> => {
     const key = `${query.path}:${query.line}:${query.character}:${query.token}`
@@ -114,76 +165,79 @@ export function useSymbolCard({
     return answer
   }
 
-  const show = useStableCallback(
-    async (query: SymbolQuery, element: HTMLElement, expanded: boolean) => {
-      const rect = element.getBoundingClientRect()
-      const same = (current: Card | null) =>
-        current?.query.path === query.path &&
-        current.query.line === query.line &&
-        current.query.character === query.character
-      setCard((current) =>
-        same(current) && current
-          ? { ...current, expanded: current.expanded || expanded }
-          : { query, rect, lookup: { status: 'loading' }, expanded },
-      )
-      let lookup: Lookup
-      try {
-        lookup = { status: 'done', answer: await lookUp(query) }
-      } catch (cause) {
-        lookup = {
-          status: 'error',
-          message:
-            cause instanceof StaleSymbolError
-              ? 'This file changed on disk since the review loaded. Press r to refresh.'
-              : String(cause instanceof Error ? cause.message : cause),
-        }
+  const show = useStableCallback(async (query: SymbolQuery, rect: DOMRect, expanded: boolean) => {
+    const same = (current: Card | null) =>
+      current?.query.path === query.path &&
+      current.query.line === query.line &&
+      current.query.character === query.character
+    setCard((current) =>
+      same(current) && current
+        ? { ...current, expanded: current.expanded || expanded }
+        : { query, rect, lookup: { status: 'loading' }, expanded },
+    )
+    let lookup: Lookup
+    try {
+      lookup = { status: 'done', answer: await lookUp(query) }
+    } catch (cause) {
+      lookup = {
+        status: 'error',
+        message:
+          cause instanceof StaleSymbolError
+            ? 'This file changed on disk since the review loaded. Press r to refresh.'
+            : String(cause instanceof Error ? cause.message : cause),
       }
-      setCard((current) => (same(current) && current ? { ...current, lookup } : current))
-    },
-  )
+    }
+    setCard((current) => (same(current) && current ? { ...current, lookup } : current))
+  })
 
   const close = useStableCallback(() => {
     clearTimeout(openTimer.current)
     clearTimeout(closeTimer.current)
+    armed.current = null
     setCard(null)
   })
 
-  const underline = useStableCallback((on: boolean) => {
-    hovered.current?.element.classList.toggle(SYMBOL_CLASS, on)
-  })
-
-  const arm = useStableCallback(() => {
-    const token = hovered.current
-    if (!token) return
-    underline(true)
+  const disarm = useStableCallback(() => {
     clearTimeout(openTimer.current)
-    openTimer.current = setTimeout(() => void show(token.query, token.element, false), OPEN_DELAY)
+    armed.current = null
+    setUnderline(null)
   })
 
-  const openDefinition = useStableCallback(
-    async (query: SymbolQuery, element: HTMLElement | null) => {
-      // From the card's button, the card is already there: it only needs the code.
-      const expand = () =>
-        element
-          ? void show(query, element, true)
-          : setCard((current) => (current ? { ...current, expanded: true } : current))
-      let answer: SymbolAnswer
-      try {
-        answer = await lookUp(query)
-      } catch {
-        expand()
-        return
-      }
-      const definition = answer.definitions.find((found) => found.inRepo) ?? answer.definitions[0]
-      if (definition?.inRepo && canReveal(definition.path, definition.line)) {
-        back.current.push({ path: query.path, line: query.line })
-        close()
-        reveal(definition.path, definition.line)
-      } else {
-        expand()
-      }
-    },
-  )
+  /** Underlines the symbol under the pointer and opens its card after a pause. */
+  const arm = useStableCallback(() => {
+    const symbol = symbolAt(pointer.current)
+    if (!symbol) return disarm()
+    const key = `${symbol.query.line}:${symbol.query.character}`
+    if (armed.current === key) return
+    armed.current = key
+    setUnderline(symbol.rect)
+    clearTimeout(openTimer.current)
+    openTimer.current = setTimeout(() => void show(symbol.query, symbol.rect, false), OPEN_DELAY)
+  })
+
+  const openDefinition = useStableCallback(async (query: SymbolQuery, rect: DOMRect | null) => {
+    // From the card's button, the card is already there: it only needs the code.
+    const expand = () =>
+      rect
+        ? void show(query, rect, true)
+        : setCard((current) => (current ? { ...current, expanded: true } : current))
+    let answer: SymbolAnswer
+    try {
+      answer = await lookUp(query)
+    } catch {
+      expand()
+      return
+    }
+    const definition = answer.definitions.find((found) => found.inRepo) ?? answer.definitions[0]
+    if (definition?.inRepo && canReveal(definition.path, definition.line)) {
+      back.current.push({ path: query.path, line: query.line })
+      close()
+      disarm()
+      reveal(definition.path, definition.line)
+    } else {
+      expand()
+    }
+  })
 
   // Always handed to the diff, which takes callbacks only when a file first
   // renders: ones added later would never be called. Each checks for itself
@@ -191,28 +245,31 @@ export function useSymbolCard({
   const handlers = useMemo<TokenHandlers>(
     () => ({
       onTokenEnter: (token, event, context) => {
-        const query = queryOf(token, context)
-        if (!query) return
-        hovered.current = { query, element: token.tokenElement }
+        const path = pathOf(token, context)
+        if (!path) return
+        hovered.current = { token, path }
+        pointer.current = event.clientX
         clearTimeout(closeTimer.current)
         if (event.metaKey || commandHeld.current) arm()
       },
       onTokenLeave: (token) => {
-        if (hovered.current?.element !== token.tokenElement) return
-        underline(false)
+        if (hovered.current?.token.tokenElement !== token.tokenElement) return
         hovered.current = null
-        clearTimeout(openTimer.current)
+        disarm()
         closeTimer.current = setTimeout(() => setCard(null), CLOSE_DELAY)
       },
       onTokenClick: (token, event, context) => {
         if (!event.metaKey) return
-        const query = queryOf(token, context)
-        if (!query) return
+        const path = pathOf(token, context)
+        if (!path) return
+        hovered.current = { token, path }
+        const symbol = symbolAt(event.clientX)
+        if (!symbol) return
         event.preventDefault()
-        void openDefinition(query, token.tokenElement)
+        void openDefinition(symbol.query, symbol.rect)
       },
     }),
-    [queryOf, arm, underline, openDefinition],
+    [pathOf, symbolAt, arm, disarm, openDefinition],
   )
 
   useEffect(() => {
@@ -233,12 +290,16 @@ export function useSymbolCard({
     const keyUp = (event: KeyboardEvent) => {
       if (event.key !== 'Meta') return
       commandHeld.current = false
-      underline(false)
-      clearTimeout(openTimer.current)
+      disarm()
     }
     const blur = () => {
       commandHeld.current = false
-      underline(false)
+      disarm()
+    }
+    // A long token holds several names: the one under the pointer may change within it.
+    const move = (event: PointerEvent) => {
+      pointer.current = event.clientX
+      if (commandHeld.current && hovered.current) arm()
     }
     // The card is placed against the token: once the diff moves, it points nowhere.
     const scroll = (event: Event) => {
@@ -247,47 +308,70 @@ export function useSymbolCard({
           event.target instanceof Node &&
           document.querySelector('.symbol-card')?.contains(event.target)
         )
-      )
+      ) {
         close()
+        disarm()
+      }
     }
     window.addEventListener('keydown', keyDown)
     window.addEventListener('keyup', keyUp)
     window.addEventListener('blur', blur)
+    window.addEventListener('pointermove', move)
     window.addEventListener('scroll', scroll, true)
     return () => {
       window.removeEventListener('keydown', keyDown)
       window.removeEventListener('keyup', keyUp)
       window.removeEventListener('blur', blur)
+      window.removeEventListener('pointermove', move)
       window.removeEventListener('scroll', scroll, true)
     }
-  }, [enabled, card, close, reveal, arm, underline])
+  }, [enabled, card, close, reveal, arm, disarm])
 
   useEffect(() => {
-    if (!enabled) close()
-  }, [enabled, close])
+    if (!enabled) {
+      close()
+      disarm()
+    }
+  }, [enabled, close, disarm])
 
   const server = card ? serverFor(languages, card.query.path)?.server?.name : undefined
   return {
     handlers,
-    card: card && (
-      <SymbolCard
-        card={card}
-        server={server}
-        theme={theme}
-        displayed={canReveal}
-        onKeep={() => clearTimeout(closeTimer.current)}
-        onLeave={() => {
-          closeTimer.current = setTimeout(() => setCard(null), CLOSE_DELAY)
-        }}
-        onOpenDefinition={() => void openDefinition(card.query, null)}
-        onReferences={
-          onReferences &&
-          ((answer) => {
-            close()
-            onReferences(card.query, answer)
-          })
-        }
-      />
+    card: (
+      <>
+        {underline && (
+          <span
+            className="symbol-underline"
+            aria-hidden="true"
+            style={{
+              left: underline.left,
+              top: underline.top,
+              width: underline.width,
+              height: underline.height,
+            }}
+          />
+        )}
+        {card && (
+          <SymbolCard
+            card={card}
+            server={server}
+            theme={theme}
+            displayed={canReveal}
+            onKeep={() => clearTimeout(closeTimer.current)}
+            onLeave={() => {
+              closeTimer.current = setTimeout(() => setCard(null), CLOSE_DELAY)
+            }}
+            onOpenDefinition={() => void openDefinition(card.query, null)}
+            onReferences={
+              onReferences &&
+              ((answer) => {
+                close()
+                onReferences(card.query, answer)
+              })
+            }
+          />
+        )}
+      </>
     ),
   }
 }
