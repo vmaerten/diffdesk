@@ -264,8 +264,8 @@
       )
       const clipboard = await navigator.clipboard.readText()
       check(
-        clipboard.includes('edited in native WebView') && clipboard.includes('line 20'),
-        'Native clipboard lacks Markdown/code',
+        clipboard.includes('edited in native WebView') && clipboard.includes('context.txt:20'),
+        'Native clipboard lacks the comment or its location',
       )
       // The Copy All Comments menu item (⇧⌘C) reaches the same clipboard.
       await window.runtime.ClipboardSetText('before the menu copy')
