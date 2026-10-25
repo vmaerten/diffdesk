@@ -40,6 +40,29 @@ ghl comments reopen 0455572a "Still too vague."  # the reviewer: hand it back
 
 `check` prints only what the agent cannot read in the file: the comment, the reviewer's last reply, and the lines the file no longer has, such as removed lines or the lines a stale comment was written on. `--code` adds the current code and `--json` the export's format. It covers every comment on the branch, including files that left the comparison, and exits 0 when none is open, 1 while some are, and 2 on an error. Comment IDs are shown by their first 8 characters; any unique prefix of 4 or more works. The window badges answered comments, lists each comment's replies and hides resolved ones, from the panel, the diff and Copy alike; press R after a change made in the terminal.
 
+`ghl skill` prints a short skill that teaches an agent this loop: run `check`, fix each comment, `reply`, and stop at `0 open left`. It ships in the binary and matches the installed commands; print it again after an upgrade. For Claude Code:
+
+```bash
+mkdir -p ~/.claude/skills/ghl-comments
+ghl skill > ~/.claude/skills/ghl-comments/SKILL.md
+```
+
+Other agents that read skills take the same file in their skills folder. For an agent without skills, one line in its `AGENTS.md` does: `For review comments left in ghl, run "ghl skill" and follow it.`
+
+To keep Claude Code from ending its turn while comments are open, add a `Stop` hook to the project's `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "ghl comments check >&2; [ $? -ne 1 ] || exit 2" }] }
+    ]
+  }
+}
+```
+
+On exit 2, Claude Code hands the open comments back to the agent. Outside a repository, on an error, or once every comment is answered, the hook lets it stop. It runs at every stop, so add it to projects where open comments should always be answered.
+
 Older comments recover their branch from the target in their saved comparison. If only commit hashes were recorded, the branch is unknown. Those comments stay in the state file and can be read by explicitly reviewing the recorded target.
 
 ## Viewed files
