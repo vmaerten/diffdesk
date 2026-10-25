@@ -99,9 +99,7 @@ export default {
     check('[ never lands on a pruned layer', kept.target === 'stack/c', kept.target ?? '')
 
     // A branch in no stack must be left exactly as it was: no button, and the
-    // base still guessed as the trunk. `other` rather than the suites' usual
-    // `feature`: the fixture is shared, and the pickers suite remembers a base
-    // for `feature` in .git/config — which would answer this check instead.
+    // base still guessed as the trunk.
     await load('?target=other')
     const unstacked = await shown()
     check('a branch in no stack shows no stack', unstacked.stack === null, unstacked.stack ?? '')

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Command } from 'cmdk'
 
 import type { RefDetail, RefsPayload } from '../../src/types.ts'
@@ -17,6 +17,8 @@ interface RefSelectorProps {
   /** What the picked ref becomes, which names the list and the current ref's badge. */
   kind: 'base' | 'target'
   current: string
+  /** The entry highlighted on open, when it is not `current`'s. */
+  selected?: string
   source?: string
   extra?: RefSelectorExtra
   onPick: (ref: string | null) => void
@@ -34,6 +36,7 @@ export default function RefSelector({
   repoId,
   kind,
   current,
+  selected = current,
   source,
   extra,
   onPick,
@@ -42,6 +45,13 @@ export default function RefSelector({
   const [refs, setRefs] = useState<RefDetail[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<{ trunk?: string | null; branch?: string | null }>({})
+  // Open on the current choice, so that Enter alone keeps it rather than taking
+  // whatever was committed to last.
+  const [value, setValue] = useState(selected)
+  const list = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
+  }, [refs])
 
   useEffect(() => {
     let cancelled = false
@@ -81,10 +91,10 @@ export default function RefSelector({
     <>
       <div className="picker-backdrop" onMouseDown={onClose} />
       <div className="picker" onMouseDown={(event) => event.stopPropagation()}>
-        <Command label={`Choose a ${kind}`} loop>
+        <Command label={`Choose a ${kind}`} loop value={value} onValueChange={setValue}>
           <Command.Input autoFocus placeholder="Search branches…" className="picker-input" />
 
-          <Command.List className="picker-list">
+          <Command.List className="picker-list" ref={list}>
             {error && <div className="picker-empty">{error}</div>}
             {!refs && !error && <div className="picker-empty">Loading refs…</div>}
             <Command.Empty className="picker-empty">No matching ref.</Command.Empty>
@@ -118,7 +128,8 @@ export default function RefSelector({
 
           <div className="picker-foot">
             current: <code>{current}</code>
-            {source ? ` (${source})` : ''} · <kbd>↵</kbd> pick · <kbd>esc</kbd> close
+            {source ? ` (${source})` : ''} · <kbd>↵</kbd>{' '}
+            {kind === 'base' ? 'pick for this review' : 'pick'} · <kbd>esc</kbd> close
           </div>
         </Command>
       </div>

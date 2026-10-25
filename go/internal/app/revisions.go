@@ -378,22 +378,6 @@ func (r Repository) baseFor(ctx context.Context, override string, branch *string
 		base.Ref, base.Source = override, "override"
 		return base, nil
 	}
-	if branch != nil {
-		remembered, err := r.optionalText(ctx, "config", "--get", "branch."+*branch+".ghlBase")
-		if err != nil {
-			return base, err
-		}
-		if validRef(remembered) {
-			sha, err := r.resolveRef(ctx, remembered)
-			if err != nil {
-				return base, err
-			}
-			if sha != "" {
-				base.Ref, base.Source = remembered, "remembered"
-				return base, nil
-			}
-		}
-	}
 	if stack != nil && stack.Current >= 0 {
 		base.Ref, base.Source = stack.Layers[stack.Current].Base, "stack"
 		return base, nil
@@ -414,23 +398,6 @@ func (r Repository) baseFor(ctx context.Context, override string, branch *string
 		return base, nil
 	}
 	return base, fmt.Errorf("No base found: set one with --base, or define origin/HEAD")
-}
-func (r Repository) rememberBase(ctx context.Context, branch *string, base string) error {
-	if branch == nil {
-		return fmt.Errorf("Cannot remember a base while HEAD is detached")
-	}
-	if !validRef(*branch) {
-		return fmt.Errorf("Invalid target ref")
-	}
-	sha, err := r.resolveRef(ctx, base)
-	if err != nil {
-		return err
-	}
-	if sha == "" {
-		return fmt.Errorf("Invalid base %q", base)
-	}
-	_, err = r.text(ctx, "config", "--local", "--replace-all", "branch."+*branch+".ghlBase", base)
-	return err
 }
 
 const commitFormat = "--format=%H%x1f%h%x1f%s%x1f%an%x1f%ar%x1f%P"

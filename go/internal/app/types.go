@@ -6,6 +6,7 @@ type Comparison struct {
 }
 type BaseResolution struct {
 	Ref      string      `json:"ref"`
+	SHA      string      `json:"sha"`
 	Source   string      `json:"source"`
 	Branch   *string     `json:"branch"`
 	Trunk    *string     `json:"trunk"`
