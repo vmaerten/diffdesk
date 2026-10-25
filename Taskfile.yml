@@ -224,7 +224,8 @@ tasks:
     desc: Serve the website and guide with hot reload
     dir: site
     cmds:
-      - pnpm exec astro dev
+      # Astro detaches when it detects an agent, and a terminal opened from one inherits its variables.
+      - env -u CLAUDECODE -u AI_AGENT pnpm exec astro dev
 
   site:build:
     desc: Build the website and guide into site/dist
