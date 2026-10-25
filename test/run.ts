@@ -8,6 +8,7 @@ import { runCommentPersistence } from './commentPersistence.ts'
 import { runViewedPersistence } from './viewedPersistence.ts'
 import { runDesktopSettings } from './desktopSettings.ts'
 import { runTabOverflow } from './tabOverflow.ts'
+import { runCommentRange } from './commentRange.ts'
 
 import reviewPanel from './suites/reviewPanel.ts'
 import themes from './suites/themes.ts'
@@ -57,6 +58,7 @@ const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'desktop-settings', run: runDesktopSettings },
   { name: 'tab-overflow', run: runTabOverflow },
   { name: 'export', run: runExport },
+  { name: 'comment-range', run: runCommentRange },
 ]
 
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-'))
