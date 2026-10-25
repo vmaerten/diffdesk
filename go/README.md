@@ -57,7 +57,7 @@ Code intelligence is a beta, off until the window sends the settings: `PUT /api/
 
 A server serves one repository and one language. It starts on first use in the repository root, stops after 10 minutes without a request, when the settings exclude it or when `Serve` returns, and a failed start is not retried for 30 seconds. It runs in the environment of the user's login shell started in the repository, so Homebrew, mise and `~/go/bin` are found even when the app was opened from the Finder; without the shell, PATH gains the usual install directories. Each server has its own process group, so stopping it also stops what it spawned.
 
-Auto prefers the checkout's own server: for TypeScript, `node_modules/.bin/tsrs`, then the checkout's `tsc` from TypeScript 7 or later (`tsc --lsp --stdio`), then `tsrs` and `typescript-language-server` on PATH. Go uses `gopls` and Rust `rust-analyzer`. `TestRealLanguageServersStart` starts the real gopls and TypeScript 7 when they are installed; the other tests use a fake server, the test binary run again.
+Auto prefers tsrs for TypeScript, which answers faster and in less memory than TypeScript 7: the checkout's `node_modules/.bin/tsrs`, then `tsrs` on PATH, then the checkout's `tsc` from TypeScript 7 or later (`tsc --lsp --stdio`), then `typescript-language-server` on PATH. Go uses `gopls` and Rust `rust-analyzer`. `TestRealLanguageServersStart` starts the real gopls and TypeScript 7 when they are installed; the other tests use a fake server, the test binary run again.
 
 ## Development
 

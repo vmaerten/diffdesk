@@ -291,6 +291,12 @@ func TestTypeScriptServerPreference(t *testing.T) {
 	expect("tsc", "", "")
 	expect("typescript-language-server", "typescript-language-server", "PATH")
 	typescript("7.1.0")
+	// tsrs comes first, even from PATH against the checkout's TypeScript 7.
+	expect("auto", "tsrs", "PATH")
+	expect("tsc", "tsc", "checkout")
+	if err := os.Remove(filepath.Join(bin, "tsrs")); err != nil {
+		t.Fatal(err)
+	}
 	expect("auto", "tsc", "checkout")
 	executable(filepath.Join(root, "node_modules", ".bin", "tsrs"))
 	expect("auto", "tsrs", "checkout")
