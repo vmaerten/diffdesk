@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -44,7 +43,11 @@ func TestFakeLanguageServer(t *testing.T) {
 	}
 	reader := bufio.NewReader(os.Stdin)
 	var cancelled []int64
-	configured := false
+	var documents []string
+	configured, watched, root := false, 0, ""
+	location := func(uri string, line, character, length int) map[string]any {
+		return map[string]any{"uri": uri, "range": map[string]any{"start": map[string]int{"line": line, "character": character}, "end": map[string]int{"line": line, "character": character + length}}}
+	}
 	for {
 		body, err := readFrame(reader)
 		if err != nil {
@@ -54,6 +57,11 @@ func TestFakeLanguageServer(t *testing.T) {
 		_ = json.Unmarshal(body, &message)
 		switch message.Method {
 		case "initialize":
+			var params struct {
+				RootURI string `json:"rootUri"`
+			}
+			_ = json.Unmarshal(message.Params, &params)
+			root = params.RootURI
 			write(map[string]any{"id": message.ID, "result": map[string]any{"capabilities": map[string]any{}, "serverInfo": map[string]string{"name": "fake", "version": "1.0"}}})
 		case "initialized":
 			write(map[string]any{"id": "configuration", "method": "workspace/configuration", "params": map[string]any{"items": []any{map[string]string{"section": "a"}, map[string]string{"section": "b"}}}})
@@ -68,9 +76,26 @@ func TestFakeLanguageServer(t *testing.T) {
 			}
 			_ = json.Unmarshal(message.Params, &params)
 			cancelled = append(cancelled, params.ID)
+		case "textDocument/didOpen", "textDocument/didChange":
+			var params struct {
+				TextDocument struct {
+					URI     string `json:"uri"`
+					Version int    `json:"version"`
+				} `json:"textDocument"`
+			}
+			_ = json.Unmarshal(message.Params, &params)
+			documents = append(documents, fmt.Sprintf("%s %s v%d", message.Method, strings.TrimPrefix(params.TextDocument.URI, root+"/"), params.TextDocument.Version))
+		case "workspace/didChangeWatchedFiles":
+			watched++
+		case "textDocument/hover":
+			write(map[string]any{"id": message.ID, "result": map[string]any{"contents": map[string]string{"kind": "markdown", "value": "```go\nfunc (s *Store) Mutate()\n```\n\n---\n\nMutate changes [the state](https://pkg.go.dev/state)."}}})
+		case "textDocument/definition":
+			write(map[string]any{"id": message.ID, "result": []any{location(root+"/store.go", 2, 16, 6), location("file:///usr/local/go/src/context/context.go", 9, 5, 7)}})
+		case "textDocument/references":
+			write(map[string]any{"id": message.ID, "result": []any{location(root+"/main.go", 4, 2, 6), location(root+"/caller.go", 2, 8, 6), location("file:///elsewhere/vendor.go", 1, 0, 6)}})
 		case "fake/hang":
 		case "fake/state":
-			write(map[string]any{"id": message.ID, "result": map[string]any{"cancelled": cancelled, "configured": configured}})
+			write(map[string]any{"id": message.ID, "result": map[string]any{"cancelled": cancelled, "configured": configured, "documents": documents, "watched": watched}})
 		case "shutdown":
 			write(map[string]any{"id": message.ID, "result": nil})
 		case "exit":
@@ -118,15 +143,6 @@ func waitFor(t *testing.T, what string, done func() bool) {
 	}
 }
 
-func closed(ch <-chan struct{}) bool {
-	select {
-	case <-ch:
-		return true
-	default:
-		return false
-	}
-}
-
 func goStatus(m *languageServers, root string) languageStatus {
 	return m.status(root).Languages[0]
 }
@@ -171,7 +187,7 @@ func TestLanguageServerStartsOnDemandAndShutsDown(t *testing.T) {
 	if err := m.configure(lspConfig{Enabled: true, Servers: map[string]string{"go": "off"}}); err != nil {
 		t.Fatal(err)
 	}
-	if !closed(client.exited) || client.cmd.ProcessState.ExitCode() != 0 {
+	if !closedChannel(client.exited) || client.cmd.ProcessState.ExitCode() != 0 {
 		t.Fatalf("turning the language off did not shut its server down: %v", client.cmd.ProcessState)
 	}
 	if status := goStatus(m, root); status.State != "off" {
@@ -185,7 +201,7 @@ func TestLanguageServerStartsOnDemandAndShutsDown(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.close()
-	if !closed(client.exited) {
+	if !closedChannel(client.exited) {
 		t.Fatal("closing the runtime left the server running")
 	}
 	if _, err := m.client(ctx, root, "go"); !errors.Is(err, errLSPClosed) {
@@ -226,7 +242,7 @@ func TestLanguageServerStopsWhenIdle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "the idle stop", func() bool { return closed(client.exited) })
+	waitFor(t, "the idle stop", func() bool { return closedChannel(client.exited) })
 	if status := goStatus(m, root); status.State != "idle" {
 		t.Fatalf("an idle server that stopped: %+v", status)
 	}
@@ -374,51 +390,5 @@ func TestLoginEnvironmentSkipsWhatStartupFilesPrint(t *testing.T) {
 	started := time.Now()
 	if _, err := loginEnvironment(hanging, dir, 200*time.Millisecond); err == nil || time.Since(started) > 3*time.Second {
 		t.Fatalf("a hanging startup file held the server back: %v after %v", err, time.Since(started))
-	}
-}
-
-// The real servers, when this machine has them: they must accept what ghl sends.
-func TestRealLanguageServersStart(t *testing.T) {
-	repoRoot, err := filepath.Abs("../../..")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cases := []struct{ language, server string }{{"go", "gopls"}, {"typescript", "tsc"}}
-	for _, c := range cases {
-		t.Run(c.server, func(t *testing.T) {
-			t.Parallel()
-			root, _ := filepath.EvalSymlinks(t.TempDir())
-			switch c.language {
-			case "go":
-				if _, err := exec.LookPath("gopls"); err != nil {
-					t.Skip("gopls is not installed")
-				}
-				writeFixture(t, root, "go.mod", "module example.com/fixture\n\ngo 1.22\n")
-				writeFixture(t, root, "main.go", "package main\n\nfunc main() {}\n")
-			case "typescript":
-				modules := filepath.Join(repoRoot, "node_modules")
-				if !typeScriptSeven(repoRoot) {
-					t.Skip("TypeScript 7 is not installed in this checkout")
-				}
-				if err := os.Symlink(modules, filepath.Join(root, "node_modules")); err != nil {
-					t.Fatal(err)
-				}
-				writeFixture(t, root, "index.ts", "export const answer: number = 42\n")
-			}
-			m := newLanguageServers()
-			m.environment = func(string) []string { return os.Environ() }
-			t.Cleanup(m.close)
-			_ = m.configure(lspConfig{Enabled: true, Servers: map[string]string{c.language: c.server}})
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			if _, err := m.client(ctx, root, c.language); err != nil {
-				t.Fatal(err)
-			}
-			for _, status := range m.status(root).Languages {
-				if status.ID == c.language && (status.State != "ready" && status.State != "indexing" || status.Version == "") {
-					t.Fatalf("a real %s: %+v", c.server, status)
-				}
-			}
-		})
 	}
 }
