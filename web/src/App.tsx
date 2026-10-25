@@ -612,6 +612,7 @@ export default function App({
           canReveal={canRevealDefinition}
           onReveal={revealDefinition}
           onClose={() => setCommentsOpen(false)}
+          theme={syntaxTheme}
         />
       )}
     </>

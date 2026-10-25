@@ -3,6 +3,8 @@ import type { ReferencesAnswer, SymbolAnswer, SymbolQuery } from '../../src/type
 import Icon from './Icon.tsx'
 import { lookUpReferences, StaleSymbolError } from './codeIntelligence.ts'
 import { treeOrder } from './fileOrder.ts'
+import HighlightedCode from './HighlightedCode.tsx'
+import type { SyntaxTheme } from './theme.ts'
 
 export type PanelTab = 'comments' | 'symbol'
 
@@ -65,6 +67,7 @@ export default function SymbolPanel({
   canReveal,
   onReveal,
   onClose,
+  theme,
 }: {
   open: boolean
   repoId: string | null
@@ -75,6 +78,8 @@ export default function SymbolPanel({
   canReveal: (path: string, line: number) => boolean
   onReveal: (path: string, line: number) => void
   onClose: () => void
+  /** The review's syntax theme, for the signature. */
+  theme: SyntaxTheme
 }) {
   const [references, setReferences] = useState<References | null>(null)
   const [inDiffOnly, setInDiffOnly] = useState(false)
@@ -159,7 +164,14 @@ export default function SymbolPanel({
                 : `Outside the repository: ${definition.path}`}
             </div>
           )}
-          {signature && <pre className="symbol-signature">{signature.text}</pre>}
+          {signature && (
+            <HighlightedCode
+              className="symbol-signature"
+              code={signature.text}
+              path={target.query.path}
+              theme={theme}
+            />
+          )}
           <div className="symbol-panel-references-head">
             <span>References {total !== null && <span className="counter">{total}</span>}</span>
             <label>
