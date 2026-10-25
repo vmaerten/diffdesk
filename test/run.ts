@@ -9,6 +9,7 @@ import { runViewedPersistence } from './viewedPersistence.ts'
 import { runDesktopSettings } from './desktopSettings.ts'
 import { runTabOverflow } from './tabOverflow.ts'
 import { runCommentRange } from './commentRange.ts'
+import { runPaletteMatch } from './paletteMatch.ts'
 
 import reviewPanel from './suites/reviewPanel.ts'
 import themes from './suites/themes.ts'
@@ -28,6 +29,7 @@ import search from './suites/search.ts'
 import whitespace from './suites/whitespace.ts'
 import fileMenu from './suites/fileMenu.ts'
 import codeIntelligence from './suites/codeIntelligence.ts'
+import palette from './suites/palette.ts'
 
 const SUITES: Suite[] = [
   themes,
@@ -48,6 +50,7 @@ const SUITES: Suite[] = [
   whitespace,
   fileMenu,
   codeIntelligence,
+  palette,
 ]
 
 /**
@@ -61,6 +64,7 @@ const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'tab-overflow', run: runTabOverflow },
   { name: 'export', run: runExport },
   { name: 'comment-range', run: runCommentRange },
+  { name: 'palette-match', run: runPaletteMatch },
 ]
 
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-'))

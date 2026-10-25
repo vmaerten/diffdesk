@@ -3,6 +3,12 @@ export default function KeyboardShortcuts() {
     <dl className="shortcut-list">
       <div>
         <dt>
+          <kbd>⌘</kbd> <kbd>k</kbd>
+        </dt>
+        <dd>Command palette</dd>
+      </div>
+      <div>
+        <dt>
           <kbd>b</kbd>
         </dt>
         <dd>Choose base</dd>

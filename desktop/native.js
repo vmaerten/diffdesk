@@ -8,6 +8,7 @@ const methods = [
   'CloseTab',
   'UpdateTabURL',
   'OpenRepository',
+  'OpenSettings',
   'SaveTabView',
   'Settings',
   'SaveSettings',

@@ -31,12 +31,15 @@ import { DesktopSidebarFoot, DesktopSidebarHead } from './DesktopSidebar.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
 import {
+  COMMANDS,
   commandOf,
   fileCommandOf,
+  sendCommand,
+  type CommandName,
   type FileCommand,
   type ReviewCommand,
-  type WindowCommand,
 } from './commands.ts'
+import CommandPalette, { type PaletteCommand, type PaletteHandle } from './CommandPalette.tsx'
 import { contextFile } from './fileMenu.ts'
 import { languagesOf, useLanguageStatus } from './codeIntelligence.ts'
 import { useSymbolCard } from './SymbolCard.tsx'
@@ -133,6 +136,7 @@ export default function App({
   const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(savedView?.diffStyle ?? 'unified')
   const [viewed, viewedPersistence] = useViewedPersistence(repoId, viewedStore)
   const [picking, setPicking] = useState<Picker | null>(null)
+  const palette = useRef<PaletteHandle>(null)
   const [selection, select] = useReviewSelection(onRouteChange)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
   const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId, commentStore)
@@ -402,8 +406,12 @@ export default function App({
   })
 
   /** Every review command by name: the single-letter keys and the desktop menus. */
-  const runCommand = useStableCallback((command: ReviewCommand | WindowCommand) => {
+  const runCommand = useStableCallback((command: CommandName) => {
     switch (command) {
+      case 'palette':
+        setPicking(null)
+        palette.current?.open()
+        break
       case 'base':
       case 'target':
       case 'commit':
@@ -521,6 +529,39 @@ export default function App({
     return () => window.removeEventListener('desktop:file-command', listener)
   }, [runFileCommand])
 
+  const commentsShown = commentsOpen && (!symbolTab || panelTab === 'comments')
+  /** The palette leaves out what would do nothing, and checks what shows a state. */
+  const paletteCommands = (): PaletteCommand[] => {
+    const stack = data?.base.stack
+    const applies: Partial<Record<CommandName, boolean>> = {
+      stack: !!stack,
+      'layer-below': !!stack && neighbourLayer(stack, -1) !== null,
+      'layer-above': !!stack && neighbourLayer(stack, 1) !== null,
+      'next-file': entries.length > 0,
+      'previous-file': entries.length > 0,
+      'working-tree': workingTreeToggleable(data, target, commit),
+      untracked: untrackedToggleable(data),
+      viewed: !!activePath,
+      'copy-path': !!activePath,
+      reveal: !!activePath && onReveal !== undefined,
+      'reset-viewed': viewedCount > 0,
+      'copy-comments': comments.length > 0,
+    }
+    const checked: Partial<Record<CommandName, boolean>> = {
+      unified: diffStyle === 'unified',
+      split: diffStyle === 'split',
+      'working-tree': !committed,
+      untracked: withUntracked,
+      whitespace: ignoreWhitespace,
+      comments: commentsShown,
+      viewed: !!activePath && activePath in viewed,
+    }
+    return COMMANDS.filter((command) => applies[command.name] ?? true).map((command) => ({
+      ...command,
+      checked: checked[command.name],
+    }))
+  }
+
   const resizeSidebar = useCallback((width: number) => {
     setSidebarWidth(width)
     localStorage.setItem('ghl.sidebarWidth', String(width))
@@ -576,7 +617,7 @@ export default function App({
     <>
       <CommentsPanel
         savedEditor={panelEditor}
-        open={commentsOpen && (!symbolTab || panelTab === 'comments')}
+        open={commentsShown}
         tabs={tabs}
         comments={comments}
         currentRange={data?.range ?? ''}
@@ -637,6 +678,7 @@ export default function App({
           toolbar,
         )}
       {symbols.card}
+      <CommandPalette handle={palette} commands={paletteCommands} onRun={sendCommand} />
       <span className="visually-hidden" role="status">
         {copied ? 'Comments copied to clipboard' : ''}
       </span>

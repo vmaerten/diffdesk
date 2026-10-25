@@ -16,6 +16,7 @@ next: false
 | `s` | Pick a stack layer |
 | `[` / `]` | Review the stack layer below / above |
 | `r` | Refresh |
+| `Cmd+K` | Command palette |
 | `Cmd+f` | Search the diff |
 | `Cmd+1` / `Cmd+2` | Unified / split diff |
 | `Cmd+O` / `Cmd+W` | Open a repository / close the review |

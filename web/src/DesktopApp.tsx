@@ -42,6 +42,7 @@ interface DesktopAPI {
   CloseTab(id: string): Promise<Tabs>
   UpdateTabURL(id: string, route: string): Promise<Tabs>
   OpenRepository(): Promise<void>
+  OpenSettings(): Promise<void>
   SaveTabView(id: string, raw: string): Promise<void>
   Settings(): Promise<string>
   SaveSettings(raw: string): Promise<void>
@@ -184,6 +185,7 @@ export default function DesktopApp() {
       const next = tabs[(index + tabs.length + (event.shiftKey ? -1 : 1)) % tabs.length]
       if (next) apply(api.ActivateTab(next.id))
     }
+    const failed = (cause: unknown) => setError(String(cause))
     // The window's menu commands; App takes the review's from the same event.
     const runCommand = (event: Event) => {
       const command = commandOf(event)
@@ -191,6 +193,8 @@ export default function DesktopApp() {
       else if (command === 'close-tab') closeActive()
       else if (command === 'shortcuts') setShortcutsOpen(true)
       else if (command === 'sidebar') toggleSidebar()
+      else if (command === 'open-repository') api.OpenRepository().catch(failed)
+      else if (command === 'settings') api.OpenSettings().catch(failed)
     }
     window.addEventListener('desktop:command', runCommand)
     window.addEventListener('keydown', cycle)
