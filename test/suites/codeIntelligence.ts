@@ -269,8 +269,9 @@ export default {
     if (parser) await page.mouse.click(parser.x, parser.y)
     const outside = await poll(card, (state) => Boolean(state?.snippet))
     check(
-      '⌘-click on a symbol defined outside the diff shows its code in the card',
+      '⌘-click on a symbol defined outside the diff shows its code in the card, in place of the hover’s',
       outside?.snippet.includes('const parser_2 = 2') === true &&
+        outside.signature === '' &&
         outside.meta.includes('src/core/parser.ts:3') &&
         outside.meta.includes('not in this diff'),
       JSON.stringify(outside),

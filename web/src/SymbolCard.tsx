@@ -302,6 +302,7 @@ function SymbolCard({
   const { query, rect, lookup, expanded } = card
   const answer = lookup.status === 'done' ? lookup.answer : null
   const definition = answer?.definitions.find((found) => found.inRepo) ?? answer?.definitions[0]
+  const showsDefinition = expanded && definition?.snippet !== undefined
   // Below the token, or above it when the lower half of the window is all there is.
   const above = rect.top > innerHeight / 2
   const width = Math.min(560, innerWidth - 16)
@@ -336,13 +337,17 @@ function SymbolCard({
         )}
         {answer?.hover.map((block, index) =>
           block.kind === 'code' ? (
-            <HighlightedCode
-              key={index}
-              className="symbol-signature"
-              code={block.text}
-              path={query.path}
-              theme={theme}
-            />
+            // The definition's own lines say what the hover's code would: for
+            // a type, gopls hovers with the whole declaration.
+            !showsDefinition && (
+              <HighlightedCode
+                key={index}
+                className="symbol-signature"
+                code={block.text}
+                path={query.path}
+                theme={theme}
+              />
+            )
           ) : (
             <p className="symbol-doc" key={index}>
               {block.text}
@@ -352,7 +357,7 @@ function SymbolCard({
         {answer && answer.hover.length === 0 && !definition && (
           <p className="symbol-card-status">Nothing is known about {query.token}.</p>
         )}
-        {expanded && definition?.snippet && (
+        {showsDefinition && definition?.snippet && (
           <HighlightedCode
             className="symbol-snippet"
             label={`${definition.path}:${definition.line}`}
