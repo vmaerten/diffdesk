@@ -12,6 +12,7 @@
 - Open a review in place of the one shown instead of in a new tab: running `ghl` in another checkout, or opening a repository with `Cmd+O`, replaces it. ([#203](https://github.com/vmaerten/ghl/pull/203))
 - Right-click a file in the tree or on its header for a native menu with Viewed, Copy Path and Reveal in Finder on that file. ([#208](https://github.com/vmaerten/ghl/pull/208))
 - Offer a compact title bar, 38 px instead of 52 with macOS's compact toolbar, to give the code more room: Settings, under Window, turns it on from the next launch. ([#210](https://github.com/vmaerten/ghl/pull/210))
+- Find Settings… (`Cmd+,`) in the ghl menu, where macOS apps keep it, instead of File.
 
 ### 🐛 Fixes
 
