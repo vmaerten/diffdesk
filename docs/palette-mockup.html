@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ghl — palette de commandes</title>
+<style>
+:root { --page: #f2f2f0; --text: #111111; --dim: rgb(17 17 17 / 60%); --border: rgb(17 17 17 / 12%); --box: #ffffff;
+  --ok: #1f7a44; --v3: #2a66c9; --hack: #a85d0b; --sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; --mono: ui-monospace, 'SF Mono', Menlo, monospace; color-scheme: light; }
+:root[data-theme='dark'] { --page: #0e0f12; --text: #ebebeb; --dim: rgb(230 230 230 / 56%); --border: rgb(230 230 230 / 12%); --box: #15171c;
+  --ok: #6fd094; --v3: #8fb6ff; --hack: #eb9a3d; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--text); font: 14px/1.5 var(--sans); }
+.page { max-width: 1280px; margin: 0 auto; padding: 40px 24px 80px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; }
+h1 { margin: 0 0 6px; font-size: 26px; }
+.lede { max-width: 860px; margin: 0 0 12px; color: var(--dim); }
+.case { max-width: 980px; margin: 8px 0 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--box); color: var(--dim); font-size: 13px; }
+.case b, .desc b { color: var(--text); }
+code { font: 12px var(--mono); }
+.theme { display: flex; gap: 4px; }
+.theme button { padding: 4px 10px; border: 1px solid var(--border); border-radius: 7px; background: none; color: var(--dim); font: 500 12px var(--sans); }
+.theme button[aria-pressed='true'] { background: var(--box); color: var(--text); }
+.variant { margin: 48px 0 0; }
+h3 { display: flex; align-items: baseline; gap: 10px; margin: 0; font-size: 17px; }
+h3 .num { color: var(--dim); font: 600 14px var(--mono); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
+.tag { padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--dim); font: 600 11px var(--sans); }
+.tag.ok { color: var(--ok); } .tag.v3 { color: var(--v3); } .tag.hack { color: var(--hack); }
+.desc { max-width: 900px; margin: 0 0 14px; color: var(--dim); }
+.frame { overflow-x: auto; }
+#a .win{--bg:#f8f8f6;--raised:#ffffff;--overlay:#ffffff;--border:rgb(17 17 17 / 10%);--text:#111111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--success:#1f7a44;--danger:#b8312f;--warn:#a85d0b;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash-strong:rgb(127 127 127 / 18%);--scrim:rgb(0 0 0 / 16%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace}
+#a .win.dark{--bg:#141414;--raised:#1c1c1c;--overlay:#242424;--border:rgb(230 230 230 / 11%);--text:#ebebeb;--dim:rgb(230 230 230 / 58%);--accent:#5b9bf7;--success:#6fd094;--danger:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash-strong:rgb(127 127 127 / 26%);--scrim:rgb(0 0 0 / 42%)}
+#a .win{--add:color-mix(in srgb,var(--success) 9%,var(--raised));--del:color-mix(in srgb,var(--danger) 9%,var(--raised));--accent-soft:color-mix(in srgb,var(--accent) 15%,transparent)}
+#a .win button{font:inherit;color:inherit;cursor:default}
+#a .ib{display:grid;place-items:center;flex-shrink:0;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#a .ib svg{width:16px;height:16px}
+#a .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#a .win .commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#a .caret{margin-left:4px;font-size:10px;opacity:.6}
+#a .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#a .seg{display:flex;gap:2px;height:28px;padding:2px;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#a .seg button{display:grid;place-items:center;padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#a .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#a .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#a .count{min-width:16px;padding:0 5px;box-sizing:border-box;border-radius:8px;background:var(--wash-strong);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#a .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#a .row.dir{color:var(--dim)}
+#a .row.file{padding-left:24px}
+#a .row.on{background:var(--accent-soft)}
+#a .st{margin-left:auto;font:600 11px var(--mono)}
+#a .st.m{color:var(--warn)}
+#a .st.a{color:var(--success)}
+#a .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#a .ln.add{background:var(--add)}
+#a .ln.del{background:var(--del)}
+#a .no{width:44px;flex-shrink:0;padding-right:10px;box-sizing:border-box;text-align:right;color:var(--dim)}
+#a .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#a .ln.add .sg{color:var(--success)}
+#a .ln.del .sg{color:var(--danger)}
+#a kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;box-sizing:border-box;border:1px solid var(--border);border-radius:4px;background:var(--wash);color:var(--dim);font:500 11px/1 var(--sans)}
+#a mark{background:none;color:var(--accent);font-weight:700}
+#a .pal-sec{padding:10px 12px 4px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#a .pal-row{display:flex;align-items:center;gap:10px;width:100%;height:34px;padding:0 10px;box-sizing:border-box;border:0;border-radius:8px;background:none;text-align:left;white-space:nowrap}
+#a .pal-row.on{background:var(--accent-soft)}
+#a .pal-row svg{flex-shrink:0;width:16px;height:16px;color:var(--dim)}
+#a .pal-row .chk{flex-shrink:0;width:16px;height:16px;color:var(--text)}
+#a .pal-meta{display:flex;align-items:center;gap:8px;margin-left:auto;color:var(--dim);font-size:12px}
+#a .scope{height:24px;padding:0 10px;border:0;border-radius:12px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#a .scope.on{background:var(--wash-strong);color:var(--text)}
+#b .win{--bg:#f8f8f6;--raised:#ffffff;--overlay:#ffffff;--border:rgb(17 17 17 / 10%);--text:#111111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--success:#1f7a44;--danger:#b8312f;--warn:#a85d0b;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash-strong:rgb(127 127 127 / 18%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace}
+#b .win.dark{--bg:#141414;--raised:#1c1c1c;--overlay:#242424;--border:rgb(230 230 230 / 11%);--text:#ebebeb;--dim:rgb(230 230 230 / 58%);--accent:#5b9bf7;--success:#6fd094;--danger:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash-strong:rgb(127 127 127 / 26%)}
+#b .win{--add:color-mix(in srgb,var(--success) 9%,var(--raised));--del:color-mix(in srgb,var(--danger) 9%,var(--raised));--accent-soft:color-mix(in srgb,var(--accent) 15%,transparent)}
+#b .win button{font:inherit;color:inherit;cursor:default}
+#b .ib{display:grid;place-items:center;flex-shrink:0;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#b .ib svg{width:16px;height:16px}
+#b .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#b .win .commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#b .caret{margin-left:4px;font-size:10px;opacity:.6}
+#b .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#b .seg{display:flex;gap:2px;height:28px;padding:2px;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#b .seg button{display:grid;place-items:center;padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#b .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#b .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#b .count{min-width:16px;padding:0 5px;box-sizing:border-box;border-radius:8px;background:var(--wash-strong);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#b .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#b .row.dir{color:var(--dim)}
+#b .row.file{padding-left:24px}
+#b .row.on{background:var(--accent-soft)}
+#b .st{margin-left:auto;font:600 11px var(--mono)}
+#b .st.m{color:var(--warn)}
+#b .st.a{color:var(--success)}
+#b .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#b .ln.add{background:var(--add)}
+#b .ln.del{background:var(--del)}
+#b .no{width:44px;flex-shrink:0;padding-right:10px;box-sizing:border-box;text-align:right;color:var(--dim)}
+#b .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#b .ln.add .sg{color:var(--success)}
+#b .ln.del .sg{color:var(--danger)}
+#b kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;box-sizing:border-box;border:1px solid var(--border);border-radius:4px;background:var(--wash);color:var(--dim);font:500 11px/1 var(--sans)}
+#b mark{background:none;color:var(--accent);font-weight:700}
+#b .pal-row{display:flex;align-items:center;gap:8px;width:100%;height:28px;padding:0 8px;box-sizing:border-box;border:0;border-radius:6px;background:none;text-align:left;white-space:nowrap}
+#b .pal-row.on{background:var(--accent-soft)}
+#b .pal-row .chk{flex-shrink:0;width:14px;height:14px;color:var(--text)}
+#b .pal-row .cat{color:var(--dim)}
+#b .pal-meta{display:flex;align-items:center;gap:8px;margin-left:auto;color:var(--dim);font-size:12px}
+#c .win{--bg:#f8f8f6;--raised:#ffffff;--overlay:#ffffff;--border:rgb(17 17 17 / 10%);--text:#111111;--dim:rgb(17 17 17 / 62%);--accent:#2a66c9;--success:#1f7a44;--danger:#b8312f;--warn:#a85d0b;--chrome:#ececea;--wash:rgb(127 127 127 / 10%);--wash-strong:rgb(127 127 127 / 18%);--scrim:rgb(0 0 0 / 16%);--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace}
+#c .win.dark{--bg:#141414;--raised:#1c1c1c;--overlay:#242424;--border:rgb(230 230 230 / 11%);--text:#ebebeb;--dim:rgb(230 230 230 / 58%);--accent:#5b9bf7;--success:#6fd094;--danger:#ee7e7e;--warn:#eb9a3d;--chrome:#262626;--wash:rgb(127 127 127 / 14%);--wash-strong:rgb(127 127 127 / 26%);--scrim:rgb(0 0 0 / 42%)}
+#c .win{--add:color-mix(in srgb,var(--success) 9%,var(--raised));--del:color-mix(in srgb,var(--danger) 9%,var(--raised));--accent-soft:color-mix(in srgb,var(--accent) 15%,transparent)}
+#c .win button{font:inherit;color:inherit;cursor:default}
+#c .ib{display:grid;place-items:center;flex-shrink:0;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:none;color:var(--dim)}
+#c .ib svg{width:16px;height:16px}
+#c .ref{height:24px;padding:0 8px 0 10px;border:0;border-radius:12px;background:none;color:var(--text);font:600 12px/24px var(--mono);white-space:nowrap}
+#c .win .commit{font-family:var(--sans);font-weight:500;color:var(--dim)}
+#c .caret{margin-left:4px;font-size:10px;opacity:.6}
+#c .sep{width:1px;height:14px;margin:0 3px;background:var(--border)}
+#c .seg{display:flex;gap:2px;height:28px;padding:2px;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--wash)}
+#c .seg button{display:grid;place-items:center;padding:0 10px;border:0;border-radius:6px;background:none;color:var(--dim);font-size:12px;font-weight:500}
+#c .seg button.on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+#c .tb{display:flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:0;border-radius:7px;background:none;color:var(--dim);font-size:12px;font-weight:500;white-space:nowrap}
+#c .count{min-width:16px;padding:0 5px;box-sizing:border-box;border-radius:8px;background:var(--wash-strong);color:var(--text);font-size:11px;line-height:16px;text-align:center}
+#c .row{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;white-space:nowrap}
+#c .row.dir{color:var(--dim)}
+#c .row.file{padding-left:24px}
+#c .row.on{background:var(--accent-soft)}
+#c .st{margin-left:auto;font:600 11px var(--mono)}
+#c .st.m{color:var(--warn)}
+#c .st.a{color:var(--success)}
+#c .ln{display:flex;height:20px;font:12px/20px var(--mono);white-space:pre}
+#c .ln.add{background:var(--add)}
+#c .ln.del{background:var(--del)}
+#c .ln.hunk{color:var(--dim);background:var(--wash)}
+#c .no{width:44px;flex-shrink:0;padding-right:10px;box-sizing:border-box;text-align:right;color:var(--dim)}
+#c .sg{width:16px;flex-shrink:0;color:var(--dim)}
+#c .ln.add .sg{color:var(--success)}
+#c .ln.del .sg{color:var(--danger)}
+#c kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;box-sizing:border-box;border:1px solid var(--border);border-radius:4px;background:var(--wash);color:var(--dim);font:500 11px/1 var(--sans)}
+#c mark{background:none;color:var(--accent);font-weight:700}
+#c .pal-sec{padding:10px 10px 4px;color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#c .pal-row{display:flex;align-items:center;gap:10px;width:100%;height:44px;padding:0 10px;box-sizing:border-box;border:0;border-radius:8px;background:none;text-align:left;white-space:nowrap}
+#c .pal-row.on{background:var(--accent-soft)}
+#c .pal-row svg{flex-shrink:0;width:16px;height:16px;color:var(--dim)}
+#c .pal-name{display:flex;flex-direction:column;gap:1px;min-width:0}
+#c .pal-meta{display:flex;align-items:center;gap:6px;margin-left:auto;color:var(--dim);font-size:12px}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="top">
+<div>
+<h1>ghl — palette de commandes</h1>
+<p class="lede">Maquettes du 25 octobre 2026 : chercher une commande ou un fichier de la review au clavier, sans passer par les menus ni l’arbre. Chaque fenêtre montre la palette ouverte sur une recherche.</p>
+</div>
+<div class="theme" role="group" aria-label="Apparence">
+<button type="button" data-mode="light">Clair</button>
+<button type="button" data-mode="dark">Sombre</button>
+</div>
+</header>
+<p class="case"><b>Point de départ.</b> Chaque action de l’app a déjà un nom (<code>web/src/commands.ts</code>) et passe par <code>runCommand</code>, que les touches et les menus déclenchent avec l’évènement <code>desktop:command</code>. La palette envoie le même évènement. Les pickers de refs utilisent déjà <code>cmdk</code>, qui filtre et gère le clavier.</p>
+<article class="variant" id="a">
+<h3><span class="num">A</span> Centrée, fichiers et commandes mêlés</h3>
+<div class="tags"><span class="tag ok">Retenue</span><span class="tag">⌘K · ⌘P</span></div>
+<p class="desc">Une fenêtre modale au centre. <b>⌘K</b> l’ouvre sur All, <b>⌘P</b> sur Files ; les onglets All, Files et Commands passent de l’un à l’autre. Les fichiers de la review viennent d’abord, puis les commandes, avec le menu d’où elles viennent et leur raccourci. Une coche, reprise de B, marque une option active.</p>
+<div class="frame">
+<div class="win" style="position: relative; width: 1200px; height: 760px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chrome); color: var(--text); font-family: var(--sans); font-size: 13px">
+<header style="position: relative; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); align-items: center; column-gap: 12px; height: 52px; padding: 0 12px; box-sizing: border-box; border-bottom: 1px solid var(--border)">
+<span aria-hidden="true" style="position: absolute; top: 20px; left: 20px; display: flex; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span><span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span><span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span></span>
+<div style="display: flex; align-items: center; gap: 4px; min-width: 0; padding-left: 72px">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span style="display: flex; align-items: center; min-width: 0; height: 28px; padding: 0 10px; overflow: hidden; font: 600 12px/1 var(--mono); white-space: nowrap"><span style="color: var(--dim)">~/dev/perso/</span>github-like</span>
+</div>
+<div role="group" aria-label="Comparison" style="grid-column: 2; display: flex; align-items: center; gap: 2px; height: 30px; padding: 2px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 15px; background: var(--wash)">
+<button class="ref" type="button">main<span class="caret">▾</span></button>
+<span aria-hidden="true" style="color: var(--dim); font-size: 12px">→</span>
+<button class="ref" type="button">palette/01-commands<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div style="grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px">
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button" aria-pressed="true">Unified</button><button type="button" aria-pressed="false">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">2</span></button>
+<button class="ib" type="button" aria-label="Comments"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div style="flex: 1; min-height: 0; display: flex">
+<aside style="width: 248px; flex-shrink: 0; padding: 10px 8px; box-sizing: border-box; border-right: 1px solid var(--border)">
+<div style="display: flex; align-items: baseline; gap: 6px; padding: 2px 6px 8px"><span style="color: var(--dim); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">Files</span><span style="color: var(--dim); font-size: 11px">8</span></div>
+<div class="row dir"><span>desktop</span></div>
+<div class="row file"><span>main.go</span><span class="st m">M</span></div>
+<div class="row dir"><span>test/suites</span></div>
+<div class="row file"><span>palette.ts</span><span class="st a">A</span></div>
+<div class="row dir"><span>web/src</span></div>
+<div class="row file on"><span>App.tsx</span><span class="st m">M</span></div>
+<div class="row file"><span>CommandPalette.tsx</span><span class="st a">A</span></div>
+<div class="row file"><span>DesktopToolbar.tsx</span><span class="st m">M</span></div>
+<div class="row file"><span>KeyboardShortcuts.tsx</span><span class="st m">M</span></div>
+<div class="row file"><span>commands.ts</span><span class="st m">M</span></div>
+<div class="row file"><span>desktop.css</span><span class="st m">M</span></div>
+</aside>
+<main style="flex: 1; min-width: 0; padding: 12px 16px 0; box-sizing: border-box; overflow: hidden; background: var(--bg)">
+<section style="overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--raised)">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<span style="font: 600 12px var(--mono)">web/src/App.tsx</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+9</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−1</span>
+<label style="display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln"><span class="no">400</span><span class="sg"> </span><span>  useEffect(() =&gt; {</span></div>
+<div class="ln"><span class="no">401</span><span class="sg"> </span><span>    const onKeyDown = (event: KeyboardEvent) =&gt; {</span></div>
+<div class="ln"><span class="no">402</span><span class="sg"> </span><span>      // A modal sheet owns the keyboard. The comments panel is not one, so keys still work.</span></div>
+<div class="ln"><span class="no">403</span><span class="sg"> </span><span>      if (document.querySelector('dialog:modal')) return</span></div>
+<div class="ln"><span class="no">404</span><span class="sg"> </span><span>      const key = event.key.toLocaleLowerCase()</span></div>
+<div class="ln"><span class="no">405</span><span class="sg"> </span><span>      const command = event.metaKey || event.ctrlKey</span></div>
+<div class="ln"><span class="no">406</span><span class="sg"> </span><span> </span></div>
+<div class="ln add"><span class="no">407</span><span class="sg">+</span><span>      if (command &amp;&amp; !event.altKey &amp;&amp; (key === 'k' || key === 'p')) {</span></div>
+<div class="ln add"><span class="no">408</span><span class="sg">+</span><span>        event.preventDefault()</span></div>
+<div class="ln add"><span class="no">409</span><span class="sg">+</span><span>        openPalette(key === 'p' ? 'files' : 'all')</span></div>
+<div class="ln add"><span class="no">410</span><span class="sg">+</span><span>        return</span></div>
+<div class="ln add"><span class="no">411</span><span class="sg">+</span><span>      }</span></div>
+<div class="ln"><span class="no">412</span><span class="sg"> </span><span>      if (entries.length &gt; 0 &amp;&amp; command &amp;&amp; !event.altKey &amp;&amp; key === 'f') {</span></div>
+<div class="ln"><span class="no">413</span><span class="sg"> </span><span>        event.preventDefault()</span></div>
+<div class="ln"><span class="no">414</span><span class="sg"> </span><span>        setPicking(null)</span></div>
+<div class="ln"><span class="no">415</span><span class="sg"> </span><span>        openSearch()</span></div>
+<div class="ln"><span class="no">416</span><span class="sg"> </span><span>        return</span></div>
+<div class="ln"><span class="no">417</span><span class="sg"> </span><span>      }</span></div>
+<div class="ln"><span class="no">418</span><span class="sg"> </span><span>      if (searchOpen &amp;&amp; ((command &amp;&amp; !event.altKey &amp;&amp; key === 'g') || event.key === 'F3')) {</span></div>
+<div class="ln"><span class="no">419</span><span class="sg"> </span><span>        event.preventDefault()</span></div>
+<div class="ln"><span class="no">420</span><span class="sg"> </span><span>        stepSearch(event.shiftKey ? -1 : 1)</span></div>
+<div class="ln"><span class="no">421</span><span class="sg"> </span><span>        return</span></div>
+<div class="ln"><span class="no">422</span><span class="sg"> </span><span>      }</span></div>
+<div class="ln"><span class="no">423</span><span class="sg"> </span><span> </span></div>
+<div class="ln"><span class="no">424</span><span class="sg"> </span><span>      // Never steal keys from an input or from a browser shortcut.</span></div>
+<div class="ln"><span class="no">425</span><span class="sg"> </span><span>      const focused = event.target</span></div>
+<div class="ln"><span class="no">426</span><span class="sg"> </span><span>      const tag = focused instanceof HTMLElement ? focused.tagName : null</span></div>
+<div class="ln"><span class="no">427</span><span class="sg"> </span><span>      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer style="flex-shrink: 0; display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 14px; border-top: 1px solid var(--border); background: var(--bg); color: var(--dim); font-size: 12px; white-space: nowrap">
+<span>base guessed</span>
+<span>working tree included</span>
+<span style="display: flex; align-items: center; gap: 6px; margin-left: auto">Next <b style="color: var(--text); font: 600 12px var(--mono)">web/src/CommandPalette.tsx</b> <kbd>j</kbd></span>
+</footer>
+
+<div aria-hidden="true" style="position: absolute; inset: 0; background: var(--scrim)"></div>
+<div role="dialog" aria-label="Command palette" style="position: absolute; top: 92px; left: calc(50% - 310px); width: 620px; box-sizing: border-box; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--overlay); box-shadow: 0 24px 60px rgb(0 0 0 / 30%)">
+<div style="display: flex; align-items: center; gap: 10px; height: 50px; padding: 0 14px; border-bottom: 1px solid var(--border)">
+<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true" style="flex-shrink: 0; color: var(--dim)"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"></path></svg>
+<input type="text" value="com" aria-label="Search files and commands" style="flex: 1; min-width: 0; padding: 0; border: 0; outline: none; background: none; color: var(--text); font: 400 16px var(--sans)">
+<kbd>esc</kbd>
+</div>
+<div role="group" aria-label="Search in" style="display: flex; align-items: center; gap: 4px; padding: 8px 10px 0">
+<button class="scope on" type="button" aria-pressed="true">All <span style="opacity: .6">⌘K</span></button>
+<button class="scope" type="button" aria-pressed="false">Files <span style="opacity: .6">⌘P</span></button>
+<button class="scope" type="button" aria-pressed="false">Commands</button>
+</div>
+<div style="padding: 0 6px 6px">
+<div class="pal-sec">Files</div>
+<button class="pal-row on" type="button">
+<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span style="font: 500 13px var(--mono)"><mark>com</mark>mands.ts</span>
+<span style="color: var(--dim); font: 12px var(--mono)">web/src</span>
+<span class="pal-meta"><span style="color: var(--success); font: 600 12px var(--mono)">+18</span><span style="color: var(--danger); font: 600 12px var(--mono)">−2</span><span class="st m" style="margin-left: 4px">M</span></span>
+</button>
+<button class="pal-row" type="button">
+<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span style="font: 500 13px var(--mono)"><mark>Com</mark>mandPalette.tsx</span>
+<span style="color: var(--dim); font: 12px var(--mono)">web/src</span>
+<span class="pal-meta"><span style="color: var(--success); font: 600 12px var(--mono)">+164</span><span class="st a" style="margin-left: 4px">A</span></span>
+</button>
+<div class="pal-sec">Commands</div>
+<button class="pal-row" type="button">
+<span class="chk" aria-hidden="true"></span>
+<span><mark>Com</mark>ment on Selection</span>
+<span class="pal-meta">Review<kbd>c</kbd></span>
+</button>
+<button class="pal-row" type="button">
+<svg class="chk" viewBox="0 0 16 16" fill="currentColor" aria-label="On"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path></svg>
+<span><mark>Com</mark>ments</span>
+<span class="pal-meta">View<kbd>⌥⌘0</kbd></span>
+</button>
+<button class="pal-row" type="button">
+<span class="chk" aria-hidden="true"></span>
+<span>Copy All <mark>Com</mark>ments</span>
+<span class="pal-meta">Review<kbd>⇧⌘C</kbd></span>
+</button>
+<button class="pal-row" type="button">
+<span class="chk" aria-hidden="true"></span>
+<span>Choose <mark>Com</mark>mit…</span>
+<span class="pal-meta">Go<kbd>l</kbd></span>
+</button>
+</div>
+<div style="display: flex; align-items: center; gap: 14px; height: 34px; padding: 0 14px; border-top: 1px solid var(--border); color: var(--dim); font-size: 12px">
+<span style="display: flex; align-items: center; gap: 5px"><kbd>↑</kbd><kbd>↓</kbd> Move</span>
+<span style="display: flex; align-items: center; gap: 5px"><kbd>↵</kbd> Open</span>
+<span style="margin-left: auto">2 files · 4 commands</span>
+</div>
+</div>
+</div>
+</div>
+</article>
+<article class="variant" id="b">
+<h3><span class="num">B</span> Sous la capsule, à préfixe</h3>
+<div class="tags"><span class="tag v3">Coches reprises dans A</span></div>
+<p class="desc">Un popover sous la capsule, comme les pickers, à la manière de VS Code : sans préfixe on cherche un fichier, après <code>&gt;</code> une commande (⌘K tape le <code>&gt;</code>). La catégorie précède le nom (« View: Split ») et une coche à gauche montre les options actives, comme les menus macOS.</p>
+<div class="frame">
+<div class="win" style="position: relative; width: 1200px; height: 760px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chrome); color: var(--text); font-family: var(--sans); font-size: 13px">
+<header style="position: relative; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); align-items: center; column-gap: 12px; height: 52px; padding: 0 12px; box-sizing: border-box; border-bottom: 1px solid var(--border)">
+<span aria-hidden="true" style="position: absolute; top: 20px; left: 20px; display: flex; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span><span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span><span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span></span>
+<div style="display: flex; align-items: center; gap: 4px; min-width: 0; padding-left: 72px">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span style="display: flex; align-items: center; min-width: 0; height: 28px; padding: 0 10px; overflow: hidden; font: 600 12px/1 var(--mono); white-space: nowrap"><span style="color: var(--dim)">~/dev/perso/</span>github-like</span>
+</div>
+<div role="group" aria-label="Comparison" style="grid-column: 2; display: flex; align-items: center; gap: 2px; height: 30px; padding: 2px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 15px; background: var(--wash)">
+<button class="ref" type="button">main<span class="caret">▾</span></button>
+<span aria-hidden="true" style="color: var(--dim); font-size: 12px">→</span>
+<button class="ref" type="button">palette/01-commands<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div style="grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px">
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button" aria-pressed="true">Unified</button><button type="button" aria-pressed="false">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">2</span></button>
+<button class="ib" type="button" aria-label="Comments"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div style="flex: 1; min-height: 0; display: flex">
+<aside style="width: 248px; flex-shrink: 0; padding: 10px 8px; box-sizing: border-box; border-right: 1px solid var(--border)">
+<div style="display: flex; align-items: baseline; gap: 6px; padding: 2px 6px 8px"><span style="color: var(--dim); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">Files</span><span style="color: var(--dim); font-size: 11px">8</span></div>
+<div class="row dir"><span>desktop</span></div>
+<div class="row file"><span>main.go</span><span class="st m">M</span></div>
+<div class="row dir"><span>test/suites</span></div>
+<div class="row file"><span>palette.ts</span><span class="st a">A</span></div>
+<div class="row dir"><span>web/src</span></div>
+<div class="row file on"><span>App.tsx</span><span class="st m">M</span></div>
+<div class="row file"><span>CommandPalette.tsx</span><span class="st a">A</span></div>
+<div class="row file"><span>DesktopToolbar.tsx</span><span class="st m">M</span></div>
+<div class="row file"><span>KeyboardShortcuts.tsx</span><span class="st m">M</span></div>
+<div class="row file"><span>commands.ts</span><span class="st m">M</span></div>
+<div class="row file"><span>desktop.css</span><span class="st m">M</span></div>
+</aside>
+<main style="flex: 1; min-width: 0; padding: 12px 16px 0; box-sizing: border-box; overflow: hidden; background: var(--bg)">
+<section style="overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--raised)">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<span style="font: 600 12px var(--mono)">web/src/App.tsx</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+9</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−1</span>
+<label style="display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln"><span class="no">400</span><span class="sg"> </span><span>  useEffect(() =&gt; {</span></div>
+<div class="ln"><span class="no">401</span><span class="sg"> </span><span>    const onKeyDown = (event: KeyboardEvent) =&gt; {</span></div>
+<div class="ln"><span class="no">402</span><span class="sg"> </span><span>      // A modal sheet owns the keyboard. The comments panel is not one, so keys still work.</span></div>
+<div class="ln"><span class="no">403</span><span class="sg"> </span><span>      if (document.querySelector('dialog:modal')) return</span></div>
+<div class="ln"><span class="no">404</span><span class="sg"> </span><span>      const key = event.key.toLocaleLowerCase()</span></div>
+<div class="ln"><span class="no">405</span><span class="sg"> </span><span>      const command = event.metaKey || event.ctrlKey</span></div>
+<div class="ln"><span class="no">406</span><span class="sg"> </span><span> </span></div>
+<div class="ln add"><span class="no">407</span><span class="sg">+</span><span>      if (command &amp;&amp; !event.altKey &amp;&amp; (key === 'k' || key === 'p')) {</span></div>
+<div class="ln add"><span class="no">408</span><span class="sg">+</span><span>        event.preventDefault()</span></div>
+<div class="ln add"><span class="no">409</span><span class="sg">+</span><span>        openPalette(key === 'k' ? '&gt;' : '')</span></div>
+<div class="ln add"><span class="no">410</span><span class="sg">+</span><span>        return</span></div>
+<div class="ln add"><span class="no">411</span><span class="sg">+</span><span>      }</span></div>
+<div class="ln"><span class="no">412</span><span class="sg"> </span><span>      if (entries.length &gt; 0 &amp;&amp; command &amp;&amp; !event.altKey &amp;&amp; key === 'f') {</span></div>
+<div class="ln"><span class="no">413</span><span class="sg"> </span><span>        event.preventDefault()</span></div>
+<div class="ln"><span class="no">414</span><span class="sg"> </span><span>        setPicking(null)</span></div>
+<div class="ln"><span class="no">415</span><span class="sg"> </span><span>        openSearch()</span></div>
+<div class="ln"><span class="no">416</span><span class="sg"> </span><span>        return</span></div>
+<div class="ln"><span class="no">417</span><span class="sg"> </span><span>      }</span></div>
+<div class="ln"><span class="no">418</span><span class="sg"> </span><span>      if (searchOpen &amp;&amp; ((command &amp;&amp; !event.altKey &amp;&amp; key === 'g') || event.key === 'F3')) {</span></div>
+<div class="ln"><span class="no">419</span><span class="sg"> </span><span>        event.preventDefault()</span></div>
+<div class="ln"><span class="no">420</span><span class="sg"> </span><span>        stepSearch(event.shiftKey ? -1 : 1)</span></div>
+<div class="ln"><span class="no">421</span><span class="sg"> </span><span>        return</span></div>
+<div class="ln"><span class="no">422</span><span class="sg"> </span><span>      }</span></div>
+<div class="ln"><span class="no">423</span><span class="sg"> </span><span> </span></div>
+<div class="ln"><span class="no">424</span><span class="sg"> </span><span>      // Never steal keys from an input or from a browser shortcut.</span></div>
+<div class="ln"><span class="no">425</span><span class="sg"> </span><span>      const focused = event.target</span></div>
+<div class="ln"><span class="no">426</span><span class="sg"> </span><span>      const tag = focused instanceof HTMLElement ? focused.tagName : null</span></div>
+<div class="ln"><span class="no">427</span><span class="sg"> </span><span>      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer style="flex-shrink: 0; display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 14px; border-top: 1px solid var(--border); background: var(--bg); color: var(--dim); font-size: 12px; white-space: nowrap">
+<span>base guessed</span>
+<span>working tree included</span>
+<span style="display: flex; align-items: center; gap: 6px; margin-left: auto">Next <b style="color: var(--text); font: 600 12px var(--mono)">web/src/CommandPalette.tsx</b> <kbd>j</kbd></span>
+</footer>
+
+<div role="dialog" aria-label="Command palette" style="position: absolute; top: 46px; left: calc(50% - 280px); width: 560px; box-sizing: border-box; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--overlay); box-shadow: 0 16px 40px -12px rgb(0 0 0 / 45%)">
+<div style="padding: 6px">
+<div style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; box-sizing: border-box; border-radius: 7px; background: var(--wash); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent)">
+<span aria-hidden="true" style="color: var(--accent); font: 700 13px var(--mono)">&gt;</span>
+<input type="text" value="view" aria-label="Search commands" style="flex: 1; min-width: 0; padding: 0; border: 0; outline: none; background: none; color: var(--text); font: 400 13px var(--sans)">
+</div>
+</div>
+<div style="padding: 0 6px 6px">
+<button class="pal-row on" type="button">
+<svg class="chk" viewBox="0 0 16 16" fill="currentColor" aria-label="Active"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path></svg>
+<span><span class="cat"><mark>View</mark>:</span> Unified</span>
+<span class="pal-meta"><kbd>⌘1</kbd></span>
+</button>
+<button class="pal-row" type="button">
+<span class="chk" aria-hidden="true"></span>
+<span><span class="cat"><mark>View</mark>:</span> Split</span>
+<span class="pal-meta"><kbd>⌘2</kbd></span>
+</button>
+<button class="pal-row" type="button">
+<span class="chk" aria-hidden="true"></span>
+<span><span class="cat"><mark>View</mark>:</span> Ignore Whitespace</span>
+<span class="pal-meta"><kbd>⌥⌘W</kbd></span>
+</button>
+<button class="pal-row" type="button">
+<svg class="chk" viewBox="0 0 16 16" fill="currentColor" aria-label="On"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path></svg>
+<span><span class="cat"><mark>View</mark>:</span> Include Working Tree</span>
+</button>
+<button class="pal-row" type="button">
+<span class="chk" aria-hidden="true"></span>
+<span><span class="cat"><mark>View</mark>:</span> Include Untracked Files</span>
+</button>
+<button class="pal-row" type="button">
+<svg class="chk" viewBox="0 0 16 16" fill="currentColor" aria-label="On"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path></svg>
+<span><span class="cat"><mark>View</mark>:</span> Sidebar</span>
+<span class="pal-meta"><kbd>⌃⌘S</kbd></span>
+</button>
+<button class="pal-row" type="button">
+<span class="chk" aria-hidden="true"></span>
+<span><span class="cat"><mark>View</mark>:</span> Comments</span>
+<span class="pal-meta"><kbd>⌥⌘0</kbd></span>
+</button>
+<button class="pal-row" type="button">
+<span class="chk" aria-hidden="true"></span>
+<span><span class="cat">Review:</span> Mark as <mark>View</mark>ed</span>
+<span class="pal-meta"><kbd>v</kbd></span>
+</button>
+<button class="pal-row" type="button">
+<span class="chk" aria-hidden="true"></span>
+<span><span class="cat">Review:</span> Reset <mark>View</mark>ed</span>
+</button>
+</div>
+<div style="display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-top: 1px solid var(--border); color: var(--dim); font-size: 12px">
+<span>Delete</span><kbd>&gt;</kbd><span>for files</span>
+<span style="display: flex; align-items: center; gap: 6px; margin-left: auto"><kbd>⌘P</kbd> files <kbd>⌘K</kbd> commands</span>
+</div>
+</div>
+</div>
+</div>
+</article>
+<article class="variant" id="c">
+<h3><span class="num">C</span> Large, avec aperçu du diff</h3>
+<div class="tags"><span class="tag hack">Reportée</span></div>
+<p class="desc">La liste à gauche, le diff du fichier sélectionné à droite, et des actions sur ce fichier au clavier (⌘↵ Viewed, ⌥⌘C Copy Path). L’aperçu ferait tourner le moteur de diff dans la palette : à reprendre si le besoin se confirme.</p>
+<div class="frame">
+<div class="win" style="position: relative; width: 1200px; height: 760px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--chrome); color: var(--text); font-family: var(--sans); font-size: 13px">
+<header style="position: relative; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr); align-items: center; column-gap: 12px; height: 52px; padding: 0 12px; box-sizing: border-box; border-bottom: 1px solid var(--border)">
+<span aria-hidden="true" style="position: absolute; top: 20px; left: 20px; display: flex; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span><span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span><span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span></span>
+<div style="display: flex; align-items: center; gap: 4px; min-width: 0; padding-left: 72px">
+<button class="ib" type="button" aria-label="Hide sidebar"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 2.5h12.5c.966 0 1.75.784 1.75 1.75v7.5a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 11.75v-7.5C0 3.284.784 2.5 1.75 2.5Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25H5V4Zm4.75 0v8h7.75a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+<button class="ib" type="button" aria-label="Open repository"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"></path></svg></button>
+<span style="display: flex; align-items: center; min-width: 0; height: 28px; padding: 0 10px; overflow: hidden; font: 600 12px/1 var(--mono); white-space: nowrap"><span style="color: var(--dim)">~/dev/perso/</span>github-like</span>
+</div>
+<div role="group" aria-label="Comparison" style="grid-column: 2; display: flex; align-items: center; gap: 2px; height: 30px; padding: 2px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 15px; background: var(--wash)">
+<button class="ref" type="button">main<span class="caret">▾</span></button>
+<span aria-hidden="true" style="color: var(--dim); font-size: 12px">→</span>
+<button class="ref" type="button">palette/01-commands<span class="caret">▾</span></button>
+<span class="sep" aria-hidden="true"></span>
+<button class="ref commit" type="button">All commits<span class="caret">▾</span></button>
+</div>
+<div style="grid-column: 3; justify-self: end; display: flex; align-items: center; gap: 4px">
+<div class="seg" role="group" aria-label="Diff layout"><button class="on" type="button" aria-pressed="true">Unified</button><button type="button" aria-pressed="false">Split</button></div>
+<button class="tb" type="button">Options<span class="caret">▾</span></button>
+<button class="tb" type="button">Copy<span class="count">2</span></button>
+<button class="ib" type="button" aria-label="Comments"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12H8.06l-3.573 3.573A.75.75 0 0 1 3.207 15v-3H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1Zm0 1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2.207a.75.75 0 0 1 .75.75v1.94l2.513-2.513a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button>
+</div>
+</header>
+<div style="flex: 1; min-height: 0; display: flex">
+<aside style="width: 248px; flex-shrink: 0; padding: 10px 8px; box-sizing: border-box; border-right: 1px solid var(--border)">
+<div style="display: flex; align-items: baseline; gap: 6px; padding: 2px 6px 8px"><span style="color: var(--dim); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">Files</span><span style="color: var(--dim); font-size: 11px">8</span></div>
+<div class="row dir"><span>desktop</span></div>
+<div class="row file"><span>main.go</span><span class="st m">M</span></div>
+<div class="row dir"><span>test/suites</span></div>
+<div class="row file"><span>palette.ts</span><span class="st a">A</span></div>
+<div class="row dir"><span>web/src</span></div>
+<div class="row file on"><span>App.tsx</span><span class="st m">M</span></div>
+<div class="row file"><span>CommandPalette.tsx</span><span class="st a">A</span></div>
+<div class="row file"><span>DesktopToolbar.tsx</span><span class="st m">M</span></div>
+<div class="row file"><span>KeyboardShortcuts.tsx</span><span class="st m">M</span></div>
+<div class="row file"><span>commands.ts</span><span class="st m">M</span></div>
+<div class="row file"><span>desktop.css</span><span class="st m">M</span></div>
+</aside>
+<main style="flex: 1; min-width: 0; padding: 12px 16px 0; box-sizing: border-box; overflow: hidden; background: var(--bg)">
+<section style="overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--raised)">
+<div style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<span style="font: 600 12px var(--mono)">web/src/App.tsx</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+9</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−1</span>
+<label style="display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--dim); font-size: 12px"><input type="checkbox"> Viewed</label>
+</div>
+<div style="padding: 4px 0">
+<div class="ln"><span class="no">400</span><span class="sg"> </span><span>  useEffect(() =&gt; {</span></div>
+<div class="ln"><span class="no">401</span><span class="sg"> </span><span>    const onKeyDown = (event: KeyboardEvent) =&gt; {</span></div>
+<div class="ln"><span class="no">402</span><span class="sg"> </span><span>      // A modal sheet owns the keyboard. The comments panel is not one, so keys still work.</span></div>
+<div class="ln"><span class="no">403</span><span class="sg"> </span><span>      if (document.querySelector('dialog:modal')) return</span></div>
+<div class="ln"><span class="no">404</span><span class="sg"> </span><span>      const key = event.key.toLocaleLowerCase()</span></div>
+<div class="ln"><span class="no">405</span><span class="sg"> </span><span>      const command = event.metaKey || event.ctrlKey</span></div>
+<div class="ln"><span class="no">406</span><span class="sg"> </span><span> </span></div>
+<div class="ln add"><span class="no">407</span><span class="sg">+</span><span>      if (command &amp;&amp; !event.altKey &amp;&amp; (key === 'k' || key === 'p')) {</span></div>
+<div class="ln add"><span class="no">408</span><span class="sg">+</span><span>        event.preventDefault()</span></div>
+<div class="ln add"><span class="no">409</span><span class="sg">+</span><span>        openPalette(key === 'p' ? 'files' : 'all')</span></div>
+<div class="ln add"><span class="no">410</span><span class="sg">+</span><span>        return</span></div>
+<div class="ln add"><span class="no">411</span><span class="sg">+</span><span>      }</span></div>
+<div class="ln"><span class="no">412</span><span class="sg"> </span><span>      if (entries.length &gt; 0 &amp;&amp; command &amp;&amp; !event.altKey &amp;&amp; key === 'f') {</span></div>
+<div class="ln"><span class="no">413</span><span class="sg"> </span><span>        event.preventDefault()</span></div>
+<div class="ln"><span class="no">414</span><span class="sg"> </span><span>        setPicking(null)</span></div>
+<div class="ln"><span class="no">415</span><span class="sg"> </span><span>        openSearch()</span></div>
+<div class="ln"><span class="no">416</span><span class="sg"> </span><span>        return</span></div>
+<div class="ln"><span class="no">417</span><span class="sg"> </span><span>      }</span></div>
+<div class="ln"><span class="no">418</span><span class="sg"> </span><span>      if (searchOpen &amp;&amp; ((command &amp;&amp; !event.altKey &amp;&amp; key === 'g') || event.key === 'F3')) {</span></div>
+<div class="ln"><span class="no">419</span><span class="sg"> </span><span>        event.preventDefault()</span></div>
+<div class="ln"><span class="no">420</span><span class="sg"> </span><span>        stepSearch(event.shiftKey ? -1 : 1)</span></div>
+<div class="ln"><span class="no">421</span><span class="sg"> </span><span>        return</span></div>
+<div class="ln"><span class="no">422</span><span class="sg"> </span><span>      }</span></div>
+<div class="ln"><span class="no">423</span><span class="sg"> </span><span> </span></div>
+<div class="ln"><span class="no">424</span><span class="sg"> </span><span>      // Never steal keys from an input or from a browser shortcut.</span></div>
+<div class="ln"><span class="no">425</span><span class="sg"> </span><span>      const focused = event.target</span></div>
+<div class="ln"><span class="no">426</span><span class="sg"> </span><span>      const tag = focused instanceof HTMLElement ? focused.tagName : null</span></div>
+<div class="ln"><span class="no">427</span><span class="sg"> </span><span>      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return</span></div>
+</div>
+</section>
+</main>
+</div>
+<footer style="flex-shrink: 0; display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 14px; border-top: 1px solid var(--border); background: var(--bg); color: var(--dim); font-size: 12px; white-space: nowrap">
+<span>base guessed</span>
+<span>working tree included</span>
+<span style="display: flex; align-items: center; gap: 6px; margin-left: auto">Next <b style="color: var(--text); font: 600 12px var(--mono)">web/src/CommandPalette.tsx</b> <kbd>j</kbd></span>
+</footer>
+
+<div aria-hidden="true" style="position: absolute; inset: 0; background: var(--scrim)"></div>
+<div role="dialog" aria-label="Command palette" style="position: absolute; top: 80px; left: calc(50% - 460px); width: 920px; height: 500px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--overlay); box-shadow: 0 24px 60px rgb(0 0 0 / 30%)">
+<div style="flex-shrink: 0; display: flex; align-items: center; gap: 10px; height: 50px; padding: 0 14px; border-bottom: 1px solid var(--border)">
+<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true" style="flex-shrink: 0; color: var(--dim)"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"></path></svg>
+<input type="text" value="desk" aria-label="Search files and commands" style="flex: 1; min-width: 0; padding: 0; border: 0; outline: none; background: none; color: var(--text); font: 400 16px var(--sans)">
+<span style="color: var(--dim); font-size: 12px">3 files</span>
+</div>
+<div style="flex: 1; min-height: 0; display: flex">
+<div style="width: 360px; flex-shrink: 0; padding: 0 6px 6px; box-sizing: border-box; border-right: 1px solid var(--border)">
+<div class="pal-sec">Files</div>
+<button class="pal-row" type="button">
+<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span class="pal-name"><span style="font: 500 13px var(--mono)">main.go</span><span style="color: var(--dim); font: 11.5px var(--mono)"><mark>desk</mark>top</span></span>
+<span class="pal-meta"><span>Viewed</span><span class="st m" style="margin-left: 2px">M</span></span>
+</button>
+<button class="pal-row on" type="button">
+<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span class="pal-name"><span style="font: 500 13px var(--mono)"><mark>desk</mark>top.css</span><span style="color: var(--dim); font: 11.5px var(--mono)">web/src</span></span>
+<span class="pal-meta"><span class="st m">M</span></span>
+</button>
+<button class="pal-row" type="button">
+<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 1.75C2 .784 2.784 0 3.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.328.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V5h-2.75A1.75 1.75 0 0 1 8 3.25V1.5Zm5.75.56v1.19c0 .138.112.25.25.25h1.19Z"></path></svg>
+<span class="pal-name"><span style="font: 500 13px var(--mono)"><mark>Desk</mark>topToolbar.tsx</span><span style="color: var(--dim); font: 11.5px var(--mono)">web/src</span></span>
+<span class="pal-meta"><span class="st m">M</span></span>
+</button>
+</div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--raised)">
+<div style="flex-shrink: 0; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-bottom: 1px solid var(--border)">
+<span style="font: 600 12px var(--mono)">web/src/desktop.css</span>
+<span style="color: var(--success); font: 600 12px var(--mono)">+21</span>
+<span style="color: var(--danger); font: 600 12px var(--mono)">−0</span>
+<span style="margin-left: auto; color: var(--dim); font-size: 12px">1 hunk · not viewed</span>
+</div>
+<div style="flex: 1; min-height: 0; overflow: hidden; padding: 4px 0">
+<div class="ln hunk"><span class="no"></span><span class="sg"></span><span>@@ -372,4 +372,25 @@ .desktop-sheet[open]</span></div>
+<div class="ln"><span class="no">372</span><span class="sg"> </span><span>.desktop-sheet[open] {</span></div>
+<div class="ln"><span class="no">373</span><span class="sg"> </span><span>  display: flex;</span></div>
+<div class="ln"><span class="no">374</span><span class="sg"> </span><span>  flex-direction: column;</span></div>
+<div class="ln"><span class="no">375</span><span class="sg"> </span><span>}</span></div>
+<div class="ln add"><span class="no">376</span><span class="sg">+</span><span>.command-palette {</span></div>
+<div class="ln add"><span class="no">377</span><span class="sg">+</span><span>  width: min(620px, calc(100vw - 48px));</span></div>
+<div class="ln add"><span class="no">378</span><span class="sg">+</span><span>  margin: 92px auto auto;</span></div>
+<div class="ln add"><span class="no">379</span><span class="sg">+</span><span>  padding: 0;</span></div>
+<div class="ln add"><span class="no">380</span><span class="sg">+</span><span>  border: 1px solid var(--border);</span></div>
+<div class="ln add"><span class="no">381</span><span class="sg">+</span><span>  border-radius: 12px;</span></div>
+<div class="ln add"><span class="no">382</span><span class="sg">+</span><span>  background: var(--bg-overlay);</span></div>
+<div class="ln add"><span class="no">383</span><span class="sg">+</span><span>  box-shadow: 0 24px 60px rgb(0 0 0 / 30%);</span></div>
+<div class="ln add"><span class="no">384</span><span class="sg">+</span><span>}</span></div>
+<div class="ln add"><span class="no">385</span><span class="sg">+</span><span>.command-palette mark {</span></div>
+<div class="ln add"><span class="no">386</span><span class="sg">+</span><span>  background: none;</span></div>
+<div class="ln add"><span class="no">387</span><span class="sg">+</span><span>  color: var(--accent);</span></div>
+<div class="ln add"><span class="no">388</span><span class="sg">+</span><span>  font-weight: 700;</span></div>
+<div class="ln add"><span class="no">389</span><span class="sg">+</span><span>}</span></div>
+<div class="ln add"><span class="no">390</span><span class="sg">+</span><span>.palette-row[aria-selected='true'] {</span></div>
+<div class="ln add"><span class="no">391</span><span class="sg">+</span><span>  background: var(--accent-soft);</span></div>
+<div class="ln add"><span class="no">392</span><span class="sg">+</span><span>}</span></div>
+</div>
+</div>
+</div>
+<div style="flex-shrink: 0; display: flex; align-items: center; gap: 14px; height: 34px; padding: 0 14px; border-top: 1px solid var(--border); color: var(--dim); font-size: 12px">
+<span style="display: flex; align-items: center; gap: 5px"><kbd>↵</kbd> Open</span>
+<span style="display: flex; align-items: center; gap: 5px"><kbd>⌘↵</kbd> Mark Viewed</span>
+<span style="display: flex; align-items: center; gap: 5px"><kbd>⌥⌘C</kbd> Copy Path</span>
+<span style="display: flex; align-items: center; gap: 5px; margin-left: auto"><kbd>esc</kbd> Close</span>
+</div>
+</div>
+</div>
+</div>
+</article>
+</div>
+<script>
+const buttons = document.querySelectorAll('.theme button')
+function apply(mode) {
+  document.documentElement.dataset.theme = mode
+  for (const win of document.querySelectorAll('.win')) win.classList.toggle('dark', mode === 'dark')
+  for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.mode === mode))
+}
+for (const button of buttons) button.addEventListener('click', () => apply(button.dataset.mode))
+apply(matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+</script>
+</body>
+</html>
