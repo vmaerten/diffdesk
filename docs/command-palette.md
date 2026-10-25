@@ -24,7 +24,7 @@ Statut : plan proposé le 25 octobre 2026. Maquettes : [`palette-mockup.html`](.
 
 ### Commandes
 
-- Toutes les commandes des menus, avec le libellé du menu, le nom du menu (File, View, Go, Review, Help) et le raccourci : la lettre de la review (`c`, `l`…) ou celui du menu (⌥⌘0…). S'y ajoutent Open Repository… et Settings…, pas la palette elle-même.
+- Toutes les commandes des menus, avec le libellé du menu, le nom du menu (File, View, Go, Review, Help) et le raccourci : la lettre de la review (`c`, `l`…) ou celui du menu (⌥⌘0…). S'y ajoutent Open Repository… et Settings…, ainsi que Refresh (`r`), qui n'a pas d'entrée de menu ; pas la palette elle-même.
 - Une commande sans effet est masquée : celles de la pile hors pile, Layer Below ou Above au bout de la pile, Include Working Tree et Include Untracked Files quand ils ne basculent rien, Copy All Comments sans commentaire, les commandes de fichier sans fichier actif.
 - Une coche à gauche marque l'état, comme dans les menus macOS : Unified ou Split, Include Working Tree, Include Untracked Files, Ignore Whitespace, Comments, et Mark as Viewed quand le fichier actif est vu.
 - Lancer une commande ferme la palette, puis envoie `desktop:command` ; Open Repository… et Settings… appellent leur binding. Settings en gagne une, `OpenSettings`.
