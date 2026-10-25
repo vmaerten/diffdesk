@@ -47,7 +47,7 @@ const PREVIEW = `diff --git a/open.go b/open.go
  }
 `
 
-type Pane = 'appearance' | 'code' | 'window' | 'intelligence' | 'github'
+type Pane = 'appearance' | 'code' | 'window' | 'github' | 'intelligence'
 
 const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
   {
@@ -101,23 +101,6 @@ const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
     ),
   },
   {
-    id: 'intelligence',
-    label: 'Intelligence',
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z" />
-      </svg>
-    ),
-  },
-  {
     id: 'github',
     label: 'GitHub',
     icon: (
@@ -134,6 +117,23 @@ const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
         <circle cx="6.5" cy="18" r="2.5" />
         <circle cx="17.5" cy="18" r="2.5" />
         <path d="M6.5 8.5v7M17.5 15.5V10a3 3 0 0 0-3-3H11M13 4.5 10.5 7 13 9.5" />
+      </svg>
+    ),
+  },
+  {
+    id: 'intelligence',
+    label: 'Intelligence',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z" />
       </svg>
     ),
   },
