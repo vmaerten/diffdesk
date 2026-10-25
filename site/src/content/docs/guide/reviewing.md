@@ -43,13 +43,12 @@ Comments and Viewed are stored in `.git/ghl/state.json`, relative to the checkou
 
 `ghl` resolves the base in this order:
 
-1. An explicit `--base` or URL choice.
-2. The reviewed branch's remembered `branch.<name>.ghlBase` in Git configuration.
-3. Its `gh stack` chain.
-4. The nearest-parent heuristic, with the trunk winning ties.
-5. The detected trunk, using `origin/HEAD` and conventional branch names.
+1. An explicit `--base`, or a base picked in the window.
+2. Its `gh stack` chain.
+3. The nearest-parent heuristic, with the trunk winning ties.
+4. The detected trunk, using `origin/HEAD` and conventional branch names.
 
-The base is shown in the title bar and its source in the status bar. Press `b` to pick a local branch and remember that choice. The target picker also lists local branches; remote refs remain available through `ghl origin/branch` or a `target` URL parameter.
+The base is shown, dimmed, before the reviewed branch in the title bar, and its source in the status bar. Click the branch, or press `t`, to review another one. Press `b`, or choose **Go → Choose Base…**, to compare against another base: the choice holds for the review shown and is never written to the repository, so the next `ghl` resolves the base again. **Automatic base** in that picker drops it. Both pickers open on the current choice, so Enter alone changes nothing. When the base already contains the whole branch, the empty review says so and offers the automatic base. The target picker also lists local branches; remote refs remain available through `ghl origin/branch` or a `target` URL parameter. Older releases remembered picked bases as `branch.<name>.ghlBase` in Git configuration; ghl now ignores them.
 
 When the local trunk is strictly behind its fetched `origin` counterpart, the remote ref is preferred. Local trunks that are ahead or diverged are retained. `ghl` does not fetch or change your checkout.
 

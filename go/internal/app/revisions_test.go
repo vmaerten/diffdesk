@@ -69,7 +69,7 @@ func TestProductionSelectionsShareExactVersions(t *testing.T) {
 	}
 }
 
-func TestRememberedChoicesAndURLClearing(t *testing.T) {
+func TestURLBaseChoiceAndClearing(t *testing.T) {
 	s := testServer(t)
 	w := api(t, s, "GET", "diff?base=HEAD", nil)
 	requireStatus(t, w, 200)
@@ -89,25 +89,19 @@ func TestRememberedChoicesAndURLClearing(t *testing.T) {
 	requireStatus(t, w, 200)
 	_ = json.Unmarshal(w.Body.Bytes(), &payload)
 	if payload.Base.Ref != "main" || payload.Base.Source != "trunk" {
-		t.Fatal("registry answered after clearing the URL")
+		t.Fatal("the override outlived its URL")
 	}
-	requireStatus(t, api(t, s, "POST", "base", map[string]any{"base": "HEAD", "target": "main"}), 200)
-	if got := gitFixture(t, s.repo.Path, "config", "--get", "branch.main.ghlBase"); got != "HEAD" {
-		t.Fatal("remembered against wrong branch")
+	// A base that older releases remembered in Git configuration no longer applies.
+	gitFixture(t, s.repo.Path, "config", "branch.feature.ghlBase", "HEAD")
+	gitFixture(t, s.repo.Path, "config", "branch.main.ghlBase", "HEAD")
+	for _, query := range []string{"", "?target=main"} {
+		w = api(t, s, "GET", "diff"+query, nil)
+		requireStatus(t, w, 200)
+		_ = json.Unmarshal(w.Body.Bytes(), &payload)
+		if payload.Base.Ref == "HEAD" {
+			t.Fatalf("a stored base answered diff%s", query)
+		}
 	}
-	w = api(t, s, "GET", "diff?target=main", nil)
-	requireStatus(t, w, 200)
-	_ = json.Unmarshal(w.Body.Bytes(), &payload)
-	if payload.Base.Source != "remembered" || payload.Base.Branch == nil || *payload.Base.Branch != "main" || payload.Target.WorkingTree {
-		t.Fatal("target choice inherited checkout state")
-	}
-	w = api(t, s, "GET", "diff", nil)
-	requireStatus(t, w, 200)
-	_ = json.Unmarshal(w.Body.Bytes(), &payload)
-	if payload.Base.Source != "trunk" {
-		t.Fatal("another branch's choice leaked")
-	}
-	gitFixture(t, s.repo.Path, "config", "branch.feature.ghlBase", "missing")
 	requireStatus(t, api(t, s, "GET", "diff", nil), 200)
 	requireStatus(t, api(t, s, "GET", "refs", nil), 200)
 	requireStatus(t, api(t, s, "GET", "commits", nil), 200)
@@ -116,8 +110,6 @@ func TestRememberedChoicesAndURLClearing(t *testing.T) {
 	}
 	requireStatus(t, api(t, s, "GET", "diff?target=missing", nil), 422)
 	requireStatus(t, api(t, s, "GET", "commits?target=missing", nil), 422)
-	requireStatus(t, api(t, s, "POST", "base", map[string]string{"base": "missing"}), 422)
-	requireStatus(t, api(t, s, "POST", "base", map[string]string{"base": "main", "target": "missing"}), 422)
 }
 
 func TestStackWorktreePriorityAndCompatibility(t *testing.T) {

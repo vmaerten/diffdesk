@@ -76,18 +76,12 @@ export default function DesktopToolbar(
             <span className="capsule-separator" aria-hidden="true" />
           </>
         )}
+        {/* Text, not a button: clicking here meant to change the reviewed
+            branch, and changed the base. b and Go → Choose Base… still do. */}
         <span className="base-anchor">
-          <button
-            type="button"
-            className="capsule-ref"
-            title="Change the base (b)"
-            aria-label={`Base: ${data?.base.ref ?? 'loading'}`}
-            aria-expanded={picking === 'base'}
-            disabled={!data}
-            onClick={() => togglePicker(onPickingChange, 'base')}
-          >
-            {data?.base.ref ?? '…'} <span className="caret">▾</span>
-          </button>
+          <span className="capsule-base" title="Compared against this base; b changes it">
+            {data?.base.ref ?? '…'}
+          </span>
           <ComparisonSelector picker="base" {...props} />
         </span>
         <span className="capsule-arrow" aria-hidden="true">

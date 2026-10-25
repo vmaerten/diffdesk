@@ -41,10 +41,11 @@ export interface ImageComparison {
  * Where a base came from. The UI shows it, because a wrong base produces a
  * misleading diff without ever looking wrong.
  */
-export type BaseSource = 'override' | 'remembered' | 'stack' | 'guessed' | 'trunk'
+export type BaseSource = 'override' | 'stack' | 'guessed' | 'trunk'
 
 export interface BaseResolution {
   ref: string
+  sha: string
   source: BaseSource
   branch: string | null
   trunk: string | null

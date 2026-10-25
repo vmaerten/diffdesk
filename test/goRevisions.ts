@@ -198,27 +198,15 @@ try {
   git('checkout', '--detach', '-q', 'feature')
   await review()
   await review('?base=release')
-  assert.equal(
-    (
-      await fetch(goURL + '/api/base', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ base: 'main' }),
-      })
-    ).status,
-    422,
-  )
   git('checkout', '-q', 'main')
   const invalid = await fetch(goURL + '/api/diff?target=missing')
   assert.equal(invalid.status, 422)
-  await json(goURL + '/api/base', { base: 'release', target: 'feature' })
-  assert.equal((await review('?target=feature')).base.source, 'remembered')
-  assert.equal((await review()).base.ref, 'main')
+  // Older releases remembered picked bases here; the setting no longer applies.
+  git('config', 'branch.feature.ghlBase', 'release')
+  assert.notEqual((await review('?target=feature')).base.ref, 'release')
   assert.equal((await review('?target=feature&base=main')).base.source, 'override')
   git('config', '--unset', 'branch.feature.ghlBase')
-  console.log(
-    '  ok staged/unstaged scope, detached HEAD, invalid targets and branch-specific base persistence contracts',
-  )
+  console.log('  ok staged/unstaged scope, detached HEAD, invalid targets and ignored stored bases')
 
   console.log(`  ok ${checks} revision contracts`)
 } finally {
