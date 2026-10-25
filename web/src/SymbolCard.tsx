@@ -157,7 +157,7 @@ export function useSymbolCard({
     openTimer.current = setTimeout(() => void show(token.query, token.element, false), OPEN_DELAY)
   })
 
-  const goToDefinition = useStableCallback(
+  const openDefinition = useStableCallback(
     async (query: SymbolQuery, element: HTMLElement | null) => {
       // From the card's button, the card is already there: it only needs the code.
       const expand = () =>
@@ -206,10 +206,10 @@ export function useSymbolCard({
         const query = queryOf(token, context)
         if (!query) return
         event.preventDefault()
-        void goToDefinition(query, token.tokenElement)
+        void openDefinition(query, token.tokenElement)
       },
     }),
-    [queryOf, arm, underline, goToDefinition],
+    [queryOf, arm, underline, openDefinition],
   )
 
   useEffect(() => {
@@ -276,7 +276,7 @@ export function useSymbolCard({
         onLeave={() => {
           closeTimer.current = setTimeout(() => setCard(null), CLOSE_DELAY)
         }}
-        onGoToDefinition={() => void goToDefinition(card.query, null)}
+        onOpenDefinition={() => void openDefinition(card.query, null)}
       />
     ),
   }
@@ -289,7 +289,7 @@ function SymbolCard({
   displayed,
   onKeep,
   onLeave,
-  onGoToDefinition,
+  onOpenDefinition,
 }: {
   card: Card
   server: string | undefined
@@ -297,7 +297,7 @@ function SymbolCard({
   displayed: (path: string, line: number) => boolean
   onKeep: () => void
   onLeave: () => void
-  onGoToDefinition: () => void
+  onOpenDefinition: () => void
 }) {
   const { query, rect, lookup, expanded } = card
   const answer = lookup.status === 'done' ? lookup.answer : null
@@ -389,9 +389,20 @@ function SymbolCard({
         </div>
       )}
       <div className="symbol-card-actions">
-        <button type="button" disabled={!definition} onClick={onGoToDefinition}>
-          Go to definition <kbd>⌘ click</kbd>
-        </button>
+        {/* Where the diff shows the definition, the click goes there; elsewhere
+            it can only show its lines here. */}
+        {definition?.inRepo && displayed(definition.path, definition.line) ? (
+          <button type="button" onClick={onOpenDefinition}>
+            Go to definition <kbd>⌘ click</kbd>
+          </button>
+        ) : (
+          definition?.snippet &&
+          !showsDefinition && (
+            <button type="button" onClick={onOpenDefinition}>
+              Show definition <kbd>⌘ click</kbd>
+            </button>
+          )
+        )}
         <span className="symbol-card-hint">
           <kbd>esc</kbd>
         </span>

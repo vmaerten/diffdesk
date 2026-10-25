@@ -217,6 +217,12 @@ export default {
           status: shown.querySelector('.symbol-card-status')?.textContent ?? '',
         }
       })
+    const actions = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('.symbol-card-actions button')].map(
+          (button) => button.textContent,
+        ),
+      )
     const underlined = () =>
       page.evaluate(() =>
         [...document.querySelectorAll('.diff diffs-container')]
@@ -238,6 +244,11 @@ export default {
         opened.meta.includes('src/core/engine.ts:4') &&
         !opened.meta.includes('not in this diff'),
       JSON.stringify(opened),
+    )
+    check(
+      '  offering to go to a definition the diff shows',
+      (await actions()).includes('Go to definition ⌘ click'),
+      JSON.stringify(await actions()),
     )
     check('  and underlines it', (await underlined()).join() === 'engine_3')
     check(
@@ -275,6 +286,11 @@ export default {
         outside.meta.includes('src/core/parser.ts:3') &&
         outside.meta.includes('not in this diff'),
       JSON.stringify(outside),
+    )
+    check(
+      '  with nothing left to open once its code shows',
+      !(await actions()).some((label) => label?.includes('definition')),
+      JSON.stringify(await actions()),
     )
     const coloured = await poll(
       () =>

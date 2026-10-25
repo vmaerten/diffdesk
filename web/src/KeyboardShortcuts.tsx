@@ -71,7 +71,7 @@ export default function KeyboardShortcuts() {
         <dt>
           <kbd>⌘</kbd> click
         </dt>
-        <dd>Go to definition (beta)</dd>
+        <dd>Go to or show definition (beta)</dd>
       </div>
       <div>
         <dt>
