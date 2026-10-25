@@ -275,6 +275,15 @@ export default {
         outside.meta.includes('not in this diff'),
       JSON.stringify(outside),
     )
+    const coloured = await poll(
+      () =>
+        page.evaluate(
+          () =>
+            document.querySelectorAll('.symbol-card .symbol-snippet span[style*="color"]').length,
+        ),
+      (count) => count > 0,
+    )
+    check('  in the review’s syntax colours', coloured > 0, String(coloured))
     await page.keyboard.up('Meta')
     await page.keyboard.press('Escape')
     check('Escape closes the card', (await poll(card, (state) => state === null)) === null)

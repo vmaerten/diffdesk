@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useStableCallback } from '@pierre/diffs/react'
 import type { LanguageStatus, SymbolAnswer, SymbolQuery } from '../../src/types.ts'
 import { IDENTIFIER, lookUpSymbol, serverFor, StaleSymbolError } from './codeIntelligence.ts'
+import HighlightedCode from './HighlightedCode.tsx'
+import type { SyntaxTheme } from './theme.ts'
 
 /** What the diff's token callbacks hand over, with the item they belong to. */
 interface TokenEvent {
@@ -52,6 +54,7 @@ export function useSymbolCard({
   canReveal,
   reveal,
   onAnswer,
+  theme,
 }: {
   repoId: string | null
   enabled: boolean
@@ -63,6 +66,8 @@ export function useSymbolCard({
   reveal: (path: string, line: number) => void
   /** A server answered, so its state may have moved on. */
   onAnswer: () => void
+  /** The review's syntax theme, for the card's code. */
+  theme: SyntaxTheme
 }): { handlers: TokenHandlers; card: ReactNode } {
   const [card, setCard] = useState<Card | null>(null)
   const hovered = useRef<{ query: SymbolQuery; element: HTMLElement } | null>(null)
@@ -265,6 +270,7 @@ export function useSymbolCard({
       <SymbolCard
         card={card}
         server={server}
+        theme={theme}
         displayed={canReveal}
         onKeep={() => clearTimeout(closeTimer.current)}
         onLeave={() => {
@@ -279,6 +285,7 @@ export function useSymbolCard({
 function SymbolCard({
   card,
   server,
+  theme,
   displayed,
   onKeep,
   onLeave,
@@ -286,6 +293,7 @@ function SymbolCard({
 }: {
   card: Card
   server: string | undefined
+  theme: SyntaxTheme
   displayed: (path: string, line: number) => boolean
   onKeep: () => void
   onLeave: () => void
@@ -328,9 +336,13 @@ function SymbolCard({
         )}
         {answer?.hover.map((block, index) =>
           block.kind === 'code' ? (
-            <pre className="symbol-signature" key={index}>
-              {block.text}
-            </pre>
+            <HighlightedCode
+              key={index}
+              className="symbol-signature"
+              code={block.text}
+              path={query.path}
+              theme={theme}
+            />
           ) : (
             <p className="symbol-doc" key={index}>
               {block.text}
@@ -341,15 +353,15 @@ function SymbolCard({
           <p className="symbol-card-status">Nothing is known about {query.token}.</p>
         )}
         {expanded && definition?.snippet && (
-          <pre className="symbol-snippet" aria-label={`${definition.path}:${definition.line}`}>
-            {definition.snippet.lines.map((line, index) => (
-              <span key={index}>
-                <i>{definition.snippet!.start + index}</i>
-                {line}
-                {'\n'}
-              </span>
-            ))}
-          </pre>
+          <HighlightedCode
+            className="symbol-snippet"
+            label={`${definition.path}:${definition.line}`}
+            code={definition.snippet.lines.join('\n')}
+            path={definition.path}
+            theme={theme}
+            start={definition.snippet.start}
+            background
+          />
         )}
       </div>
       {definition && (

@@ -294,6 +294,7 @@ export default function App({
     canReveal: canRevealDefinition,
     reveal: revealDefinition,
     onAnswer: refreshLanguages,
+    theme: syntaxTheme,
   })
   const {
     view,
