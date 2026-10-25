@@ -27,7 +27,7 @@ export type ReviewCommand =
   | 'copy-comments'
   | 'reset-viewed'
 
-export type WindowCommand = 'reload' | 'close-tab' | 'settings' | 'shortcuts' | 'sidebar'
+export type WindowCommand = 'reload' | 'close-tab' | 'shortcuts' | 'sidebar'
 
 export const commandOf = (event: Event) =>
   (event as CustomEvent<ReviewCommand | WindowCommand>).detail

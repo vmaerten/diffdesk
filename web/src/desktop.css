@@ -387,11 +387,66 @@ body,
   overflow: auto;
   padding: 0 20px 4px;
 }
-.desktop-sheet-body h3 {
-  margin: 16px 4px 6px;
-  color: var(--text-dim);
-  font-size: 12px;
+/* Settings, a window of its own: the window buttons sit in the title row and
+   the pane buttons under it, as in the settings of macOS apps. */
+.settings-toolbar {
+  --wails-draggable: drag;
+  flex-shrink: 0;
+  display: grid;
+  justify-items: center;
+  padding-bottom: 6px;
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--border);
+  -webkit-user-select: none;
+  user-select: none;
+}
+.settings-toolbar h1 {
+  margin: 0;
+  /* The standard title bar, whose middle the window buttons line up with. */
+  line-height: 28px;
+  font-size: 13px;
   font-weight: 600;
+}
+.settings-panes {
+  display: flex;
+  gap: 4px;
+}
+.settings-panes button {
+  --wails-draggable: no-drag;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 76px;
+  padding: 5px 8px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.settings-panes svg {
+  width: 24px;
+  height: 24px;
+}
+.settings-panes button[aria-current='page'] {
+  background: var(--counter-bg);
+  color: var(--accent);
+}
+.settings-panes button[aria-current='page'] span {
+  color: var(--text);
+}
+.settings-pane {
+  flex: 1;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  overflow: auto;
+  padding: 20px;
+  background: var(--bg);
+}
+.settings-error {
+  margin: 0;
+  color: var(--danger);
 }
 .settings-group {
   border: 1px solid var(--border);
@@ -424,11 +479,11 @@ body,
 .settings-field .font-name {
   width: 200px;
 }
-.appearance-choices {
+.settings-choices {
   display: flex;
   gap: 14px;
 }
-.appearance-choices button {
+.settings-choices button {
   display: grid;
   justify-items: center;
   gap: 5px;
@@ -446,7 +501,7 @@ body,
   border-radius: 7px;
   box-shadow: 0 0 0 1px var(--border);
 }
-.appearance-choices button[aria-pressed='true'] .appearance-thumb {
+.settings-choices button[aria-pressed='true'] :is(.appearance-thumb, .titlebar-thumb) {
   box-shadow:
     0 0 0 2px var(--bg-raised),
     0 0 0 4px var(--accent);
@@ -490,6 +545,43 @@ body,
 }
 .appearance-thumb.system::before {
   background: linear-gradient(90deg, #e6e6e4 50%, #303030 50%);
+}
+/* A window in the active palette: its bar with the window buttons and the
+   comparison capsule, 15 px for the standard bar, 10 for the compact one. */
+.titlebar-thumb {
+  --bar: 15px;
+  position: relative;
+  width: 96px;
+  height: 60px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--bg-raised);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.titlebar-thumb.compact {
+  --bar: 10px;
+}
+.titlebar-thumb::before,
+.titlebar-thumb::after {
+  content: '';
+  position: absolute;
+}
+.titlebar-thumb::before {
+  inset: 0 0 auto;
+  height: var(--bar);
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 9px 50%, #ff5f57 2px, transparent 2.5px),
+    radial-gradient(circle at 15px 50%, #febc2e 2px, transparent 2.5px),
+    radial-gradient(circle at 21px 50%, #28c840 2px, transparent 2.5px), var(--chrome-opaque);
+}
+.titlebar-thumb::after {
+  top: calc(var(--bar) / 2 - 3px);
+  left: 33px;
+  width: 30px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--counter-bg);
 }
 .stepper {
   display: inline-flex;

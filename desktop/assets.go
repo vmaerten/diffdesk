@@ -35,7 +35,7 @@ func desktopAssets(assets fs.FS, next http.Handler, compact bool) (http.Handler,
 			w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-store")
 			_, _ = w.Write(script)
-		case r.Method == "GET" && (r.URL.Path == "/" || (len(parts) == 2 && parts[0] == "r")):
+		case r.Method == "GET" && (r.URL.Path == "/" || r.URL.Path == "/settings" || (len(parts) == 2 && parts[0] == "r")):
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-store")
 			_, _ = w.Write(index)

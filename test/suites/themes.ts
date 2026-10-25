@@ -1,10 +1,35 @@
-import type { ElementHandle } from 'puppeteer-core'
+import type { ElementHandle, Page } from 'puppeteer-core'
 
-import { clickTreeRow, command, DIFF_SCROLLER, frames, poll, type Suite } from '../harness.ts'
+import { installDesktopRuntime } from '../desktopRuntime.ts'
+import { clickTreeRow, DIFF_SCROLLER, frames, poll, type Suite } from '../harness.ts'
 
-/** The review's syntax colours, not those of the Settings preview. */
+/** The review's syntax colours. */
 const TOKENS = `[...(document.querySelector('.diff diffs-container')?.shadowRoot
   ?.querySelectorAll('span[style]') ?? [])].slice(0, 30).map((t) => getComputedStyle(t).color).join(',')`
+
+const appearance = (settings: Page, choice: 'Light' | 'Dark') =>
+  settings.evaluate(
+    (label) =>
+      [
+        ...document.querySelectorAll<HTMLButtonElement>(
+          '.settings-choices[aria-label="Appearance"] button',
+        ),
+      ]
+        .find((button) => button.textContent?.trim() === label)
+        ?.click(),
+    choice,
+  )
+
+const themeSelect = async (settings: Page, which: 'Light' | 'Dark') =>
+  (
+    await settings.evaluateHandle(
+      (name) =>
+        [...document.querySelectorAll('label.settings-field')]
+          .find((field) => field.textContent?.startsWith(`${name} syntax theme`))
+          ?.querySelector('select'),
+      which,
+    )
+  ).asElement() as ElementHandle<HTMLSelectElement>
 
 export default {
   name: 'themes',
@@ -12,32 +37,17 @@ export default {
     await load()
     await page.waitForSelector('.viewed-toggle input', { timeout: 30_000 })
 
+    // Settings is a window of its own: a second page of the same browser
+    // context, whose saves reach the review as Go's event would. The review
+    // comes back to the front, since a page behind another stops painting.
     const openSettings = async () => {
-      await command(page, 'settings')
-      await page.waitForSelector('.settings-sheet[open]')
+      const settings = await page.browserContext().newPage()
+      await installDesktopRuntime(settings)
+      await settings.goto(new URL('/settings', page.url()).href, { waitUntil: 'networkidle0' })
+      await settings.waitForSelector('.settings-choices[aria-label="Appearance"]')
+      await page.bringToFront()
+      return settings
     }
-    const closeSettings = async () => {
-      await page.click('.settings-sheet footer button')
-      await page.waitForSelector('.settings-sheet:not([open])')
-    }
-    const appearance = (choice: 'Light' | 'Dark') =>
-      page.evaluate(
-        (label) =>
-          [...document.querySelectorAll<HTMLButtonElement>('.appearance-choices button')]
-            .find((button) => button.textContent?.trim() === label)
-            ?.click(),
-        choice,
-      )
-    const themeSelect = async (which: 'Light' | 'Dark') =>
-      (
-        await page.evaluateHandle(
-          (name) =>
-            [...document.querySelectorAll('.settings-sheet label.settings-field')]
-              .find((field) => field.textContent?.startsWith(`${name} syntax theme`))
-              ?.querySelector('select'),
-          which,
-        )
-      ).asElement() as ElementHandle<HTMLSelectElement>
     const tokens = () => page.evaluate(TOKENS) as Promise<string>
     /** A value once two readings a couple of frames apart agree: a repaint spreads over frames. */
     const steady = async <T>(read: () => Promise<T>, ready: (value: T) => boolean = () => true) => {
@@ -81,16 +91,16 @@ export default {
       ['Dark', 'darcula'],
       ['Dark', 'catppuccin-mocha'],
     ] as const
-    await openSettings()
+    let settings = await openSettings()
     let current = await tokens()
     let mode: 'Light' | 'Dark' | null = null
     const tokenColors = new Set<string>()
     for (const [wanted, theme] of steps) {
       if (wanted !== mode) {
         mode = wanted
-        await appearance(mode)
+        await appearance(settings, mode)
       }
-      const select = await themeSelect(mode)
+      const select = await themeSelect(settings, mode)
       if ((await select.evaluate((el) => el.value)) !== theme) await select.select(theme)
       current = await repainted(current)
       const state = await page.evaluate(() => ({
@@ -122,15 +132,15 @@ export default {
         chosen.dark === 'catppuccin-mocha',
       JSON.stringify(chosen),
     )
-    await closeSettings()
+    await settings.close()
 
     await clickTreeRow(page, 'web/components/Widget40.tsx')
     const scroll = () => page.evaluate(`${DIFF_SCROLLER}.scrollTop`) as Promise<number>
     const before = await steady(scroll, (top) => top > 0)
-    await openSettings()
-    await (await themeSelect('Dark')).select('github-dark')
+    settings = await openSettings()
+    await (await themeSelect(settings, 'Dark')).select('github-dark')
     await repainted(current)
-    await closeSettings()
+    await settings.close()
     check(
       'switching keeps the reading position',
       before > 0 && Math.abs((await scroll()) - before) < 2,

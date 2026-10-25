@@ -168,45 +168,32 @@
         if (health.repos.length === 1) document.querySelector('.desktop-tab-close').click()
         return
       }
-      // Change the appearance and code size, check both apply and reach Go, then
+      // Settings saves from its own window, and Go hands each save to every
+      // window: save as it would, check the review follows and Go kept it, then
       // put them back for the rest of the run.
-      window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'settings' }))
-      const sheet = await wait(
-        () => document.querySelector('.settings-sheet[open]'),
-        'Settings did not open',
+      const api = window.go.main.desktopApp
+      const original = (await api.Settings()) || JSON.stringify({ version: 1 })
+      await api.SaveSettings(
+        JSON.stringify({
+          ...JSON.parse(original),
+          appearance: dark ? 'light' : 'dark',
+          codeSize: 13,
+        }),
       )
-      const appearance = (label) =>
-        [...sheet.querySelectorAll('.appearance-choices button')]
-          .find((button) => button.textContent.trim() === label)
-          .click()
-      const storedSettings = async () =>
-        JSON.parse((await window.go.main.desktopApp.Settings()) || '{}')
-      appearance(dark ? 'Light' : 'Dark')
       await wait(
         () => root.dataset.theme === (dark ? 'github-light' : 'github-dimmed'),
         'Appearance did not apply',
       )
       check(root.dataset.material === 'opaque', 'Chrome stays translucent over the other mode')
-      sheet.querySelector('[aria-label="Larger"]').click()
       await wait(
         () =>
           document.querySelector('.desktop-shell').style.getPropertyValue('--code-size') === '13px',
         'Code size did not apply',
       )
-      await wait(async () => {
-        const stored = await storedSettings()
-        return stored.appearance === (dark ? 'light' : 'dark') && stored.codeSize === 13
-      }, 'Settings not saved')
-      appearance('System')
-      sheet.querySelector('[aria-label="Smaller"]').click()
-      sheet.querySelector('footer button').click()
-      await wait(() => !sheet.open, 'Settings did not close')
+      check(JSON.parse(await api.Settings()).codeSize === 13, 'Settings not saved')
+      await api.SaveSettings(original)
       await wait(
-        async () => (await storedSettings()).appearance === 'system',
-        'Settings not restored',
-      )
-      check(
-        root.dataset.theme === (dark ? 'github-dimmed' : 'github-light'),
+        () => root.dataset.theme === (dark ? 'github-dimmed' : 'github-light'),
         'System appearance did not return',
       )
       check(root.dataset.material === 'translucent', 'Chrome stays opaque under System')

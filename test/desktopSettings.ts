@@ -1,5 +1,5 @@
 import { activeTheme } from '../web/src/appearance.ts'
-import { DEFAULT_SETTINGS, readSettings } from '../web/src/desktopSettings.ts'
+import { DEFAULT_SETTINGS, latestSaver, readSettings } from '../web/src/desktopSettings.ts'
 import type { Check } from './harness.ts'
 
 export async function runDesktopSettings(check: Check): Promise<void> {
@@ -51,6 +51,30 @@ export async function runDesktopSettings(check: Check): Promise<void> {
   check(
     'a forced appearance ignores macOS',
     activeTheme({ ...themes, appearance: 'light' }, true) === 'github-light',
+  )
+
+  // Go may answer two saves in flight in either order: a burst waits for the
+  // first save, then sends only the last change.
+  const saved: string[] = []
+  const pending: (() => void)[] = []
+  const save = latestSaver(
+    (raw) => {
+      saved.push(raw)
+      return new Promise<void>((resolve) => pending.push(resolve))
+    },
+    () => {},
+  )
+  save('12 pt')
+  save('13 pt')
+  save('14 pt')
+  while (pending.length) {
+    pending.shift()!()
+    await new Promise((resolve) => setTimeout(resolve))
+  }
+  check(
+    'a burst of changes saves the first and the last, one at a time',
+    saved.join() === '12 pt,14 pt',
+    saved.join(),
   )
 }
 
