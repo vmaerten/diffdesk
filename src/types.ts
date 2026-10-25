@@ -243,3 +243,26 @@ export interface RefsPayload {
 export interface CommitsPayload {
   commits: CommitDetail[]
 }
+
+/** A language's server in one checkout, as `GET /r/<id>/api/lsp` reports it. */
+export interface LanguageStatus {
+  id: string
+  label: string
+  extensions: string[]
+  choice: string
+  choices: string[]
+  /** The server this checkout would run, or null when none is found. */
+  server: { name: string; path: string; origin: 'checkout' | 'PATH' } | null
+  version?: string
+  state: 'off' | 'missing' | 'idle' | 'starting' | 'indexing' | 'ready' | 'failed'
+  progress?: { title: string; message?: string; percentage?: number }
+  /** How to install a missing server. */
+  install?: string
+  /** Why the server failed, with the end of its stderr. */
+  error?: string
+}
+
+export interface LanguageServersStatus {
+  enabled: boolean
+  languages: LanguageStatus[]
+}

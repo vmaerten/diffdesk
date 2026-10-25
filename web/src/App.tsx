@@ -38,6 +38,7 @@ import {
   type WindowCommand,
 } from './commands.ts'
 import { contextFile } from './fileMenu.ts'
+import { languagesOf, useLanguageStatus } from './codeIntelligence.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
 import type { SavedView, SavedViewHandle } from './savedView.ts'
@@ -85,6 +86,7 @@ export default function App({
   sidebarHidden,
   onReveal,
   onFileMenu,
+  languageRevision = null,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -103,6 +105,8 @@ export default function App({
   onReveal?: (path: string) => Promise<void>
   /** Opens the native context menu of a file at x, y; without it, the default menu stays. */
   onFileMenu?: (path: string, x: number, y: number, viewed: boolean) => Promise<void>
+  /** Changes when the review server has new code intelligence settings; null while it is off. */
+  languageRevision?: number | null
 }) {
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
@@ -112,6 +116,12 @@ export default function App({
   // until the next refresh starts: a failed refresh leaves it on screen.
   const shownRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [languageStatus, refreshLanguages] = useLanguageStatus(repoId, languageRevision)
+  // A refreshed review may find a server stopped, or started, meanwhile.
+  const shownLoad = data?.loadId
+  useEffect(() => {
+    if (shownLoad !== undefined) refreshLanguages()
+  }, [shownLoad, refreshLanguages])
   const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(savedView?.diffStyle ?? 'unified')
   const [viewed, viewedPersistence] = useViewedPersistence(repoId, viewedStore)
   const [picking, setPicking] = useState<Picker | null>(null)
@@ -491,6 +501,14 @@ export default function App({
       note={comparisonNote(data, target)}
       nextPath={nextPath}
       onNext={() => navigate(1)}
+      languages={
+        languageRevision === null || !data
+          ? null
+          : languagesOf(
+              languageStatus,
+              data.files.map((file) => file.path),
+            )
+      }
     />
   )
   const commentsPanel = (

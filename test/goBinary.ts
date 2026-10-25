@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 
@@ -17,13 +19,18 @@ export function goBinary(): string {
   return realpathSync(fileURLToPath(new URL('../go/dist/ghl-dev', import.meta.url)))
 }
 
-/** Serve `repoPath` on a free port; `args` adds options such as `--base`. */
-export async function serveGo(repoPath: string, args: readonly string[] = []) {
+/** Serve `repoPath` on a free port; `args` adds options such as `--base`, `env` variables. */
+export async function serveGo(
+  repoPath: string,
+  args: readonly string[] = [],
+  env: Record<string, string> = {},
+) {
   const child = spawn(goBinary(), ['--repo', repoPath, ...args, '--port', '0'], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...isolatedGit,
       ...(process.env.GHL_TEST_GIT_PATH ? { PATH: process.env.GHL_TEST_GIT_PATH } : {}),
+      ...env,
     },
   })
   let errors = ''
@@ -65,4 +72,17 @@ export async function serveGo(repoPath: string, args: readonly string[] = []) {
     clearTimeout(timer)
     lines.close()
   }
+}
+
+/**
+ * A folder holding the only language server the review server may find: the
+ * fake one, as `tsrs`. Go and Rust then have none, whatever this machine has.
+ */
+export function fakeLanguageServers(): { path: string; cleanup: () => void } {
+  const path = mkdtempSync(join(tmpdir(), 'ghl-servers-'))
+  const server = fileURLToPath(new URL('./fakeLanguageServer.ts', import.meta.url))
+  writeFileSync(join(path, 'tsrs'), `#!/bin/sh\nexec '${process.execPath}' '${server}' "$@"\n`, {
+    mode: 0o755,
+  })
+  return { path, cleanup: () => rmSync(path, { recursive: true, force: true }) }
 }

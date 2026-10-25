@@ -6,6 +6,7 @@ import { releaseUrl } from './reviewSelection.ts'
 import { sameCapacity, splitTabs, tabSizes } from './tabOverflow.ts'
 import { useAppearance } from './appearance.ts'
 import { commandOf } from './commands.ts'
+import { languageConfig, sendLanguageConfig } from './codeIntelligence.ts'
 import ShortcutsSheet from './ShortcutsSheet.tsx'
 import {
   codeLineHeight,
@@ -213,6 +214,27 @@ export default function DesktopApp() {
       })
     return () => unsubscribe?.()
   }, [])
+  // Bumped each time the review server has the settings, so status reads follow them.
+  const [languageRevision, setLanguageRevision] = useState(0)
+  const languagesSent = useRef(false)
+  const languages = settings ? languageConfig(settings) : null
+  useEffect(() => {
+    if (languages === null) return
+    // Off is the review server's default, so a window that never turned code
+    // intelligence on has nothing to send. The UI tests share one server
+    // between pages, which would otherwise turn it off under each other.
+    if (!languagesSent.current && !(JSON.parse(languages) as { enabled: boolean }).enabled) return
+    languagesSent.current = true
+    let current = true
+    const send = async () => {
+      await sendLanguageConfig(languages)
+      if (current) setLanguageRevision((revision) => revision + 1)
+    }
+    send().catch((cause) => setError(String(cause)))
+    return () => {
+      current = false
+    }
+  }, [languages])
   const tabsArea = useRef<HTMLDivElement>(null)
   const [tabsWidth, setTabsWidth] = useState(Infinity)
   useEffect(() => {
@@ -393,6 +415,9 @@ export default function DesktopApp() {
               sidebarHidden={sidebarHidden}
               onReveal={reveal}
               onFileMenu={fileMenu}
+              languageRevision={
+                settings.codeIntelligence && languageRevision > 0 ? languageRevision : null
+              }
             />
           )}
         </div>
