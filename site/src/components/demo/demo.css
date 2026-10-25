@@ -1005,3 +1005,115 @@ button.stack-branch:focus-visible::after {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   pointer-events: none;
 }
+
+/* The tour: a cursor driving the demo, and the bar under the window that follows it. */
+.ghost-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 45;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 700ms cubic-bezier(0.45, 0, 0.2, 1),
+    opacity 200ms;
+}
+
+.ghost-cursor.on {
+  opacity: 1;
+}
+
+.ghost-cursor svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: -2px 0 0 -3px;
+  fill: #111111;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 30%));
+  transform-origin: 3px 2px;
+  transition: transform 120ms;
+}
+
+.ghost-cursor.pressed svg {
+  transform: scale(0.82);
+}
+
+.ghost-cursor kbd {
+  position: absolute;
+  top: 20px;
+  left: 16px;
+  padding: 3px 7px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--kbd);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
+  color: var(--text);
+  font: 600 12px var(--mono);
+  white-space: nowrap;
+}
+
+/* In the flow beside the terminal, without moving it: the negative margin gives back its height. */
+.tour-bar {
+  display: flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 12px;
+  height: 30px;
+  max-width: calc(100% - 540px);
+  margin: 16px 0 -46px 4px;
+  color: var(--dim);
+  font: 13px var(--sans);
+}
+
+.tour-bar button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--text);
+  font: 500 12.5px var(--sans);
+  cursor: pointer;
+}
+
+.tour-bar button:hover {
+  border-color: var(--accent);
+}
+
+.tour-bar button svg {
+  width: 12px;
+  height: 12px;
+}
+
+.tour-steps {
+  display: flex;
+  gap: 5px;
+}
+
+.tour-steps span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition: background 200ms;
+}
+
+.tour-steps .done {
+  background: var(--dim);
+}
+
+.tour-steps .on {
+  background: var(--accent);
+}
+
+.tour-caption {
+  color: var(--text);
+  white-space: nowrap;
+}

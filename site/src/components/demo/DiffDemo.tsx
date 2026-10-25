@@ -26,6 +26,7 @@ import {
 } from './fixtures.ts'
 import StackMenu from './StackMenu.tsx'
 import { languages, lookUpDemoSymbol } from './symbols.ts'
+import Tour from './Tour.tsx'
 import './demo.css'
 
 type DiffStyle = 'unified' | 'split'
@@ -117,6 +118,13 @@ const linesOf = (file: { path: string; diff: FileDiffMetadata }, selected: Selec
   ...commentRange(file.diff.hunks, selected),
 })
 
+const initialStates = (): LayerState[] =>
+  layers.map((layer) => ({
+    viewed: new Set(layer.viewed),
+    revealed: new Set<string>(),
+    comments: layer.comments,
+  }))
+
 function useDocumentTheme(): 'light' | 'dark' {
   const read = (): 'light' | 'dark' =>
     document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
@@ -135,13 +143,7 @@ function useDocumentTheme(): 'light' | 'dark' {
 export default function DiffDemo() {
   const theme = useDocumentTheme()
   const [current, setCurrent] = useState(startLayer)
-  const [states, setStates] = useState<LayerState[]>(() =>
-    layers.map((layer) => ({
-      viewed: new Set(layer.viewed),
-      revealed: new Set<string>(),
-      comments: layer.comments,
-    })),
-  )
+  const [states, setStates] = useState(initialStates)
   const [diffStyle, setDiffStyle] = useState<DiffStyle>('unified')
   const [composer, setComposer] = useState<Lines | null>(null)
   const [selection, setSelection] = useState<Lines | null>(null)
@@ -194,6 +196,13 @@ export default function DiffDemo() {
     update((each) => ({ ...each, revealed: new Set(each.revealed).add(path) }))
     show(path)
   }
+
+  /** Back to the first state, for the tour to play from. */
+  const reset = useStableCallback(() => {
+    setStates(initialStates())
+    setDiffStyle('unified')
+    openLayer(startLayer)
+  })
 
   // A line outside every hunk has nowhere to scroll to.
   const canRevealLine = useStableCallback((path: string, line: number) =>
@@ -432,6 +441,7 @@ export default function DiffDemo() {
               <div
                 key={`${layer.branch}:${file.path}`}
                 className="demo-file"
+                data-path={file.path}
                 ref={(node) => {
                   if (node) cards.current.set(file.path, node)
                   else cards.current.delete(file.path)
@@ -479,6 +489,7 @@ export default function DiffDemo() {
           </span>
         </div>
       </div>
+      <Tour frame={frame} onReset={reset} />
       <div className="terminal" aria-live="polite">
         <div className="bar">
           <span className="dot"></span>
