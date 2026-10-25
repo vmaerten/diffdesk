@@ -1,4 +1,5 @@
 // @ts-check
+import react from '@astrojs/react'
 import starlight from '@astrojs/starlight'
 import { defineConfig } from 'astro/config'
 
@@ -7,6 +8,7 @@ const repo = 'https://github.com/vmaerten/ghl'
 export default defineConfig({
   site: 'https://ghl.vmaerten.fr',
   integrations: [
+    react(),
     starlight({
       title: 'ghl',
       description: 'Review the PR you are about to open, without opening it.',

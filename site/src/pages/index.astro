@@ -2,8 +2,12 @@
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
 import '../styles/landing.css'
+import '../styles/window.css'
 import { version } from '../../../package.json'
 import AppWindow from '../components/AppWindow.astro'
+import DiffDemo from '../components/demo/DiffDemo.tsx'
+import { exportComments } from '../components/demo/comments.ts'
+import { goComment, layers, startLayer } from '../components/demo/fixtures.ts'
 import InstallCommand from '../components/InstallCommand.astro'
 import ThemeSelect from '../components/ThemeSelect.astro'
 
@@ -13,6 +17,14 @@ const changelog = `${repo}/blob/main/CHANGELOG.md`
 const guide = `${base}guide/getting-started/`
 const description =
   'A native macOS diff viewer with a GitHub-like review flow: comment on your own changes, then hand the comments to your agent.'
+const lines = (markdown: string) =>
+  markdown
+    .trimEnd()
+    .split('\n')
+    .map((line) => ({ line, heading: line.startsWith('#') }))
+const reviewed = layers[startLayer]!
+const firstExport = lines(exportComments(reviewed, reviewed.comments))
+const fullExport = lines(exportComments(reviewed, [goComment, ...reviewed.comments]))
 ---
 
 <!doctype html>
@@ -68,21 +80,26 @@ const description =
         </div>
       </section>
 
-      <section class="wrap section" aria-label="From the terminal to the ghl window">
+      <section class="wrap section" aria-label="A ghl review to try">
         <div class="stage">
-          <AppWindow />
-          <div class="terminal">
-            <div class="bar">
-              <span class="dot"></span><span class="dot"></span><span class="dot"></span>~/dev/api · stack-nav
-            </div>
-            <pre><span class="prompt">$</span> ghl
-<span class="out">main...stack-nav · 4 files · +42 −9</span>
-<span class="out">opened in ghl ↖</span>
-
-<span class="prompt">$</span> ghl comments | pbcopy
-<span class="prompt">$</span> <span class="cursor"></span></pre>
-          </div>
+          <DiffDemo client:only="react">
+            <Fragment slot="fallback">
+              <AppWindow />
+              <div class="terminal">
+                <div class="bar">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>~/dev/api · stack-nav
+                </div>
+                <pre><span class="prompt">$</span> ghl comments{'\n'}{firstExport.map(({ line, heading }) => <span class={heading ? 'heading' : undefined}>{line}{'\n'}</span>)}</pre>
+              </div>
+            </Fragment>
+          </DiffDemo>
         </div>
+        <p class="demo-hint">
+          Try it: click a line's <kbd class="kbd">+</kbd> to comment, or select lines and press <kbd class="kbd">c</kbd>;
+          <kbd class="kbd">j</kbd> <kbd class="kbd">k</kbd> move between files and <kbd class="kbd">v</kbd> marks one Viewed;
+          the <kbd class="kbd">2/3</kbd> chip or <kbd class="kbd">s</kbd> opens the stack, <kbd class="kbd">[</kbd> <kbd class="kbd">]</kbd> step through it.
+          The terminal prints what <code>ghl comments</code> would.
+        </p>
       </section>
 
       <section class="wrap section">
@@ -122,29 +139,7 @@ const description =
             </p>
             <p><code>ghl comments --json</code> gives the same thing to a script.</p>
           </div>
-          <pre class="export"><span class="prompt">$</span> ghl comments
-<span class="heading"># 2 comments on main...stack-nav</span>
-
-<span class="heading">## go/internal/app/stack.go</span>
-
-**L48–L49**
-
-```
-if layer.Merged &#123;
-    continue
-```
-
-Log why the layer is skipped.
-
-<span class="heading">## web/src/stack.ts</span>
-
-**L15**
-
-```
-  return index &gt; 0 ? live[index - 1] : undefined
-```
-
-Return null here, like layerBelow does.</pre>
+          <pre class="export"><span class="prompt">$</span> ghl comments{'\n'}{fullExport.map(({ line, heading }) => <span class={heading ? 'heading' : undefined}>{line}{'\n'}</span>)}</pre>
         </div>
       </section>
 
