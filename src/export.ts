@@ -46,9 +46,11 @@ export function asMarkdown(comments: ServedComment[], { range }: { range: string
       file = comment.path
       out.push('', `## ${file}`)
     }
-    out.push('', `**${lineLabel(comment)}**`)
+    const status = comment.status && comment.status !== 'open' ? ` · ${comment.status}` : ''
+    out.push('', `**${lineLabel(comment)}**${status}`)
     if (comment.code.length > 0) out.push('', '```', ...comment.code, '```')
     out.push('', comment.body)
+    for (const reply of comment.replies ?? []) out.push('', `↳ ${reply.author}: ${reply.body}`)
     if ((comment.stale || comment.code.length === 0) && comment.anchor.length > 0) {
       out.push(
         '',

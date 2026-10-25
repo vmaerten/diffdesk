@@ -16,11 +16,24 @@ const help = `ghl — review the PR you are about to open, without opening it (m
 
 Usage:
   ghl [target] [--repo <path>] [--base <ref>]
-  ghl comments [target] [--repo <path>] [--base <ref>] [--json]
+  ghl comments [target] [--repo <path>] [--base <ref>] [--json] [--all]
+  ghl comments check [target] [--repo <path>] [--base <ref>] [--json] [--code]
+  ghl comments reply <id> <message> [--repo <path>]
+  ghl comments resolve <id> [--repo <path>]
+  ghl comments reopen <id> [<message>] [--repo <path>]
 
   target     Branch or revision; defaults to the checkout and its working tree.
-  comments   Print this comparison's comments with their code, as Markdown or,
-             with --json, JSON. Use refs/heads/comments for a branch named "comments".
+  comments   Print this comparison's comments with their code and replies, as
+             Markdown or, with --json, JSON; resolved ones only with --all.
+             Use refs/heads/<name> for a branch named comments, check, reply,
+             resolve or reopen.
+  check      Print the branch's open comments for an agent, without the code it
+             can read in the file unless --code. Exits 1 while any remain, 2 on
+             an error.
+  reply      Answer a comment as the agent; it waits for the reviewer.
+  resolve    Close a comment, as the reviewer.
+  reopen     Hand a comment back to the agent, with an optional reply.
+             <id> is a comment ID or any unique prefix of 4 characters or more.
 
 Options:
   --repo <path>  Repository to review (default: current directory)

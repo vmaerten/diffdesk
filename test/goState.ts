@@ -98,7 +98,7 @@ try {
   const first = await request<DiffPayload>(a.base + '/api/diff')
   assert.deepEqual(
     first.comments.map(({ code: _code, stale: _stale, ...comment }) => comment),
-    JSON.parse(initial).comments,
+    JSON.parse(initial).comments.map((comment: Comment) => ({ ...comment, status: 'open' })),
   )
   assert.deepEqual(first.viewed, { 'context.txt': hash })
   assert.deepEqual(first.comments.find((c) => c.id === 'before')?.code, ['old'])
@@ -184,7 +184,7 @@ try {
   )
   checks += 3
 
-  const future = '{"version":2,"viewed":{},"comments":[]}'
+  const future = '{"version":3,"viewed":{},"comments":[]}'
   writeFileSync(stateFile, future)
   const unsupported = await send(a.base + '/api/diff')
   assert.notEqual(unsupported.status, 200)

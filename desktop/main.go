@@ -27,7 +27,15 @@ var embedded embed.FS
 var bridge string
 
 func main() {
-	if err := run(); err != nil {
+	err := run()
+	var status exitStatus
+	if errors.As(err, &status) {
+		if status.err != nil {
+			fmt.Fprintln(os.Stderr, "ghl:", status.err)
+		}
+		os.Exit(status.code)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "ghl:", err)
 		os.Exit(1)
 	}

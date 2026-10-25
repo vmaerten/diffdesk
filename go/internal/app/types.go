@@ -79,6 +79,16 @@ type Comment struct {
 	Range     string   `json:"range"`
 	Branch    string   `json:"branch,omitempty"`
 	CreatedAt string   `json:"createdAt"`
+	Status    string   `json:"status"`
+	Replies   []Reply  `json:"replies,omitempty"`
+}
+
+// Reply is a turn in a comment's thread: the agent answering, or the reviewer
+// reopening it.
+type Reply struct {
+	Author    string `json:"author"`
+	Body      string `json:"body"`
+	CreatedAt string `json:"createdAt"`
 }
 type ServedComment struct {
 	Comment

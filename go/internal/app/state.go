@@ -19,8 +19,12 @@ type Store struct {
 	notice *string
 }
 
+// Version 2 added comment status and replies. Writing it makes an older
+// runtime refuse the file rather than rewrite comments without them.
+const stateVersion = 2
+
 func emptyState() StoredState {
-	return StoredState{Version: 1, Viewed: map[string]ViewedMap{}, Comments: []Comment{}}
+	return StoredState{Version: stateVersion, Viewed: map[string]ViewedMap{}, Comments: []Comment{}}
 }
 
 // Reading a filtered diff must not mark its hidden whitespace changes as read.
@@ -82,22 +86,26 @@ func decodeState(raw []byte) (StoredState, error) {
 			return StoredState{}, err
 		}
 	}
-	if version != 1 {
+	if version != 1 && version != stateVersion {
 		return StoredState{}, unsupportedStateVersion(version)
 	}
 	state := emptyState()
 	if err := json.Unmarshal(raw, &state); err != nil {
 		return state, err
 	}
-	state.Version = 1
+	state.Version = stateVersion
 	if state.Viewed == nil {
 		state.Viewed = map[string]ViewedMap{}
 	}
 	if state.Comments == nil {
 		state.Comments = []Comment{}
 	}
-	for _, c := range state.Comments {
-		if c.ID == "" || !validPath(c.Path) || !validLocation(c) || c.Anchor == nil || c.Range == "" || c.CreatedAt == "" {
+	for i := range state.Comments {
+		c := &state.Comments[i]
+		if c.Status == "" {
+			c.Status = statusOpen
+		}
+		if c.ID == "" || !validPath(c.Path) || !validLocation(*c) || c.Anchor == nil || c.Range == "" || c.CreatedAt == "" || !validThread(*c) {
 			return state, fmt.Errorf("Invalid comment in review state")
 		}
 	}

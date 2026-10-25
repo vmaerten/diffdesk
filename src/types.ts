@@ -155,6 +155,18 @@ export interface Comment {
   /** Reviewed branch at creation; absent in older state files. */
   branch?: string
   createdAt: string
+  /** Whose turn it is: the code's author while open, the reviewer once answered. */
+  status?: CommentStatus
+  replies?: Reply[]
+}
+
+export type CommentStatus = 'open' | 'answered' | 'resolved'
+
+/** The agent answering a comment, or the reviewer reopening it. */
+export interface Reply {
+  author: 'agent' | 'reviewer'
+  body: string
+  createdAt: string
 }
 
 /**
