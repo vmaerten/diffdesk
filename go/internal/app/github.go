@@ -51,6 +51,19 @@ type PullRequest struct {
 	// that head is not in the checkout. Only for open pull requests.
 	Sync        *BranchSync `json:"sync"`
 	Uncommitted bool        `json:"uncommitted"`
+	// Head is the commit GitHub ran the checks on.
+	Head   string  `json:"head"`
+	Checks []Check `json:"checks"`
+}
+
+// Check is a check run or a commit status on the pull request's head. State
+// is passed, failed, skipped, running or pending.
+type Check struct {
+	Name        string `json:"name"`
+	State       string `json:"state"`
+	URL         string `json:"url"`
+	StartedAt   string `json:"startedAt,omitempty"`
+	CompletedAt string `json:"completedAt,omitempty"`
 }
 
 type BranchSync struct {
@@ -134,7 +147,7 @@ func gitHubAccount(ctx context.Context) GitHubAccount {
 	return GitHubAccount{GitHub: "ready", Login: strings.TrimSpace(string(raw))}
 }
 
-const pullRequestFields = "number,title,url,state,isDraft,author,baseRefName,headRefOid,reviewDecision,mergeable,reviewRequests,latestReviews"
+const pullRequestFields = "number,title,url,state,isDraft,author,baseRefName,headRefOid,reviewDecision,mergeable,reviewRequests,latestReviews,statusCheckRollup"
 
 type ghPullRequest struct {
 	Number         int
@@ -152,11 +165,68 @@ type ghPullRequest struct {
 		Author struct{ Login string }
 		State  string
 	}
+	// Check runs carry a name and a status; commit statuses a context and a state.
+	StatusCheckRollup []struct {
+		Typename               string `json:"__typename"`
+		Name, WorkflowName     string
+		Status, Conclusion     string
+		DetailsURL             string `json:"detailsUrl"`
+		Context, State         string
+		TargetURL              string `json:"targetUrl"`
+		StartedAt, CompletedAt string
+	}
+}
+
+// checks keeps the latest run of each check: GitHub lists a re-run's earlier runs too.
+func (p ghPullRequest) checks() []Check {
+	checks := []Check{}
+	latest := map[string]int{}
+	for _, item := range p.StatusCheckRollup {
+		check := Check{StartedAt: item.StartedAt, CompletedAt: item.CompletedAt}
+		if item.Typename == "StatusContext" {
+			check.Name, check.URL = item.Context, item.TargetURL
+			switch item.State {
+			case "SUCCESS":
+				check.State = "passed"
+			case "ERROR", "FAILURE":
+				check.State = "failed"
+			default:
+				check.State = "pending"
+			}
+		} else {
+			check.Name, check.URL = item.Name, item.DetailsURL
+			if item.WorkflowName != "" {
+				check.Name = item.WorkflowName + " / " + item.Name
+			}
+			switch {
+			case item.Status == "IN_PROGRESS":
+				check.State = "running"
+			case item.Status != "COMPLETED":
+				check.State = "pending"
+			case item.Conclusion == "SUCCESS":
+				check.State = "passed"
+			case item.Conclusion == "SKIPPED" || item.Conclusion == "NEUTRAL":
+				check.State = "skipped"
+			default:
+				check.State = "failed"
+			}
+		}
+		if at, seen := latest[check.Name]; seen {
+			if check.StartedAt >= checks[at].StartedAt {
+				checks[at] = check
+			}
+			continue
+		}
+		latest[check.Name] = len(checks)
+		checks = append(checks, check)
+	}
+	return checks
 }
 
 func (p ghPullRequest) summary() PullRequest {
 	pr := PullRequest{Number: p.Number, Title: p.Title, URL: p.URL, Author: p.Author.Login, Base: p.BaseRefName,
-		ApprovedBy: []string{}, ChangesRequestedBy: []string{}, Requested: []string{}, Mergeable: strings.ToLower(p.Mergeable)}
+		ApprovedBy: []string{}, ChangesRequestedBy: []string{}, Requested: []string{}, Mergeable: strings.ToLower(p.Mergeable),
+		Head: p.HeadRefOid, Checks: p.checks()}
 	switch {
 	case p.State == "OPEN" && p.IsDraft:
 		pr.State = "draft"

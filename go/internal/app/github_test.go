@@ -52,7 +52,15 @@ func TestPullRequestOfTheReviewedBranch(t *testing.T) {
 		{"number": 7, "title": "Widen the core", "url": "https://github.com/o/r/pull/7", "state": "OPEN", "isDraft": true,
 		 "author": {"login": "alice"}, "baseRefName": "main", "headRefOid": "`+behind+`", "reviewDecision": "CHANGES_REQUESTED",
 		 "mergeable": "CONFLICTING", "reviewRequests": [{"login": "carol"}, {"name": "core"}],
-		 "latestReviews": [{"author": {"login": "bob"}, "state": "CHANGES_REQUESTED"}, {"author": {"login": "dan"}, "state": "COMMENTED"}]}
+		 "latestReviews": [{"author": {"login": "bob"}, "state": "CHANGES_REQUESTED"}, {"author": {"login": "dan"}, "state": "COMMENTED"}],
+		 "statusCheckRollup": [
+			{"__typename": "CheckRun", "workflowName": "test", "name": "ui", "status": "COMPLETED", "conclusion": "SUCCESS", "startedAt": "2026-10-25T10:00:00Z", "detailsUrl": "https://ci/1"},
+			{"__typename": "CheckRun", "workflowName": "test", "name": "ui", "status": "COMPLETED", "conclusion": "FAILURE", "startedAt": "2026-10-25T11:00:00Z", "detailsUrl": "https://ci/2"},
+			{"__typename": "CheckRun", "workflowName": "build", "name": "desktop", "status": "IN_PROGRESS"},
+			{"__typename": "CheckRun", "name": "docs", "status": "QUEUED"},
+			{"__typename": "CheckRun", "name": "release", "status": "COMPLETED", "conclusion": "SKIPPED"},
+			{"__typename": "StatusContext", "context": "deploy/netlify", "state": "SUCCESS", "targetUrl": "https://preview"}
+		 ]}
 	]`, 0)
 	gitFixture(t, s.repo.Path, "config", "branch.feature.merge", "refs/heads/feature-on-github")
 
@@ -69,6 +77,13 @@ func TestPullRequestOfTheReviewedBranch(t *testing.T) {
 	}
 	if pr.Sync == nil || pr.Sync.Ahead != 1 || pr.Sync.Behind != 0 || !pr.Uncommitted {
 		t.Fatalf("the checked-out branch is a commit ahead, with uncommitted work: %+v %+v", pr.Sync, pr)
+	}
+	var checks []string
+	for _, check := range pr.Checks {
+		checks = append(checks, check.Name+"="+check.State+"@"+check.URL)
+	}
+	if strings.Join(checks, " ") != "test / ui=failed@https://ci/2 build / desktop=running@ docs=pending@ release=skipped@ deploy/netlify=passed@https://preview" || pr.Head != behind {
+		t.Fatalf("a re-run should replace the earlier run, statuses should count as checks: %v on %s", checks, pr.Head)
 	}
 	if !strings.Contains(strings.Join(args(), " "), "--head feature-on-github") {
 		t.Fatalf("the pull request's head is the branch the local one pushes to: %v", args())
