@@ -266,3 +266,38 @@ export interface LanguageServersStatus {
   enabled: boolean
   languages: LanguageStatus[]
 }
+
+/** A token the diff shows, as the code intelligence routes take it. */
+export interface SymbolQuery {
+  path: string
+  /** From 1, as the diff counts lines. */
+  line: number
+  /** In UTF-16 units, as JavaScript counts them. */
+  character: number
+  token: string
+}
+
+/** A hover's Markdown, cut into signatures and prose. */
+export interface HoverBlock {
+  kind: 'code' | 'text'
+  language?: string
+  text: string
+}
+
+export interface SymbolDefinition {
+  /** Repository-relative when `inRepo`, absolute otherwise. */
+  path: string
+  line: number
+  character: number
+  inRepo: boolean
+  /** The definition's first lines, for one inside the repository. */
+  snippet?: { start: number; lines: string[] }
+}
+
+/** `GET /r/<id>/api/lsp/symbol`. */
+export interface SymbolAnswer {
+  language: string
+  server: string
+  hover: HoverBlock[]
+  definitions: SymbolDefinition[]
+}

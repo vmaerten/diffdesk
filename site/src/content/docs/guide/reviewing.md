@@ -54,6 +54,14 @@ When the local trunk is strictly behind its fetched `origin` counterpart, the re
 
 Stack metadata is read from `.git/gh-stack`, including worktree-specific metadata, without calling GitHub. Each layer is compared with the nearest live layer below it; merged or missing layers stay visible while upper layers fall back past them. A stacked branch shows its layer, such as `2/3`, at the start of the title bar's comparison: press `s` or click it to list the stack and pick a layer, or press `[` and `]` to review the layer below or above.
 
+## Code intelligence (beta)
+
+**Settings › Code intelligence** turns on answers from the language servers installed on your Mac. Hold `Cmd` over a symbol for its type and documentation, and `Cmd`-click it to go to its definition: the diff scrolls to the definition when it shows those lines, and `Cmd+[` comes back; otherwise the card shows the definition's code. Nothing happens without `Cmd`.
+
+Only working-tree reviews are answered, on added and unchanged lines: a server reads the files on disk, and those are the only lines numbered as on disk. Deleted lines and revision reviews stay plain, and the status bar says so. A file changed since the review loaded asks for a refresh (`r`).
+
+Settings list each language's server for the review shown, with where it comes from: Go uses `gopls`, Rust `rust-analyzer`, and TypeScript the checkout's own `tsrs` or TypeScript 7 `tsc`, then `tsrs` or `typescript-language-server` on PATH, unless you pick one. The servers run on the reviewed code, as your editor would; ghl finds them through your login shell, so tools installed with Homebrew or mise work even when the app was opened from the Finder. A server starts on the first lookup and stops after 10 minutes without one. The status bar shows the diff's servers and whether they are starting, indexing or failed.
+
 ## Images and appearance
 
 Image changes show before/after previews; click to enlarge and Escape to close. PNG, JPEG, GIF, WebP, AVIF, SVG, ICO and BMP are supported. Unavailable or oversized previews show an explanation; the image limit is 20 MiB.

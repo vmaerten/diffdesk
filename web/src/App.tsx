@@ -39,6 +39,8 @@ import {
 } from './commands.ts'
 import { contextFile } from './fileMenu.ts'
 import { languagesOf, useLanguageStatus } from './codeIntelligence.ts'
+import { useSymbolCard } from './SymbolCard.tsx'
+import type { LanguageStatus } from '../../src/types.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
 import type { SavedView, SavedViewHandle } from './savedView.ts'
@@ -48,6 +50,8 @@ function repoIdFromLocation() {
   const match = window.location.pathname.match(/^\/r\/([^/]+)/)
   return match?.[1] ?? null
 }
+
+const NO_LANGUAGES: LanguageStatus[] = []
 
 /** Review commands, by their single-letter key. */
 const KEY_COMMANDS: Record<string, ReviewCommand> = {
@@ -269,6 +273,28 @@ export default function App({
   })
 
   const revealFile = useCallback((path: string) => treeRef.current?.reveal(path), [])
+  // The card reveals definitions through the diff, which needs the card's handlers first.
+  const lines = useRef<{
+    can: (path: string, line: number) => boolean
+    reveal: (path: string, line: number) => void
+  }>({ can: () => false, reveal: () => {} })
+  const canRevealDefinition = useCallback(
+    (path: string, line: number) => lines.current.can(path, line),
+    [],
+  )
+  const revealDefinition = useCallback(
+    (path: string, line: number) => lines.current.reveal(path, line),
+    [],
+  )
+  const symbols = useSymbolCard({
+    repoId,
+    enabled: languageRevision !== null && data?.target.workingTree === true,
+    languages: languageStatus?.languages ?? NO_LANGUAGES,
+    loadId: data?.loadId,
+    canReveal: canRevealDefinition,
+    reveal: revealDefinition,
+    onAnswer: refreshLanguages,
+  })
   const {
     view,
     entries,
@@ -277,6 +303,8 @@ export default function App({
     selectFile,
     revealComment,
     canRevealComment,
+    revealLine,
+    canRevealLine,
     navigate,
     commentSelection,
     openSearch,
@@ -301,7 +329,12 @@ export default function App({
       void commentPersistence.retry(comment.id)
     },
     onRevealFile: revealFile,
+    tokenHandlers: symbols.handlers,
   })
+  lines.current = {
+    can: (path, line) => canRevealLine(path, 'additions', line),
+    reveal: revealLine,
+  }
   useImperativeHandle(
     viewHandle,
     () => ({
@@ -559,6 +592,7 @@ export default function App({
           />,
           toolbar,
         )}
+      {symbols.card}
       <span className="visually-hidden" role="status">
         {copied ? 'Comments copied to clipboard' : ''}
       </span>

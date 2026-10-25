@@ -83,11 +83,13 @@ export default function DesktopApp() {
     })
   })
   const syntaxTheme = useAppearance(settings ?? DEFAULT_SETTINGS)
-  // The pool highlights with its own theme, which nothing else updates.
+  // The pool highlights with its own options, which nothing else updates: the
+  // theme, and the token transformer that hover and ⌘-click need on each token.
   const pool = useWorkerPool()
+  const tokens = settings?.codeIntelligence === true
   useEffect(() => {
-    void pool?.setRenderOptions({ theme: syntaxTheme })
-  }, [pool, syntaxTheme])
+    void pool?.setRenderOptions({ theme: syntaxTheme, useTokenTransformer: tokens })
+  }, [pool, syntaxTheme, tokens])
   const latest = useRef(EMPTY)
   const [error, setError] = useState<string | null>(null)
   const accept = useRef<(state: Tabs) => void>(() => {})

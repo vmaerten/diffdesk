@@ -4,7 +4,18 @@ import { join } from 'node:path'
 import type { Page } from 'puppeteer-core'
 
 import { installDesktopRuntime } from '../desktopRuntime.ts'
-import { poll, type Suite } from '../harness.ts'
+import { clickTreeRow, poll, sleep, type Suite } from '../harness.ts'
+
+const SELECTED_TEXT = `(() => {
+  for (const host of document.querySelectorAll('.diff diffs-container')) {
+    const lines = host.shadowRoot?.querySelectorAll('[data-selected-line]') ?? []
+    const text = [...lines].map((line) => line.textContent ?? '').join(' ')
+    if (text) return text
+  }
+  return ''
+})()`
+
+const SCROLL_SETTLE = 400
 
 interface ServerRow {
   id: string
@@ -23,7 +34,7 @@ interface ServerRow {
  */
 export default {
   name: 'code-intelligence',
-  async run({ page, load, repoPath }, check) {
+  async run({ page, load, repoPath, errors }, check) {
     // The fixture sits on main: the bare URL reviews this uncommitted change.
     writeFileSync(join(repoPath, 'src/index.ts'), 'export const answer = 42\n')
     await load('')
@@ -47,12 +58,12 @@ export default {
     }
     const rows = (window: Page) =>
       window.evaluate(() =>
-        [...document.querySelectorAll('.language-server')].map((row) => ({
-          id: row.getAttribute('data-language') ?? '',
-          name: row.querySelector('.settings-label > span')?.textContent ?? '',
-          detail: row.querySelector('.settings-label small')?.textContent ?? '',
-          state: row.querySelector('.server-state')?.getAttribute('data-state') ?? null,
-          choice: row.querySelector('select')?.value ?? '',
+        [...document.querySelectorAll('.language-server')].map((item) => ({
+          id: item.getAttribute('data-language') ?? '',
+          name: item.querySelector('.settings-label > span')?.textContent ?? '',
+          detail: item.querySelector('.settings-label small')?.textContent ?? '',
+          state: item.querySelector('.server-state')?.getAttribute('data-state') ?? null,
+          choice: item.querySelector('select')?.value ?? '',
         })),
       ) as Promise<ServerRow[]>
     const footer = () =>
@@ -117,8 +128,7 @@ export default {
     )
     check(
       '  and is saved',
-      (await poll(saved, (stored) => stored.codeIntelligence === true)).codeIntelligence ===
-        true,
+      (await poll(saved, (stored) => stored.codeIntelligence === true)).codeIntelligence === true,
     )
 
     await settings.select('.language-server[data-language="typescript"] select', 'off')
@@ -134,11 +144,13 @@ export default {
     )
     check(
       '  and is saved',
-      (await poll(saved, (stored) => stored.languageServers?.typescript === 'off'))
-        .languageServers?.typescript === 'off',
+      (await poll(saved, (stored) => stored.languageServers?.typescript === 'off')).languageServers
+        ?.typescript === 'off',
     )
     await settings.select('.language-server[data-language="typescript"] select', 'auto')
     await poll(footer, (state) => state.servers.length > 0)
+    // Saved after a pause: the next page reads what was saved.
+    await poll(saved, (stored) => stored.languageServers?.typescript === 'auto')
     await settings.close()
 
     await load('?target=feature')
@@ -148,5 +160,151 @@ export default {
       revision.text === 'Code intelligence: working tree only',
       JSON.stringify(revision),
     )
+
+    // index.ts uses engine_3, whose definition the diff shows, and parser_2, whose it does not.
+    writeFileSync(
+      join(repoPath, 'src/index.ts'),
+      [
+        "import { engine_3 } from './core/engine'",
+        "import { parser_2 } from './core/parser'",
+        '',
+        'export const answer = engine_3 + parser_2',
+        'export const twice = answer * 2',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(
+      join(repoPath, 'src/core/engine.ts'),
+      `${Array.from({ length: 60 }, (_, i) => `${i === 3 ? 'export ' : ''}const engine_${i} = ${i}`).join('\n')}\n`,
+    )
+    await load('')
+    await clickTreeRow(page, 'src/index.ts')
+    // The diff takes pointer events again only once it stops scrolling.
+    await sleep(SCROLL_SETTLE)
+
+    /** The centre of a token on the screen, from the file whose header names path. */
+    const token = (path: string, line: number, text: string, type = 'change-addition') =>
+      page.evaluate(
+        (wanted) => {
+          for (const host of document.querySelectorAll('.diff diffs-container')) {
+            const root = host.shadowRoot
+            if (!root?.querySelector('[data-diffs-header]')?.textContent?.includes(wanted.path))
+              continue
+            const lines = root.querySelectorAll(
+              `[data-line="${wanted.line}"][data-line-type="${wanted.type}"]`,
+            )
+            for (const row of lines) {
+              const found = [...row.querySelectorAll('[data-char]')].find(
+                (element) => element.textContent === wanted.text,
+              )
+              if (!found) continue
+              const rect = found.getBoundingClientRect()
+              return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+            }
+          }
+          return null
+        },
+        { path, line, text, type },
+      )
+    const card = () =>
+      page.evaluate(() => {
+        const shown = document.querySelector('.symbol-card')
+        if (!shown) return null
+        return {
+          signature: shown.querySelector('.symbol-signature')?.textContent ?? '',
+          meta: shown.querySelector('.symbol-card-meta')?.textContent ?? '',
+          snippet: shown.querySelector('.symbol-snippet')?.textContent ?? '',
+          status: shown.querySelector('.symbol-card-status')?.textContent ?? '',
+        }
+      })
+    const underlined = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('.diff diffs-container')]
+          .flatMap((host) => [...(host.shadowRoot?.querySelectorAll('.ghl-symbol') ?? [])])
+          .map((element) => element.textContent),
+      )
+
+    const engine = await token('src/index.ts', 4, 'engine_3')
+    check('a working-tree review shows its symbols as tokens', engine !== null)
+    if (!engine) return
+    await page.mouse.move(engine.x, engine.y)
+    await sleep(400)
+    check('without ⌘, hovering a symbol opens nothing', (await card()) === null)
+    await page.keyboard.down('Meta')
+    const opened = await poll(card, (state) => Boolean(state?.signature))
+    check(
+      'holding ⌘ over a symbol opens its card',
+      opened?.signature === 'const engine_3: number' &&
+        opened.meta.includes('src/core/engine.ts:4') &&
+        !opened.meta.includes('not in this diff'),
+      JSON.stringify(opened),
+    )
+    check('  and underlines it', (await underlined()).join() === 'engine_3')
+    check(
+      '  and the status bar shows its server running',
+      (await poll(footer, (state) => state.servers.join() === 'tsrs=ready')).servers.join() ===
+        'tsrs=ready',
+    )
+
+    await page.mouse.click(engine.x, engine.y)
+    const jumped = (await poll(
+      () => page.evaluate(SELECTED_TEXT),
+      (text) => String(text).includes('export const engine_3 = 3'),
+    )) as string
+    check(
+      '⌘-click selects a definition the diff shows',
+      jumped.includes('export const engine_3 = 3'),
+      jumped,
+    )
+    check('  and closes the card', (await card()) === null)
+    await page.keyboard.press('[')
+    const returned = (await poll(
+      () => page.evaluate(SELECTED_TEXT),
+      (text) => String(text).includes('engine_3 + parser_2'),
+    )) as string
+    check('⌘[ goes back to the symbol', returned.includes('engine_3 + parser_2'), returned)
+    await sleep(SCROLL_SETTLE)
+
+    const parser = await token('src/index.ts', 4, 'parser_2')
+    if (parser) await page.mouse.click(parser.x, parser.y)
+    const outside = await poll(card, (state) => Boolean(state?.snippet))
+    check(
+      '⌘-click on a symbol defined outside the diff shows its code in the card',
+      outside?.snippet.includes('const parser_2 = 2') === true &&
+        outside.meta.includes('src/core/parser.ts:3') &&
+        outside.meta.includes('not in this diff'),
+      JSON.stringify(outside),
+    )
+    await page.keyboard.up('Meta')
+    await page.keyboard.press('Escape')
+    check('Escape closes the card', (await poll(card, (state) => state === null)) === null)
+
+    const deleted = await token('src/index.ts', 1, 'index_0', 'change-deletion')
+    await page.keyboard.down('Meta')
+    if (deleted) await page.mouse.move(deleted.x, deleted.y)
+    await sleep(400)
+    check(
+      'a deleted line is not looked up: the disk no longer has it',
+      deleted !== null && (await card()) === null && (await underlined()).length === 0,
+    )
+    await page.keyboard.up('Meta')
+
+    // Changed under the review: the lines on screen no longer match the disk.
+    writeFileSync(join(repoPath, 'src/index.ts'), '// moved\nexport const twice = 2\n')
+    const twice = await token('src/index.ts', 5, 'twice')
+    if (twice) await page.mouse.move(twice.x, twice.y)
+    await page.keyboard.down('Meta')
+    const stale = await poll(card, (state) =>
+      Boolean(state?.status && !state.status.startsWith('Asking')),
+    )
+    check(
+      'a file changed on disk asks for a refresh instead of answering',
+      stale?.status.includes('changed on disk') === true,
+      JSON.stringify(stale),
+    )
+    await page.keyboard.up('Meta')
+    // The server's 409 is the answer under test; Chrome logs any 4xx as a console error.
+    const conflict = errors.findIndex((error) => error.includes('status of 409'))
+    if (conflict >= 0) errors.splice(conflict, 1)
   },
 } satisfies Suite

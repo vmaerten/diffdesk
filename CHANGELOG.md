@@ -14,6 +14,7 @@
 - Offer a compact title bar, 38 px instead of 52 with macOS's compact toolbar, to give the code more room: Settings, under Window, turns it on from the next launch. ([#210](https://github.com/vmaerten/ghl/pull/210))
 - Find Settings… (`Cmd+,`) in the ghl menu, where macOS apps keep it, instead of File. ([#243](https://github.com/vmaerten/ghl/pull/243))
 - Open Settings in a window of its own, with Appearance, Code and Window panes: the review stays visible beside it and follows each change as you make it. The title bar is a choice between Standard and Compact pictures instead of a checkbox. ([#244](https://github.com/vmaerten/ghl/pull/244))
+- Code intelligence, in beta: turn it on in Settings, then hold `Cmd` over a symbol for its type and documentation, and `Cmd`-click it to go to its definition, with `Cmd+[` to come back. The answers come from the language servers on your Mac, such as `gopls` and TypeScript 7 or `tsrs`, for working-tree reviews. Settings show which server each language would use, and the status bar what it is doing.
 
 ### 🐛 Fixes
 
