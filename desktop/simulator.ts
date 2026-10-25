@@ -32,6 +32,7 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
     },
     revealed: [] as string[],
     fileMenus: [] as { path: string; viewed: boolean }[],
+    settingsOpened: 0,
   }
   type Snapshot = typeof state
   const listeners = new Map<string, Set<(data: unknown) => void>>()
@@ -85,6 +86,9 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
           return publish()
         },
         OpenRepository: async () => {},
+        OpenSettings: async () => {
+          fixture.settingsOpened += 1
+        },
         SaveTabView: async () => {},
         Settings: async () => fixture.settings,
         SaveSettings: async (raw) => {

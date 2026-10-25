@@ -62,6 +62,7 @@ See the [reviewing guide](https://ghl.vmaerten.fr/guide/reviewing/) for comparis
 | `s` | Pick a stack layer |
 | `[` / `]` | Review the stack layer below / above |
 | `r` | Refresh |
+| `Cmd+K` | Command palette |
 | `Cmd+f` | Search the diff |
 | `Cmd` + hover / click | Symbol info / go to definition (beta, in Settings) |
 | `Cmd+[` | Back from a definition |

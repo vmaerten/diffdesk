@@ -20,6 +20,7 @@
 - Show the reviewed branch's GitHub pull request in the title bar: its number with the colour of its state, the local commits GitHub does not have yet and conflicts with its base. Click it for the title, reviews, merge status, what is not pushed, and a link to GitHub. It needs the GitHub CLI, signed in; Settings, under GitHub, says which account it uses and turns it off. ([#242](https://github.com/vmaerten/ghl/pull/242))
 - Show the pull request's checks, GitHub Actions runs and commit statuses, in its pill: how many fail, how many are done while they run, or a tick. The popover lists them failing first with their logs, says when they ran without your local changes, and follows running checks every 15 seconds while the window is in front. ([#246](https://github.com/vmaerten/ghl/pull/246))
 - Show the pull request in the status bar instead of the title bar, with Settings, under GitHub: its state, failing checks, unpushed commits and conflicts in words, and the same popover. ([#249](https://github.com/vmaerten/ghl/pull/249))
+- Open a command palette with `Cmd+K` (View › Command Palette…) to find a command by name instead of through the menus: it lists the commands that apply to the review with their shortcut, and checks those that show a state, such as Split or Ignore Whitespace. ([#251](https://github.com/vmaerten/ghl/pull/251))
 
 ### 🐛 Fixes
 

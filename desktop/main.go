@@ -195,7 +195,8 @@ func run() error {
 	window.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) { desktop.closeSettings() })
 	// Every menu item reaches the page as one named command: the shell takes the
 	// window's, the mounted review the rest. Single-letter shortcuts stay in the
-	// page, since a key without a modifier would also capture typing.
+	// page, since a key without a modifier would also capture typing. The command
+	// palette repeats the labels and accelerators, in web/src/commands.ts.
 	command := func(name string) func(*application.Context) {
 		js := fmt.Sprintf("window.dispatchEvent(new CustomEvent('desktop:command', {detail: %q}))", name)
 		return func(*application.Context) { window.ExecJS(js) }
@@ -234,6 +235,15 @@ func run() error {
 	})
 	appMenu.AddRole(application.EditMenu)
 	viewMenu := appMenu.AddSubmenu("View")
+	openPalette := command("palette")
+	item(viewMenu, "Command Palette…", "CmdOrCtrl+k", func(ctx *application.Context) {
+		// Settings has no palette, and the review's would open behind it.
+		if current := native.Window.Current(); current != nil && current.Name() == settingsWindow {
+			return
+		}
+		openPalette(ctx)
+	})
+	viewMenu.AddSeparator()
 	item(viewMenu, "Toggle Sidebar", "Ctrl+CmdOrCtrl+s", command("sidebar"))
 	item(viewMenu, "Reload", "CmdOrCtrl+r", command("reload"))
 	viewMenu.AddSeparator()

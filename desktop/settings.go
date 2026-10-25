@@ -109,6 +109,9 @@ func (s *settingsStore) compactTitleBar() bool {
 
 func (d *desktopApp) Settings() (string, error) { return d.settings.load() }
 
+// OpenSettings is Settings… for the command palette, which the menu calls directly.
+func (d *desktopApp) OpenSettings() { d.openSettings() }
+
 // SaveSettings keeps what the Settings window changed and hands it to every
 // window, so the review follows each change.
 func (d *desktopApp) SaveSettings(raw string) error {
