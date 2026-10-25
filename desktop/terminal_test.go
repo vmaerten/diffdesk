@@ -26,6 +26,10 @@ func TestTerminalCommandsAnswerWithoutTheApp(t *testing.T) {
 	if !handled || err != nil || json.Unmarshal(out.Bytes(), &info) != nil || info.Version == "" {
 		t.Fatalf("version: handled=%v err=%v out=%q", handled, err, out.String())
 	}
+	out.Reset()
+	if handled, err := runTerminal(ctx, []string{"skill"}, "/tmp", &out, &errOut); !handled || err != nil || !strings.HasPrefix(out.String(), "---\nname: ghl-comments\n") {
+		t.Fatalf("skill: handled=%v err=%v out=%q", handled, err, out.String())
+	}
 	if handled, err := runTerminal(ctx, []string{"comments", "--bogus"}, "/tmp", &out, &errOut); !handled || err == nil {
 		t.Fatalf("bad comments option: handled=%v err=%v", handled, err)
 	}

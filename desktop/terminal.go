@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,11 @@ import (
 
 	"github.com/vmaerten/ghl/internal/app"
 )
+
+// The agent skill ships in the binary so that it always matches its commands.
+//
+//go:embed skill/SKILL.md
+var skill string
 
 // runTerminal answers the commands that print instead of opening a window.
 // It reports false for anything else, which then goes to the app.
@@ -27,6 +33,12 @@ func runTerminal(ctx context.Context, args []string, cwd string, stdout, stderr 
 		}
 		selection := app.Selection{Base: request.base, Target: request.target}
 		return true, app.ExportComments(ctx, request.repo, selection, all, jsonOutput, stdout, stderr)
+	case len(args) > 0 && args[0] == "skill":
+		if len(args) > 1 {
+			return true, fmt.Errorf("skill takes no option")
+		}
+		_, err := io.WriteString(stdout, skill)
+		return true, err
 	case len(args) > 0 && args[0] == "--version":
 		rest, jsonOutput := withoutFlag(args[1:], "--json")
 		if len(rest) > 0 {

@@ -21,6 +21,7 @@ Usage:
   ghl comments reply <id> <message> [--repo <path>]
   ghl comments resolve <id> [--repo <path>]
   ghl comments reopen <id> [<message>] [--repo <path>]
+  ghl skill
 
   target     Branch or revision; defaults to the checkout and its working tree.
   comments   Print this comparison's comments with their code and replies, as
@@ -34,6 +35,8 @@ Usage:
   resolve    Close a comment, as the reviewer.
   reopen     Hand a comment back to the agent, with an optional reply.
              <id> is a comment ID or any unique prefix of 4 characters or more.
+  skill      Print the agent skill for review comments, a SKILL.md. Use
+             refs/heads/skill to review a branch named skill.
 
 Options:
   --repo <path>  Repository to review (default: current directory)
