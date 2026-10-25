@@ -12,7 +12,7 @@
 - Open a review in place of the one shown instead of in a new tab: running `ghl` in another checkout, or opening a repository with `Cmd+O`, replaces it. ([#203](https://github.com/vmaerten/ghl/pull/203))
 - Right-click a file in the tree or on its header for a native menu with Viewed, Copy Path and Reveal in Finder on that file. ([#208](https://github.com/vmaerten/ghl/pull/208))
 - Offer a compact title bar, 38 px instead of 52 with macOS's compact toolbar, to give the code more room: Settings, under Window, turns it on from the next launch. ([#210](https://github.com/vmaerten/ghl/pull/210))
-- Work through review comments with an agent from the terminal: `ghl comments check` lists the open comments in a compact form and exits 1 while any remain, `ghl comments reply <id> <message>` answers one, and `resolve` and `reopen` let the reviewer close it or hand it back. `ghl comments` shows each comment's status and replies, and leaves resolved comments out unless `--all`. The review state moves to version 2; an older ghl refuses it instead of dropping the replies. ([#212](https://github.com/vmaerten/ghl/pull/212))
+- Work through review comments with an agent from the terminal: `ghl comments check` lists the open comments in a compact form and exits 1 while any remain, `ghl comments reply <id> <message>` answers one, and `resolve` and `reopen` let the reviewer close it or hand it back. `ghl comments` and the Copy button show each comment's ID, status and replies; `ghl comments` leaves resolved comments out unless `--all`. The review state moves to version 2; an older ghl refuses it instead of dropping the replies. ([#212](https://github.com/vmaerten/ghl/pull/212))
 
 ### 🐛 Fixes
 
