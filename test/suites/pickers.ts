@@ -2,7 +2,7 @@ import { openPicker, pickerShows, titlebar, titlebarWhen, type Suite } from '../
 
 export default {
   name: 'pickers',
-  async run({ page, load }, check) {
+  async run({ page, load, url }, check) {
     await load()
 
     const shown = () => titlebar(page)
@@ -16,6 +16,11 @@ export default {
     // The fixture leaves `main` checked out; reviewing `feature` must not need it.
     check('the reviewed revision is shown', start.target === 'feature', start.target ?? '')
     check('the base is guessed as the trunk', start.base === 'main', start.base ?? '')
+
+    // The base is text in the title bar: a click meant for the reviewed branch
+    // used to land on it and change the base instead.
+    await page.click('.capsule-base')
+    check('clicking the base opens nothing', (await page.$('.picker-input')) === null)
 
     // Base picker.
     await openPicker(page, 'b')
@@ -32,6 +37,17 @@ export default {
     await page.waitForSelector('.picker-input', { hidden: true })
     check('escape closes without picking', (await shown()).base === 'main')
 
+    // It opens on the current base, not on the newest branch: Enter keeps it.
+    await openPicker(page, 'b')
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('.picker-input', { hidden: true })
+    const kept = await shown()
+    check(
+      'Enter on a fresh picker keeps the base',
+      kept.base === 'main' && !kept.search.includes('base='),
+      `${kept.base} ${kept.search}`,
+    )
+
     // `release` is an older commit on main, so the diff has to widen. `other`
     // forks from the same commit as `feature` and would change nothing — which
     // is exactly how a base picker that does not work could pass.
@@ -43,15 +59,17 @@ export default {
     check('picking changes the base', rebased.base === 'release', rebased.base ?? '')
     check('  and the diff changes with it', rebased.files !== start.files, String(rebased.files))
 
-    // Remembered in .git/config, so it has to survive a reload.
-    await load()
-    const remembered = await shown()
-    check('the choice is remembered', remembered.base === 'release', remembered.base ?? '')
     check(
-      '  and says where it came from',
-      remembered.notes.join(' ').includes('remembered'),
-      remembered.notes.join(' | '),
+      '  for this review only',
+      rebased.search.includes('base=release') &&
+        rebased.notes.join(' ').includes('chosen for this review'),
+      `${rebased.search} | ${rebased.notes.join(' | ')}`,
     )
+
+    // Nothing is written to the repository: the next review resolves its own.
+    await load()
+    const next = await shown()
+    check('the next review has the automatic base again', next.base === 'main', next.base ?? '')
 
     // Target picker.
     await openPicker(page, 't')
@@ -104,6 +122,34 @@ export default {
       overridden.base === 'release',
       overridden.base ?? '',
     )
-    check('  dropping it from the URL', !overridden.search.includes('base='), overridden.search)
+    check('  in the URL', overridden.search.includes('base=release'), overridden.search)
+
+    await openPicker(page, 'b')
+    await page.keyboard.type('automatic')
+    await pickerShows(page, 'automatic')
+    await page.keyboard.press('Enter')
+    const automatic = await titlebarWhen(
+      page,
+      (state) => !state.search.includes('base=') && state.base === 'main',
+    )
+    check('the automatic base drops the choice', automatic.base === 'main', automatic.base ?? '')
+
+    // A lower stack layer reviewed against the one above it: the base already
+    // holds the whole branch, which is what a mistaken pick looked like.
+    // Not `load`: an empty review has no file tree to wait for.
+    await page.goto(url('?target=stack/a&base=stack/b'), { waitUntil: 'networkidle0' })
+    await page.waitForSelector('.message button')
+    check(
+      'a base that already holds the target says so',
+      (await page.$eval('.message', (el) => el.textContent ?? '')).includes(
+        'is already part of the base',
+      ),
+    )
+    await page.click('.message button')
+    const restored = await titlebarWhen(
+      page,
+      (state) => !state.search.includes('base=') && state.base === 'main',
+    )
+    check('  and offers the automatic base', restored.base === 'main', restored.base ?? '')
   },
 } satisfies Suite

@@ -200,6 +200,7 @@ func (r Repository) compare(ctx context.Context, selection Selection, automatic 
 	if baseSHA == "" {
 		return nil, fmt.Errorf("Invalid base %q: does not resolve to a revision", resolution.Ref)
 	}
+	resolution.SHA = baseSHA
 	review := &Review{repo: r, Base: resolution.Ref, Resolution: resolution, Head: head, Branch: branch, Target: target, Files: []FileStat{}, Untracked: []string{}, Conflicted: []string{}, ignoreWhitespace: selection.IgnoreWhitespace, sections: map[string]*section{}, sources: map[string]*TextFile{}}
 	// Commit selection and base changes keep the reviewed branch's comments.
 	// Detached checkouts use their revision rather than sharing a global HEAD scope.

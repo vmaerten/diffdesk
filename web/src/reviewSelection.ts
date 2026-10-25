@@ -3,7 +3,6 @@ import { useStableCallback } from '@pierre/diffs/react'
 
 interface SelectionAdapter {
   replaceUrl: (url: URL) => void
-  rememberBase: (base: string, target: string | null) => Promise<void>
 }
 
 function describe(url: URL) {
@@ -40,14 +39,12 @@ export function releaseUrl() {
   urlOwner++
 }
 
-/** URL transitions and request scope have one owner, including remembered bases. */
+/** URL transitions and request scope have one owner. */
 export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter) {
   let url = new URL(initialUrl)
   let snapshot = describe(url)
-  let baseRequest = 0
   let active = true
   const owner = urlOwner
-  let baseWrite = Promise.resolve()
   const listeners = new Set<() => void>()
   const update = (change: (params: URLSearchParams) => void) => {
     if (!active || owner !== urlOwner) return
@@ -67,7 +64,6 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
   return {
     setActive: (value: boolean) => {
       active = value
-      if (!value) baseRequest++
     },
     getSnapshot: () => snapshot,
     subscribe: (listener: () => void) => {
@@ -77,7 +73,6 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
       }
     },
     pickTarget: (target: string | null) => {
-      baseRequest++
       update((params) => {
         pick(params, 'target', target)
         params.delete('commit')
@@ -88,21 +83,16 @@ export function createReviewSelection(initialUrl: URL, adapter: SelectionAdapter
     toggleUntracked: () => toggle('untracked'),
     toggleWhitespace: () =>
       update((params) => pick(params, 'w', params.get('w') === '1' ? null : '1')),
-    pickBase: async (base: string | null, currentBase: string | undefined) => {
-      if (!base || base === currentBase) return
-      const request = ++baseRequest
-      const target = snapshot.target
-      const write = baseWrite.then(() => adapter.rememberBase(base, target))
-      baseWrite = write.catch(() => {})
-      await write
-      if (request !== baseRequest) return
-      // Publish even without an override: the remembered base changes the request's meaning.
-      update((params) => params.delete('base'))
-    },
+    /**
+     * The base for this review only, carried by the URL like `--base`. Null goes
+     * back to the automatic base. Never written to the repository: a base picked
+     * by mistake would otherwise empty the branch's reviews from then on.
+     */
+    pickBase: (base: string | null) => update((params) => pick(params, 'base', base)),
   }
 }
 
-export function useReviewSelection(repoId: string | null, onRouteChange?: (route: string) => void) {
+export function useReviewSelection(onRouteChange?: (route: string) => void) {
   const routeChanged = useStableCallback((route: string) => onRouteChange?.(route))
   const selection = useMemo(
     () =>
@@ -111,16 +101,8 @@ export function useReviewSelection(repoId: string | null, onRouteChange?: (route
           history.replaceState(null, '', url)
           routeChanged(url.pathname + url.search)
         },
-        rememberBase: async (base, target) => {
-          const response = await fetch(`/r/${repoId}/api/base`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ base, target }),
-          })
-          if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        },
       }),
-    [repoId, routeChanged],
+    [routeChanged],
   )
   useEffect(() => {
     selection.setActive(true)

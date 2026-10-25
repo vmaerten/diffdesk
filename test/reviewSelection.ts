@@ -5,17 +5,9 @@ export async function runReviewSelection(check: Check): Promise<void> {
   let url = new URL(
     'http://localhost/r/test?base=release&target=feature&commit=abc&committed&untracked&extra=keep#file',
   )
-  const remembered: { base: string; target: string | null }[] = []
-  let fail = false
-  let delay: Promise<void> | undefined
   const selection = createReviewSelection(url, {
     replaceUrl: (next) => {
       url = next
-    },
-    rememberBase: async (base, target) => {
-      remembered.push({ base, target })
-      await delay
-      if (fail) throw new Error('write failed')
     },
   })
   const initial = selection.getSnapshot()
@@ -63,48 +55,16 @@ export async function runReviewSelection(check: Check): Promise<void> {
   selection.toggleCommitted()
   check('consecutive toggles read the latest selection', !selection.getSnapshot().committed)
 
-  fail = true
-  const beforeFailure = selection.getSnapshot()
-  await selection.pickBase('main', 'release').catch(() => {})
+  selection.pickBase('main')
   check(
-    'failed base persistence preserves the override and loaded selection',
-    selection.getSnapshot() === beforeFailure && url.searchParams.get('base') === 'release',
+    'a picked base is a URL parameter, for this review only',
+    url.searchParams.get('base') === 'main' && selection.getSnapshot().query === '?base=main',
   )
-  fail = false
-  await selection.pickBase('main', 'release')
+  selection.pickBase(null)
   check(
-    'remembered base replaces the explicit override only after success',
-    !url.searchParams.has('base') &&
-      selection.getSnapshot().query === '' &&
-      remembered.at(-1)?.target === null,
+    'the automatic base drops it',
+    !url.searchParams.has('base') && selection.getSnapshot().query === '',
   )
-  const beforeRemember = selection.getSnapshot()
-  await selection.pickBase('release', 'main')
-  check(
-    'remembering a base triggers a fresh selection even when the query stays empty',
-    selection.getSnapshot() !== beforeRemember && selection.getSnapshot().query === '',
-  )
-  const beforeNoop = selection.getSnapshot()
-  await selection.pickBase('release', 'release')
-  check('picking the displayed base does not reload', selection.getSnapshot() === beforeNoop)
-
-  let release!: () => void
-  delay = new Promise<void>((resolve) => {
-    release = resolve
-  })
-  const pending = selection.pickBase('main', 'release')
-  await Promise.resolve()
-  selection.pickTarget('feature')
-  const afterNavigation = selection.getSnapshot()
-  release()
-  await pending
-  check(
-    'late base persistence cannot change another target selection',
-    selection.getSnapshot() === afterNavigation && remembered.at(-1)?.target === null,
-  )
-  delay = undefined
-  await selection.pickBase('release', 'main')
-  check('base persistence belongs to the reviewed target', remembered.at(-1)?.target === 'feature')
   check('selection changes notify subscribers', publications > 0)
   unsubscribe()
   const beforeUnsubscribe = publications
@@ -122,14 +82,13 @@ export async function runReviewSelection(check: Check): Promise<void> {
   selection.pickCommit('next')
   selection.toggleCommitted()
   selection.toggleUntracked()
-  await selection.pickBase('main', 'release')
+  selection.pickBase('main')
   check(
     'changing revision and scope preserves whitespace filtering',
     selection.getSnapshot().ignoreWhitespace && url.searchParams.get('w') === '1',
   )
   const reloaded = createReviewSelection(url, {
     replaceUrl: () => {},
-    rememberBase: async () => {},
   })
   check('a reloaded URL restores the filter', reloaded.getSnapshot().ignoreWhitespace)
   selection.toggleWhitespace()
@@ -139,24 +98,13 @@ export async function runReviewSelection(check: Check): Promise<void> {
   )
   const disabled = createReviewSelection(new URL('http://localhost/r/test?w=0'), {
     replaceUrl: () => {},
-    rememberBase: async () => {},
   })
   check('w=0 keeps the full diff', !disabled.getSnapshot().ignoreWhitespace)
 
-  delay = new Promise<void>((resolve) => {
-    release = resolve
-  })
-  const pendingFromClosedTab = selection.pickBase('main', 'release')
-  await Promise.resolve()
   selection.setActive(false)
-  url = new URL('http://localhost/r/next?target=other')
   const beforeClose = url.href
-  release()
-  await pendingFromClosedTab
-  check(
-    'a closed review cannot replace the next tab URL after a late base write',
-    url.href === beforeClose,
-  )
+  selection.pickBase('release')
+  check('a closed review cannot replace the next tab URL', url.href === beforeClose)
   selection.setActive(true)
   selection.toggleCommitted()
   check(
@@ -164,16 +112,9 @@ export async function runReviewSelection(check: Check): Promise<void> {
     url.href !== beforeClose,
   )
 
-  delay = new Promise<void>((resolve) => {
-    release = resolve
-  })
-  const pendingFromSwitchedTab = selection.pickBase('main', 'release')
-  await Promise.resolve()
   releaseUrl()
-  url = new URL('http://localhost/r/next?target=other')
   const beforeSwitch = url.href
-  release()
-  await pendingFromSwitchedTab
+  selection.pickBase('release')
   check(
     'a review switched away from cannot replace the URL before it unmounts',
     url.href === beforeSwitch,
