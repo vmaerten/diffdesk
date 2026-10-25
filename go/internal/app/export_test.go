@@ -16,7 +16,7 @@ func TestSharedExportGoldens(t *testing.T) {
 		t.Fatal(err)
 	}
 	var fixtures []struct {
-		Repo, Range, Markdown string
+		Repo, Range, Text string
 		Comments              []ServedComment
 		Export                json.RawMessage
 	}
@@ -24,14 +24,14 @@ func TestSharedExportGoldens(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, fixture := range fixtures {
-		var markdown, exported bytes.Buffer
-		if err := writeCommentExport(fixture.Comments, fixture.Repo, fixture.Range, false, &markdown); err != nil {
+		var text, exported bytes.Buffer
+		if err := writeCommentExport(fixture.Comments, fixture.Repo, fixture.Range, ExportOptions{}, &text); err != nil {
 			t.Fatal(err)
 		}
-		if markdown.String() != fixture.Markdown {
-			t.Fatalf("Markdown contract:\n%s", markdown.String())
+		if text.String() != fixture.Text {
+			t.Fatalf("text contract:\n%s", text.String())
 		}
-		if err := writeCommentExport(fixture.Comments, fixture.Repo, fixture.Range, true, &exported); err != nil {
+		if err := writeCommentExport(fixture.Comments, fixture.Repo, fixture.Range, ExportOptions{JSON: true}, &exported); err != nil {
 			t.Fatal(err)
 		}
 		var actual, expected any
@@ -78,7 +78,7 @@ func TestExportKeepsCurrentFilesAndReportsCorruption(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer
-	err = ExportComments(ctx, r.Path, Selection{Base: "main"}, false, true, &stdout, &stderr)
+	err = ExportComments(ctx, r.Path, Selection{Base: "main"}, ExportOptions{JSON: true}, &stdout, &stderr)
 	if err != nil || stderr.Len() != 0 || !strings.Contains(stdout.String(), `"id": "current"`) || !strings.Contains(stdout.String(), `"id": "untracked"`) || strings.Contains(stdout.String(), `"id": "outside"`) {
 		t.Fatalf("wrong selection: %v %s %s", err, stdout.String(), stderr.String())
 	}
@@ -86,7 +86,7 @@ func TestExportKeepsCurrentFilesAndReportsCorruption(t *testing.T) {
 		t.Fatal(err)
 	}
 	stdout.Reset()
-	err = ExportComments(ctx, r.Path, Selection{Base: "main"}, false, true, &stdout, &stderr)
+	err = ExportComments(ctx, r.Path, Selection{Base: "main"}, ExportOptions{JSON: true}, &stdout, &stderr)
 	if err != nil || !json.Valid(stdout.Bytes()) || !strings.Contains(stderr.String(), ".corrupt") {
 		t.Fatalf("corruption lost or polluted JSON: %v %s %s", err, stdout.String(), stderr.String())
 	}

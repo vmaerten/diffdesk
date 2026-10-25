@@ -3,7 +3,7 @@
     "repo": "/tmp/repo",
     "range": "main..feature",
     "comments": [],
-    "markdown": "No comments on main..feature.\n",
+    "text": "No comments on main..feature.\n",
     "export": { "repo": "/tmp/repo", "range": "main..feature", "comments": [] }
   },
   {
@@ -16,7 +16,7 @@
       { "id": "unavailable", "path": "renamed name.txt", "side": "additions", "start": 9, "end": 9, "body": "No current line", "anchor": ["gone"], "code": [], "stale": true, "range": "main..feature", "createdAt": "2026-01-01T00:00:00.000Z", "status": "open" },
       { "id": "empty-anchor", "path": "renamed name.txt", "side": "deletions", "start": 9, "end": 9, "body": "Same position", "anchor": [], "code": [], "stale": true, "range": "main..feature", "createdAt": "2026-01-01T00:00:00.000Z", "status": "open" }
     ],
-    "markdown": "# 5 comments on main..feature\n\n## renamed name.txt\n\n**L1** · deleted\n\n```\nbefore\n```\n\nBefore rename\n\n**L2–L3** · stale · resolved\n\n```\nnew two\nnew three\n```\n\nChanged\n\n<markup> & text\n\n> These lines have changed since the remark was written. They read:\n\n```\nold two\nold three\n```\n\n**L9** · unavaila\n\nNo current line\n\n> Code is unavailable in the current comparison. Original lines:\n\n```\ngone\n```\n\n**L9** · empty-an\n\nSame position\n\n## é.txt\n\n**L7** · outside\n\nOutside this diff\n\n> Code is unavailable in the current comparison. Original lines:\n\n```\noriginal\n```\n",
+    "text": "5 comments on main..feature\n\ndeleted renamed name.txt:1 (removed lines)\nBefore rename\ncode:\n  before\n\nstale renamed name.txt:2-3 · resolved\nChanged\n\n<markup> & text\nwas:\n  old two\n  old three\n\nunavaila renamed name.txt:9\nNo current line\nwas:\n  gone\n\nempty-an renamed name.txt:9 (removed lines)\nSame position\n\noutside é.txt:7\nOutside this diff\nwas:\n  original\n",
     "export": {
       "repo": "/tmp/repo é",
       "range": "main..feature",

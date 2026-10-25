@@ -170,7 +170,7 @@ export default function DesktopToolbar(
         <button
           type="button"
           className="titlebar-button titlebar-text copy-all"
-          title="Copy all comments as Markdown (⇧⌘C)"
+          title="Copy all comments for an agent (⇧⌘C)"
           disabled={commentCount === 0}
           onClick={onCopyAll}
         >

@@ -54,11 +54,14 @@ func TestResolveFromTheTerminal(t *testing.T) {
 	if out, err := run("--repo", repo, "--base", "HEAD"); err != nil || !strings.HasPrefix(out, "No comments") {
 		t.Fatalf("a resolved comment is still exported: %v\n%s", err, out)
 	}
-	if out, err := run("--all", "--repo", repo, "--base", "HEAD"); err != nil || !strings.Contains(out, "**L1** · c0ffee00 · resolved") {
+	if out, err := run("--all", "--repo", repo, "--base", "HEAD"); err != nil || !strings.Contains(out, "c0ffee00 hello.txt:1 · resolved\nSay hello\n") {
 		t.Fatalf("--all leaves the resolved comment out: %v\n%s", err, out)
 	}
 	if out, err := run("reopen", "c0ffee00", "--repo", repo); err != nil || out != "c0ffee00 open\n" {
 		t.Fatalf("reopen: %v %q", err, out)
+	}
+	if out, err := run("--code", "--repo", repo, "--base", "HEAD"); err != nil || !strings.Contains(out, "Say hello\ncode:\n  after\n") {
+		t.Fatalf("--code leaves the current lines out: %v\n%s", err, out)
 	}
 	if _, err := run("resolve", "--repo", repo); err == nil || !strings.Contains(err.Error(), "usage") {
 		t.Fatalf("resolve without an ID: %v", err)

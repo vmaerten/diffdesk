@@ -25,11 +25,11 @@ Each comment saves its original code. When those lines change, the comment shows
 
 **Comments** opens a side panel listing the branch's comments by file, including files outside the current diff. **View in diff** reveals available lines without clearing Viewed, and the panel stays open beside the diff. Inline cards can be collapsed; their folded state survives reloads.
 
-**Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments as Markdown, including viewed files and files outside the diff. Individual cards have their own copy button. Exports include paths, line numbers, comment IDs and current code, with original code labelled when current code is unavailable.
+**Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments, including viewed files and files outside the diff. Individual cards have their own copy button. The text is sized for an agent, which reads the code in the file it edits: each comment gives its ID, `path:lines` and body, and quotes only the lines the file no longer has, under `code:` for lines the change removed and `was:` for lines changed since the remark or outside the comparison.
 
 **Resolve** on a card closes the comment without deleting it: it leaves the diff, the panel, the count and Copy, and stays in the state file. `ghl comments reopen <id>` brings it back, and `ghl comments resolve <id>` closes one from the terminal; any unique prefix of 4 or more characters of the ID works.
 
-`ghl comments` exports the reviewed branch's open comments on files in the selected comparison, including untracked files in working-tree reviews. Add `--json` for structured output, `--all` to include resolved comments, or a revision argument to review another target. It prints without opening the window; its file scope can be narrower than the panel's.
+`ghl comments` exports the reviewed branch's open comments on files in the selected comparison, including untracked files in working-tree reviews. It prints the same text as Copy; add `--code` to quote every comment's current lines, `--json` for structured output, `--all` to include resolved comments, or a revision argument to review another target. It prints without opening the window; its file scope can be narrower than the panel's.
 
 Older comments recover their branch from the target in their saved comparison. If only commit hashes were recorded, the branch is unknown. Those comments stay in the state file and can be read by explicitly reviewing the recorded target.
 

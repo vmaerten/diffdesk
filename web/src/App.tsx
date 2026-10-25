@@ -42,7 +42,7 @@ import { languagesOf, useLanguageStatus } from './codeIntelligence.ts'
 import { useSymbolCard } from './SymbolCard.tsx'
 import SymbolPanel, { PanelTabs, type PanelTab, type SymbolTarget } from './SymbolPanel.tsx'
 import type { LanguageStatus } from '../../src/types.ts'
-import { asMarkdown } from '../../src/export.ts'
+import { asText } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
 import type { SavedView, SavedViewHandle } from './savedView.ts'
 
@@ -274,9 +274,9 @@ export default function App({
   })
 
   /**
-   * Put the whole review on the clipboard, as markdown.
+   * Put the whole review on the clipboard, as the text an agent is handed.
    *
-   * `asMarkdown` is the CLI's too, so the button and `ghl comments` cannot
+   * `asText` is the CLI's too, so the button and `ghl comments` cannot
    * produce different text for the same review. Failing to reach the clipboard is
    * said out loud: the point of the gesture is that the text left the page.
    */
@@ -286,7 +286,7 @@ export default function App({
     setCopied(null)
     try {
       await navigator.clipboard.writeText(
-        asMarkdown(comment ? [comment] : comments, { range: data.range }),
+        asText(comment ? [comment] : comments, { range: data.range }),
       )
       setCopied(comment?.id ?? 'all')
       if (copyTimer.current) clearTimeout(copyTimer.current)
