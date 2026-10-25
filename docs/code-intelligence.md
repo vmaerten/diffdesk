@@ -75,9 +75,16 @@ Les lectures passent en `GET` : la règle de #188 vise les écritures, et le `PU
 |---|---|---|---|
 | Go | `.go` | gopls | Auto, Off |
 | TypeScript et JavaScript | `.ts` `.tsx` `.mts` `.cts` `.js` `.jsx` `.mjs` `.cjs` | dans le checkout, `node_modules/.bin/tsrs`, puis `tsc` si TypeScript ≥ 7 ; sur le PATH, `tsrs`, puis `typescript-language-server` | Auto, TypeScript 7 (tsc), tsrs, typescript-language-server, Off |
+| Python | `.py` `.pyi` | dans le checkout, `.venv/bin/basedpyright-langserver`, puis `pyright-langserver` ; sur le PATH, ces deux, puis `ty server` | Auto, basedpyright, pyright, ty, Off |
+| Terraform | `.tf` `.tfvars` | terraform-ls | Auto, Off |
+| Helm | `.yaml` `.yml` `.tpl` `.txt` du dossier `templates` d'un chart | helm_ls | Auto, Off |
 | Rust | `.rs` | rust-analyzer | Auto, Off |
 
-Trois langages, chacun essayé sur un vrai serveur. Le serveur du checkout passe en premier : c'est la version que le projet a choisie.
+Le serveur du checkout passe en premier : c'est la version que le projet a choisie. Python, Terraform et Helm sont venus en cours de route (`code-intel/06-languages`). Helm ne se reconnaît pas à l'extension : ghl liste les `Chart.yaml` suivis par Git, et le statut donne leurs dossiers `templates` à la fenêtre.
+
+### Le nom sous le pointeur
+
+Shiki fusionne souvent les tokens : ` helper(name)` en Python, `.Values.replicaCount` dans un template Helm. La fenêtre mesure les caractères du token pour trouver le nom sous le pointeur, l'envoie avec sa colonne, et dessine le soulignement par-dessus le diff, à la taille du nom.
 
 ### Opt-in global
 
@@ -125,13 +132,18 @@ Préfixe `code-intel/` (la branche `lsp` occupait le nom), en pile `gh stack` da
 - Réglage Symbol panel.
 - Suite UI ; doc et CHANGELOG.
 
+### 06 · `code-intel/06-languages` — Python, Terraform et Helm
+
+- Registre : Python (basedpyright, pyright, ty), Terraform (terraform-ls), Helm (helm_ls, par dossier de chart).
+- Le nom sous le pointeur dans un token fusionné, et son soulignement.
+
 Le panneau de commentaires change aussi dans `agent-comments/02-window` (#215) : 05 se rebasera sur celle des deux qui sera fusionnée en premier.
 
 ## Reporté
 
 - Côté gauche et reviews de révision, avec un worktree détaché par révision.
 - Problèmes introduits par le changement (D), symboles modifiés et leur impact (E), aperçu en ligne (B).
-- Serveurs libres (une commande LSP sur stdio) et Python.
+- Serveurs libres (une commande LSP sur stdio).
 - Accès clavier aux symboles.
 - Confiance par dépôt.
 - `node_modules` le plus proche du fichier dans un monorepo.

@@ -14,6 +14,9 @@ export const SERVER_CHOICE_LABELS: Record<string, string> = {
   tsc: 'TypeScript 7 (tsc)',
   tsrs: 'tsrs',
   'typescript-language-server': 'typescript-language-server',
+  basedpyright: 'basedpyright',
+  pyright: 'pyright',
+  ty: 'ty',
 }
 
 async function failure(response: Response): Promise<Error> {
@@ -82,24 +85,30 @@ export function useLanguageStatus(
   return [status, refresh]
 }
 
+function extensionOf(path: string): string {
+  const name = path.slice(path.lastIndexOf('/') + 1)
+  const dot = name.lastIndexOf('.')
+  return dot > 0 ? name.slice(dot).toLowerCase() : ''
+}
+
 /** The languages of these paths that code intelligence covers. */
 export function languagesOf(
   status: LanguageServersStatus | null,
   paths: readonly string[],
 ): LanguageStatus[] {
   if (!status) return []
-  const extensions = new Set(
-    paths.map((path) => {
-      const name = path.slice(path.lastIndexOf('/') + 1)
-      const dot = name.lastIndexOf('.')
-      return dot > 0 ? name.slice(dot).toLowerCase() : ''
-    }),
-  )
-  return status.languages.filter(
-    (language) =>
-      language.state !== 'off' &&
-      language.extensions.some((extension) => extensions.has(extension)),
-  )
+  const extensions = new Set(paths.map(extensionOf))
+  return status.languages.filter((language) => {
+    if (language.state === 'off') return false
+    // Helm owns only the files of its charts' templates folders.
+    if (language.directories)
+      return paths.some(
+        (path) =>
+          language.directories!.some((dir) => path.startsWith(`${dir}/`)) &&
+          language.extensions.includes(extensionOf(path)),
+      )
+    return language.extensions.some((extension) => extensions.has(extension))
+  })
 }
 
 /** A server's path as a home-relative one, which is how people read them. */

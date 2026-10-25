@@ -62,7 +62,18 @@ Only working-tree reviews are answered, on added and unchanged lines: a server r
 
 **References** on the card opens a **Symbol** tab beside **Comments**: the symbol's definition and signature, then its references in the repository by file, in the tree's order. A reference the diff shows is marked `in diff` and opens there; the others show their line. **In this diff only** hides the rest. Settings › Intelligence › **Symbol panel** turns the tab and the action off.
 
-Settings list each language's server for the review shown, with where it comes from: Go uses `gopls`, Rust `rust-analyzer`, and TypeScript `tsrs` from the checkout or PATH, then the checkout's TypeScript 7 `tsc`, then `typescript-language-server`, unless you pick one. The servers run on the reviewed code, as your editor would; ghl finds them through your login shell, so tools installed with Homebrew or mise work even when the app was opened from the Finder. A server starts on the first lookup and stops after 10 minutes without one. The status bar shows the diff's servers and whether they are starting, indexing or failed.
+Settings list each language's server for the review shown, with where it comes from, unless you pick one:
+
+| Language | Server |
+| --- | --- |
+| TypeScript and JavaScript | `tsrs` from the checkout or PATH, then the checkout's TypeScript 7 `tsc`, then `typescript-language-server` on PATH |
+| Python | the checkout's `.venv` `basedpyright` or `pyright`, then `basedpyright`, `pyright` or `ty` on PATH |
+| Go | `gopls` |
+| Terraform | `terraform-ls` |
+| Helm | `helm_ls`, for the files of a chart's `templates` folder |
+| Rust | `rust-analyzer` |
+
+Highlighters often merge several names into one token, such as a Helm template's `.Values.replicaCount`: ghl looks up, and underlines, the name under the pointer. The servers run on the reviewed code, as your editor would; ghl finds them through your login shell, so tools installed with Homebrew or mise work even when the app was opened from the Finder. A server starts on the first lookup and stops after 10 minutes without one. The status bar shows the diff's servers and whether they are starting, indexing or failed.
 
 ## Images and appearance
 

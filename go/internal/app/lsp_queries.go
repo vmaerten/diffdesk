@@ -29,19 +29,45 @@ const (
 var errStaleSymbol = errors.New("This file changed on disk since the review loaded: refresh to look it up")
 
 var languageIDs = map[string]string{
-	".go": "go", ".rs": "rust",
+	".go": "go", ".rs": "rust", ".py": "python", ".pyi": "python", ".tf": "terraform", ".tfvars": "terraform-vars",
 	".ts": "typescript", ".mts": "typescript", ".cts": "typescript", ".tsx": "typescriptreact",
 	".js": "javascript", ".mjs": "javascript", ".cjs": "javascript", ".jsx": "javascriptreact",
 }
 
-func (m *languageServers) languageFor(path string) (language, bool) {
+// languageID is what LSP calls the file's language.
+func languageID(l language, path string) string {
+	if l.Templates {
+		return l.ID
+	}
+	return languageIDs[strings.ToLower(filepath.Ext(path))]
+}
+
+// languageFor finds the language of path; templates are the charts' templates
+// folders, which hold Helm's files.
+func (m *languageServers) languageFor(path string, templates []string) (language, bool) {
 	extension := strings.ToLower(filepath.Ext(path))
+	inTemplates := slices.ContainsFunc(templates, func(dir string) bool { return strings.HasPrefix(path, dir+"/") })
 	for _, l := range m.languages {
-		if slices.Contains(l.Extensions, extension) {
+		if slices.Contains(l.Extensions, extension) && l.Templates == inTemplates {
 			return l, true
 		}
 	}
 	return language{}, false
+}
+
+// chartTemplates lists the templates folder of each Helm chart Git tracks.
+func (s *Server) chartTemplates(ctx context.Context) []string {
+	listing, err := s.repo.git(ctx, 1<<20, "ls-files", "-z", "--", ":(glob)**/Chart.yaml")
+	if err != nil {
+		return nil
+	}
+	templates := []string{}
+	for _, chart := range strings.Split(string(listing), "\x00") {
+		if dir, ok := strings.CutSuffix(chart, "Chart.yaml"); ok {
+			templates = append(templates, dir+"templates")
+		}
+	}
+	return templates
 }
 
 // symbolQuery names a token the diff showed: line counts from 1, as the diff
@@ -112,7 +138,7 @@ type openDocument struct {
 
 // sync gives the server the file as it is on disk: opened the first time,
 // replaced whole when its bytes changed.
-func (c *languageClient) sync(path, uri string, data []byte) error {
+func (c *languageClient) sync(path, uri, languageID string, data []byte) error {
 	c.docMu.Lock()
 	defer c.docMu.Unlock()
 	if c.docs == nil {
@@ -133,7 +159,7 @@ func (c *languageClient) sync(path, uri string, data []byte) error {
 		})
 	} else {
 		err = c.conn.notify("textDocument/didOpen", map[string]any{
-			"textDocument": map[string]any{"uri": uri, "languageId": languageIDs[strings.ToLower(filepath.Ext(path))], "version": document.version, "text": string(data)},
+			"textDocument": map[string]any{"uri": uri, "languageId": languageID, "version": document.version, "text": string(data)},
 		})
 	}
 	if err == nil {
@@ -144,28 +170,28 @@ func (c *languageClient) sync(path, uri string, data []byte) error {
 
 // prepare finds the server for the query's file, checks the token against the
 // disk and syncs the document.
-func (s *Server) prepare(ctx context.Context, q symbolQuery) (*languageClient, map[string]any, error) {
-	l, ok := s.lsp.languageFor(q.Path)
+func (s *Server) prepare(ctx context.Context, q symbolQuery) (*languageClient, language, map[string]any, error) {
+	l, ok := s.lsp.languageFor(q.Path, s.chartTemplates(ctx))
 	if !ok {
-		return nil, nil, fmt.Errorf("No language server serves %s", q.Path)
+		return nil, l, nil, fmt.Errorf("No language server serves %s", q.Path)
 	}
 	file, err := s.repo.worktreeFile(q.Path)
 	if err != nil {
-		return nil, nil, sourceError(err, false)
+		return nil, l, nil, sourceError(err, false)
 	}
 	if !tokenAt(splitLines(file.data), q) {
-		return nil, nil, errStaleSymbol
+		return nil, l, nil, errStaleSymbol
 	}
 	client, err := s.lsp.client(ctx, s.repo.Path, l.ID)
 	if err != nil {
-		return nil, nil, err
+		return nil, l, nil, err
 	}
 	uri := fileURI(filepath.Join(s.repo.Path, filepath.FromSlash(q.Path)))
-	if err := client.sync(q.Path, uri, file.data); err != nil {
-		return nil, nil, err
+	if err := client.sync(q.Path, uri, languageID(l, q.Path), file.data); err != nil {
+		return nil, l, nil, err
 	}
 	position := map[string]any{"textDocument": map[string]string{"uri": uri}, "position": map[string]int{"line": q.Line - 1, "character": q.Character}}
-	return client, position, nil
+	return client, l, position, nil
 }
 
 type lspRange struct {
@@ -357,7 +383,7 @@ type symbolAnswer struct {
 // symbol asks for the hover and the definitions of a token at once. One of
 // them failing still leaves the other worth showing.
 func (s *Server) symbol(ctx context.Context, q symbolQuery) (symbolAnswer, error) {
-	client, position, err := s.prepare(ctx, q)
+	client, l, position, err := s.prepare(ctx, q)
 	if err != nil {
 		return symbolAnswer{}, err
 	}
@@ -368,7 +394,6 @@ func (s *Server) symbol(ctx context.Context, q symbolQuery) (symbolAnswer, error
 	if first, second := <-hoverErr, <-definitionErr; first != nil && second != nil {
 		return symbolAnswer{}, first
 	}
-	l, _ := s.lsp.languageFor(q.Path)
 	answer := symbolAnswer{Language: l.ID, Server: client.serverName(), Hover: hoverBlocks(hover), Definitions: []symbolDefinition{}}
 	files := fileLines{}
 	for _, location := range locations(definition) {
@@ -410,7 +435,7 @@ type referencesAnswer struct {
 }
 
 func (s *Server) references(ctx context.Context, q symbolQuery) (referencesAnswer, error) {
-	client, position, err := s.prepare(ctx, q)
+	client, _, position, err := s.prepare(ctx, q)
 	if err != nil {
 		return referencesAnswer{}, err
 	}

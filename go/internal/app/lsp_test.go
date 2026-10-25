@@ -144,7 +144,7 @@ func waitFor(t *testing.T, what string, done func() bool) {
 }
 
 func goStatus(m *languageServers, root string) languageStatus {
-	return m.status(root).Languages[0]
+	return m.status(root, nil).Languages[0]
 }
 
 func TestLanguageServerStartsOnDemandAndShutsDown(t *testing.T) {
@@ -317,6 +317,32 @@ func TestTypeScriptServerPreference(t *testing.T) {
 	executable(filepath.Join(root, "node_modules", ".bin", "tsrs"))
 	expect("auto", "tsrs", "checkout")
 	expect("off", "", "")
+}
+
+func TestPythonServerPreference(t *testing.T) {
+	bin, root := t.TempDir(), t.TempDir()
+	for _, path := range []string{filepath.Join(bin, "pyright-langserver"), filepath.Join(bin, "ty"), filepath.Join(root, ".venv", "bin", "basedpyright-langserver")} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	python, _ := newLanguageServers().language("python")
+	env := []string{"PATH=" + bin}
+	for choice, want := range map[string]string{"auto": "basedpyright checkout", "pyright": "pyright PATH", "ty": "ty PATH"} {
+		found := python.find(root, env, choice)
+		if found == nil || found.Name+" "+found.Origin != want {
+			t.Errorf("%s found %+v, expected %s", choice, found, want)
+		}
+	}
+	if err := os.RemoveAll(filepath.Join(root, ".venv")); err != nil {
+		t.Fatal(err)
+	}
+	if found := python.find(root, env, "auto"); found == nil || found.Name != "pyright" {
+		t.Errorf("without a virtual environment, auto found %+v", found)
+	}
 }
 
 func TestLSPRoutes(t *testing.T) {

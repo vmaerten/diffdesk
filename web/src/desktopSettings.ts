@@ -9,6 +9,9 @@ export const CODE_SIZE = { min: 10, max: 18 } as const
 export const LANGUAGE_SERVERS = {
   go: ['auto', 'off'],
   typescript: ['auto', 'tsc', 'tsrs', 'typescript-language-server', 'off'],
+  python: ['auto', 'basedpyright', 'pyright', 'ty', 'off'],
+  terraform: ['auto', 'off'],
+  helm: ['auto', 'off'],
   rust: ['auto', 'off'],
 } as const satisfies Record<string, readonly string[]>
 export type LanguageId = keyof typeof LANGUAGE_SERVERS
@@ -35,7 +38,14 @@ export const DEFAULT_SETTINGS: DesktopSettings = {
   compactTitleBar: false,
   codeIntelligence: false,
   symbolPanel: true,
-  languageServers: { go: 'auto', typescript: 'auto', rust: 'auto' },
+  languageServers: {
+    go: 'auto',
+    typescript: 'auto',
+    python: 'auto',
+    terraform: 'auto',
+    helm: 'auto',
+    rust: 'auto',
+  },
 }
 
 const APPEARANCES: readonly Appearance[] = ['system', 'light', 'dark']
