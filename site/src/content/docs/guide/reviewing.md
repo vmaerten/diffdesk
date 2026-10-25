@@ -79,7 +79,7 @@ Highlighters often merge several names into one token, such as a Helm template's
 
 ## Pull requests
 
-When the reviewed branch has a pull request on GitHub, its number shows in the title bar, with the icon and colour of its state: open, draft, merged or closed. An arrow counts the local commits GitHub does not have yet, and a warning sign says the pull request conflicts with its base. Click it for the title, the reviews, the merge status, what is not pushed, and a link to GitHub.
+When the reviewed branch has a pull request on GitHub, its number shows in the title bar, with the icon and colour of its state: open, draft, merged or closed. Then come its checks — GitHub Actions runs and commit statuses: a cross with the number failing, a dot with how many are done while they run, a tick once all pass. An arrow counts the local commits GitHub does not have yet, and a warning sign says the pull request conflicts with its base. Click it for the title, the reviews, the merge status, what is not pushed, the checks with their logs, failing ones first, and a link to GitHub. Checks ran on GitHub's head: the popover says so when you have local changes. While one runs, the pull request refreshes every 15 seconds as long as the window is in front.
 
 ghl asks the [GitHub CLI](https://cli.github.com/): install it and run `gh auth login` once. Without it, or signed out, ghl works as before, without the network. The pull request is the one whose head is the reviewed branch, or the branch it pushes to; an open one wins over closed ones. It refreshes with the review (`r`) and when you come back to the window. **Settings › GitHub** says which account gh uses, and turns pull requests off.
 

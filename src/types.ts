@@ -344,6 +344,18 @@ export interface PullRequest {
   sync: { ahead: number; behind: number } | null
   /** The branch is checked out with changes to tracked files. */
   uncommitted: boolean
+  /** The commit GitHub ran the checks on. */
+  head: string
+  /** Check runs and commit statuses, the latest run of each. */
+  checks: Check[]
+}
+
+export interface Check {
+  name: string
+  state: 'passed' | 'failed' | 'skipped' | 'running' | 'pending'
+  url: string
+  startedAt?: string
+  completedAt?: string
 }
 
 /** The body of `GET /r/:repoId/api/pull-request?branch=`. */

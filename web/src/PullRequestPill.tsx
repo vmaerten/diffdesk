@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import Icon from './Icon.tsx'
-import type { PullRequest, PullRequestPayload } from '../../src/types.ts'
+import type { Check, PullRequest, PullRequestPayload } from '../../src/types.ts'
 
 /** Coming back to the window refreshes the pull request, at most this often. */
 const FOCUS_REFRESH_MS = 30_000
+/** While a check runs, the window in front follows it this often. */
+const POLL_MS = 15_000
 
 const STATES: Record<
   PullRequest['state'],
@@ -14,6 +16,19 @@ const STATES: Record<
   merged: { icon: 'pr-merged', label: 'Merged' },
   closed: { icon: 'pr-closed', label: 'Closed' },
 }
+
+const CHECKS: Record<
+  Check['state'],
+  { icon: 'check-circle' | 'x-circle' | 'skip' | 'dot'; order: number }
+> = {
+  failed: { icon: 'x-circle', order: 0 },
+  running: { icon: 'dot', order: 1 },
+  pending: { icon: 'dot', order: 2 },
+  passed: { icon: 'check-circle', order: 3 },
+  skipped: { icon: 'skip', order: 4 },
+}
+
+const unfinished = (check: Check) => check.state === 'running' || check.state === 'pending'
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 const names = (logins: string[]) => logins.join(', ')
@@ -54,6 +69,32 @@ function pushed(pr: PullRequest, workingTree: boolean): { tone: string; text: st
     : { tone: 'ok', text: 'Up to date with GitHub' }
 }
 
+function duration(check: Check): string {
+  if (check.state === 'running') return 'running'
+  if (check.state === 'pending') return 'queued'
+  if (!check.startedAt || !check.completedAt) return ''
+  const seconds = Math.round((Date.parse(check.completedAt) - Date.parse(check.startedAt)) / 1000)
+  if (!(seconds >= 0)) return ''
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
+}
+
+function CheckRow({ check }: { check: Check }) {
+  return (
+    <li className={`pr-check ${check.state}`}>
+      <Icon name={CHECKS[check.state].icon} />
+      <span className="pr-check-name">{check.name}</span>
+      <span className="pr-check-time">{duration(check)}</span>
+      {check.url ? (
+        <a href={check.url} target="_blank" rel="noreferrer" aria-label={`${check.name} on GitHub`}>
+          <Icon name="link-external" />
+        </a>
+      ) : (
+        <span />
+      )}
+    </li>
+  )
+}
+
 /**
  * The reviewed branch's pull request, from the title bar.
  *
@@ -79,7 +120,12 @@ export default function PullRequestPill({
     if (!repoId || !branch) return
     const controller = new AbortController()
     let fetchedAt = 0
+    let poll: ReturnType<typeof setTimeout> | undefined
+    // A poll that came due while the window was behind another.
+    let due = false
     const load = async () => {
+      clearTimeout(poll)
+      due = false
       fetchedAt = Date.now()
       try {
         const response = await fetch(
@@ -87,7 +133,14 @@ export default function PullRequestPill({
           { signal: controller.signal },
         )
         const body: PullRequestPayload = await response.json()
-        setShown({ branch, pr: response.ok ? body.pullRequest : null })
+        if (controller.signal.aborted) return
+        const pr = response.ok ? body.pullRequest : null
+        setShown({ branch, pr })
+        if (pr && (pr.state === 'open' || pr.state === 'draft') && pr.checks.some(unfinished))
+          poll = setTimeout(() => {
+            if (document.hasFocus()) void load()
+            else due = true
+          }, POLL_MS)
       } catch {
         // Only a decoration: a failed lookup leaves the review as it was.
         if (!controller.signal.aborted) setShown({ branch, pr: null })
@@ -95,11 +148,12 @@ export default function PullRequestPill({
     }
     void load()
     const onFocus = () => {
-      if (Date.now() - fetchedAt > FOCUS_REFRESH_MS) void load()
+      if (due || Date.now() - fetchedAt > FOCUS_REFRESH_MS) void load()
     }
     window.addEventListener('focus', onFocus)
     return () => {
       controller.abort()
+      clearTimeout(poll)
       window.removeEventListener('focus', onFocus)
     }
   }, [repoId, branch, loadId])
@@ -123,8 +177,21 @@ export default function PullRequestPill({
   const active = pr.state === 'open' || pr.state === 'draft'
   const ahead = active ? (pr.sync?.ahead ?? 0) : 0
   const conflicting = active && pr.mergeable === 'conflicting'
+  const checks = active
+    ? pr.checks.toSorted((a, b) => CHECKS[a.state].order - CHECKS[b.state].order)
+    : []
+  const count = (kind: Check['state']) => checks.filter((check) => check.state === kind).length
+  const failed = count('failed')
+  const running = checks.filter(unfinished).length
+  const finished = checks.filter((check) => check.state === 'passed' || check.state === 'skipped')
   const label = [
     `Pull request #${pr.number}, ${state.label.toLowerCase()}`,
+    checks.length > 0 &&
+      (failed > 0
+        ? `${plural(failed, 'check')} failing`
+        : running > 0
+          ? `${checks.length - running} of ${plural(checks.length, 'check')} done`
+          : 'checks passed'),
     ahead > 0 && `${plural(ahead, 'commit')} not pushed`,
     conflicting && 'conflicts with its base',
   ]
@@ -146,6 +213,22 @@ export default function PullRequestPill({
           <Icon name={state.icon} />
         </span>
         #{pr.number}
+        {checks.length > 0 &&
+          (failed > 0 ? (
+            <span className="pr-checks-slot failed">
+              <Icon name="x-circle" />
+              {failed}
+            </span>
+          ) : running > 0 ? (
+            <span className="pr-checks-slot running">
+              <Icon name="dot" />
+              {checks.length - running}/{checks.length}
+            </span>
+          ) : (
+            <span className="pr-checks-slot passed">
+              <Icon name="check-circle" />
+            </span>
+          ))}
         {ahead > 0 && (
           <span className="pr-warning">
             <Icon name="arrow-up" />
@@ -216,6 +299,53 @@ export default function PullRequestPill({
                 </div>
               )}
             </dl>
+            {checks.length > 0 && (
+              <section className="pr-checks" aria-label="Checks">
+                <div className="pr-checks-head">
+                  Checks <code>{pr.head.slice(0, 7)}</code>
+                  <span>
+                    {[
+                      failed > 0 && `${failed} failing`,
+                      running > 0 && `${running} running`,
+                      count('passed') > 0 && `${count('passed')} passed`,
+                      count('skipped') > 0 && `${count('skipped')} skipped`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                </div>
+                {(ahead > 0 || (pr.uncommitted && workingTree)) && (
+                  <p className="pr-checks-note">
+                    They ran on GitHub's head, without your local changes.
+                  </p>
+                )}
+                {failed + running > 0 && (
+                  <ul>
+                    {checks
+                      .filter((check) => !finished.includes(check))
+                      .map((check) => (
+                        <CheckRow key={check.name} check={check} />
+                      ))}
+                  </ul>
+                )}
+                {finished.length > 0 && (
+                  <details>
+                    <summary>
+                      {count('skipped') === 0
+                        ? `${count('passed')} passed`
+                        : count('passed') === 0
+                          ? `${count('skipped')} skipped`
+                          : `${finished.length} passed or skipped`}
+                    </summary>
+                    <ul>
+                      {finished.map((check) => (
+                        <CheckRow key={check.name} check={check} />
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </section>
+            )}
           </div>
         </>
       )}
