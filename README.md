@@ -18,7 +18,7 @@ With [mise](https://mise.jdx.dev/):
 mise use -g github:vmaerten/ghl@latest
 ```
 
-Both put the `ghl` command on PATH. Homebrew installs `ghl.app` in `/Applications`; mise keeps it in its own install directory. See the [installation guide](https://vmaerten.github.io/ghl/guide/installation/) for upgrades, rollback and moving from the 0.2.0 browser CLI.
+Both put the `ghl` command on PATH. Homebrew installs `ghl.app` in `/Applications`; mise keeps it in its own install directory. See the [installation guide](https://ghl.vmaerten.fr/guide/installation/) for upgrades, rollback and moving from the 0.2.0 browser CLI.
 
 To install from source, with Node >= 24, pnpm, Go >= 1.25, Task v3 and the Xcode Command Line Tools:
 
@@ -48,7 +48,7 @@ ghl comments --json    # the same, as JSON
 - Viewed files, working-tree/untracked controls and whitespace filtering.
 - Image previews, native menus, and light and dark appearance with a syntax theme for each.
 
-See the [reviewing guide](https://vmaerten.github.io/ghl/guide/reviewing/) for comparisons, comments and state. Features on `main` may be newer than the published release; see the [changelog](./CHANGELOG.md).
+See the [reviewing guide](https://ghl.vmaerten.fr/guide/reviewing/) for comparisons, comments and state. Features on `main` may be newer than the published release; see the [changelog](./CHANGELOG.md).
 
 ## Shortcuts
 
@@ -84,6 +84,6 @@ See the [app guide](./desktop/README.md) for the window and its native tests, an
 
 ## Documentation
 
-- [The website](https://vmaerten.github.io/ghl/) and its guide: [getting started](https://vmaerten.github.io/ghl/guide/getting-started/), [installation](https://vmaerten.github.io/ghl/guide/installation/), [reviewing code](https://vmaerten.github.io/ghl/guide/reviewing/) and [keyboard shortcuts](https://vmaerten.github.io/ghl/guide/shortcuts/), written in [`site/`](./site/src/content/docs/guide/)
+- [The website](https://ghl.vmaerten.fr/) and its guide: [getting started](https://ghl.vmaerten.fr/guide/getting-started/), [installation](https://ghl.vmaerten.fr/guide/installation/), [reviewing code](https://ghl.vmaerten.fr/guide/reviewing/) and [keyboard shortcuts](https://ghl.vmaerten.fr/guide/shortcuts/), written in [`site/`](./site/src/content/docs/guide/)
 - [The app](./desktop/README.md) and [its review server](./go/README.md)
 - [Releases](./docs/releases.md) and [release acceptance](./docs/validation.md)
