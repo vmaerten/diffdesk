@@ -9,6 +9,12 @@ export default function KeyboardShortcuts() {
       </div>
       <div>
         <dt>
+          <kbd>⌘</kbd> <kbd>p</kbd>
+        </dt>
+        <dd>Go to a file</dd>
+      </div>
+      <div>
+        <dt>
           <kbd>b</kbd>
         </dt>
         <dd>Choose base</dd>

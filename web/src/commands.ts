@@ -28,6 +28,7 @@ export type ReviewCommand =
   | 'copy-comments'
   | 'reset-viewed'
   | 'palette'
+  | 'go-to-file'
 
 /** Go's menus open a repository and Settings themselves; only the palette sends those two. */
 export type WindowCommand =

@@ -21,6 +21,7 @@
 - Show the pull request's checks, GitHub Actions runs and commit statuses, in its pill: how many fail, how many are done while they run, or a tick. The popover lists them failing first with their logs, says when they ran without your local changes, and follows running checks every 15 seconds while the window is in front. ([#246](https://github.com/vmaerten/ghl/pull/246))
 - Show the pull request in the status bar instead of the title bar, with Settings, under GitHub: its state, failing checks, unpushed commits and conflicts in words, and the same popover. ([#249](https://github.com/vmaerten/ghl/pull/249))
 - Open a command palette with `Cmd+K` (View › Command Palette…) to find a command by name instead of through the menus: it lists the commands that apply to the review with their shortcut, and checks those that show a state, such as Split or Ignore Whitespace. ([#251](https://github.com/vmaerten/ghl/pull/251))
+- Jump to a file of the review by name with `Cmd+P` (Go › Go to File…): the palette lists the files with their folder, line counts and status, and Commands and Files tabs switch between the two lists. ([#253](https://github.com/vmaerten/ghl/pull/253))
 
 ### 🐛 Fixes
 
