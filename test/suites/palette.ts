@@ -1,14 +1,19 @@
-import { command, poll, VIEWED_COUNT, type Suite } from '../harness.ts'
+import { command, poll, titlebar, TREE_ROWS, VIEWED_COUNT, type Suite } from '../harness.ts'
 
 const OPEN = 'dialog.command-palette[open]'
 const ITEMS = `[...document.querySelectorAll('.palette-item')].map((e) => ({
+  kind: e.dataset.kind,
+  path: e.dataset.path ?? null,
   label: e.querySelector('.palette-label').textContent,
   checked: e.getAttribute('aria-checked'),
   marked: [...e.querySelectorAll('.palette-label mark')].map((m) => m.textContent).join('|'),
 }))`
+const SCOPE = `document.querySelector('.palette-scope[aria-pressed="true"]')?.firstChild.textContent`
 const FOCUSED = `document.activeElement?.className ?? ''`
 
 interface Item {
+  kind: 'file' | 'command'
+  path: string | null
   label: string
   checked: string | null
   marked: string
@@ -50,6 +55,11 @@ export default {
       '  but not those that would do nothing here',
       !labels.includes('Choose Stack Layer…') && !labels.includes('Copy All Comments'),
     )
+    check(
+      '  nor files before a search',
+      offered.every((item) => item.kind === 'command'),
+      offered.map((item) => item.kind).join(', '),
+    )
     const state = (label: string) => offered.find((item) => item.label === label)?.checked
     check(
       '  and checks the layout shown',
@@ -57,10 +67,10 @@ export default {
       `${state('Unified')} ${state('Split')}`,
     )
 
-    const found = await search('splt', 'Split')
+    const found = await search('split', 'Split')
     check(
-      'typing filters, marking the letters that matched',
-      found[0]?.marked === 'Spl|t',
+      'typing filters, marking what matched',
+      found[0]?.marked === 'Split',
       JSON.stringify(found[0]),
     )
     await page.keyboard.press('Enter')
@@ -102,6 +112,43 @@ export default {
     await page.keyboard.press('Enter')
     const opened = () => page.evaluate(`window.desktopFixture.settingsOpened`) as Promise<number>
     check('Settings… opens the Settings window', (await poll(opened, (n) => n === 1)) === 1)
+
+    await command(page, 'go-to-file')
+    await page.waitForSelector(`${OPEN} .palette-input`, { timeout: 5_000 })
+    const files = await items()
+    const { files: total } = await titlebar(page)
+    check(
+      'Go to File lists every file of the review, and no command',
+      files.length === total && files.every((item) => item.kind === 'file'),
+      `${files.length} of ${total}`,
+    )
+    check('  on the Files tab', (await page.evaluate(SCOPE)) === 'Files')
+    await command(page, 'palette')
+    const all = await poll(items, (shown) => shown.every((item) => item.kind === 'command'))
+    check(
+      'the palette shortcut switches it to All',
+      (await page.evaluate(SCOPE)) === 'All' && all.length > 0,
+    )
+
+    await page.keyboard.type('nested/tool')
+    const match = await poll(items, (shown) => shown[0]?.path?.endsWith('nested/tool.ts') === true)
+    const path = match[0]?.path ?? ''
+    const counted = await page.evaluate(`document.querySelector('.palette-count').textContent`)
+    check(
+      'a search finds a file by its path, and counts it as one',
+      path.endsWith('nested/tool.ts') && counted === '1 file',
+      `${path} (${counted})`,
+    )
+    await page.keyboard.press('Enter')
+    const selected = await poll(
+      async () => ((await page.evaluate(TREE_ROWS)) as { selected: { path: string }[] }).selected,
+      (rows) => rows[0]?.path === path,
+    )
+    check(
+      '  and Enter opens it, as the tree does',
+      selected[0]?.path === path && !(await isOpen()),
+      selected[0]?.path,
+    )
 
     await open()
     await page.keyboard.press('Escape')

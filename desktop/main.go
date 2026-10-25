@@ -234,15 +234,18 @@ func run() error {
 		closeReview(ctx)
 	})
 	appMenu.AddRole(application.EditMenu)
-	viewMenu := appMenu.AddSubmenu("View")
-	openPalette := command("palette")
-	item(viewMenu, "Command Palette…", "CmdOrCtrl+k", func(ctx *application.Context) {
-		// Settings has no palette, and the review's would open behind it.
-		if current := native.Window.Current(); current != nil && current.Name() == settingsWindow {
-			return
+	// Settings has no palette, and the review's would open behind it.
+	palette := func(name string) func(*application.Context) {
+		open := command(name)
+		return func(ctx *application.Context) {
+			if current := native.Window.Current(); current != nil && current.Name() == settingsWindow {
+				return
+			}
+			open(ctx)
 		}
-		openPalette(ctx)
-	})
+	}
+	viewMenu := appMenu.AddSubmenu("View")
+	item(viewMenu, "Command Palette…", "CmdOrCtrl+k", palette("palette"))
 	viewMenu.AddSeparator()
 	item(viewMenu, "Toggle Sidebar", "Ctrl+CmdOrCtrl+s", command("sidebar"))
 	item(viewMenu, "Reload", "CmdOrCtrl+r", command("reload"))
@@ -256,6 +259,8 @@ func run() error {
 	viewMenu.AddSeparator()
 	item(viewMenu, "Comments", "OptionOrAlt+CmdOrCtrl+0", command("comments"))
 	goMenu := appMenu.AddSubmenu("Go")
+	item(goMenu, "Go to File…", "CmdOrCtrl+p", palette("go-to-file"))
+	goMenu.AddSeparator()
 	item(goMenu, "Next File", "", command("next-file"))
 	item(goMenu, "Previous File", "", command("previous-file"))
 	goMenu.AddSeparator()

@@ -409,8 +409,9 @@ export default function App({
   const runCommand = useStableCallback((command: CommandName) => {
     switch (command) {
       case 'palette':
+      case 'go-to-file':
         setPicking(null)
-        palette.current?.open()
+        palette.current?.open(command === 'palette' ? 'all' : 'files')
         break
       case 'base':
       case 'target':
@@ -678,7 +679,13 @@ export default function App({
           toolbar,
         )}
       {symbols.card}
-      <CommandPalette handle={palette} commands={paletteCommands} onRun={sendCommand} />
+      <CommandPalette
+        handle={palette}
+        files={entries}
+        commands={paletteCommands}
+        onOpenFile={selectFile}
+        onRun={sendCommand}
+      />
       <span className="visually-hidden" role="status">
         {copied ? 'Comments copied to clipboard' : ''}
       </span>
