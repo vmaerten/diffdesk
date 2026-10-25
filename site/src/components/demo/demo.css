@@ -643,3 +643,214 @@ button.stack-branch:focus-visible::after {
   color: var(--dim);
   cursor: pointer;
 }
+
+/* The app's command palette, from web/src/desktop.css in the landing's colours. It opens over the
+   demo window, whose top DiffDemo writes to --demo-palette-top. */
+.command-palette {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - var(--demo-palette-top, 92px) - 24px);
+  margin: var(--demo-palette-top, 92px) auto auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--raised);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 30%);
+  font: 13px var(--sans);
+}
+
+.command-palette[open],
+.command-palette [cmdk-root] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.command-palette::backdrop {
+  background: rgb(0 0 0 / 16%);
+}
+
+.palette-search {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--dim);
+}
+
+.palette-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.palette-list {
+  min-height: 0;
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.palette-item[data-selected='true'] {
+  background: var(--accent-soft);
+}
+
+.palette-check {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 16px;
+}
+
+.palette-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.command-palette mark {
+  background: none;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.palette-file,
+.palette-dir {
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.palette-label.palette-file {
+  flex-shrink: 0;
+  max-width: 60%;
+}
+
+.palette-dir {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+}
+
+.palette-stats {
+  display: flex;
+  gap: 6px;
+  font: 600 12px var(--mono);
+}
+
+.palette-stats .added,
+.palette-status.added {
+  color: var(--green);
+}
+
+.palette-stats .deleted {
+  color: var(--red);
+}
+
+.palette-status {
+  width: 10px;
+  font: 600 11px var(--mono);
+  text-align: center;
+}
+
+.palette-status.modified {
+  color: var(--orange);
+}
+
+.palette-scopes {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 8px 10px 0;
+}
+
+.palette-scope {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--dim);
+  font: 500 12px var(--sans);
+  cursor: pointer;
+}
+
+.palette-scope[aria-pressed='true'] {
+  background: var(--border-strong);
+  color: var(--text);
+}
+
+.palette-scope-keys {
+  margin-left: 5px;
+  opacity: 0.6;
+}
+
+.palette-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.command-palette kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--wash);
+  color: var(--dim);
+  font: 500 11px/1 var(--sans);
+}
+
+.palette-empty {
+  padding: 18px 10px;
+  color: var(--dim);
+  text-align: center;
+}
+
+.palette-foot {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 14px;
+  height: 34px;
+  padding: 0 14px;
+  border-top: 1px solid var(--border);
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.palette-foot > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.palette-foot .palette-count {
+  margin-left: auto;
+}

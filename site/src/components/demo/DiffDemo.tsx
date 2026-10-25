@@ -7,7 +7,13 @@ import {
 import { FileDiff } from '@pierre/diffs/react'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { DiffSide, PullRequest } from '../../../../src/types.ts'
+import CommandPalette, {
+  type PaletteCommand,
+  type PaletteHandle,
+} from '../../../../web/src/CommandPalette.tsx'
 import { commentRange } from '../../../../web/src/commentRange.ts'
+import { COMMANDS, type CommandName } from '../../../../web/src/commands.ts'
+import type { TreeEntry } from '../../../../web/src/FileTree.tsx'
 import PullRequestPill from '../../../../web/src/PullRequestPill.tsx'
 import { exportComments, exportLines } from './comments.ts'
 import {
@@ -25,6 +31,31 @@ type Lines = { path: string; side: DiffSide; start: number; end: number }
 type Note = { comment: DemoComment } | { composer: true }
 /** What the reviewer changes on a layer: ghl keeps it per branch. */
 type LayerState = { viewed: Set<string>; revealed: Set<string>; comments: DemoComment[] }
+
+/** The app's commands the demo can run; the others need a repository or a window. */
+const DEMO_COMMANDS = new Set<CommandName>([
+  'unified',
+  'split',
+  'next-file',
+  'previous-file',
+  'stack',
+  'layer-below',
+  'layer-above',
+  'viewed',
+  'comment',
+  'copy-comments',
+])
+
+/** The review's single keys, as the app binds them. */
+const KEYS: Record<string, CommandName> = {
+  j: 'next-file',
+  k: 'previous-file',
+  v: 'viewed',
+  c: 'comment',
+  s: 'stack',
+  '[': 'layer-below',
+  ']': 'layer-above',
+}
 
 // The app's default syntax theme for each appearance.
 const themes = { light: 'github-light-default', dark: 'github-dark-dimmed' } as const
@@ -113,6 +144,8 @@ export default function DiffDemo() {
   const [picker, setPicker] = useState(false)
   const [copied, setCopied] = useState(false)
   const pane = useRef<HTMLDivElement>(null)
+  const frame = useRef<HTMLDivElement>(null)
+  const palette = useRef<PaletteHandle>(null)
   const cards = useRef(new Map<string, HTMLElement>())
 
   const layer = layers[current]!
@@ -173,27 +206,100 @@ export default function DiffDemo() {
     }
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.target instanceof HTMLTextAreaElement) return
-    if (event.metaKey || event.ctrlKey || event.altKey) return
+  /** Every command by name, from a key or the palette, as the app's runCommand. */
+  function run(command: CommandName) {
     const files = layer.files
     const index = files.findIndex((file) => file.path === active)
-    const step = { '[': -1, ']': 1 }[event.key] as 1 | -1 | undefined
-    if (step) {
-      const next = neighbour(current, step)
-      if (next !== null) openLayer(next)
-    } else if (event.key === 's') setPicker(true)
-    else if (event.key === 'j') show(files[Math.min(index + 1, files.length - 1)]!.path)
-    else if (event.key === 'k') show(files[Math.max(index - 1, 0)]!.path)
-    else if (event.key === 'v') toggleViewed(active)
-    else if (event.key === 'c' && selection) setComposer(selection)
-    else return
+    switch (command) {
+      case 'palette':
+      case 'go-to-file': {
+        // Over the demo window, wherever the page is scrolled, rather than at the top of the page.
+        const top = frame.current?.getBoundingClientRect().top ?? 0
+        document.documentElement.style.setProperty(
+          '--demo-palette-top',
+          `${Math.max(16, top + 64)}px`,
+        )
+        setPicker(false)
+        palette.current?.open(command === 'palette' ? 'commands' : 'files')
+        break
+      }
+      case 'unified':
+      case 'split':
+        setDiffStyle(command)
+        break
+      case 'next-file':
+        show(files[Math.min(index + 1, files.length - 1)]!.path)
+        break
+      case 'previous-file':
+        show(files[Math.max(index - 1, 0)]!.path)
+        break
+      case 'stack':
+        setPicker(true)
+        break
+      case 'layer-below':
+      case 'layer-above': {
+        const next = neighbour(current, command === 'layer-above' ? 1 : -1)
+        if (next !== null) openLayer(next)
+        break
+      }
+      case 'viewed':
+        toggleViewed(active)
+        break
+      case 'comment':
+        if (selection) setComposer(selection)
+        break
+      case 'copy-comments':
+        void copy()
+        break
+    }
+  }
+
+  /** The palette leaves out what would do nothing, and checks what shows a state. */
+  const paletteCommands = (): PaletteCommand[] => {
+    const applies: Partial<Record<CommandName, boolean>> = {
+      'layer-below': neighbour(current, -1) !== null,
+      'layer-above': neighbour(current, 1) !== null,
+      comment: selection !== null,
+      'copy-comments': state.comments.length > 0,
+    }
+    const checked: Partial<Record<CommandName, boolean>> = {
+      unified: diffStyle === 'unified',
+      split: diffStyle === 'split',
+      viewed: state.viewed.has(active),
+    }
+    return COMMANDS.filter(
+      (command) => DEMO_COMMANDS.has(command.name) && (applies[command.name] ?? true),
+    ).map((command) => ({ ...command, checked: checked[command.name] }))
+  }
+
+  const entries: TreeEntry[] = review.files.map((file) => ({
+    id: file.path,
+    path: file.path,
+    additions: file.additions,
+    deletions: file.deletions,
+    binary: false,
+    status: file.before === null ? 'added' : 'modified',
+    viewed: state.viewed.has(file.path),
+    comments: state.comments.filter((comment) => comment.path === file.path).length,
+  }))
+
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.target instanceof HTMLTextAreaElement) return
+    const command =
+      event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey
+        ? ({ k: 'palette', p: 'go-to-file' } as const)[event.key as 'k' | 'p']
+        : event.metaKey || event.ctrlKey || event.altKey
+          ? undefined
+          : KEYS[event.key]
+    if (!command) return
     event.preventDefault()
+    run(command)
   }
 
   return (
     <>
       <div
+        ref={frame}
         className="window demo"
         role="region"
         aria-label="A ghl review to try"
@@ -334,6 +440,13 @@ export default function DiffDemo() {
           ))}
         </pre>
       </div>
+      <CommandPalette
+        handle={palette}
+        files={entries}
+        commands={paletteCommands}
+        onOpenFile={reveal}
+        onRun={run}
+      />
     </>
   )
 }
