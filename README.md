@@ -63,6 +63,8 @@ See the [reviewing guide](https://ghl.vmaerten.fr/guide/reviewing/) for comparis
 | `[` / `]` | Review the stack layer below / above |
 | `r` | Refresh |
 | `Cmd+f` | Search the diff |
+| `Cmd` + hover / click | Symbol info / go to definition (beta, in Settings) |
+| `Cmd+[` | Back from a definition |
 | `Cmd+1` / `Cmd+2` | Unified / split diff |
 | `Cmd+O` / `Cmd+W` | Open a repository / close the review |
 | `Shift+Cmd+C` | Copy all comments |

@@ -3,7 +3,7 @@ import { platform } from 'node:process'
 
 import { launch, type Browser, type Page } from 'puppeteer-core'
 
-import { serveGo } from './goBinary.ts'
+import { fakeLanguageServers, serveGo } from './goBinary.ts'
 import { installDesktopRuntime, serveDesktopUI } from './desktopRuntime.ts'
 import { testBrowserPath } from '../scripts/test-browser.ts'
 
@@ -112,7 +112,8 @@ export async function withHarness<T>(
     browser: Browser,
   ) => Promise<T>,
 ): Promise<T> {
-  const server = await serveGo(repoPath)
+  const servers = fakeLanguageServers()
+  const server = await serveGo(repoPath, [], { GHL_LSP_PATH: servers.path })
   let ui: Awaited<ReturnType<typeof serveDesktopUI>> | undefined
   let browser: Browser | undefined
   try {
@@ -182,6 +183,7 @@ export async function withHarness<T>(
       await ui?.close()
     } finally {
       await server.close()
+      servers.cleanup()
     }
   }
 }

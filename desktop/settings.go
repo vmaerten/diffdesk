@@ -140,7 +140,7 @@ func (d *desktopApp) openSettings() {
 	}
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name: settingsWindow, Title: "Settings", URL: "/settings",
-		Width: 640, Height: 560, DisableResize: true,
+		Width: 640, Height: 660, DisableResize: true,
 		MinimiseButtonState: application.ButtonDisabled,
 		MaximiseButtonState: application.ButtonDisabled,
 		BackgroundType:      application.BackgroundTypeTranslucent,

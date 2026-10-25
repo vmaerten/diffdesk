@@ -247,3 +247,80 @@ export interface RefsPayload {
 export interface CommitsPayload {
   commits: CommitDetail[]
 }
+
+/** A language's server in one checkout, as `GET /r/<id>/api/lsp` reports it. */
+export interface LanguageStatus {
+  id: string
+  label: string
+  extensions: string[]
+  /** For Helm, the charts' templates folders: the language owns no other file. */
+  directories?: string[]
+  choice: string
+  choices: string[]
+  /** The server this checkout would run, or null when none is found. */
+  server: { name: string; path: string; origin: 'checkout' | 'PATH' } | null
+  version?: string
+  state: 'off' | 'missing' | 'idle' | 'starting' | 'indexing' | 'ready' | 'failed'
+  progress?: { title: string; message?: string; percentage?: number }
+  /** How to install a missing server. */
+  install?: string
+  /** Why the server failed, with the end of its stderr. */
+  error?: string
+}
+
+export interface LanguageServersStatus {
+  enabled: boolean
+  languages: LanguageStatus[]
+}
+
+/** A token the diff shows, as the code intelligence routes take it. */
+export interface SymbolQuery {
+  path: string
+  /** From 1, as the diff counts lines. */
+  line: number
+  /** In UTF-16 units, as JavaScript counts them. */
+  character: number
+  token: string
+}
+
+/** A hover's Markdown, cut into signatures and prose. */
+export interface HoverBlock {
+  kind: 'code' | 'text'
+  language?: string
+  text: string
+}
+
+export interface SymbolDefinition {
+  /** Repository-relative when `inRepo`, absolute otherwise. */
+  path: string
+  line: number
+  character: number
+  inRepo: boolean
+  /** The definition's first lines, for one inside the repository. */
+  snippet?: { start: number; lines: string[] }
+}
+
+/** `GET /r/<id>/api/lsp/symbol`. */
+export interface SymbolAnswer {
+  language: string
+  server: string
+  hover: HoverBlock[]
+  definitions: SymbolDefinition[]
+}
+
+export interface SymbolReference {
+  path: string
+  line: number
+  /** The reference's columns, in UTF-16 units. */
+  character: number
+  endCharacter: number
+  text: string
+}
+
+/** `GET /r/<id>/api/lsp/references`: the repository's references, sorted by path and line. */
+export interface ReferencesAnswer {
+  references: SymbolReference[]
+  /** References outside the repository, such as in a module cache. */
+  external: number
+  truncated: boolean
+}

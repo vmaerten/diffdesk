@@ -6,6 +6,7 @@ import {
   type CodeViewDiffItem,
   type CodeViewFileItem,
   type CodeViewItem,
+  type CodeViewOptions,
   type DiffLineAnnotation,
   type LineAnnotation,
   type SelectedLineRange,
@@ -23,6 +24,7 @@ import { searchDiff } from './diffSearch.ts'
 import { treeOrder } from './fileOrder.ts'
 import { commentRange } from './commentRange.ts'
 import type { SavedView } from './savedView.ts'
+import type { TokenHandlers } from './SymbolCard.tsx'
 import type {
   Comment,
   DiffPayload,
@@ -58,7 +60,12 @@ interface ReviewDiffOptions {
   onResolve: (id: string) => void
   onRetry: (comment: ServedComment) => void
   onRevealFile: (path: string) => void
+  /** Hover and ⌘-click on symbols. */
+  tokenHandlers?: TokenHandlers
 }
+
+/** A line to scroll to and select: a comment's, or a definition's. */
+type LineTarget = Pick<ServedComment, 'path' | 'side' | 'start' | 'end'>
 
 /**
  * `CodeViewDiffItem` carries no path; we add one and read it back from our own
@@ -111,13 +118,14 @@ export function useReviewDiff({
   onResolve: resolveComment,
   onRetry: save,
   onRevealFile: revealFile,
+  tokenHandlers,
 }: ReviewDiffOptions) {
   const viewRef = useRef<CodeViewHandle<undefined>>(null)
   const paneRef = useRef<HTMLDivElement>(null)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
   const [revealedPath, setRevealedPath] = useState<string | null>(null)
-  const [commentTarget, setCommentTarget] = useState<ServedComment | null>(null)
+  const [commentTarget, setCommentTarget] = useState<LineTarget | null>(null)
   useEffect(() => {
     setRevealedPath(null)
   }, [viewed, data?.range])
@@ -377,19 +385,31 @@ export function useReviewDiff({
     })
   }, [allItems, data, viewed, commentCounts])
 
-  // Revealing a comment opens the file for reading without clearing its Viewed tick.
-  const canRevealComment = useCallback(
-    (comment: ServedComment) => {
-      const item = allItems.find((entry) => entry.path === comment.path)
+  // A line outside every hunk has nowhere to scroll to: scrollTo would move nothing.
+  const canRevealLine = useCallback(
+    (path: string, side: DiffSide, line: number) => {
+      const item = allItems.find((entry) => entry.path === path)
       if (item?.type !== 'diff') return false
       return item.fileDiff.hunks.some((hunk) => {
-        const start = comment.side === 'additions' ? hunk.additionStart : hunk.deletionStart
-        const count = comment.side === 'additions' ? hunk.additionCount : hunk.deletionCount
-        return comment.end >= start && comment.end < start + count
+        const start = side === 'additions' ? hunk.additionStart : hunk.deletionStart
+        const count = side === 'additions' ? hunk.additionCount : hunk.deletionCount
+        return line >= start && line < start + count
       })
     },
     [allItems],
   )
+  // Revealing a comment opens the file for reading without clearing its Viewed tick.
+  const canRevealComment = useCallback(
+    (comment: ServedComment) => canRevealLine(comment.path, comment.side, comment.end),
+    [canRevealLine],
+  )
+  /** Selects a line of the new side and scrolls to it, as a definition is shown. */
+  const revealLine = useStableCallback((path: string, line: number) => {
+    if (!canRevealLine(path, 'additions', line)) return
+    setSearchOpen(false)
+    setRevealedPath(path)
+    setCommentTarget({ path, side: 'additions', start: line, end: line })
+  })
 
   const revealComment = useStableCallback((comment: ServedComment) => {
     if (!canRevealComment(comment)) return
@@ -675,8 +695,19 @@ export function useReviewDiff({
       onGutterUtilityClick,
       enableLineSelection: true,
       onLineSelectionEnd,
+      // Tokens carry the data-char these need only when the worker pool's token
+      // transformer is on, which DesktopApp sets with code intelligence.
+      ...(tokenHandlers as Partial<CodeViewOptions<undefined>> | undefined),
     }),
-    [diffStyle, syntaxTheme, lineHeight, loadDiffFiles, onGutterUtilityClick, onLineSelectionEnd],
+    [
+      diffStyle,
+      syntaxTheme,
+      lineHeight,
+      loadDiffFiles,
+      onGutterUtilityClick,
+      onLineSelectionEnd,
+      tokenHandlers,
+    ],
   )
 
   /**
@@ -990,6 +1021,8 @@ export function useReviewDiff({
     selectFile: selectByPath,
     revealComment,
     canRevealComment,
+    revealLine,
+    canRevealLine,
     navigate,
     commentSelection,
     openSearch,
