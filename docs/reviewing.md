@@ -32,6 +32,8 @@ Older comments recover their branch from the target in their saved comparison. I
 
 Press `v` or tick a file to mark it Viewed. It folds in place and remains in the tree; clicking its row reveals it again. Changing its displayed diff clears the tick. Viewed is independent across revision ranges, individual commits and whitespace modes, so returning to a scope restores its own ticks.
 
+Right-click a file in the tree or on its header for **Viewed**, **Copy Path** and **Reveal in Finder** on that file; the Review menu does the same for the active file.
+
 Comments and Viewed are stored in `.git/ghl/state.json`, relative to the checkout's Git directory. Linked worktrees have their own state. See the [server guide](../go/README.md#state) for locking, atomic writes and corruption recovery.
 
 ## Bases and stacks
