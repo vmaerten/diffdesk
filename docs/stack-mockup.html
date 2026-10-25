@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ghl — affichage de la stack</title>
+<style>
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+[hidden] { display: none !important; }
+[data-theme="light"] {
+  color-scheme: light;
+  --wallpaper: radial-gradient(at 15% 15%, #9ec5ff, transparent 50%), radial-gradient(at 85% 25%, #ffc3a0, transparent 50%), radial-gradient(at 50% 95%, #b8a6ff, transparent 55%), #dfe6f2;
+  --app-bg: #f8f8f6; --code-bg: #fff; --chrome-bg: #f1f1ef; --sidebar-bg: #ececea;
+  --border: rgb(17 17 17 / .1); --wash: rgb(127 127 127 / .1); --wash-strong: rgb(127 127 127 / .2);
+  --text: #111; --text-2: rgb(17 17 17 / .78); --muted: rgb(17 17 17 / .56);
+  --selection: #cdeaff; --accent: #3d87f5; --accent-ink: #1559c4; --warn: #9a5306; --merged: #7a4fc9;
+  --add: rgb(31 122 68); --del: rgb(184 49 47);
+  --shadow: 0 30px 80px rgb(0 0 0 / .25), 0 0 0 .5px rgb(0 0 0 / .25);
+  --popover-bg: rgb(251 251 250 / .98); --sheet-bg: #f6f6f4; --control-bg: #fff; --control-border: rgb(0 0 0 / .18);
+  --page-text: rgb(17 17 17 / .8);
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --wallpaper: radial-gradient(at 15% 15%, #1d3b73, transparent 50%), radial-gradient(at 85% 25%, #5a2d4f, transparent 50%), radial-gradient(at 50% 95%, #2b2366, transparent 55%), #0d1018;
+  --app-bg: #141414; --code-bg: #1c1c1c; --chrome-bg: #1e1e1e; --sidebar-bg: #232323;
+  --border: rgb(230 230 230 / .1); --wash: rgb(127 127 127 / .14); --wash-strong: rgb(127 127 127 / .26);
+  --text: rgb(235 235 235); --text-2: rgb(230 230 230 / .8); --muted: rgb(230 230 230 / .52);
+  --selection: rgb(61 135 245 / .3); --accent: #3d87f5; --accent-ink: #8cb8ff; --warn: #eb9a3d; --merged: #b694f5;
+  --add: rgb(111 208 148); --del: rgb(238 126 126);
+  --shadow: 0 30px 80px rgb(0 0 0 / .55), 0 0 0 .5px rgb(255 255 255 / .18);
+  --popover-bg: rgb(40 40 40 / .98); --sheet-bg: #262626; --control-bg: rgb(255 255 255 / .1); --control-border: rgb(255 255 255 / .12);
+  --page-text: rgb(255 255 255 / .85);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 72px 16px 32px;
+  background: var(--wallpaper); font: 13px/1.4 var(--font-sans); color: var(--text);
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
+svg { width: 16px; height: 16px; flex: none; }
+.mono { font-family: var(--font-mono); }
+.a { color: var(--add); } .d { color: var(--del); } .dim { color: var(--muted); }
+
+/* Mockup-only controls, outside the window */
+.mock-controls {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 32px); overflow-x: auto;
+  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 12px; white-space: nowrap;
+  background: var(--popover-bg); border: 1px solid var(--border); box-shadow: 0 8px 24px rgb(0 0 0 / .2);
+  font: 600 12px var(--font-sans); color: var(--text-2);
+}
+.mock-controls > span { padding: 0 8px; color: var(--muted); }
+.mock-controls .sep { width: 1px; height: 16px; padding: 0; background: var(--border); margin: 0 4px; }
+.mock-controls button { height: 26px; padding: 0 10px; border-radius: 8px; }
+.mock-controls button:hover { background: var(--wash); }
+.mock-controls button[aria-pressed="true"] { background: var(--wash-strong); color: var(--text); }
+.caption { width: min(1200px, 100%); margin: 0; color: var(--page-text); font-size: 13px; line-height: 1.55; }
+.caption kbd { color: var(--text); }
+
+/* Window */
+.window {
+  position: relative; flex: none; width: min(1200px, 100%); height: 600px; border-radius: 12px; overflow: hidden;
+  box-shadow: var(--shadow); background: var(--app-bg); user-select: none; -webkit-user-select: none; cursor: default;
+  display: grid; grid-template-columns: 248px minmax(0, 1fr); grid-template-rows: 40px minmax(0, 1fr);
+}
+.titlebar {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; padding: 0 10px 0 14px;
+  background: var(--chrome-bg); border-bottom: 1px solid var(--border);
+}
+.lights { display: flex; gap: 8px; margin-right: 10px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .2); }
+.lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.icon-btn { width: 28px; height: 28px; border-radius: 8px; display: inline-grid; place-items: center; color: var(--muted); }
+.icon-btn:hover { background: var(--wash); color: var(--text-2); }
+.repo { font: 600 12px var(--font-mono); color: var(--text-2); padding: 0 6px; white-space: nowrap; }
+.repo span { color: var(--muted); }
+.compare {
+  flex: none; margin: 0 auto; display: flex; align-items: center; gap: 2px; height: 30px; padding: 2px;
+  border-radius: 15px; background: rgb(127 127 127 / .08); border: 1px solid rgb(127 127 127 / .16);
+}
+.compare > button { height: 24px; padding: 0 9px; border-radius: 12px; display: flex; align-items: center; gap: 5px; font: 600 12px/1 var(--font-mono); color: var(--text-2); white-space: nowrap; }
+.compare > button:hover { background: var(--wash); }
+.compare .arrow { color: var(--muted); font-size: 12px; }
+.compare .sep { width: 1px; height: 14px; background: var(--border); margin: 0 3px; }
+.compare .commit { font-family: var(--font-sans); color: var(--muted); }
+.compare .stack-chip { color: var(--accent-ink); background: rgb(61 135 245 / .12); }
+.stack-chip svg { width: 14px; height: 14px; }
+.stack-chip .caret { width: 11px; height: 11px; }
+.actions { flex: none; display: flex; align-items: center; gap: 4px; }
+.count { font: 700 10px/1 var(--font-mono); background: rgb(127 127 127 / .2); color: var(--text-2); border-radius: 999px; padding: 3px 5px; }
+
+/* Sidebar */
+.side { display: flex; flex-direction: column; min-height: 0; background: var(--sidebar-bg); border-right: 1px solid var(--border); --surface: var(--sidebar-bg); }
+.side-head { display: flex; align-items: center; gap: 6px; padding: 12px 10px 6px 14px; font: 700 10.5px/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.side-head .spacer { flex: 1; }
+.side-head .chev { width: 12px; height: 12px; }
+.prefix { font: 600 11px var(--font-mono); text-transform: none; letter-spacing: 0; }
+.section-sep { height: 1px; background: var(--border); margin: 10px 14px 0; }
+.tree { padding: 0 6px; }
+.row { display: flex; align-items: center; gap: 6px; height: 24px; border-radius: 6px; white-space: nowrap; padding: 0 8px 0 calc(8px + var(--d, 0) * 14px); color: var(--text-2); }
+.row.sel { background: var(--selection); color: var(--text); }
+.row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.row .st { font: 600 11px var(--font-mono); width: 10px; text-align: center; }
+.st.A { color: var(--add); } .st.M { color: var(--warn); }
+
+/* Diff */
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.diff { flex: 1; min-height: 0; overflow: hidden; padding: 12px; }
+.card { background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.card-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-bottom: 1px solid var(--border); font: 600 12px var(--font-mono); }
+.card-head .path span { color: var(--muted); }
+.card-head .stats { margin-left: auto; }
+.ln { display: grid; grid-template-columns: 44px 18px 1fr; font: 12px/20px var(--font-mono); color: var(--text-2); white-space: pre; }
+.ln i { font-style: normal; color: var(--muted); text-align: right; padding-right: 10px; }
+.ln b { font-weight: 400; color: var(--muted); }
+.ln.add { background: rgb(31 122 68 / .09); } .ln.add b { color: var(--add); }
+.ln.del { background: rgb(184 49 47 / .08); } .ln.del b { color: var(--del); }
+
+/* Status bar */
+.footer { display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.footer .next { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.footer .next b { font: 600 12px var(--font-mono); color: var(--text-2); }
+kbd { font: 600 10.5px/1 var(--font-mono); padding: 2px 5px; border-radius: 4px; background: var(--wash-strong); color: var(--text-2); }
+
+/* Popovers */
+.popover {
+  position: absolute; z-index: 10; padding: 6px; border-radius: 12px; background: var(--popover-bg); --surface: var(--popover-bg);
+  border: 1px solid var(--border); box-shadow: 0 16px 40px -12px rgb(0 0 0 / .4), 0 4px 12px -6px rgb(0 0 0 / .25);
+}
+.pop-label { display: flex; align-items: center; gap: 6px; padding: 6px 8px; font: 700 10.5px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.pop-foot { padding: 8px 8px 4px; margin-top: 4px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--muted); }
+.badge { font: 600 10px/1 var(--font-sans); padding: 3px 6px; border-radius: 999px; letter-spacing: .02em; white-space: nowrap; }
+.badge.merged { color: var(--merged); background: rgb(122 79 201 / .14); }
+.badge.pruned { color: var(--muted); background: var(--wash); }
+.badge.reviewing { color: var(--accent-ink); background: rgb(61 135 245 / .15); }
+.pr { font: 600 11.5px var(--font-mono); color: var(--muted); }
+
+/* The rail shared by A, B, D and E: top layer first, the trunk last */
+.stk {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto; align-items: center; gap: 8px;
+  width: 100%; height: var(--row, 28px); padding: 0 8px 0 4px; border-radius: 7px; text-align: left;
+  font: 600 12px var(--font-mono); color: var(--text-2);
+}
+button.stk:hover:not(:disabled) { background: var(--wash); }
+.stk.cur { background: var(--selection); color: var(--text); }
+.stk.gone .nm { text-decoration: line-through; color: var(--muted); }
+.stk.trunk { color: var(--muted); }
+.stk .nm { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; white-space: nowrap; }
+.rail { position: relative; align-self: stretch; display: grid; place-items: center; }
+.rail::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; margin-left: -.75px; background: var(--wash-strong); }
+.first .rail::before { top: 50%; } .last .rail::before { bottom: 50%; }
+.node { position: relative; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--muted); background: var(--surface); }
+.cur .node { width: 11px; height: 11px; border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 3px rgb(61 135 245 / .22); }
+.merged-n .node { border-color: var(--merged); background: var(--merged); }
+.trunk .node { border-radius: 2px; }
+#side-stack .stk { --row: 24px; gap: 6px; padding-right: 8px; }
+
+/* C: breadcrumb band */
+.band { display: flex; align-items: center; gap: 4px; height: 36px; padding: 0 10px 0 14px; border-bottom: 1px solid var(--border); background: var(--chrome-bg); white-space: nowrap; overflow: hidden; }
+.band .lbl { display: flex; align-items: center; gap: 6px; margin-right: 4px; color: var(--muted); font: 600 12px var(--font-mono); }
+.band .lbl svg { width: 14px; height: 14px; }
+.chip { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 7px; font: 600 12px var(--font-mono); color: var(--text-2); }
+.chip:hover:not(:disabled) { background: var(--wash); }
+.chip.cur { background: rgb(61 135 245 / .13); color: var(--accent-ink); box-shadow: inset 0 0 0 1px rgb(61 135 245 / .45); }
+.chip.base { box-shadow: inset 0 0 0 1px var(--wash-strong); }
+.chip.merged { color: var(--merged); }
+.chip.gone { color: var(--muted); }
+.chip .pr { font-size: 11px; }
+.chip.cur .pr { color: var(--accent-ink); }
+.chip .tag { font: 600 9.5px var(--font-sans); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.crumbs { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }
+.crumb { color: var(--muted); font-size: 12px; }
+.band .nav { flex: none; margin-left: auto; display: flex; gap: 2px; }
+.band .nav .icon-btn { width: 26px; height: 26px; }
+
+/* D: condensed status bar */
+.sw { display: flex; align-items: center; gap: 2px; height: 24px; padding: 0 4px; border-radius: 7px; background: var(--wash); }
+.sw .icon-btn { width: 20px; height: 20px; border-radius: 5px; }
+.sw .icon-btn svg { width: 12px; height: 12px; }
+.sw-name { display: flex; align-items: center; gap: 6px; height: 20px; padding: 0 6px; border-radius: 5px; font: 600 12px var(--font-mono); color: var(--text); }
+.sw-name:hover { background: var(--wash); }
+.dots { display: flex; align-items: center; gap: 4px; padding: 0 6px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--wash-strong); }
+.dot.merged { background: var(--merged); opacity: .75; }
+.dot.pruned { background: none; box-shadow: inset 0 0 0 1.2px var(--muted); }
+.dot.cur { width: 8px; height: 8px; background: var(--accent); }
+
+/* E: overview sheet */
+.scrim { position: absolute; inset: 40px 0 0 0; background: rgb(0 0 0 / .18); }
+.sheet {
+  position: absolute; top: 40px; left: 50%; width: min(820px, calc(100% - 32px)); transform: translateX(-50%); z-index: 10;
+  padding: 18px 20px 16px; border: 1px solid var(--border); border-top: 0; border-radius: 0 0 12px 12px;
+  background: var(--sheet-bg); box-shadow: 0 24px 60px -16px rgb(0 0 0 / .45);
+}
+.sh-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.sh-head h2 { margin: 0; font: 600 15px var(--font-sans); }
+.sh-head .sum { margin-left: auto; font-size: 12px; color: var(--muted); }
+.tbl { padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--code-bg); --surface: var(--code-bg); overflow-x: auto; }
+.tbl .hd, .tbl .stk { grid-template-columns: 18px minmax(160px, 1fr) 52px 44px 104px 124px 44px 76px; gap: 10px; min-width: 700px; }
+.tbl .hd { display: grid; align-items: center; height: 26px; padding: 0 8px 0 4px; font: 700 10px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tbl .stk { --row: 36px; }
+.num { font: 600 11.5px var(--font-mono); color: var(--muted); }
+.prog { display: flex; align-items: center; gap: 8px; font: 600 11px var(--font-mono); color: var(--muted); }
+.bar { flex: 1; height: 4px; border-radius: 2px; background: var(--wash); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 2px; background: var(--add); }
+.btn { height: 26px; padding: 0 12px; border-radius: 7px; font: 500 13px var(--font-sans); background: var(--control-bg); color: var(--text); box-shadow: 0 0 0 .5px var(--control-border), 0 1px 1px rgb(0 0 0 / .06); }
+.btn.small { height: 24px; padding: 0 10px; font-size: 12px; }
+.btn.primary { background: var(--accent); color: #fff; box-shadow: none; }
+.sh-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.sh-foot .hint { flex: 1; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sidebar" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></symbol>
+  <symbol id="i-stack" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M8 2 14 5 8 8 2 5Z"/><path d="m2 8 6 3 6-3"/><path d="m2 11 6 3 6-3"/></symbol>
+  <symbol id="i-caret" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m4.5 6 3.5 3.5L11.5 6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 3.5 5.5 8l4.5 4.5"/></symbol>
+  <symbol id="i-right" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3.5 10.5 8 6 12.5"/></symbol>
+  <symbol id="i-comment" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/></symbol>
+</svg>
+
+<div class="mock-controls" role="toolbar" aria-label="Maquette">
+  <span>Stack</span>
+  <button data-pick="A">A · Capsule</button>
+  <button data-pick="B">B · Sidebar</button>
+  <button data-pick="C">C · Fil d'Ariane</button>
+  <button data-pick="D">D · Barre d'état</button>
+  <button data-pick="E">E · Vue d'ensemble</button>
+  <span class="sep"></span>
+  <button data-theme-pick="light">Clair</button>
+  <button data-theme-pick="dark">Sombre</button>
+</div>
+
+<div class="window" id="win" lang="en">
+  <header class="titlebar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <button class="icon-btn" aria-label="Toggle sidebar"><svg><use href="#i-sidebar"/></svg></button>
+    <div class="repo"><span>~/dev/perso/</span>github-like</div>
+    <div class="compare">
+      <button class="stack-chip" id="chip" data-show="A E" title="Choose a stack layer (s)"><svg><use href="#i-stack"/></svg><span id="chip-pos"></span><svg class="caret"><use href="#i-caret"/></svg></button>
+      <span class="sep" data-show="A E"></span>
+      <button id="cap-base"></button><span class="arrow">→</span><button id="cap-target"></button>
+      <span class="sep"></span>
+      <button class="commit">All commits</button>
+    </div>
+    <div class="actions">
+      <span class="count">3</span>
+      <button class="icon-btn" aria-label="Comments"><svg><use href="#i-comment"/></svg></button>
+    </div>
+  </header>
+
+  <aside class="side">
+    <section data-show="B" aria-label="Stack">
+      <div class="side-head"><svg class="chev"><use href="#i-caret"/></svg>Stack <span class="prefix" data-prefix></span><span class="spacer"></span><span class="prefix" id="side-pos"></span></div>
+      <div class="tree" id="side-stack"></div>
+      <div class="section-sep"></div>
+    </section>
+    <div class="side-head"><svg class="chev"><use href="#i-caret"/></svg>Changes <span class="count">4</span></div>
+    <div class="tree">
+      <div class="row"><span class="name">web/src</span></div>
+      <div class="row sel" style="--d:1"><span class="st M">M</span><span class="name">DesktopToolbar.tsx</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">DesktopApp.tsx</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">desktop.css</span></div>
+      <div class="row"><span class="st A">A</span><span class="name">desktop/titlebar.go</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <nav class="band" id="band" data-show="C" aria-label="Stack"></nav>
+    <div class="diff">
+      <section class="card">
+        <div class="card-head"><span class="path"><span>web/src/</span>DesktopToolbar.tsx</span><span class="stats"><span class="a">+48</span> <span class="d">−12</span></span></div>
+        <div class="ln"><i>12</i><b> </b>export default function DesktopToolbar({ tabs, onNewTab }: Props) {</div>
+        <div class="ln del"><i>13</i><b>−</b>  return &lt;header className="toolbar"&gt;</div>
+        <div class="ln add"><i>13</i><b>+</b>  return (</div>
+        <div class="ln add"><i>14</i><b>+</b>    &lt;header className="titlebar" data-wails-drag&gt;</div>
+        <div class="ln add"><i>15</i><b>+</b>      &lt;TrafficLightsInset /&gt;</div>
+        <div class="ln"><i>16</i><b> </b>      &lt;Tabs tabs={tabs} onNew={onNewTab} /&gt;</div>
+        <div class="ln"><i>17</i><b> </b>    &lt;/header&gt;</div>
+      </section>
+    </div>
+    <footer class="footer">
+      <span>base from the stack</span><span>working tree included</span>
+      <span class="sw" id="sw" data-show="D">
+        <button class="icon-btn" data-step="-1" aria-label="Layer below ([)"><svg><use href="#i-left"/></svg></button>
+        <button class="sw-name" id="sw-name"></button>
+        <button class="icon-btn" data-step="1" aria-label="Layer above (])"><svg><use href="#i-right"/></svg></button>
+        <span class="dots" id="dots"></span>
+      </span>
+      <span class="next">Next <b>DesktopApp.tsx</b> <kbd>j</kbd></span>
+    </footer>
+  </main>
+
+  <div class="popover" id="pop-a" data-show="A" data-open style="top:38px;width:340px">
+    <div class="pop-label">Stack <span class="prefix" data-prefix></span></div>
+    <div id="pop-a-list"></div>
+    <div class="pop-foot"><kbd>[</kbd> <kbd>]</kbd> layer below / above · <kbd>esc</kbd> close</div>
+  </div>
+  <div class="popover" id="pop-d" data-show="D" data-open style="bottom:38px;width:300px">
+    <div class="pop-label">Stack <span class="prefix" data-prefix></span></div>
+    <div id="pop-d-list"></div>
+  </div>
+  <div class="scrim" data-show="E" data-open></div>
+  <section class="sheet" data-show="E" data-open aria-label="Stack overview">
+    <div class="sh-head"><h2>Stack <span class="prefix dim" data-prefix></span></h2><span class="dim" id="sheet-layers"></span><span class="sum" id="sheet-sum"></span></div>
+    <div class="tbl">
+      <div class="hd"><span></span><span>Layer</span><span>PR</span><span>Files</span><span>Lines</span><span>Viewed</span><span>Notes</span><span></span></div>
+      <div id="sheet-list"></div>
+    </div>
+    <div class="sh-foot"><span class="hint"><kbd>[</kbd> <kbd>]</kbd> move through the stack without opening this sheet</span><button class="btn">Copy stack comments</button><button class="btn primary" id="done">Done</button></div>
+  </section>
+</div>
+
+<p class="caption" id="caption"></p>
+
+<script>
+const $ = (id) => document.getElementById(id)
+const win = $('win')
+const TRUNK = 'main'
+const PREFIX = 'desktop-ui/'
+// Bottom first, as gh stack records them. The counts only feed E.
+const LAYERS = [
+  { name: '01-review-chrome', pr: 155, merged: true, exists: false },
+  { name: '02-tokens', pr: 156, merged: true, exists: true },
+  { name: '03-settings', pr: 157, exists: true, files: 7, add: 412, del: 20, viewed: 7, notes: 2 },
+  { name: '04-titlebar', pr: 158, exists: true, files: 4, add: 96, del: 30, viewed: 3, notes: 3 },
+  { name: '05-sidebar', pr: 159, exists: true, files: 6, add: 204, del: 61, viewed: 2, notes: 1 },
+  { name: '06-cards', pr: 160, exists: true, files: 9, add: 310, del: 88, viewed: 0, notes: 0 },
+]
+const CAPTIONS = {
+  A: `<b>A · Capsule</b> — en place depuis #202. La puce <span class="mono">4/6</span> ouvre la stack sous la cible ; rien n'occupe l'écran tant qu'on ne l'ouvre pas.`,
+  B: `<b>B · Sidebar</b> — une section repliable au-dessus des fichiers : la stack reste visible, au prix de la hauteur de la liste.`,
+  C: `<b>C · Fil d'Ariane</b> — une bande au-dessus du diff, de <span class="mono">main</span> à la couche du haut : base et cible se lisent d'un coup d'œil, mais la bande déborde vite et prend 36 px au diff.`,
+  D: `<b>D · Barre d'état</b> — l'ancienne navigation de la barre d'état, resserrée : couche courante, flèches et un point par couche ; la liste s'ouvre vers le haut.`,
+  E: `<b>E · Vue d'ensemble</b> — une feuille pour suivre la review de toute la stack : fichiers, lignes, Viewed et commentaires par couche. Demande des statistiques par couche côté serveur.`,
+}
+const COMMON = ` Cliquer une couche ou presser <kbd>[</kbd> / <kbd>]</kbd> change la couche revue ; la base suit et saute les couches mergées. <kbd>s</kbd> ouvre ou ferme la liste.`
+
+const fromHash = location.hash.slice(1)
+let pick = /^[A-E]$/.test(fromHash) ? fromHash : 'A'
+let cur = 3
+let open = true
+
+const live = (l) => l.exists && !l.merged
+// The nearest live layer below, or -1 for the trunk.
+function baseOf(i) {
+  for (let j = i - 1; j >= 0; j--) if (live(LAYERS[j])) return j
+  return -1
+}
+const short = (i) => (i < 0 ? TRUNK : LAYERS[i].name)
+const full = (i) => (i < 0 ? TRUNK : PREFIX + LAYERS[i].name)
+const fate = (l) => (!l.exists ? 'pruned' : l.merged ? 'merged' : null)
+const badge = (s) => (s ? `<span class="badge ${s}">${s}</span>` : '<span></span>')
+const pr = (l) => `<span class="pr">#${l.pr}</span>`
+
+// One row per layer, top first, then the trunk.
+function rail(cells, { rows = 'button', trunk = '' } = {}) {
+  const html = LAYERS.map((l, i) => {
+    const cls = ['stk', i === LAYERS.length - 1 && 'first', i === cur && 'cur', l.merged && 'merged-n', !l.exists && 'gone']
+    const attrs = rows === 'button' ? ` data-layer="${i}"${l.exists ? '' : ' disabled'}` : ''
+    return `<${rows} class="${cls.filter(Boolean).join(' ')}"${attrs}${i === cur ? ' aria-current="true"' : ''}><span class="rail"><span class="node"></span></span>${cells(l, i)}</${rows}>`
+  }).reverse()
+  html.push(`<div class="stk trunk last"><span class="rail"><span class="node"></span></span><span class="nm">${TRUNK}</span>${trunk}</div>`)
+  return html.join('')
+}
+
+const popoverCells = (l, i) => `<span class="nm">${l.name}</span>${pr(l)}${badge(i === cur ? 'reviewing' : fate(l))}`
+const compactCells = (l) => `<span class="nm">${l.name}</span>${fate(l) ? badge(fate(l)) : pr(l)}`
+function sheetCells(l, i) {
+  const stats = live(l)
+    ? `<span class="num">${l.files}</span><span class="num"><span class="a">+${l.add}</span> <span class="d">−${l.del}</span></span>` +
+      `<span class="prog"><span class="bar"><i style="width:${(100 * l.viewed) / l.files}%"></i></span>${l.viewed}/${l.files}</span>` +
+      `<span class="num">${l.notes || '—'}</span>`
+    : '<span class="num">—</span>'.repeat(4)
+  const action = l.exists && i !== cur ? `<button class="btn small" data-layer="${i}">Review</button>` : '<span></span>'
+  const s = i === cur ? 'reviewing' : fate(l)
+  return `<span class="nm">${l.name}${s ? badge(s) : ''}</span>${pr(l)}${stats}${action}`
+}
+
+function band() {
+  const base = baseOf(cur)
+  const tag = (i) => (i === base ? ' <span class="tag">base</span>' : '')
+  const chip = (i) => {
+    if (i < 0) return `<button class="chip${base < 0 ? ' base' : ''}" disabled>${TRUNK}${tag(i)}</button>`
+    const l = LAYERS[i]
+    if (!l.exists) return `<button class="chip gone" disabled title="${PREFIX}${l.name}, merged and pruned">…</button>`
+    const cls = ['chip', i === cur && 'cur', i === base && 'base', l.merged && 'merged'].filter(Boolean).join(' ')
+    return `<button class="${cls}" data-layer="${i}" title="#${l.pr}"${i === cur ? ' aria-current="true"' : ''}>${l.name}${i === cur ? ` ${pr(l)}` : ''}${tag(i)}</button>`
+  }
+  const chips = [-1, ...LAYERS.keys()].map(chip).join('<span class="crumb">›</span>')
+  return `<span class="lbl"><svg><use href="#i-stack"/></svg>${PREFIX}</span><span class="crumbs">${chips}</span>` +
+    `<span class="nav"><button class="icon-btn" data-step="-1" aria-label="Layer below ([)"><svg><use href="#i-left"/></svg></button>` +
+    `<button class="icon-btn" data-step="1" aria-label="Layer above (])"><svg><use href="#i-right"/></svg></button></span>`
+}
+
+function render() {
+  const base = baseOf(cur)
+  const shortNames = pick === 'A' || pick === 'E'
+  $('cap-base').textContent = shortNames ? short(base) : full(base)
+  $('cap-target').textContent = shortNames ? short(cur) : full(cur)
+  $('chip-pos').textContent = $('side-pos').textContent = `${cur + 1}/${LAYERS.length}`
+  for (const el of document.querySelectorAll('[data-prefix]')) el.textContent = PREFIX
+
+  $('pop-a-list').innerHTML = rail(popoverCells, { trunk: '<span></span><span class="dim">trunk</span>' })
+  $('side-stack').innerHTML = rail(compactCells)
+  $('pop-d-list').innerHTML = rail(compactCells)
+  $('sheet-list').innerHTML = rail(sheetCells, { rows: 'div', trunk: '<span></span>'.repeat(6) })
+  $('band').innerHTML = band()
+  $('sw-name').innerHTML = `${LAYERS[cur].name} ${pr(LAYERS[cur])}`
+  $('dots').innerHTML = LAYERS.map((l, i) => `<i class="dot ${i === cur ? 'cur' : fate(l) ?? ''}"></i>`).join('')
+
+  const lv = LAYERS.filter(live)
+  const sum = (key) => lv.reduce((n, l) => n + l[key], 0)
+  $('sheet-layers').innerHTML = `${LAYERS.length} layers on <span class="mono">${TRUNK}</span>`
+  $('sheet-sum').textContent = `${sum('viewed')} of ${sum('files')} files viewed · ${sum('notes')} comments`
+
+  for (const el of win.querySelectorAll('[data-show]'))
+    el.hidden = !el.dataset.show.split(' ').includes(pick) || ('open' in el.dataset && !open)
+  for (const b of document.querySelectorAll('[data-pick]')) b.setAttribute('aria-pressed', b.dataset.pick === pick)
+  $('caption').innerHTML = CAPTIONS[pick] + COMMON
+  anchor()
+}
+
+// Popovers hang from what opens them: the capsule's chip for A, the status bar for D.
+function anchor() {
+  const box = win.getBoundingClientRect()
+  const left = (el, width) => `${Math.max(8, Math.min(el.getBoundingClientRect().left - box.left, box.width - width - 8))}px`
+  $('pop-a').style.left = left($('chip'), 340)
+  $('pop-d').style.left = left($('sw'), 300)
+}
+
+function step(dir) {
+  for (let i = cur + dir; i >= 0 && i < LAYERS.length; i += dir)
+    if (LAYERS[i].exists) return void (cur = i)
+}
+
+function theme(mode) {
+  document.documentElement.dataset.theme = mode
+  for (const b of document.querySelectorAll('[data-theme-pick]')) b.setAttribute('aria-pressed', b.dataset.themePick === mode)
+}
+
+document.addEventListener('click', (event) => {
+  const b = event.target.closest('button')
+  if (!b) return
+  if (b.dataset.pick) {
+    pick = b.dataset.pick
+    open = true
+    history.replaceState(null, '', `#${pick}`)
+  } else if (b.dataset.themePick) theme(b.dataset.themePick)
+  else if (b.dataset.layer) cur = Number(b.dataset.layer)
+  else if (b.dataset.step) step(Number(b.dataset.step))
+  else if (b.id === 'chip' || b.id === 'sw-name') open = !open
+  else if (b.id === 'done') open = false
+  else return
+  render()
+})
+
+// No Option filter: on an AZERTY Mac, [ and ] are typed with Option.
+document.addEventListener('keydown', (event) => {
+  if (event.metaKey || event.ctrlKey) return
+  if (event.key === '[') step(-1)
+  else if (event.key === ']') step(1)
+  else if (event.key === 's') open = !open
+  else if (event.key === 'Escape') open = false
+  else return
+  render()
+})
+
+addEventListener('resize', anchor)
+theme(matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+render()
+</script>
+</body>
+</html>
