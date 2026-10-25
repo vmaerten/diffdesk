@@ -36,8 +36,9 @@ tasks:
       BUILD_VERSION: '{{.BUILD_VERSION | default .LOCAL_BUILD_VERSION}}'
       BUILD_COMMIT: '{{.BUILD_COMMIT | default .LOCAL_BUILD_COMMIT}}'
       BUILD_DATE: '{{.BUILD_DATE | default .LOCAL_BUILD_DATE}}'
+      # Wails links with -mmacosx-version-min=10.13 itself; the last flag sets macOS 13.
       LDFLAGS: >-
-        -s -w
+        -s -w -extldflags=-mmacosx-version-min=13.0
         -X github.com/vmaerten/ghl/internal/app.version={{.BUILD_VERSION}}
         -X github.com/vmaerten/ghl/internal/app.commit={{.BUILD_COMMIT}}
         -X github.com/vmaerten/ghl/internal/app.buildDate={{.BUILD_DATE}}

@@ -1,6 +1,6 @@
 # The ghl app
 
-ghl opens the Go review server and the React interface in one reusable native window. It is built with Wails v2 for macOS 13 or later on Apple Silicon.
+ghl opens the Go review server and the React interface in one reusable native window. It is built with Wails v3, pinned to v3.0.0-beta.34, for macOS 13 or later on Apple Silicon.
 
 ## Run
 
@@ -31,7 +31,7 @@ Installation creates a symlink in `~/.local/bin` pointing to the local bundle; t
 
 `ghl comments` and `ghl --version` answer in the terminal and never reach the window. Any other invocation delivers its review to the running app, or starts the app first, and returns once the app has queued it.
 
-The application menu supplies **File → Open repository** (`Cmd+O`), **File → Settings…** (`Cmd+,`), native Edit commands, close tab (`Cmd+W`), reload (`Cmd+R`) and quit (`Cmd+Q`). Settings sits under File because Wails v2 builds the application menu itself. Closing the window quits the app.
+The application menu supplies **File → Open repository** (`Cmd+O`), **File → Settings…** (`Cmd+,`), native Edit commands, close tab (`Cmd+W`), reload (`Cmd+R`) and quit (`Cmd+Q`). Settings sits under File. Closing the window quits the app.
 
 The app uses its own neutral light and dark palettes. Settings chooses the appearance (System follows macOS, or Light or Dark), one syntax theme for each mode, and the code font and size. Changes apply immediately and persist in `~/Library/Application Support/ghl/settings.json`; settings saved by the earlier `ghl Desktop` app are read until the first change. A font that is not installed falls back to SF Mono, and Settings says so. Git and macOS system WebKit are the runtime requirements; a copied bundle needs no Node, pnpm, Task or Go.
 
@@ -49,9 +49,9 @@ The React interface keeps its files/tree, unified/split diffs, context expansion
 
 One Go process owns the native window and the [review server](../go/README.md). It binds a private ephemeral loopback port and stops on window close, quit or a termination signal. Reopening another repository registers it in that same runtime; there is no companion executable or separate server process. A bad repository/ref reports an error while keeping the current review. Selection failures occur in the window after the launcher has returned.
 
-The Wails module depends on the review server's Go module through a local module replacement. Its dependencies stay in the desktop module; the server module keeps its standard-library-only dependency set. The Wails asset handler forwards requests to the owned runtime, translating only the private document origin. The public runtime Host/Origin checks remain intact.
+The Wails module depends on the review server's Go module through a local module replacement. Its dependencies stay in the desktop module; the server module keeps its standard-library-only dependency set. The asset handler serves each page with `native.js`, which builds the interface the page expects from Wails' own runtime script, and forwards the rest to the owned runtime, translating only the private `wails://localhost` origin. The public runtime Host/Origin checks remain intact, and accept only `http` and `https` origins.
 
-One app runs per user. It holds a lock file and listens on a Unix socket beside it, in the per-user temporary directory, before its backend or window starts. The launcher resolves relative paths from the terminal, sends the canonical request over that socket and waits for the app to queue it. With no app listening, it starts one through LaunchServices, which gives the window its Dock identity, and delivers once it listens; launchers that start apps at the same time all deliver to the one that wins the lock. Wails' own single-instance lock is not used: it listens only after the app has finished launching, and dropped requests sent in between. Requests from the socket are untrusted input, parsed with the same small argument surface. Review URLs end in `/` so Wails injects its native runtime after a page reload. Tab navigation changes history and remounts the active review within the same native document. A late remembered-base write from an unmounted review cannot replace the next tab's URL. Revision numbers on native tab snapshots reject old replies.
+One app runs per user. It holds a lock file and listens on a Unix socket beside it, in the per-user temporary directory, before its backend or window starts. The launcher resolves relative paths from the terminal, sends the canonical request over that socket and waits for the app to queue it. With no app listening, it starts one through LaunchServices, which gives the window its Dock identity, and delivers once it listens; launchers that start apps at the same time all deliver to the one that wins the lock. Wails' own single-instance lock is not used: it listens only after the app has finished launching, and dropped requests sent in between. Requests from the socket are untrusted input, parsed with the same small argument surface. The asset handler adds the native runtime to every review page, so it survives a reload. Tab navigation changes history and remounts the active review within the same native document. A late remembered-base write from an unmounted review cannot replace the next tab's URL. Revision numbers on native tab snapshots reject old replies.
 
 ## Validation and limitations
 

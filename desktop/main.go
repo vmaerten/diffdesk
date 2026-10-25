@@ -16,13 +16,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/menu"
-	"github.com/wailsapp/wails/v2/pkg/menu/keys"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/mac"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 //go:embed all:assets
@@ -161,93 +156,96 @@ func run() error {
 	desktop := &desktopApp{backend: backend, requests: requests, settings: settings}
 	// Tabs are off for now; GHL_DESKTOP_TABS=1 keeps them for the smoke tests.
 	desktop.tabs.single = os.Getenv("GHL_DESKTOP_TABS") != "1"
-	// Every menu item reaches the page as one named command: the shell takes the
-	// window's, the mounted review the rest. Single-letter shortcuts stay in the
-	// page, since a key without a modifier would also capture typing.
-	command := func(name string) func(*menu.CallbackData) {
-		return func(*menu.CallbackData) {
-			runtime.WindowExecJS(desktop.runtimeContext(),
-				fmt.Sprintf("window.dispatchEvent(new CustomEvent('desktop:command', {detail: %q}))", name))
-		}
+	handler, err := desktopAssets(assets, backend.handler())
+	if err != nil {
+		return err
 	}
-	optionCmd := func(key string) *keys.Accelerator {
-		return keys.Combo(key, keys.OptionOrAltKey, keys.CmdOrCtrlKey)
-	}
-	appMenu := menu.NewMenu()
-	appMenu.Append(menu.AppMenu())
-	fileMenu := appMenu.AddSubmenu("File")
-	fileMenu.AddText("Open Repository…", keys.CmdOrCtrl("o"), func(*menu.CallbackData) { desktop.chooseRepository() })
-	fileMenu.AddText("Close Review", keys.CmdOrCtrl("w"), command("close-tab"))
-	// Wails v2 builds the application menu itself, leaving no room for Settings there.
-	fileMenu.AddSeparator()
-	fileMenu.AddText("Settings…", keys.CmdOrCtrl(","), command("settings"))
-	appMenu.Append(menu.EditMenu())
-	viewMenu := appMenu.AddSubmenu("View")
-	viewMenu.AddText("Toggle Sidebar", keys.Combo("s", keys.ControlKey, keys.CmdOrCtrlKey), command("sidebar"))
-	viewMenu.AddText("Reload", keys.CmdOrCtrl("r"), command("reload"))
-	viewMenu.AddSeparator()
-	viewMenu.AddText("Unified", keys.CmdOrCtrl("1"), command("unified"))
-	viewMenu.AddText("Split", keys.CmdOrCtrl("2"), command("split"))
-	viewMenu.AddSeparator()
-	viewMenu.AddText("Include Working Tree", nil, command("working-tree"))
-	viewMenu.AddText("Include Untracked Files", nil, command("untracked"))
-	viewMenu.AddText("Ignore Whitespace", optionCmd("w"), command("whitespace"))
-	viewMenu.AddSeparator()
-	viewMenu.AddText("Comments", optionCmd("0"), command("comments"))
-	goMenu := appMenu.AddSubmenu("Go")
-	goMenu.AddText("Next File", nil, command("next-file"))
-	goMenu.AddText("Previous File", nil, command("previous-file"))
-	goMenu.AddSeparator()
-	goMenu.AddText("Choose Base…", nil, command("base"))
-	goMenu.AddText("Choose Target…", nil, command("target"))
-	goMenu.AddText("Choose Commit…", nil, command("commit"))
-	goMenu.AddSeparator()
-	goMenu.AddText("Choose Stack Layer…", nil, command("stack"))
-	goMenu.AddText("Layer Below", nil, command("layer-below"))
-	goMenu.AddText("Layer Above", nil, command("layer-above"))
-	reviewMenu := appMenu.AddSubmenu("Review")
-	reviewMenu.AddText("Mark as Viewed", nil, command("viewed"))
-	reviewMenu.AddText("Comment on Selection", nil, command("comment"))
-	reviewMenu.AddSeparator()
-	reviewMenu.AddText("Copy File Path", nil, command("copy-path"))
-	reviewMenu.AddText("Reveal in Finder", nil, command("reveal"))
-	reviewMenu.AddText("Reset Viewed", nil, command("reset-viewed"))
-	reviewMenu.AddSeparator()
-	reviewMenu.AddText("Copy All Comments", keys.Combo("c", keys.ShiftKey, keys.CmdOrCtrlKey), command("copy-comments"))
-	appMenu.Append(menu.WindowMenu())
-	helpMenu := appMenu.AddSubmenu("Help")
-	helpMenu.AddText("Keyboard Shortcuts", nil, command("shortcuts"))
-	return wails.Run(&options.App{
-		Title: "ghl", Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
-		// Width and Height are the size the window's zoom button returns to.
-		WindowStartState: options.Maximised,
-		// The runtime limits this menu to fields and selected text; disabling it
-		// would also remove Copy and Paste there.
-		Menu: appMenu, EnableDefaultContextMenu: true,
-		// Transparent until the page paints: launch shows the system material in
-		// either appearance instead of a fixed dark colour.
-		BackgroundColour: options.NewRGBA(0, 0, 0, 0),
-		Mac: &mac.Options{
-			TitleBar:             mac.TitleBarHiddenInset(),
-			WebviewIsTransparent: true,
-			WindowIsTranslucent:  true,
-		},
-		AssetServer: &assetserver.Options{Handler: backend.handler()},
-		Bind:        []interface{}{desktop},
-		// Wails quits on SIGINT and SIGTERM itself, through OnShutdown.
-		OnStartup: desktop.startup,
-		OnDomReady: func(ctx context.Context) {
-			runtime.WindowExecJS(ctx, bridge)
-			if len(probe) > 0 {
-				runtime.WindowExecJS(ctx, string(probe))
-			}
-			desktop.ready.Do(func() { go desktop.process(ctx) })
-		},
+	native := application.New(application.Options{
+		Name:     "ghl",
+		Assets:   application.AssetOptions{Handler: handler, DisableLogging: true},
+		Services: []application.Service{application.NewService(desktop)},
+		Mac:      application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
 		// Stop taking reviews first: a launcher that finds no app starts a new one,
 		// instead of getting a receipt for a review this app will never open.
-		OnShutdown: func(context.Context) {
+		OnShutdown: func() {
 			owner.close()
 			backend.close()
 		},
 	})
+	window := native.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name: "review", Title: "ghl", URL: "/", JS: string(probe),
+		Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
+		// Width and Height are the size the window's zoom button returns to.
+		StartState: application.WindowStateMaximised,
+		// Translucent until the page paints: launch shows the system material in
+		// either appearance instead of a fixed colour.
+		BackgroundType: application.BackgroundTypeTranslucent,
+		Mac: application.MacWindow{
+			TitleBar: application.MacTitleBarHiddenInset,
+			Backdrop: application.MacBackdropTranslucent,
+		},
+	})
+	desktop.startup(native, window)
+	window.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
+		desktop.ready.Do(func() { go desktop.process(context.Background()) })
+	})
+	// Every menu item reaches the page as one named command: the shell takes the
+	// window's, the mounted review the rest. Single-letter shortcuts stay in the
+	// page, since a key without a modifier would also capture typing.
+	command := func(name string) func(*application.Context) {
+		js := fmt.Sprintf("window.dispatchEvent(new CustomEvent('desktop:command', {detail: %q}))", name)
+		return func(*application.Context) { window.ExecJS(js) }
+	}
+	item := func(menu *application.Menu, label, accelerator string, action func(*application.Context)) {
+		entry := menu.Add(label).OnClick(action)
+		if accelerator != "" {
+			entry.SetAccelerator(accelerator)
+		}
+	}
+	appMenu := native.Menu.New()
+	appMenu.AddRole(application.AppMenu)
+	fileMenu := appMenu.AddSubmenu("File")
+	item(fileMenu, "Open Repository…", "CmdOrCtrl+o", func(*application.Context) { desktop.chooseRepository() })
+	item(fileMenu, "Close Review", "CmdOrCtrl+w", command("close-tab"))
+	fileMenu.AddSeparator()
+	item(fileMenu, "Settings…", "CmdOrCtrl+,", command("settings"))
+	appMenu.AddRole(application.EditMenu)
+	viewMenu := appMenu.AddSubmenu("View")
+	item(viewMenu, "Toggle Sidebar", "Ctrl+CmdOrCtrl+s", command("sidebar"))
+	item(viewMenu, "Reload", "CmdOrCtrl+r", command("reload"))
+	viewMenu.AddSeparator()
+	item(viewMenu, "Unified", "CmdOrCtrl+1", command("unified"))
+	item(viewMenu, "Split", "CmdOrCtrl+2", command("split"))
+	viewMenu.AddSeparator()
+	item(viewMenu, "Include Working Tree", "", command("working-tree"))
+	item(viewMenu, "Include Untracked Files", "", command("untracked"))
+	item(viewMenu, "Ignore Whitespace", "OptionOrAlt+CmdOrCtrl+w", command("whitespace"))
+	viewMenu.AddSeparator()
+	item(viewMenu, "Comments", "OptionOrAlt+CmdOrCtrl+0", command("comments"))
+	goMenu := appMenu.AddSubmenu("Go")
+	item(goMenu, "Next File", "", command("next-file"))
+	item(goMenu, "Previous File", "", command("previous-file"))
+	goMenu.AddSeparator()
+	item(goMenu, "Choose Base…", "", command("base"))
+	item(goMenu, "Choose Target…", "", command("target"))
+	item(goMenu, "Choose Commit…", "", command("commit"))
+	goMenu.AddSeparator()
+	item(goMenu, "Choose Stack Layer…", "", command("stack"))
+	item(goMenu, "Layer Below", "", command("layer-below"))
+	item(goMenu, "Layer Above", "", command("layer-above"))
+	reviewMenu := appMenu.AddSubmenu("Review")
+	item(reviewMenu, "Mark as Viewed", "", command("viewed"))
+	item(reviewMenu, "Comment on Selection", "", command("comment"))
+	reviewMenu.AddSeparator()
+	item(reviewMenu, "Copy File Path", "", command("copy-path"))
+	item(reviewMenu, "Reveal in Finder", "", command("reveal"))
+	item(reviewMenu, "Reset Viewed", "", command("reset-viewed"))
+	reviewMenu.AddSeparator()
+	item(reviewMenu, "Copy All Comments", "Shift+CmdOrCtrl+c", command("copy-comments"))
+	appMenu.AddRole(application.WindowMenu)
+	helpMenu := appMenu.AddSubmenu("Help")
+	item(helpMenu, "Keyboard Shortcuts", "", command("shortcuts"))
+	native.Menu.Set(appMenu)
+	// Wails quits on SIGINT and SIGTERM itself, through OnShutdown.
+	return native.Run()
 }

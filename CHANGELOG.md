@@ -25,6 +25,7 @@
 ### 📦 Distribution
 
 - Build with Go 1.27.3, which fixes standard library vulnerabilities in `net/http`, `crypto/x509` and `os`. `brew uninstall --cask --zap ghl` also removes the app's caches and web data, and the installation guide covers downloading the zip from the release page. Releases run one at a time and never move the cask back to an older version. ([#191](https://github.com/vmaerten/ghl/pull/191))
+- Run the app on Wails v3 (v3.0.0-beta.34) instead of Wails v2: with two reviews open it uses 16 to 46 MiB less memory, and switching reviews is slightly faster. ([#207](https://github.com/vmaerten/ghl/pull/207))
 
 ## 0.3.1
 
