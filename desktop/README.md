@@ -37,7 +37,7 @@ The app uses its own neutral light and dark palettes. Settings is a window of it
 
 ## App icon
 
-The editable icon is `icon/AppIcon.svg`; `icon/AppIcon.png` is its transparent 1024px export. It carries the green/red diff language into a macOS document mark. Export an updated SVG as a transparent 1024×1024 PNG when changing the design. The desktop build uses only macOS `sips` and `iconutil` to create the 16–1024px normal/Retina icon sizes. The desktop build copies the ICNS into `Contents/Resources` before signing; the release ZIP retains that resource and checks its bundle declaration and container.
+The editable icon is `icon/AppIcon.svg`; `icon/AppIcon.png` is its transparent 1024px export. Its mark is a D cut in two: a red half-square for the base and a green half-circle for the target. `site/public/favicon.svg` is a copy of the SVG. Export an updated SVG as a transparent 1024×1024 PNG when changing the design. The desktop build uses only macOS `sips` and `iconutil` to create the 16–1024px normal/Retina icon sizes. The desktop build copies the ICNS into `Contents/Resources` before signing; the release ZIP retains that resource and checks its bundle declaration and container.
 
 ## Release archive
 
