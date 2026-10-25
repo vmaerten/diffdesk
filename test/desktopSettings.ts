@@ -14,6 +14,16 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       codeFont: 'Berkeley Mono',
       codeSize: 14,
       compactTitleBar: true,
+      codeIntelligence: true,
+      symbolPanel: false,
+      languageServers: {
+        go: 'off',
+        typescript: 'tsrs',
+        python: 'ty',
+        terraform: 'auto',
+        helm: 'off',
+        rust: 'auto',
+      },
     }),
   )
   check(
@@ -26,6 +36,16 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       codeFont: 'Berkeley Mono',
       codeSize: 14,
       compactTitleBar: true,
+      codeIntelligence: true,
+      symbolPanel: false,
+      languageServers: {
+        go: 'off',
+        typescript: 'tsrs',
+        python: 'ty',
+        terraform: 'auto',
+        helm: 'off',
+        rust: 'auto',
+      },
     }),
   )
 
@@ -38,6 +58,10 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       codeFont: 'Evil", serif; x',
       codeSize: 40,
       compactTitleBar: 'yes',
+      codeIntelligence: 1,
+      symbolPanel: 'no',
+      // A Go setting may not name a TypeScript server, nor any setting a language Go does not know.
+      languageServers: { go: 'tsrs', cobol: 'auto' },
     }),
   )
   // The light slot holds a dark theme: each slot only takes its own mode.

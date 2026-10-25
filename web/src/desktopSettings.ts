@@ -5,6 +5,17 @@ import { THEMES, type ThemeId } from './theme.ts'
 export const CODE_FONTS = ['SF Mono', 'Menlo', 'JetBrains Mono', 'Fira Code'] as const
 export const CODE_SIZE = { min: 10, max: 18 } as const
 
+/** The languages the review server knows, each with the choices its setting takes. */
+export const LANGUAGE_SERVERS = {
+  go: ['auto', 'off'],
+  typescript: ['auto', 'tsc', 'tsrs', 'typescript-language-server', 'off'],
+  python: ['auto', 'basedpyright', 'pyright', 'ty', 'off'],
+  terraform: ['auto', 'off'],
+  helm: ['auto', 'off'],
+  rust: ['auto', 'off'],
+} as const satisfies Record<string, readonly string[]>
+export type LanguageId = keyof typeof LANGUAGE_SERVERS
+
 export interface DesktopSettings extends AppearanceSettings {
   version: 1
   /** One of CODE_FONTS, or any font installed on the Mac. */
@@ -12,6 +23,11 @@ export interface DesktopSettings extends AppearanceSettings {
   codeSize: number
   /** Read by the app when it opens its window: a change applies at the next launch. */
   compactTitleBar: boolean
+  /** Beta: hover and definitions from the language servers installed on this Mac. */
+  codeIntelligence: boolean
+  /** References in a Symbol tab beside Comments, under code intelligence. */
+  symbolPanel: boolean
+  languageServers: Record<LanguageId, string>
 }
 
 export const DEFAULT_SETTINGS: DesktopSettings = {
@@ -20,6 +36,16 @@ export const DEFAULT_SETTINGS: DesktopSettings = {
   codeFont: 'SF Mono',
   codeSize: 12,
   compactTitleBar: false,
+  codeIntelligence: false,
+  symbolPanel: true,
+  languageServers: {
+    go: 'auto',
+    typescript: 'auto',
+    python: 'auto',
+    terraform: 'auto',
+    helm: 'auto',
+    rust: 'auto',
+  },
 }
 
 const APPEARANCES: readonly Appearance[] = ['system', 'light', 'dark']
@@ -42,7 +68,18 @@ export function readSettings(raw: string): DesktopSettings {
     const entry = THEMES.find((option) => option.id === stored[mode] && option.mode === mode)
     return entry ? entry.id : DEFAULT_SETTINGS[mode]
   }
-  const { appearance, codeFont, codeSize, compactTitleBar } = stored
+  const {
+    appearance,
+    codeFont,
+    codeSize,
+    compactTitleBar,
+    codeIntelligence,
+    symbolPanel,
+    languageServers,
+  } = stored
+  const servers = (
+    languageServers && typeof languageServers === 'object' ? languageServers : {}
+  ) as Record<string, unknown>
   return {
     version: 1,
     appearance: APPEARANCES.find((value) => value === appearance) ?? DEFAULT_SETTINGS.appearance,
@@ -60,6 +97,15 @@ export function readSettings(raw: string): DesktopSettings {
         : DEFAULT_SETTINGS.codeSize,
     compactTitleBar:
       typeof compactTitleBar === 'boolean' ? compactTitleBar : DEFAULT_SETTINGS.compactTitleBar,
+    codeIntelligence:
+      typeof codeIntelligence === 'boolean' ? codeIntelligence : DEFAULT_SETTINGS.codeIntelligence,
+    symbolPanel: typeof symbolPanel === 'boolean' ? symbolPanel : DEFAULT_SETTINGS.symbolPanel,
+    languageServers: Object.fromEntries(
+      Object.entries(LANGUAGE_SERVERS).map(([id, choices]) => {
+        const choice = servers[id]
+        return [id, (choices as readonly unknown[]).includes(choice) ? choice : 'auto']
+      }),
+    ) as Record<LanguageId, string>,
   }
 }
 

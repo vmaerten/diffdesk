@@ -267,7 +267,7 @@ body,
   padding: 0;
   background: var(--chrome-bg);
 }
-.desktop-review .sidebar-hidden :is(.sidebar, .resizer) {
+.desktop-review .sidebar-hidden :is(.sidebar, .sidebar-resizer) {
   display: none;
 }
 .desktop-review .sidebar-head {
@@ -1024,7 +1024,7 @@ button.stack-branch:focus-visible::after {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  width: 320px;
+  width: var(--panel-width, 320px);
   border-left: 1px solid var(--border);
   background: var(--chrome-bg);
 }
@@ -1071,4 +1071,333 @@ button.stack-branch:focus-visible::after {
   height: 20px;
   border-radius: 10px;
   line-height: 20px;
+}
+
+/* Code intelligence, a beta: its badge, and each language server's state. */
+.beta-badge {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+.language-server .settings-label small {
+  overflow-wrap: anywhere;
+}
+.language-server select {
+  width: 170px;
+}
+.server-state,
+.language-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.server-state {
+  min-width: 96px;
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+.server-state::before,
+.language-state i {
+  content: '';
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.2px var(--text-dim);
+}
+.server-state[data-state='idle']::before,
+.language-state[data-state='idle'] i {
+  box-shadow: inset 0 0 0 1.2px var(--success);
+}
+.server-state[data-state='ready']::before,
+.language-state[data-state='ready'] i {
+  background: var(--success);
+  box-shadow: none;
+}
+.server-state:is([data-state='starting'], [data-state='indexing'])::before,
+.language-state:is([data-state='starting'], [data-state='indexing']) i {
+  background: var(--warn);
+  box-shadow: none;
+}
+.server-state[data-state='failed']::before,
+.language-state[data-state='failed'] i {
+  background: var(--danger);
+  box-shadow: none;
+}
+.language-state[data-state='failed'] {
+  color: var(--danger);
+}
+.code-intelligence-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.settings-heading {
+  margin: 0 4px -8px;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* The card a symbol opens while ⌘ is held. */
+.symbol-card {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  box-shadow:
+    0 16px 40px -12px var(--shadow-color),
+    0 4px 12px -6px var(--shadow-color);
+  font-size: 12.5px;
+}
+.symbol-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 0;
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+.symbol-card-head .beta-badge {
+  margin-left: auto;
+}
+.symbol-card-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 12px 8px;
+}
+.symbol-signature,
+.symbol-snippet {
+  margin: 4px 0;
+  font: var(--code-size, 12px) / 1.55 var(--code-font, var(--mono));
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.symbol-snippet {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  white-space: pre;
+  overflow-x: auto;
+}
+.symbol-snippet i {
+  display: inline-block;
+  min-width: 3ch;
+  margin-right: 10px;
+  color: var(--text-dim);
+  font-style: normal;
+  text-align: right;
+}
+.symbol-doc {
+  margin: 6px 0;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+.symbol-card-status {
+  margin: 6px 0;
+  color: var(--text-dim);
+}
+.symbol-card-status.unavailable {
+  color: var(--warn);
+}
+.symbol-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.symbol-card-meta b {
+  color: var(--text);
+  font: 600 12px var(--mono);
+}
+.symbol-tag {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--counter-bg);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.symbol-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-top: 1px solid var(--border);
+}
+.symbol-card-actions button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+}
+.symbol-card-actions button:hover:not(:disabled) {
+  background: var(--counter-bg);
+}
+.symbol-card-actions button:disabled {
+  color: var(--text-dim);
+}
+.symbol-card-hint {
+  margin-left: auto;
+  padding-right: 8px;
+  color: var(--text-dim);
+}
+
+/* The side panel's tabs, and the Symbol tab: a symbol's definition and references. */
+.panel-tabs {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+}
+.panel-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+.panel-tabs button[aria-selected='true'] {
+  background: var(--counter-bg);
+  color: var(--text);
+}
+.panel-tabs .beta-badge {
+  margin-left: auto;
+}
+.desktop-review .comments-panel.inline .comments-panel-head:has(.panel-tabs) {
+  padding: 8px 10px;
+}
+.symbol-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+}
+.symbol-panel-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.symbol-panel-name b {
+  font: 600 13px var(--mono);
+}
+.symbol-panel-name span,
+.symbol-panel-location {
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+.symbol-panel-location {
+  margin-top: 2px;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+.symbol-panel-body .symbol-signature {
+  margin: 10px 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  font-size: 11.5px;
+}
+.symbol-panel-references-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 14px 0 6px;
+  color: var(--text-dim);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.symbol-panel-references-head label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.symbol-references h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 2px;
+  font: 600 12px var(--mono);
+}
+.symbol-references h3 > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.symbol-reference {
+  display: grid;
+  grid-template-columns: 3ch minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 26px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: 11.5px var(--mono);
+  text-align: left;
+}
+.symbol-reference:not(:disabled):hover {
+  background: var(--counter-bg);
+}
+.symbol-reference:disabled {
+  color: var(--text-dim);
+}
+.symbol-reference i {
+  color: var(--text-dim);
+  font-style: normal;
+  text-align: right;
+}
+.symbol-reference span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The name under the pointer while ⌘ is held, drawn over the diff: a highlighter
+   token can hold several names, and the diff's own markup is not ours to change. */
+.symbol-underline {
+  position: fixed;
+  z-index: 30;
+  border-bottom: 1.5px solid var(--accent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  pointer-events: none;
 }

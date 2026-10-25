@@ -61,6 +61,24 @@ export default function KeyboardShortcuts() {
         </dt>
         <dd>Search changed code</dd>
       </div>
+      <div>
+        <dt>
+          <kbd>⌘</kbd> hover
+        </dt>
+        <dd>Symbol info (beta)</dd>
+      </div>
+      <div>
+        <dt>
+          <kbd>⌘</kbd> click
+        </dt>
+        <dd>Go to or show definition (beta)</dd>
+      </div>
+      <div>
+        <dt>
+          <kbd>⌘</kbd> <kbd>[</kbd>
+        </dt>
+        <dd>Back from a definition</dd>
+      </div>
     </dl>
   )
 }

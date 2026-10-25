@@ -38,6 +38,10 @@ import {
   type WindowCommand,
 } from './commands.ts'
 import { contextFile } from './fileMenu.ts'
+import { languagesOf, useLanguageStatus } from './codeIntelligence.ts'
+import { useSymbolCard } from './SymbolCard.tsx'
+import SymbolPanel, { PanelTabs, type PanelTab, type SymbolTarget } from './SymbolPanel.tsx'
+import type { LanguageStatus } from '../../src/types.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
 import type { SavedView, SavedViewHandle } from './savedView.ts'
@@ -47,6 +51,8 @@ function repoIdFromLocation() {
   const match = window.location.pathname.match(/^\/r\/([^/]+)/)
   return match?.[1] ?? null
 }
+
+const NO_LANGUAGES: LanguageStatus[] = []
 
 /** Review commands, by their single-letter key. */
 const KEY_COMMANDS: Record<string, ReviewCommand> = {
@@ -85,6 +91,8 @@ export default function App({
   sidebarHidden,
   onReveal,
   onFileMenu,
+  languageRevision = null,
+  symbolPanel = false,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -103,6 +111,10 @@ export default function App({
   onReveal?: (path: string) => Promise<void>
   /** Opens the native context menu of a file at x, y; without it, the default menu stays. */
   onFileMenu?: (path: string, x: number, y: number, viewed: boolean) => Promise<void>
+  /** Changes when the review server has new code intelligence settings; null while it is off. */
+  languageRevision?: number | null
+  /** Offers a Symbol tab beside Comments, with references, while code intelligence is on. */
+  symbolPanel?: boolean
 }) {
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
@@ -112,6 +124,12 @@ export default function App({
   // until the next refresh starts: a failed refresh leaves it on screen.
   const shownRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [languageStatus, refreshLanguages] = useLanguageStatus(repoId, languageRevision)
+  // A refreshed review may find a server stopped, or started, meanwhile.
+  const shownLoad = data?.loadId
+  useEffect(() => {
+    if (shownLoad !== undefined) refreshLanguages()
+  }, [shownLoad, refreshLanguages])
   const [diffStyle, setDiffStyle] = useState<'unified' | 'split'>(savedView?.diffStyle ?? 'unified')
   const [viewed, viewedPersistence] = useViewedPersistence(repoId, viewedStore)
   const [picking, setPicking] = useState<Picker | null>(null)
@@ -131,6 +149,14 @@ export default function App({
   const [copyError, setCopyError] = useState<string | null>(null)
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [commentsOpen, setCommentsOpen] = useState(savedView?.commentsOpen ?? false)
+  const symbolTab = languageRevision !== null && symbolPanel
+  const [panelTab, setPanelTab] = useState<PanelTab>('comments')
+  const [symbolTarget, setSymbolTarget] = useState<SymbolTarget | null>(null)
+  /** The toolbar's Comments button: shows the comments, or hides the panel showing them. */
+  const toggleComments = () => {
+    setPanelTab('comments')
+    setCommentsOpen((open) => !open || panelTab !== 'comments')
+  }
   const panelEditor = useRef(savedView?.panelEditor ?? { editing: null, draft: '' })
   useEffect(
     () => () => {
@@ -142,6 +168,7 @@ export default function App({
   const treeRef = useRef<FileTreeHandle>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [sidebarWidth, setSidebarWidth] = useState(storedWidth)
+  const [panelWidth, setPanelWidth] = useState(() => storedWidth('panel'))
 
   /**
    * The single refresh path.
@@ -275,6 +302,36 @@ export default function App({
   })
 
   const revealFile = useCallback((path: string) => treeRef.current?.reveal(path), [])
+  // The card reveals definitions through the diff, which needs the card's handlers first.
+  const lines = useRef<{
+    can: (path: string, line: number) => boolean
+    reveal: (path: string, line: number) => void
+  }>({ can: () => false, reveal: () => {} })
+  const canRevealDefinition = useCallback(
+    (path: string, line: number) => lines.current.can(path, line),
+    [],
+  )
+  const revealDefinition = useCallback(
+    (path: string, line: number) => lines.current.reveal(path, line),
+    [],
+  )
+  const symbols = useSymbolCard({
+    repoId,
+    enabled: languageRevision !== null && data?.target.workingTree === true,
+    languages: languageStatus?.languages ?? NO_LANGUAGES,
+    loadId: data?.loadId,
+    canReveal: canRevealDefinition,
+    reveal: revealDefinition,
+    onAnswer: refreshLanguages,
+    onReferences: symbolTab
+      ? (symbol, answer) => {
+          setSymbolTarget({ query: symbol, answer })
+          setPanelTab('symbol')
+          setCommentsOpen(true)
+        }
+      : undefined,
+    theme: syntaxTheme,
+  })
   const {
     view,
     entries,
@@ -283,6 +340,8 @@ export default function App({
     selectFile,
     revealComment,
     canRevealComment,
+    revealLine,
+    canRevealLine,
     navigate,
     commentSelection,
     openSearch,
@@ -308,7 +367,12 @@ export default function App({
       void commentPersistence.retry(comment.id)
     },
     onRevealFile: revealFile,
+    tokenHandlers: symbols.handlers,
   })
+  lines.current = {
+    can: (path, line) => canRevealLine(path, 'additions', line),
+    reveal: revealLine,
+  }
   useImperativeHandle(
     viewHandle,
     () => ({
@@ -403,7 +467,7 @@ export default function App({
         select.toggleWhitespace()
         break
       case 'comments':
-        setCommentsOpen((open) => !open)
+        toggleComments()
         break
       case 'copy-comments':
         if (comments.length > 0) void copyComments()
@@ -478,6 +542,10 @@ export default function App({
     setSidebarWidth(width)
     localStorage.setItem('ghl.sidebarWidth', String(width))
   }, [])
+  const resizePanel = useCallback((width: number) => {
+    setPanelWidth(width)
+    localStorage.setItem('ghl.panelWidth', String(width))
+  }, [])
 
   const baseSource = data ? BASE_SOURCES[data.base.source] : null
 
@@ -508,37 +576,64 @@ export default function App({
       note={comparisonNote(data, target)}
       nextPath={nextPath}
       onNext={() => navigate(1)}
+      languages={
+        languageRevision === null || !data
+          ? null
+          : languagesOf(
+              languageStatus,
+              data.files.map((file) => file.path),
+            )
+      }
     />
   )
+  const tabs = symbolTab ? (
+    <PanelTabs tab={panelTab} comments={comments.length} onTab={setPanelTab} />
+  ) : undefined
   const commentsPanel = (
-    <CommentsPanel
-      savedEditor={panelEditor}
-      open={commentsOpen}
-      comments={comments}
-      currentRange={data?.range ?? ''}
-      saving={saving}
-      copied={copied}
-      copyError={copyError}
-      onClose={() => setCommentsOpen(false)}
-      onCopy={copyComments}
-      canView={canRevealComment}
-      onView={revealComment}
-      onUpdate={(comment, body) =>
-        submitComment({
-          path: comment.path,
-          side: comment.side,
-          start: comment.start,
-          end: comment.end,
-          editing: comment.id,
-          body,
-        })
-      }
-      onDelete={deleteComment}
-      onResolve={resolveComment}
-      onRetry={(comment) => {
-        void commentPersistence.retry(comment.id)
-      }}
-    />
+    <>
+      <CommentsPanel
+        savedEditor={panelEditor}
+        open={commentsOpen && (!symbolTab || panelTab === 'comments')}
+        tabs={tabs}
+        comments={comments}
+        currentRange={data?.range ?? ''}
+        saving={saving}
+        copied={copied}
+        copyError={copyError}
+        onClose={() => setCommentsOpen(false)}
+        onCopy={copyComments}
+        canView={canRevealComment}
+        onView={revealComment}
+        onUpdate={(comment, body) =>
+          submitComment({
+            path: comment.path,
+            side: comment.side,
+            start: comment.start,
+            end: comment.end,
+            editing: comment.id,
+            body,
+          })
+        }
+        onDelete={deleteComment}
+        onResolve={resolveComment}
+        onRetry={(comment) => {
+          void commentPersistence.retry(comment.id)
+        }}
+      />
+      {symbolTab && (
+        <SymbolPanel
+          open={commentsOpen && panelTab === 'symbol'}
+          repoId={repoId}
+          target={symbolTarget}
+          refresh={data?.loadId}
+          tabs={tabs}
+          canReveal={canRevealDefinition}
+          onReveal={revealDefinition}
+          onClose={() => setCommentsOpen(false)}
+          theme={syntaxTheme}
+        />
+      )}
+    </>
   )
 
   return (
@@ -553,12 +648,13 @@ export default function App({
             onDiffStyleChange={setDiffStyle}
             commentCount={comments.length}
             commentsOpen={commentsOpen}
-            onToggleComments={() => setCommentsOpen((open) => !open)}
+            onToggleComments={toggleComments}
             copiedAll={copied === 'all'}
             onCopyAll={() => copyComments()}
           />,
           toolbar,
         )}
+      {symbols.card}
       <span className="visually-hidden" role="status">
         {copied ? 'Comments copied to clipboard' : ''}
       </span>
@@ -633,7 +729,12 @@ export default function App({
         <div
           className={`body${sidebarHidden ? ' sidebar-hidden' : ''}`}
           ref={bodyRef}
-          style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}
+          style={
+            {
+              '--sidebar-width': `${sidebarWidth}px`,
+              '--panel-width': `${panelWidth}px`,
+            } as CSSProperties
+          }
         >
           <aside className="sidebar" id="changed-files" aria-label="Changed files">
             <div className="sidebar-head">
@@ -665,6 +766,7 @@ export default function App({
             {view}
             {footer}
           </div>
+          {commentsOpen && <Resizer containerRef={bodyRef} onCommit={resizePanel} pane="panel" />}
           {commentsPanel}
         </div>
       )}

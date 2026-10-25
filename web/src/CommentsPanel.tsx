@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useState, type ReactNode, type RefObject } from 'react'
 import type { ServedComment } from '../../src/types.ts'
 import type { SaveState } from './commentPersistence.ts'
 import CommentCard, { lineLabel } from './CommentCard.tsx'
@@ -21,6 +21,7 @@ export default function CommentsPanel({
   onDelete,
   onResolve,
   onRetry,
+  tabs,
 }: {
   savedEditor?: RefObject<{ editing: string | null; draft: string }>
   open: boolean
@@ -37,6 +38,8 @@ export default function CommentsPanel({
   onDelete: (id: string) => void
   onResolve: (id: string) => void
   onRetry: (comment: ServedComment) => void
+  /** Comments and Symbol, in place of the title, while code intelligence shows both. */
+  tabs?: ReactNode
 }) {
   const [editing, setEditing] = useState<string | null>(savedEditor?.current.editing ?? null)
   const [draft, setDraft] = useState(savedEditor?.current.draft ?? '')
@@ -81,9 +84,11 @@ export default function CommentsPanel({
   const content = (
     <>
       <div className="comments-panel-head">
-        <h2 id="comments-title">
-          <Icon name="comment" /> Comments <span className="counter">{comments.length}</span>
-        </h2>
+        {tabs ?? (
+          <h2 id="comments-title">
+            <Icon name="comment" /> Comments <span className="counter">{comments.length}</span>
+          </h2>
+        )}
         <button className="icon-button" type="button" aria-label="Close comments" onClick={onClose}>
           <Icon name="close" />
         </button>
@@ -188,7 +193,8 @@ export default function CommentsPanel({
     <aside
       className="comments-panel inline"
       id="comments-panel"
-      aria-labelledby="comments-title"
+      aria-labelledby={tabs ? undefined : 'comments-title'}
+      aria-label={tabs ? 'Comments' : undefined}
       hidden={!open}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && !(event.target instanceof HTMLTextAreaElement)) onClose()

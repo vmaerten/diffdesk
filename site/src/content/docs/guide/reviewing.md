@@ -56,6 +56,27 @@ When the local trunk is strictly behind its fetched `origin` counterpart, the re
 
 Stack metadata is read from `.git/gh-stack`, including worktree-specific metadata, without calling GitHub. Each layer is compared with the nearest live layer below it; merged or missing layers stay visible while upper layers fall back past them. A stacked branch shows its layer, such as `2/3`, at the start of the title bar's comparison: press `s` or click it to list the stack and pick a layer, or press `[` and `]` to review the layer below or above.
 
+## Code intelligence (beta)
+
+**Settings › Intelligence** turns on answers from the language servers installed on your Mac. Hold `Cmd` over a symbol for its type and documentation, and `Cmd`-click it to go to its definition: the diff scrolls to the definition when it shows those lines, and `Cmd+[` comes back; otherwise the card shows the definition's code. Nothing happens without `Cmd`.
+
+Only working-tree reviews are answered, on added and unchanged lines: a server reads the files on disk, and those are the only lines numbered as on disk. Deleted lines and revision reviews stay plain, and the status bar says so. A file changed since the review loaded asks for a refresh (`r`).
+
+**References** on the card opens a **Symbol** tab beside **Comments**: the symbol's definition and signature, then its references in the repository by file, in the tree's order. A reference the diff shows is marked `in diff` and opens there; the others show their line. **In this diff only** hides the rest. Settings › Intelligence › **Symbol panel** turns the tab and the action off.
+
+Settings list each language's server for the review shown, with where it comes from, unless you pick one:
+
+| Language | Server |
+| --- | --- |
+| TypeScript and JavaScript | `tsrs` from the checkout or PATH, then the checkout's TypeScript 7 `tsc`, then `typescript-language-server` on PATH |
+| Python | the checkout's `.venv` `basedpyright` or `pyright`, then `basedpyright`, `pyright` or `ty` on PATH |
+| Go | `gopls` |
+| Terraform | `terraform-ls` |
+| Helm | `helm_ls`, for the files of a chart's `templates` folder |
+| Rust | `rust-analyzer` |
+
+Highlighters often merge several names into one token, such as a Helm template's `.Values.replicaCount`: ghl looks up, and underlines, the name under the pointer. The servers run on the reviewed code, as your editor would; ghl finds them through your login shell, so tools installed with Homebrew or mise work even when the app was opened from the Finder. A server starts on the first lookup and stops after 10 minutes without one. The status bar shows the diff's servers and whether they are starting, indexing or failed.
+
 ## Images and appearance
 
 Image changes show before/after previews; click to enlarge and Escape to close. PNG, JPEG, GIF, WebP, AVIF, SVG, ICO and BMP are supported. Unavailable or oversized previews show an explanation; the image limit is 20 MiB.

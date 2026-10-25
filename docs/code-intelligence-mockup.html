@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ghl — intelligence de code</title>
+<style>
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --app-bg: #f8f8f6; --code-bg: #fff; --chrome-bg: #f1f1ef; --sidebar-bg: #ececea;
+  --border: rgb(17 17 17 / .1); --wash: rgb(127 127 127 / .1); --wash-strong: rgb(127 127 127 / .2);
+  --text: #111; --text-2: rgb(17 17 17 / .8); --muted: rgb(17 17 17 / .64);
+  --selection: #cdeaff; --accent: #3d87f5; --accent-ink: #1559c4; --warn: #8a4a05;
+  --add: rgb(31 122 68); --del: rgb(184 49 47); --merged: #7a4fc9;
+  --popover-bg: rgb(251 251 250 / .98);
+  --syn-k: #b3245a; --syn-f: #6f3fc2; --syn-t: #8a4a05; --syn-s: #0a3069; --syn-c: rgb(17 17 17 / .55);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #dfe3ea; font: 13px/1.4 var(--font-sans); color: var(--text); }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
+svg { width: 16px; height: 16px; flex: none; }
+.mono { font-family: var(--font-mono); }
+.a { color: var(--add); } .d { color: var(--del); }
+.dim { color: var(--muted); }
+
+.win {
+  position: relative; overflow: hidden; border-radius: 12px; background: var(--app-bg);
+  box-shadow: 0 0 0 .5px rgb(0 0 0 / .3), 0 18px 50px rgb(0 0 0 / .18);
+  display: grid; grid-template-columns: 248px minmax(0, 1fr); grid-template-rows: 40px minmax(0, 1fr);
+}
+.win.with-panel { grid-template-columns: 248px minmax(0, 1fr) 330px; }
+.titlebar {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; padding: 0 10px 0 14px;
+  background: var(--chrome-bg); border-bottom: 1px solid var(--border);
+}
+.lights { display: flex; gap: 8px; margin-right: 10px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .2); }
+.lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.icon-btn { width: 28px; height: 28px; border-radius: 8px; display: inline-grid; place-items: center; color: var(--muted); }
+.icon-btn:hover { background: var(--wash); color: var(--text-2); }
+.icon-btn.on { background: var(--wash-strong); color: var(--text); }
+.repo { font: 600 12px var(--font-mono); color: var(--text-2); padding: 0 6px; white-space: nowrap; }
+.repo span { color: var(--muted); }
+.compare {
+  flex: none; margin: 0 auto; display: flex; align-items: center; gap: 2px; height: 30px; padding: 2px;
+  border-radius: 15px; background: rgb(127 127 127 / .08); border: 1px solid rgb(127 127 127 / .16);
+}
+.compare > button { height: 24px; padding: 0 9px; border-radius: 12px; display: flex; align-items: center; gap: 5px; font: 600 12px/1 var(--font-mono); color: var(--text-2); }
+.compare > button:hover { background: var(--wash); }
+.compare .arrow { color: var(--muted); font-size: 12px; }
+.compare .sep { width: 1px; height: 14px; background: var(--border); margin: 0 3px; }
+.compare .commit { font-family: var(--font-sans); color: var(--muted); }
+.actions { flex: none; display: flex; align-items: center; gap: 4px; }
+.count { font: 700 10px/1 var(--font-mono); background: rgb(127 127 127 / .2); color: var(--text-2); border-radius: 999px; padding: 3px 5px; }
+
+.side { display: flex; flex-direction: column; min-height: 0; background: var(--sidebar-bg); border-right: 1px solid var(--border); }
+.side-head { display: flex; align-items: center; gap: 6px; padding: 12px 10px 6px 14px; font: 700 10.5px/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.side-head .spacer { flex: 1; }
+.tree { padding: 0 6px; }
+.row { display: flex; align-items: center; gap: 6px; height: 24px; border-radius: 6px; white-space: nowrap; padding: 0 8px 0 calc(8px + var(--d, 0) * 14px); color: var(--text-2); }
+.row.sel { background: var(--selection); color: var(--text); }
+.row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.row .st { font: 600 11px var(--font-mono); width: 10px; text-align: center; }
+.st.A { color: var(--add); } .st.M { color: var(--warn); } .st.D { color: var(--del); }
+
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.diff { position: relative; flex: 1; min-height: 0; overflow: hidden; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.card { flex: none; background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.card-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-bottom: 1px solid var(--border); font: 600 12px var(--font-mono); }
+.card-head .path span { color: var(--muted); }
+.card-head .stats { margin-left: auto; font-weight: 600; }
+.ln { position: relative; display: block; height: 20px; padding-left: 62px; font: 12px/20px var(--font-mono); color: var(--text-2); white-space: pre; overflow: hidden; }
+.ln i { position: absolute; top: 0; left: 0; width: 44px; font-style: normal; color: var(--muted); text-align: right; padding-right: 10px; }
+.ln b { position: absolute; top: 0; left: 44px; width: 18px; font-weight: 400; color: var(--muted); }
+.ln.add { background: rgb(31 122 68 / .08); } .ln.add b { color: var(--add); }
+.ln.del { background: rgb(184 49 47 / .07); } .ln.del b { color: var(--del); }
+.ln.hl { background: rgb(61 135 245 / .1); }
+.k { color: var(--syn-k); } .f { color: var(--syn-f); } .t { color: var(--syn-t); } .s { color: var(--syn-s); } .c { color: var(--syn-c); font-style: italic; }
+
+.footer { display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 14px; border-top: 1px solid var(--border); background: var(--app-bg); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.footer .next { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.footer .next b { font: 600 12px var(--font-mono); color: var(--text-2); }
+kbd { font: 600 10.5px/1 var(--font-mono); padding: 2px 5px; border-radius: 4px; background: var(--wash-strong); color: var(--text-2); }
+
+.popover {
+  position: absolute; z-index: 10; padding: 6px; border-radius: 12px; background: var(--popover-bg);
+  border: 1px solid var(--border); box-shadow: 0 16px 40px -12px rgb(0 0 0 / .35), 0 4px 12px -6px rgb(0 0 0 / .2);
+}
+.pop-label { display: flex; align-items: center; gap: 6px; padding: 6px 8px 6px; font: 700 10.5px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+/* Code intelligence */
+.beta { font: 700 9.5px/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; padding: 3px 5px; border-radius: 4px; color: var(--accent-ink); background: rgb(61 135 245 / .12); }
+.sym { border-radius: 3px; padding: 1px 0; background: rgb(61 135 245 / .14); color: var(--accent-ink); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.sym-soft { border-radius: 3px; background: rgb(61 135 245 / .12); }
+.squiggle { text-decoration: underline wavy var(--del); text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.squiggle.warn { text-decoration-color: var(--warn); }
+.lsp-status { display: flex; align-items: center; gap: 6px; }
+.lsp-status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--add); }
+.lsp-status .dot.busy { background: #c27a12; }
+.lsp-status .dot.off { background: none; box-shadow: inset 0 0 0 1.2px var(--muted); }
+.hovercard {
+  position: absolute; z-index: 10; overflow: hidden; border-radius: 10px; background: var(--popover-bg);
+  border: 1px solid var(--border); box-shadow: 0 16px 40px -12px rgb(0 0 0 / .35), 0 4px 12px -6px rgb(0 0 0 / .2);
+}
+.hc-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px 0; font-size: 11.5px; color: var(--muted); }
+.hc-head .spacer { flex: 1; }
+.hc-sig { margin: 0; padding: 6px 12px 10px; font: 12px/1.55 var(--font-mono); color: var(--text); white-space: pre-wrap; }
+.hc-meta { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+.hc-meta b { font: 600 12px var(--font-mono); color: var(--text-2); }
+.hc-actions { display: flex; align-items: center; gap: 2px; padding: 4px; border-top: 1px solid var(--border); }
+.hc-actions button { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: 6px; font-size: 12px; font-weight: 500; color: var(--text-2); }
+.hc-actions button:hover { background: var(--wash); }
+.hc-actions .spacer { flex: 1; }
+.tag { font: 600 10.5px/1 var(--font-sans); padding: 3px 6px; border-radius: 999px; white-space: nowrap; }
+.tag.in { color: var(--accent-ink); background: rgb(61 135 245 / .14); }
+.tag.out { color: var(--muted); background: var(--wash); }
+.tag.err { color: var(--del); background: rgb(184 49 47 / .1); }
+.tag.warn { color: var(--warn); background: rgb(194 122 18 / .14); }
+.tag.new { color: var(--add); background: rgb(31 122 68 / .12); }
+.page { max-width: 1280px; margin: 0 auto; padding: 40px 24px 80px; font-size: 14px; line-height: 1.5; }
+h1 { margin: 0 0 6px; font-size: 26px; }
+.lede { max-width: 860px; margin: 0; color: var(--muted); }
+.variant { margin: 48px 0 0; }
+.variant h2 { display: flex; align-items: baseline; gap: 10px; margin: 0; font-size: 18px; }
+.variant h2 .num { color: var(--muted); font: 600 14px var(--font-mono); }
+.desc { max-width: 900px; margin: 4px 0 14px; color: var(--muted); }
+.frame { overflow-x: auto; padding: 4px 4px 24px; }
+.caret{position:absolute;width:12px;height:12px;transform:rotate(45deg);background:var(--popover-bg);border-left:1px solid var(--border);border-top:1px solid var(--border)}
+.panel{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--border);background:var(--app-bg)}
+.panel-tabs{display:flex;align-items:center;gap:2px;padding:8px 10px;border-bottom:1px solid var(--border)}
+.panel-tabs button{height:26px;padding:0 10px;border-radius:7px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted)}
+.panel-tabs button[aria-pressed="true"]{background:var(--wash-strong);color:var(--text)}
+.panel-tabs .spacer{flex:1}
+.sym-head{padding:12px 14px 10px}
+.sym-name{display:flex;align-items:center;gap:8px;font:600 13px var(--font-mono)}
+.kind{font:700 10px/1 var(--font-sans);padding:3px 5px;border-radius:4px;background:rgb(111 63 194 / .12);color:var(--syn-f);letter-spacing:.04em;text-transform:uppercase}
+.sym-loc{margin-top:4px;font:12px var(--font-mono);color:var(--muted)}
+.def{margin:0 10px 10px;border:1px solid var(--border);border-radius:8px;background:var(--code-bg);padding:6px 10px;font:11.5px/1.55 var(--font-mono);white-space:pre-wrap;color:var(--text-2)}
+.refs-head{display:flex;align-items:center;gap:6px;padding:6px 14px;font:700 10.5px/1 var(--font-sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.refs-head .spacer{flex:1}
+.refs-head label{display:flex;align-items:center;gap:5px;font:500 11.5px var(--font-sans);letter-spacing:0;text-transform:none}
+.refs{padding:0 6px;overflow:hidden}
+.ref-file{display:flex;align-items:center;gap:6px;height:24px;padding:0 8px;font:600 12px var(--font-mono);color:var(--text-2)}
+.ref-file span{color:var(--muted);font-weight:500}
+.ref{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:6px;width:100%;height:26px;padding:0 8px;border-radius:6px;text-align:left;font:11.5px var(--font-mono);color:var(--text-2)}
+.ref:hover{background:var(--wash)}
+.ref.cur{background:var(--selection);color:var(--text)}
+.ref i{font-style:normal;color:var(--muted);text-align:right}
+.ref .code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.panel-foot{margin-top:auto;display:flex;gap:12px;padding:8px 14px;border-top:1px solid var(--border);font-size:11.5px;color:var(--muted)}
+.scrim{position:absolute;inset:0;z-index:5;background:rgb(0 0 0 / .18)}
+.sheet{position:absolute;z-index:6;top:52px;left:280px;width:640px;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:12px;background:var(--app-bg);box-shadow:0 24px 60px -16px rgb(0 0 0 / .4)}
+.sheet h2{margin:0;padding:14px 0 0;font-size:13px;font-weight:600;text-align:center}
+.sheet-body{flex:1;min-height:0;overflow:hidden;padding:0 20px 4px}
+.sheet-body h3{display:flex;align-items:center;gap:8px;margin:16px 4px 6px;color:var(--muted);font-size:12px;font-weight:600}
+.group{border:1px solid var(--border);border-radius:10px;background:var(--code-bg)}
+.field{display:flex;align-items:center;gap:12px;min-height:42px;padding:7px 12px}
+.field + .field{border-top:1px solid var(--border)}
+.label{flex:1;display:grid;gap:1px}
+.label small{color:var(--muted);font-size:11.5px}
+.label small.warn{color:var(--warn)}
+.label code{font:11px var(--font-mono)}
+.field select{width:180px;font:12px var(--font-sans)}
+.field.off .label > span{color:var(--muted)}
+.srv{display:flex;align-items:center;gap:6px;min-width:84px;font-size:11.5px;color:var(--muted)}
+.srv .dot{width:7px;height:7px;border-radius:50%;background:var(--add)}
+.srv .dot.idle{background:none;box-shadow:inset 0 0 0 1.2px var(--add)}
+.srv .dot.none{background:none;box-shadow:inset 0 0 0 1.2px var(--muted)}
+.sheet footer{display:flex;align-items:center;gap:12px;padding:14px 20px 16px;border-top:1px solid var(--border)}
+.sheet footer .note{flex:1;font-size:11.5px;color:var(--muted)}
+.done{height:26px;padding:0 14px;border-radius:7px;background:var(--accent);color:#fff;font-size:12.5px;font-weight:600}
+.linkish{font-size:12px;font-weight:500;color:var(--accent-ink)}
+</style>
+</head>
+<body>
+<main class="page">
+<h1>ghl — intelligence de code (bêta)</h1>
+<p class="lede">Maquettes du 25 octobre 2026, retenues parmi six pistes : la carte au survol sous ⌘ (A), l’onglet Symbol (C) et les réglages (F). Le plan est dans <code>code-intelligence.md</code>.</p>
+<article class="variant">
+<h2><span class="num">A</span> Carte au survol, ⌘-clic pour la définition</h2>
+<p class="desc">Tenir ⌘ souligne le symbole sous le pointeur et ouvre sa carte : signature, emplacement de la définition, Go to definition et References.</p>
+<div class="frame">
+<div class="win" style="width:1200px;height:560px">
+  <header class="titlebar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <button class="icon-btn" aria-label="Toggle sidebar"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"></rect><path d="M6 2.5v11"></path></svg></button>
+    <div class="repo"><span>~/dev/perso/</span>github-like</div>
+    <div class="compare">
+      <button>main</button><span class="arrow">→</span><button>agent-comments/01-cli</button>
+      <span class="sep"></span>
+      <button class="commit">All commits</button>
+    </div>
+    <div class="actions">
+      <span class="count">2</span>
+      <button class="icon-btn" aria-label="Comments"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke-linejoin="round"></path></svg></button>
+    </div>
+  </header>
+
+  <aside class="side">
+    <div class="side-head">Changes <span class="count">5</span><span class="spacer"></span></div>
+    <div class="tree">
+      <div class="row" style="--d:0"><span class="name">go/internal/app</span></div>
+      <div class="row sel" style="--d:1"><span class="st M">M</span><span class="name">comments.go</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">server.go</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">types.go</span></div>
+      <div class="row" style="--d:0"><span class="name">web/src</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">CommentCard.tsx</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">CommentsPanel.tsx</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="diff">
+      <section class="card">
+        <div class="card-head"><span class="path"><span>go/internal/app/</span>comments.go</span><span class="stats"><span class="a">+15</span> <span class="d">−0</span></span></div>
+        <div class="ln"><i>108</i><b> </b>    <span class="k">return</span> state.Comments, err</div>
+        <div class="ln"><i>109</i><b> </b>}</div>
+        <div class="ln"><i>110</i><b> </b></div>
+        <div class="ln add"><i>111</i><b>+</b><span class="c">// resolve keeps a comment and marks its thread resolved.</span></div>
+        <div class="ln add"><i>112</i><b>+</b><span class="k">func</span> (c repositoryComments) <span class="f">resolve</span>(ctx context.<span class="t">Context</span>, id <span class="t">string</span>) (<span class="t">Comment</span>, <span class="t">error</span>) {</div>
+        <div class="ln add"><i>113</i><b>+</b>    <span class="k">var</span> saved <span class="t">Comment</span></div>
+        <div class="ln add"><i>114</i><b>+</b>    _, err := c.store.<span class="sym">Mutate</span>(ctx, <span class="k">func</span>(state *<span class="t">StoredState</span>) <span class="t">error</span> {</div>
+        <div class="ln add"><i>115</i><b>+</b>        <span class="k">for</span> i := <span class="k">range</span> state.Comments {</div>
+        <div class="ln add"><i>116</i><b>+</b>            <span class="k">if</span> state.Comments[i].ID == id {</div>
+        <div class="ln add"><i>117</i><b>+</b>                state.Comments[i].Status = statusResolved</div>
+        <div class="ln add"><i>118</i><b>+</b>                saved = state.Comments[i]</div>
+        <div class="ln add"><i>119</i><b>+</b>                <span class="k">return</span> <span class="k">nil</span></div>
+        <div class="ln add"><i>120</i><b>+</b>            }</div>
+        <div class="ln add"><i>121</i><b>+</b>        }</div>
+        <div class="ln add"><i>122</i><b>+</b>        <span class="k">return</span> errCommentMissing</div>
+        <div class="ln add"><i>123</i><b>+</b>    })</div>
+        <div class="ln add"><i>124</i><b>+</b>    <span class="k">return</span> saved, err</div>
+        <div class="ln add"><i>125</i><b>+</b>}</div>
+      </section>
+    </div>
+    <footer class="footer">
+      <span>base main</span><span>working tree included</span>
+      <span class="lsp-status"><i class="dot"></i>gopls <span class="beta">Beta</span></span>
+      <span class="next">Next <b>server.go</b> <kbd>j</kbd></span>
+    </footer>
+  </main>
+
+  <span class="caret" style="top:234px;left:500px"></span>
+  <div class="hovercard" role="dialog" aria-label="Store.Mutate" style="top:240px;left:470px;width:540px">
+    <div class="hc-head"><span>method in package app</span><span class="spacer"></span><span class="beta">Beta</span><span>gopls</span></div>
+    <pre class="hc-sig"><span class="k">func</span> (s *<span class="t">Store</span>) <span class="f">Mutate</span>(ctx context.<span class="t">Context</span>, change <span class="k">func</span>(*<span class="t">StoredState</span>) <span class="t">error</span>) (state <span class="t">StoredState</span>, err <span class="t">error</span>)</pre>
+    <div class="hc-meta">Defined in <b>go/internal/app/state.go:126</b> <span class="tag out">not in this diff</span></div>
+    <div class="hc-actions">
+      <button type="button">Go to definition <kbd>⌘ click</kbd></button>
+      <button type="button">References <span class="count">5</span></button>
+      <span class="spacer"></span>
+      <span class="dim" style="font-size:11.5px;padding-right:8px">Hold <kbd>⌘</kbd> to show symbols · <kbd>esc</kbd></span>
+    </div>
+  </div>
+</div>
+</div>
+</article>
+<article class="variant">
+<h2><span class="num">C</span> Onglet Symbol à côté des commentaires</h2>
+<p class="desc">References ouvre l’onglet Symbol : définition, références groupées par fichier, badge in diff et filtre. Le réglage Symbol panel le retire.</p>
+<div class="frame">
+<div class="win with-panel" style="width:1200px;height:560px">
+  <header class="titlebar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <button class="icon-btn" aria-label="Toggle sidebar"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"></rect><path d="M6 2.5v11"></path></svg></button>
+    <div class="repo"><span>~/dev/perso/</span>github-like</div>
+    <div class="compare">
+      <button>main</button><span class="arrow">→</span><button>agent-comments/01-cli</button>
+      <span class="sep"></span>
+      <button class="commit">All commits</button>
+    </div>
+    <div class="actions">
+      <span class="count">2</span>
+      <button class="icon-btn on" aria-label="Side panel" aria-pressed="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"></rect><path d="M10 2.5v11"></path></svg></button>
+    </div>
+  </header>
+
+  <aside class="side">
+    <div class="side-head">Changes <span class="count">5</span><span class="spacer"></span></div>
+    <div class="tree">
+      <div class="row" style="--d:0"><span class="name">go/internal/app</span></div>
+      <div class="row sel" style="--d:1"><span class="st M">M</span><span class="name">comments.go</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">server.go</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">types.go</span></div>
+      <div class="row" style="--d:0"><span class="name">web/src</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">CommentCard.tsx</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">CommentsPanel.tsx</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="diff">
+      <section class="card">
+        <div class="card-head"><span class="path"><span>go/internal/app/</span>comments.go</span><span class="stats"><span class="a">+15</span> <span class="d">−0</span></span></div>
+        <div class="ln"><i>109</i><b> </b>}</div>
+        <div class="ln"><i>110</i><b> </b></div>
+        <div class="ln add"><i>111</i><b>+</b><span class="c">// resolve keeps a comment and marks its thread resolved.</span></div>
+        <div class="ln add"><i>112</i><b>+</b><span class="k">func</span> (c repositoryComments) <span class="f">resolve</span>(ctx context.<span class="t">Context</span>, id <span class="t">string</span>) (<span class="t">Comment</span>, <span class="t">error</span>) {</div>
+        <div class="ln add"><i>113</i><b>+</b>    <span class="k">var</span> saved <span class="t">Comment</span></div>
+        <div class="ln add"><i>114</i><b>+</b>    _, err := c.store.<span class="sym">Mutate</span>(ctx, <span class="k">func</span>(state *<span class="t">StoredState</span>) <span class="t">error</span> {</div>
+        <div class="ln add"><i>115</i><b>+</b>        <span class="k">for</span> i := <span class="k">range</span> state.Comments {</div>
+        <div class="ln add"><i>116</i><b>+</b>            <span class="k">if</span> state.Comments[i].ID == id {</div>
+        <div class="ln add"><i>117</i><b>+</b>                state.Comments[i].Status = statusResolved</div>
+        <div class="ln add"><i>118</i><b>+</b>                saved = state.Comments[i]</div>
+        <div class="ln add"><i>119</i><b>+</b>                <span class="k">return</span> <span class="k">nil</span></div>
+        <div class="ln add"><i>120</i><b>+</b>            }</div>
+        <div class="ln add"><i>121</i><b>+</b>        }</div>
+        <div class="ln add"><i>122</i><b>+</b>        <span class="k">return</span> errCommentMissing</div>
+        <div class="ln add"><i>123</i><b>+</b>    })</div>
+        <div class="ln add"><i>124</i><b>+</b>    <span class="k">return</span> saved, err</div>
+        <div class="ln add"><i>125</i><b>+</b>}</div>
+      </section>
+    </div>
+    <footer class="footer">
+      <span>base main</span>
+      <span class="lsp-status"><i class="dot"></i>gopls <span class="beta">Beta</span></span>
+      <span class="next">Next <b>server.go</b> <kbd>j</kbd></span>
+    </footer>
+  </main>
+
+  <aside class="panel" aria-label="Symbol">
+    <div class="panel-tabs" role="group" aria-label="Side panel">
+      <button type="button" aria-pressed="false">Comments <span class="count">2</span></button>
+      <button type="button" aria-pressed="true">Symbol</button>
+      <span class="spacer"></span>
+      <span class="beta">Beta</span>
+    </div>
+    <div class="sym-head">
+      <div class="sym-name"><span class="kind">method</span>Store.Mutate</div>
+      <div class="sym-loc">go/internal/app/state.go:126 · unchanged</div>
+    </div>
+    <div class="def"><span class="k">func</span> (s *<span class="t">Store</span>) <span class="f">Mutate</span>(ctx context.<span class="t">Context</span>, change <span class="k">func</span>(*<span class="t">StoredState</span>) <span class="t">error</span>) (state <span class="t">StoredState</span>, err <span class="t">error</span>)</div>
+    <div class="refs-head">References <span class="count">5</span><span class="spacer"></span><label><input type="checkbox"> In this diff only</label></div>
+    <div class="refs">
+      <div class="ref-file">comments.go <span>4</span></div>
+      <button class="ref" type="button"><i>30</i><span class="code">state, err := c.store.Mutate(ctx, func(state *StoredState) error {</span><span></span></button>
+      <button class="ref" type="button"><i>80</i><span class="code">_, err := c.store.Mutate(ctx, func(state *StoredState) error {</span><span></span></button>
+      <button class="ref" type="button"><i>100</i><span class="code">state, err := c.store.Mutate(ctx, func(state *StoredState) error {</span><span></span></button>
+      <button class="ref cur" type="button" aria-current="true"><i>114</i><span class="code">_, err := c.store.Mutate(ctx, func(state *StoredState) error {</span><span class="tag in">in diff</span></button>
+      <div class="ref-file">server.go <span>1</span></div>
+      <button class="ref" type="button"><i>288</i><span class="code">state, err := s.store.Mutate(r.Context(), func(state *StoredState) error {</span><span></span></button>
+    </div>
+    <div class="panel-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>↩</kbd> open</span><span><kbd>esc</kbd> back to comments</span></div>
+  </aside>
+</div>
+</div>
+</article>
+<article class="variant">
+<h2><span class="num">F</span> Réglages bêta et état des serveurs</h2>
+<p class="desc">Settings › Code intelligence : l’interrupteur général, Symbol panel, et un serveur par langage avec son chemin, son état et son choix.</p>
+<div class="frame">
+<div class="win" style="width:1200px;height:640px">
+  <header class="titlebar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <button class="icon-btn" aria-label="Toggle sidebar"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"></rect><path d="M6 2.5v11"></path></svg></button>
+    <div class="repo"><span>~/dev/perso/</span>github-like</div>
+    <div class="compare">
+      <button>main</button><span class="arrow">→</span><button>agent-comments/01-cli</button>
+      <span class="sep"></span>
+      <button class="commit">All commits</button>
+    </div>
+    <div class="actions">
+      <span class="count">2</span>
+      <button class="icon-btn" aria-label="Comments"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke-linejoin="round"></path></svg></button>
+    </div>
+  </header>
+
+  <aside class="side">
+    <div class="side-head">Changes <span class="count">5</span><span class="spacer"></span></div>
+    <div class="tree">
+      <div class="row" style="--d:0"><span class="name">go/internal/app</span></div>
+      <div class="row sel" style="--d:1"><span class="st M">M</span><span class="name">comments.go</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">server.go</span></div>
+      <div class="row" style="--d:1"><span class="st M">M</span><span class="name">types.go</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="diff">
+      <section class="card">
+        <div class="card-head"><span class="path"><span>go/internal/app/</span>comments.go</span><span class="stats"><span class="a">+15</span> <span class="d">−0</span></span></div>
+        <div class="ln add"><i>111</i><b>+</b><span class="c">// resolve keeps a comment and marks its thread resolved.</span></div>
+        <div class="ln add"><i>112</i><b>+</b><span class="k">func</span> (c repositoryComments) <span class="f">resolve</span>(ctx context.<span class="t">Context</span>, id <span class="t">string</span>) (<span class="t">Comment</span>, <span class="t">error</span>) {</div>
+        <div class="ln add"><i>113</i><b>+</b>    <span class="k">var</span> saved <span class="t">Comment</span></div>
+        <div class="ln add"><i>114</i><b>+</b>    _, err := c.store.Mutate(ctx, <span class="k">func</span>(state *<span class="t">StoredState</span>) <span class="t">error</span> {</div>
+      </section>
+    </div>
+    <footer class="footer">
+      <span>base main</span><span>working tree included</span>
+      <span class="lsp-status"><i class="dot busy"></i>gopls indexing 42 % <span class="beta">Beta</span></span>
+      <span class="next">Next <b>server.go</b> <kbd>j</kbd></span>
+    </footer>
+  </main>
+
+  <div class="scrim"></div>
+  <div class="sheet" role="dialog" aria-labelledby="settings-title">
+    <h2 id="settings-title">Settings</h2>
+    <div class="sheet-body">
+      <h3>Code intelligence <span class="beta">Beta</span></h3>
+      <div class="group">
+        <label class="field">
+          <span class="label"><span>Use language servers</span><small>Hold ⌘ over a symbol for its type, ⌘-click for its definition. Working-tree reviews only.</small></span>
+          <input type="checkbox" checked>
+        </label>
+        <label class="field">
+          <span class="label"><span>Symbol panel</span><small>References in a Symbol tab beside Comments.</small></span>
+          <input type="checkbox" checked>
+        </label>
+      </div>
+
+      <h3>Language servers</h3>
+      <div class="group">
+        <label class="field">
+          <span class="label"><span>Go · gopls</span><small><code>~/.local/share/mise/installs/…/gopls</code></small></span>
+          <span class="srv"><i class="dot"></i>running</span>
+          <select style="width:150px"><option>Auto</option><option>Off</option></select>
+        </label>
+        <label class="field">
+          <span class="label"><span>TypeScript · tsrs 0.18.0</span><small><code>node_modules/.bin/tsrs</code> · from this checkout</small></span>
+          <span class="srv"><i class="dot idle"></i>idle</span>
+          <select style="width:150px"><option>Auto</option><option>TypeScript 7 (tsc)</option><option>tsrs</option><option>typescript-language-server</option><option>Off</option></select>
+        </label>
+        <label class="field off">
+          <span class="label"><span>Rust · rust-analyzer</span><small class="warn">Not found — <code>rustup component add rust-analyzer</code></small></span>
+          <span class="srv"><i class="dot none"></i>missing</span>
+          <select style="width:150px" disabled><option>Auto</option><option>Off</option></select>
+        </label>
+      </div>
+    </div>
+    <footer>
+      <span class="note">Servers run on the reviewed code, as your editor would.</span>
+      <button class="done" type="button">Done</button>
+    </footer>
+  </div>
+</div>
+</div>
+</article>
+</main>
+</body>
+</html>
