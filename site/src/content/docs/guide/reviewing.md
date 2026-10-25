@@ -19,7 +19,7 @@ Ref and commit views exclude uncommitted and untracked files. Reloading keeps th
 
 ## Comments
 
-Click the gutter's `+`, or select lines and press `c`. Comments belong to the reviewed branch and survive refreshes, restarts and reinstalls. Switching branches shows that branch's comments; returning restores the earlier ones. Changing the base or displayed commit on the same branch keeps its comments available.
+Click the gutter's `+`, or select lines and press `c`. A selection that runs from added or unchanged lines into removed ones, or across the columns of the split view, comments on the lines of the new file it covers. Comments belong to the reviewed branch and survive refreshes, restarts and reinstalls. Switching branches shows that branch's comments; returning restores the earlier ones. Changing the base or displayed commit on the same branch keeps its comments available.
 
 Each comment saves its original code. When those lines change, the comment shows the previous text; restoring the lines clears the stale marker. Comments are never deleted automatically. Editing changes the prose while preserving the original anchor and comparison.
 
