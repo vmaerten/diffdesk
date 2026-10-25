@@ -12,7 +12,7 @@
 - Open a review in place of the one shown instead of in a new tab: running `ghl` in another checkout, or opening a repository with `Cmd+O`, replaces it. ([#203](https://github.com/vmaerten/ghl/pull/203))
 - Right-click a file in the tree or on its header for a native menu with Viewed, Copy Path and Reveal in Finder on that file. ([#208](https://github.com/vmaerten/ghl/pull/208))
 - Offer a compact title bar, 38 px instead of 52 with macOS's compact toolbar, to give the code more room: Settings, under Window, turns it on from the next launch. ([#210](https://github.com/vmaerten/ghl/pull/210))
-- Resolve a comment instead of deleting it: Resolve on a card closes it and keeps it, out of the diff, the panel, the count and Copy. `ghl comments` and Copy show each comment's ID, `ghl comments --all` lists resolved comments too, and `ghl comments resolve <id>` and `reopen <id>` work from the terminal. The review state moves to version 2; an older ghl refuses it instead of reopening resolved comments.
+- Resolve a comment instead of deleting it: Resolve on a card closes it and keeps it, out of the diff, the panel, the count and Copy. `ghl comments` and Copy show each comment's ID, `ghl comments --all` lists resolved comments too, and `ghl comments resolve <id>` and `reopen <id>` work from the terminal. The review state moves to version 2; an older ghl refuses it instead of reopening resolved comments. ([#227](https://github.com/vmaerten/ghl/pull/227))
 
 ### 🐛 Fixes
 
