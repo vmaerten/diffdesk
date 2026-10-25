@@ -14,6 +14,7 @@
 - Offer a compact title bar, 38 px instead of 52 with macOS's compact toolbar, to give the code more room: Settings, under Window, turns it on from the next launch. ([#210](https://github.com/vmaerten/ghl/pull/210))
 - Work through review comments with an agent from the terminal: `ghl comments check` lists the open comments in a compact form and exits 1 while any remain, `ghl comments reply <id> <message>` answers one, and `resolve` and `reopen` let the reviewer close it or hand it back. `ghl comments` and the Copy button show each comment's ID, status and replies; `ghl comments` leaves resolved comments out unless `--all`. The review state moves to version 2; an older ghl refuses it instead of dropping the replies. ([#212](https://github.com/vmaerten/ghl/pull/212))
 - Show the agent's replies under each comment in the window, with an Answered badge while a comment waits for the reviewer; resolved comments leave the diff, the comments panel, the count and Copy. ([#215](https://github.com/vmaerten/ghl/pull/215))
+- Ship a skill that teaches an agent to work through review comments: `ghl skill` prints it for Claude Code or any agent that reads skills, and the reviewing guide shows a Claude Code `Stop` hook that keeps the agent going while comments are open. ([#216](https://github.com/vmaerten/ghl/pull/216))
 
 ### 🐛 Fixes
 
