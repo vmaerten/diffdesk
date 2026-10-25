@@ -15,6 +15,7 @@
 
 ### 🐛 Fixes
 
+- Stop a base picked in the window from emptying a branch's reviews for good: the base is now dimmed text in the title bar, so a click meant for the reviewed branch no longer opens the base picker, the pickers open on the current choice so Enter alone changes nothing, and a picked base holds for the review shown instead of being written to `.git/config`. **Automatic base** drops it, and a review whose base already contains the whole branch says so and offers the automatic base. Bases that earlier releases remembered in `branch.<name>.ghlBase` are ignored.
 - Read the review whatever diff prefixes Git is configured with (`diff.mnemonicPrefix`, `diff.noprefix`, `diff.srcPrefix`), instead of losing Viewed, comments and context on every file; with `diff.suppressBlankEmpty`, comments after a blank line now anchor on the right code. ([#184](https://github.com/vmaerten/ghl/pull/184))
 - Open the window when ghl is launched from the Finder, Spotlight or the Dock, instead of failing with "Could not open repository"; error dialogs show the message rather than the server's JSON, and a `ghl` run while the app quits opens in a new window instead of being lost. ([#185](https://github.com/vmaerten/ghl/pull/185))
 - Keep reviews and `ghl comments` working after a crash left the state lock behind, and in reftable repositories: only writes lock the state now, with a lock the system releases when a process dies. Reading a corrupt state no longer moves it aside; the next comment or Viewed change does. ([#186](https://github.com/vmaerten/ghl/pull/186))
