@@ -146,7 +146,7 @@ def verify(dist):
             'Go standard library', '@pierre/diffs@', '@pierre/trees@', 'react@', 'react-dom@', 'cmdk@',
             'Permission is hereby granted', 'Apache License', 'VS Code Oniguruma Bindings',
             'oniguruma version 6.9.5_rev1', 'tm-grammars-1.32.0.NOTICE', 'tm-themes-1.12.3.NOTICE',
-            'github.com/wailsapp/wails/v2@',
+            'github.com/wailsapp/wails/v3@',
         ]:
             require(marker in text, f'Missing notice: {marker}')
         for path, version in linked_modules(binary):
