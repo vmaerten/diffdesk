@@ -15,7 +15,7 @@ import (
 const environmentMarker = "__GHL_ENVIRONMENT__"
 
 // loginEnvironment asks the user's shell for the environment a terminal opened
-// in root would have. Launched from the Finder, ghl inherits launchd's PATH,
+// in root would have. Launched from the Finder, Diffdesk inherits launchd's PATH,
 // without Homebrew, mise or ~/go/bin, and gopls also needs go on it.
 func loginEnvironment(shell, root string, timeout time.Duration) ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)

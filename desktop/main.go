@@ -28,7 +28,7 @@ var bridge string
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "ghl:", err)
+		fmt.Fprintln(os.Stderr, "diffdesk:", err)
 		os.Exit(1)
 	}
 }
@@ -70,7 +70,7 @@ func run() error {
 	probePath := os.Getenv("GHL_DESKTOP_PROBE")
 	instanceID := "cf7c8359-dbb0-4c1c-a09f-301b26d2a917"
 	if probePath != "" {
-		instanceID = fmt.Sprintf("ghl-test-%x", sha256.Sum256([]byte(probePath)))
+		instanceID = fmt.Sprintf("diffdesk-test-%x", sha256.Sum256([]byte(probePath)))
 	}
 	// Per user on macOS, and the socket path must stay short.
 	dir := userTempDir()
@@ -89,7 +89,7 @@ func run() error {
 		}
 		bundle := filepath.Dir(filepath.Dir(filepath.Dir(executable)))
 		if filepath.Ext(bundle) != ".app" {
-			return fmt.Errorf("run ghl from its .app bundle (task desktop:run)")
+			return fmt.Errorf("run diffdesk from its .app bundle (task desktop:run)")
 		}
 		// LaunchServices gives the window a Dock identity. Concurrent launchers may
 		// each start one: a single app wins the lock and they all deliver to it.
@@ -101,7 +101,7 @@ func run() error {
 			return err
 		}
 		if err := deliver(dir, instanceID, initial, 20*time.Second); errors.Is(err, errNoApp) {
-			return fmt.Errorf("the ghl app did not start")
+			return fmt.Errorf("Diffdesk did not start")
 		} else {
 			return err
 		}
@@ -162,7 +162,7 @@ func run() error {
 		return err
 	}
 	native := application.New(application.Options{
-		Name:     "ghl",
+		Name:     "Diffdesk",
 		Assets:   application.AssetOptions{Handler: handler, DisableLogging: true},
 		Services: []application.Service{application.NewService(desktop)},
 		Mac:      application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: true},
@@ -174,7 +174,7 @@ func run() error {
 		},
 	})
 	window := native.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name: "review", Title: "ghl", URL: "/", JS: string(probe),
+		Name: "review", Title: "Diffdesk", URL: "/", JS: string(probe),
 		Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
 		// Width and Height are the size the window's zoom button returns to.
 		StartState: application.WindowStateMaximised,
@@ -210,18 +210,18 @@ func run() error {
 	appMenu := native.Menu.New()
 	// Wails' AppMenu role, with Settings where macOS apps keep it. Its Show All
 	// is the UnHide role, which has no selector; ShowAll has one.
-	ghlMenu := appMenu.AddSubmenu("ghl")
-	ghlMenu.AddRole(application.About)
-	ghlMenu.AddSeparator()
-	item(ghlMenu, "Settings…", "CmdOrCtrl+,", func(*application.Context) { desktop.openSettings() })
-	ghlMenu.AddSeparator()
-	ghlMenu.AddRole(application.ServicesMenu)
-	ghlMenu.AddSeparator()
-	ghlMenu.AddRole(application.Hide)
-	ghlMenu.AddRole(application.HideOthers)
-	ghlMenu.AddRole(application.ShowAll)
-	ghlMenu.AddSeparator()
-	ghlMenu.AddRole(application.Quit)
+	diffdeskMenu := appMenu.AddSubmenu("Diffdesk")
+	diffdeskMenu.AddRole(application.About)
+	diffdeskMenu.AddSeparator()
+	item(diffdeskMenu, "Settings…", "CmdOrCtrl+,", func(*application.Context) { desktop.openSettings() })
+	diffdeskMenu.AddSeparator()
+	diffdeskMenu.AddRole(application.ServicesMenu)
+	diffdeskMenu.AddSeparator()
+	diffdeskMenu.AddRole(application.Hide)
+	diffdeskMenu.AddRole(application.HideOthers)
+	diffdeskMenu.AddRole(application.ShowAll)
+	diffdeskMenu.AddSeparator()
+	diffdeskMenu.AddRole(application.Quit)
 	fileMenu := appMenu.AddSubmenu("File")
 	item(fileMenu, "Open Repository…", "CmdOrCtrl+o", func(*application.Context) { desktop.chooseRepository() })
 	closeReview := command("close-tab")

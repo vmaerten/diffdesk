@@ -12,7 +12,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = Path(__file__).resolve().parent.parent
-BINARY = ROOT / '.task/desktop/ghl.app/Contents/MacOS/ghl'
+BINARY = ROOT / '.task/desktop/Diffdesk.app/Contents/MacOS/diffdesk'
 
 
 def fixture(path, context):
@@ -73,9 +73,9 @@ def main():
         env = {**os.environ, 'GHL_DESKTOP_PROBE': str(script), 'GHL_DESKTOP_SETTINGS': str(folder / 'settings.json'), 'GHL_DESKTOP_TABS': '1'}
         binary = BINARY
         if args.standalone:
-            bundle = folder / 'ghl.app'
+            bundle = folder / 'Diffdesk.app'
             shutil.copytree(BINARY.parents[2], bundle)
-            binary = bundle / 'Contents/MacOS/ghl'
+            binary = bundle / 'Contents/MacOS/diffdesk'
             env['PATH'] = '/usr/bin:/bin:/usr/sbin:/sbin'
             assert all(shutil.which(tool, path=env['PATH']) is None for tool in ['node', 'pnpm', 'go'])
         log_path = ROOT / '.task/desktop/smoke.log'

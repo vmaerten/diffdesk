@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// GitHub is reached through its CLI: ghl stores no token, and works with the
+// GitHub is reached through its CLI: Diffdesk stores no token, and works with the
 // hosts and accounts gh is signed in to.
 
 // PullRequestStatus is what the title bar shows for a branch. GitHub is ready,

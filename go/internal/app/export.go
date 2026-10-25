@@ -68,7 +68,7 @@ func writeCommentExport(comments []ServedComment, repo, comparison string, optio
 	return writeCommentText(ordered, comparison, options.Code, out)
 }
 
-// writeCommentText is what an agent is handed, by `ghl comments` and by Copy
+// writeCommentText is what an agent is handed, by `diffdesk comments` and by Copy
 // alike: every line costs it tokens, so a comment quotes only the lines its file
 // no longer has, removed or changed since. src/export.ts writes the same text.
 func writeCommentText(ordered []ServedComment, comparison string, withCode bool, out io.Writer) error {
@@ -89,7 +89,7 @@ func writeCommentText(ordered []ServedComment, comparison string, withCode bool,
 		}
 	}
 	for _, c := range ordered {
-		// The ID is what `ghl comments resolve` and `reopen` take back.
+		// The ID is what `diffdesk comments resolve` and `reopen` take back.
 		location := fmt.Sprintf("%s %s:%d", shortID(c.ID), c.Path, c.Start)
 		if c.End != c.Start {
 			location += fmt.Sprintf("-%d", c.End)
@@ -136,7 +136,7 @@ func writeComments(ctx context.Context, review *Review, store *Store, options Ex
 		if notice == nil {
 			continue
 		}
-		if _, err := fmt.Fprintln(stderr, "ghl:", *notice); err != nil {
+		if _, err := fmt.Fprintln(stderr, "diffdesk:", *notice); err != nil {
 			return err
 		}
 	}

@@ -148,7 +148,7 @@ export default function App({
     repoId,
     commentStore,
   )
-  /** Resolved comments are closed; `ghl comments` leaves them out too. */
+  /** Resolved comments are closed; `diffdesk comments` leaves them out too. */
   const comments = useMemo(
     () => stored.filter((comment) => comment.status !== 'resolved'),
     [stored],
@@ -285,7 +285,7 @@ export default function App({
   /**
    * Put the whole review on the clipboard, as the text an agent is handed.
    *
-   * `asText` is the CLI's too, so the button and `ghl comments` cannot
+   * `asText` is the CLI's too, so the button and `diffdesk comments` cannot
    * produce different text for the same review. Failing to reach the clipboard is
    * said out loud: the point of the gesture is that the text left the page.
    */
@@ -587,11 +587,11 @@ export default function App({
 
   const resizeSidebar = useCallback((width: number) => {
     setSidebarWidth(width)
-    localStorage.setItem('ghl.sidebarWidth', String(width))
+    localStorage.setItem('diffdesk.sidebarWidth', String(width))
   }, [])
   const resizePanel = useCallback((width: number) => {
     setPanelWidth(width)
-    localStorage.setItem('ghl.panelWidth', String(width))
+    localStorage.setItem('diffdesk.panelWidth', String(width))
   }, [])
 
   const baseSource = data ? BASE_SOURCES[data.base.source] : null

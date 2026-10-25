@@ -386,7 +386,7 @@ function WindowPane({ settings, onChange }: PaneProps) {
       <div className="settings-field">
         <span className="settings-label">
           Title bar
-          <small>Applies the next time ghl opens.</small>
+          <small>Applies the next time Diffdesk opens.</small>
         </span>
         <div className="settings-choices" role="group" aria-label="Title bar">
           {TITLE_BARS.map(({ compact, label }) => (

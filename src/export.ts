@@ -2,7 +2,7 @@
  * Turning comments into something to hand over.
  *
  * What Copy puts on the clipboard. Shared golden fixtures keep it identical to
- * what `ghl comments` prints for the same review.
+ * what `diffdesk comments` prints for the same review.
  */
 
 import type { ServedComment } from './types.ts'
@@ -39,7 +39,7 @@ export function asText(comments: ServedComment[], { range }: { range: string }):
     out.push(`${label}:`, ...lines.map((line) => `  ${line}`))
 
   for (const comment of inReadingOrder(comments)) {
-    // The ID is what `ghl comments resolve` and `reopen` take back.
+    // The ID is what `diffdesk comments resolve` and `reopen` take back.
     const lines = comment.start === comment.end ? comment.start : `${comment.start}-${comment.end}`
     const removed = comment.side === 'deletions' ? ' (removed lines)' : ''
     const status = comment.status && comment.status !== 'open' ? ` · ${comment.status}` : ''

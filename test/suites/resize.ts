@@ -16,7 +16,7 @@ export default {
         return {
           sidebar: Math.round(sidebar.width),
           diff: diff ? Math.round(diff.width) : 0,
-          stored: localStorage.getItem('ghl.sidebarWidth'),
+          stored: localStorage.getItem('diffdesk.sidebarWidth'),
         }
       })()`) as Promise<{ sidebar: number; diff: number; stored: string | null }>
 
@@ -102,6 +102,6 @@ export default {
     )
     check('j still works with the divider focused', selected.selected.length === 1)
 
-    await page.evaluate(`localStorage.removeItem('ghl.sidebarWidth')`)
+    await page.evaluate(`localStorage.removeItem('diffdesk.sidebarWidth')`)
   },
 } satisfies Suite

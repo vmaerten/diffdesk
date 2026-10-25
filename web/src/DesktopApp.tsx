@@ -68,7 +68,7 @@ export default function DesktopApp() {
   const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
   const [sidebarHidden, setSidebarHidden] = useState(() => {
     try {
-      return localStorage.getItem('ghl.sidebarHidden') === '1'
+      return localStorage.getItem('diffdesk.sidebarHidden') === '1'
     } catch {
       return false
     }
@@ -76,7 +76,7 @@ export default function DesktopApp() {
   const toggleSidebar = useStableCallback(() => {
     setSidebarHidden((hidden) => {
       try {
-        localStorage.setItem('ghl.sidebarHidden', hidden ? '0' : '1')
+        localStorage.setItem('diffdesk.sidebarHidden', hidden ? '0' : '1')
       } catch {
         // The choice still holds for this session.
       }
@@ -159,7 +159,7 @@ export default function DesktopApp() {
                 expansions: [],
               },
         )
-      runtime.WindowSetTitle(active ? `ghl — ${active.name}` : 'ghl')
+      runtime.WindowSetTitle(active ? `Diffdesk — ${active.name}` : 'Diffdesk')
       // The outgoing review stays mounted until the next render, so detach it before
       // seeding the URL that the next App reads at mount.
       if (previous.active !== next.active) {
@@ -431,7 +431,7 @@ export default function DesktopApp() {
         </div>
       ) : (
         <div className="desktop-empty">
-          <h1>ghl</h1>
+          <h1>Diffdesk</h1>
           <p>Open a repository to start a review.</p>
           <button className="button primary" onClick={open}>
             Open Repository… <kbd>⌘O</kbd>

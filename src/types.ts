@@ -325,7 +325,7 @@ export interface ReferencesAnswer {
   truncated: boolean
 }
 
-/** How ghl reaches GitHub, through its CLI: anything but ready shows no pull request. */
+/** How Diffdesk reaches GitHub, through its CLI: anything but ready shows no pull request. */
 export type GitHubState = 'ready' | 'missing' | 'signed-out' | 'unavailable'
 
 export interface PullRequest {

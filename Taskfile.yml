@@ -52,25 +52,25 @@ tasks:
     cmds:
       - task: desktop:assets
       - task: desktop:icon
-      - mkdir -p '.task/desktop/ghl.app/Contents/MacOS' '.task/desktop/ghl.app/Contents/Resources'
-      - cp .task/desktop/AppIcon.icns '.task/desktop/ghl.app/Contents/Resources/AppIcon.icns'
+      - mkdir -p '.task/desktop/Diffdesk.app/Contents/MacOS' '.task/desktop/Diffdesk.app/Contents/Resources'
+      - cp .task/desktop/AppIcon.icns '.task/desktop/Diffdesk.app/Contents/Resources/AppIcon.icns'
       # Without a deployment target, cgo targets the installed SDK's macOS release.
       - >-
         CGO_ENABLED=1 CGO_LDFLAGS='-framework UniformTypeIdentifiers' MACOSX_DEPLOYMENT_TARGET=13.0
         go -C desktop build -tags production -trimpath -ldflags={{.LDFLAGS | shellQuote}}
-        -o '../.task/desktop/ghl.app/Contents/MacOS/ghl' .
-      - cp desktop/Info.plist '.task/desktop/ghl.app/Contents/Info.plist'
+        -o '../.task/desktop/Diffdesk.app/Contents/MacOS/diffdesk' .
+      - cp desktop/Info.plist '.task/desktop/Diffdesk.app/Contents/Info.plist'
       - >-
         plutil -replace CFBundleShortVersionString -string
         {{regexReplaceAll `-.*$` .BUILD_VERSION "" | shellQuote}}
-        '.task/desktop/ghl.app/Contents/Info.plist'
+        '.task/desktop/Diffdesk.app/Contents/Info.plist'
       - >-
         plutil -replace GHLReleaseVersion -string {{.BUILD_VERSION | shellQuote}}
-        '.task/desktop/ghl.app/Contents/Info.plist'
+        '.task/desktop/Diffdesk.app/Contents/Info.plist'
       - >-
         plutil -replace GHLCommit -string {{.BUILD_COMMIT | shellQuote}}
-        '.task/desktop/ghl.app/Contents/Info.plist'
-      - codesign --force --deep --sign - '.task/desktop/ghl.app'
+        '.task/desktop/Diffdesk.app/Contents/Info.plist'
+      - codesign --force --deep --sign - '.task/desktop/Diffdesk.app'
 
   desktop:assets:
     desc: Build the desktop UI, embedded by the app and driven by the UI tests
@@ -100,36 +100,44 @@ tasks:
     desc: Build and open a review in the reusable desktop window
     cmds:
       - task: desktop:build
-      - "'.task/desktop/ghl.app/Contents/MacOS/ghl' {{.CLI_ARGS}}"
+      - "'.task/desktop/Diffdesk.app/Contents/MacOS/diffdesk' {{.CLI_ARGS}}"
 
   install:
-    desc: Build the app and link ghl into BIN_DIR (default ~/.local/bin) to its bundle
+    desc: Build the app and link diffdesk and ghl into BIN_DIR (default ~/.local/bin) to its bundle
     vars:
       INSTALL_DIR: '{{.BIN_DIR | default (printf "%s/.local/bin" (env "HOME"))}}'
     cmds:
       - task: desktop:build
       - |
-        ghl_bin={{printf "%s/ghl" .INSTALL_DIR | shellQuote}}
         mkdir -p {{.INSTALL_DIR | shellQuote}}
-        # The 0.1 and 0.2 install copied the browser CLI here.
+        # The 0.1 and 0.2 install copied the browser CLI to ghl.
+        ghl_bin={{printf "%s/ghl" .INSTALL_DIR | shellQuote}}
         if [ -f "$ghl_bin" ] && [ ! -L "$ghl_bin" ] && go version -m "$ghl_bin" 2>/dev/null | grep -q '^[[:space:]]*path[[:space:]]*github.com/vmaerten/ghl/cmd/ghl$'; then
           rm "$ghl_bin"
         fi
-        if [ -e "$ghl_bin" ] && [ ! -L "$ghl_bin" ]; then
-          echo "Cannot replace existing file or directory: $ghl_bin" >&2
-          exit 1
-        fi
-        ln -sfn {{printf "%s/.task/desktop/ghl.app/Contents/MacOS/ghl" .ROOT_DIR | shellQuote}} "$ghl_bin"
-        printf 'installed %s\n' "$ghl_bin"
+        for name in diffdesk ghl; do
+          bin={{.INSTALL_DIR | shellQuote}}/$name
+          if [ -e "$bin" ] && [ ! -L "$bin" ]; then
+            echo "Cannot replace existing file or directory: $bin" >&2
+            exit 1
+          fi
+        done
+        for name in diffdesk ghl; do
+          bin={{.INSTALL_DIR | shellQuote}}/$name
+          ln -sfn {{printf "%s/.task/desktop/Diffdesk.app/Contents/MacOS/diffdesk" .ROOT_DIR | shellQuote}} "$bin"
+          printf 'installed %s\n' "$bin"
+        done
 
   uninstall:
-    desc: Remove the ghl link; preserve review state
+    desc: Remove the diffdesk and ghl links; preserve review state
     vars:
       INSTALL_DIR: '{{.BIN_DIR | default (printf "%s/.local/bin" (env "HOME"))}}'
     cmds:
       - |
-        ghl_bin={{printf "%s/ghl" .INSTALL_DIR | shellQuote}}
-        if [ -L "$ghl_bin" ]; then rm "$ghl_bin"; fi
+        for name in diffdesk ghl; do
+          bin={{.INSTALL_DIR | shellQuote}}/$name
+          if [ -L "$bin" ]; then rm "$bin"; fi
+        done
 
   desktop:test:
     desc: Test desktop argument handling, shared backend and origin boundary

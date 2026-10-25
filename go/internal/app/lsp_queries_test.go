@@ -153,7 +153,7 @@ func TestSymbolAndReferenceRoutes(t *testing.T) {
 	}
 }
 
-// The real servers, when this machine has them: their answers must read as ghl expects.
+// The real servers, when this machine has them: their answers must read as Diffdesk expects.
 func TestRealLanguageServersAnswer(t *testing.T) {
 	repoRoot, err := filepath.Abs("../../..")
 	if err != nil {
@@ -212,7 +212,7 @@ func TestRealLanguageServersAnswer(t *testing.T) {
 			for name, contents := range c.files {
 				writeFixture(t, root, name, contents)
 			}
-			// Helm owns a chart's templates, which ghl finds among the files Git tracks.
+			// Helm owns a chart's templates, which Diffdesk finds among the files Git tracks.
 			gitFixture(t, root, "init", "-q")
 			gitFixture(t, root, "add", ".")
 			m := newLanguageServers()

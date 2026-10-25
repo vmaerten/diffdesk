@@ -3,7 +3,7 @@ import type { ThemeRegistration } from '@pierre/diffs'
 // A TextMate adaptation of JetBrains Darcula for Shiki.
 // https://github.com/JetBrains/intellij-community/tree/master/platform/platform-resources
 export default {
-  name: 'ghl-darcula',
+  name: 'diffdesk-darcula',
   displayName: 'JetBrains Darcula',
   type: 'dark',
   colors: {

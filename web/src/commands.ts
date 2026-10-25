@@ -55,7 +55,7 @@ export interface CommandEntry {
  * repeat desktop/main.go's, and the single keys App's KEY_COMMANDS.
  */
 export const COMMANDS: CommandEntry[] = [
-  { name: 'settings', label: 'Settings…', group: 'ghl', keys: '⌘,' },
+  { name: 'settings', label: 'Settings…', group: 'Diffdesk', keys: '⌘,' },
   { name: 'open-repository', label: 'Open Repository…', group: 'File', keys: '⌘O' },
   { name: 'close-tab', label: 'Close Review', group: 'File', keys: '⌘W' },
   { name: 'sidebar', label: 'Toggle Sidebar', group: 'View', keys: '⌃⌘S' },

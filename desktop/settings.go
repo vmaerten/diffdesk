@@ -17,8 +17,9 @@ import (
 type settingsStore struct {
 	mu   sync.Mutex
 	path string
-	// Read while path does not exist yet: where the app kept them as "ghl Desktop".
-	legacy string
+	// Read in turn while path does not exist yet: where the app kept them as
+	// "ghl", then as "ghl Desktop".
+	legacy []string
 }
 
 // newSettingsStore uses GHL_DESKTOP_SETTINGS when set, so tests never touch
@@ -32,8 +33,11 @@ func newSettingsStore() (*settingsStore, error) {
 		return nil, err
 	}
 	return &settingsStore{
-		path:   filepath.Join(dir, "ghl", "settings.json"),
-		legacy: filepath.Join(dir, "ghl Desktop", "settings.json"),
+		path: filepath.Join(dir, "Diffdesk", "settings.json"),
+		legacy: []string{
+			filepath.Join(dir, "ghl", "settings.json"),
+			filepath.Join(dir, "ghl Desktop", "settings.json"),
+		},
 	}, nil
 }
 
@@ -53,8 +57,11 @@ func (s *settingsStore) load() (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	raw, err := os.ReadFile(s.path)
-	if errors.Is(err, fs.ErrNotExist) && s.legacy != "" {
-		raw, err = os.ReadFile(s.legacy)
+	for _, legacy := range s.legacy {
+		if !errors.Is(err, fs.ErrNotExist) {
+			break
+		}
+		raw, err = os.ReadFile(legacy)
 	}
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", nil

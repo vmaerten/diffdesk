@@ -76,7 +76,7 @@ export default {
     const payload = (await (await fetch(api('diff'))).json()) as DiffPayload
     await page.click('.comments-panel-toolbar button')
     check(
-      'copy all leaves resolved comments out, like ghl comments',
+      'copy all leaves resolved comments out, like diffdesk comments',
       (await page.evaluate(() => document.documentElement.dataset.copied)) ===
         asText(
           payload.comments.filter((comment) => comment.status !== 'resolved'),
