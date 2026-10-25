@@ -111,7 +111,7 @@ def main():
                 assert restarted['pid'] == app.pid and restarted['pid'] != initial['pid']
                 assert restarted['repos'] == 1
                 empty = wait(server, 'empty', checkpoint)
-                assert empty['tabs'] == 0 and empty['mountedReviews'] == 0 and empty['welcome']
+                assert empty['tabs'] == 0 and empty['mountedReviews'] == 0 and empty['welcome'], empty
                 assert app.poll() is None
                 app.send_signal(signal.SIGTERM)
                 app.wait(timeout=15)

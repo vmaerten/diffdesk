@@ -349,14 +349,16 @@
   const inspect = (state) => {
     if (!state.active) {
       if (active)
-        setTimeout(async () => {
+        void (async () => {
+          for (let i = 0; i < 30 && !document.querySelector('.desktop-empty'); i++)
+            await new Promise((resolve) => setTimeout(resolve, 100))
           await report({
             phase: 'empty',
             tabs: state.tabs.length,
             mountedReviews: document.querySelectorAll('.app').length,
             welcome: Boolean(document.querySelector('.desktop-empty')),
           })
-        }, 100)
+        })()
       active = ''
       return
     }
