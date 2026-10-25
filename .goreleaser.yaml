@@ -1,5 +1,5 @@
 version: 2
-project_name: ghl
+project_name: diffdesk
 dist: go/dist/release
 
 before:
@@ -14,29 +14,29 @@ builds:
   - skip: true
 
 archives:
-  - id: ghl
+  - id: diffdesk
     meta: true
     formats: [zip]
     # Meta archives have no build target; the native Task build is macOS ARM64.
-    name_template: 'ghl_{{ .Version }}_darwin_arm64'
+    name_template: 'diffdesk_{{ .Version }}_darwin_arm64'
     files:
-      - src: .task/desktop/ghl.app/Contents/Info.plist
-        dst: ghl.app/Contents
+      - src: .task/desktop/Diffdesk.app/Contents/Info.plist
+        dst: Diffdesk.app/Contents
         strip_parent: true
         info:
           mtime: '{{ .CommitDate }}'
-      - src: .task/desktop/ghl.app/Contents/MacOS/ghl
-        dst: ghl.app/Contents/MacOS
+      - src: .task/desktop/Diffdesk.app/Contents/MacOS/diffdesk
+        dst: Diffdesk.app/Contents/MacOS
         strip_parent: true
         info:
           mtime: '{{ .CommitDate }}'
-      - src: .task/desktop/ghl.app/Contents/Resources/AppIcon.icns
-        dst: ghl.app/Contents/Resources
+      - src: .task/desktop/Diffdesk.app/Contents/Resources/AppIcon.icns
+        dst: Diffdesk.app/Contents/Resources
         strip_parent: true
         info:
           mtime: '{{ .CommitDate }}'
-      - src: .task/desktop/ghl.app/Contents/_CodeSignature/CodeResources
-        dst: ghl.app/Contents/_CodeSignature
+      - src: .task/desktop/Diffdesk.app/Contents/_CodeSignature/CodeResources
+        dst: Diffdesk.app/Contents/_CodeSignature
         strip_parent: true
         info:
           mtime: '{{ .CommitDate }}'

@@ -332,21 +332,32 @@ tasks:
         trap 'rm -rf "$work"' EXIT
         # From the published release, so this can rerun after a failed push.
         gh release download "$RELEASE_TAG" --pattern checksums.txt --dir "$work"
-        node scripts/release-cask.ts "$version" "$work/checksums.txt" > "$work/ghl.rb"
+        node scripts/release-cask.ts "$version" "$work/checksums.txt" > "$work/diffdesk.rb"
         # The workflow token reaches only this repository; the tap needs its own.
         if [ -n "${HOMEBREW_TAP_TOKEN:-}" ]; then export GH_TOKEN="$HOMEBREW_TAP_TOKEN"; fi
-        cask=repos/vmaerten/homebrew-tap/contents/Casks/ghl.rb
+        tap=repos/vmaerten/homebrew-tap/contents
+        cask=$tap/Casks/diffdesk.rb
         # Concurrent tags, or a rerun of an older one, must not move the cask back.
         offered=$(gh api -H 'Accept: application/vnd.github.raw' "$cask" 2>/dev/null | sed -n 's/^  version "\(.*\)"$/\1/p' || true)
         if [ -n "$offered" ] && [ "$offered" != "$version" ] &&
           [ "$(printf '%s\n%s\n' "$offered" "$version" | sort -V | tail -n 1)" = "$offered" ]; then
-          printf 'The tap already offers ghl %s; leaving it\n' "$offered"
+          printf 'The tap already offers diffdesk %s; leaving it\n' "$offered"
           exit 0
         fi
-        set -- -f message="ghl $version" -f content="$(base64 < "$work/ghl.rb")"
+        set -- -f message="diffdesk $version" -f content="$(base64 < "$work/diffdesk.rb")"
         if sha=$(gh api "$cask" --jq .sha 2>/dev/null); then set -- "$@" -f sha="$sha"; fi
         gh api --method PUT "$cask" "$@" > /dev/null
-        printf 'Cask ghl %s pushed to vmaerten/homebrew-tap\n' "$version"
+        printf 'Cask diffdesk %s pushed to vmaerten/homebrew-tap\n' "$version"
+        # The cask was called ghl: the rename lets brew upgrade move those installs
+        # to diffdesk. Once the old cask is gone, this only reads.
+        if ! gh api "$tap/cask_renames.json" --jq .sha > /dev/null 2>&1; then
+          gh api --method PUT "$tap/cask_renames.json" -f message="Rename the ghl cask to diffdesk" \
+            -f content="$(printf '{\n  "ghl": "diffdesk"\n}\n' | base64)" > /dev/null
+        fi
+        if sha=$(gh api "$tap/Casks/ghl.rb" --jq .sha 2>/dev/null); then
+          gh api --method DELETE "$tap/Casks/ghl.rb" -f message="Remove the ghl cask, now diffdesk" -f sha="$sha" > /dev/null
+          echo 'Cask ghl renamed diffdesk in vmaerten/homebrew-tap'
+        fi
 
   release:tap:access:
     internal: true
@@ -388,7 +399,7 @@ tasks:
         node scripts/release-notes.ts > "$notes"
         gh release create "$RELEASE_TAG" --verify-tag --draft \
           --title "$RELEASE_TAG" --notes-file "$notes" "$@" \
-          "go/dist/release/ghl_${release_version}_darwin_arm64.zip" \
+          "go/dist/release/diffdesk_${release_version}_darwin_arm64.zip" \
           go/dist/release/checksums.txt
         gh release edit "$RELEASE_TAG" --verify-tag --draft=false
 

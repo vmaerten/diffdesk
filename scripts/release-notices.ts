@@ -102,7 +102,7 @@ const goRoot = execFileSync('go', ['env', 'GOROOT'], { encoding: 'utf8' }).trim(
 const goLicense = readFileSync(join(goRoot, 'LICENSE'), 'utf8').trim()
 const contents =
   [
-    'ghl third-party notices',
+    'Diffdesk third-party notices',
     'These components retain their own licenses. The list covers the installed production JavaScript dependency closure and the Go standard library.',
     `Go standard library\n\n${goLicense}`,
     ...[...notices].toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, text]) => text),

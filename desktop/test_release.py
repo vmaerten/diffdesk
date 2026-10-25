@@ -46,7 +46,7 @@ class ReleaseGuards(unittest.TestCase):
         self.assertTrue((self.root / 'out' / EXECUTABLE).stat().st_mode & 0o111)
 
     def test_unsafe_or_extra_members_rejected_before_extraction(self):
-        for name in ['../escape', '/absolute', 'ghl.app/../escape', 'node_modules/package.json']:
+        for name in ['../escape', '/absolute', 'Diffdesk.app/../escape', 'node_modules/package.json']:
             with self.subTest(name=name):
                 self.bundle(extra=name)
                 with self.assertRaisesRegex(ValueError, 'Unexpected'):
@@ -61,7 +61,7 @@ class ReleaseGuards(unittest.TestCase):
                     extract_bundle(self.archive, self.root / 'out')
 
     def test_checksum_covers_the_archive_and_rejects_corruption(self):
-        name = 'ghl_1.2.3_darwin_arm64.zip'
+        name = 'diffdesk_1.2.3_darwin_arm64.zip'
         (self.root / name).write_bytes(b'candidate')
         line = f'{hashlib.sha256(b"candidate").hexdigest()}  {name}'
         sums = self.root / 'checksums.txt'

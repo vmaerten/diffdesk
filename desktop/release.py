@@ -14,9 +14,9 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
-APP = 'ghl.app'
+APP = 'Diffdesk.app'
 ICON = f'{APP}/Contents/Resources/AppIcon.icns'
-EXECUTABLE = f'{APP}/Contents/MacOS/ghl'
+EXECUTABLE = f'{APP}/Contents/MacOS/diffdesk'
 # The oldest macOS the app declares and is built for; the binary's minos must match.
 MINIMUM_MACOS = '13.0'
 FILES = {
@@ -73,7 +73,7 @@ def notices():
 
 
 def archive_name(version):
-    return f'ghl_{version}_darwin_arm64.zip'
+    return f'diffdesk_{version}_darwin_arm64.zip'
 
 
 def verify_checksums(dist, version):
@@ -130,13 +130,13 @@ def minimum_macos(binary):
 
 def verify(dist):
     metadata = json.loads((dist / 'metadata.json').read_text())
-    require(metadata['project_name'] == 'ghl', 'Wrong release project')
+    require(metadata['project_name'] == 'diffdesk', 'Wrong release project')
     require(metadata['commit'] == command('git', 'rev-parse', 'HEAD'), 'Release must match the current commit')
     tag = os.environ.get('RELEASE_TAG')
     if tag:
         require(metadata['tag'] == tag and metadata['version'] == tag[1:], 'Release must match its tag')
     archive = verify_checksums(dist, metadata['version'])
-    with tempfile.TemporaryDirectory(prefix='ghl-release-') as directory:
+    with tempfile.TemporaryDirectory(prefix='diffdesk-release-') as directory:
         folder = Path(directory)
         bundle = extract_bundle(archive, folder)
         binary = folder / EXECUTABLE
@@ -154,8 +154,8 @@ def verify(dist):
                 require(f'{path}@{version}' in text, f'Missing linked Go notice: {path}')
         info = plistlib.loads((bundle / 'Contents/Info.plist').read_bytes())
         for key, value in {
-            'CFBundleName': 'ghl', 'CFBundleIdentifier': 'dev.ghl.desktop',
-            'CFBundleExecutable': 'ghl', 'CFBundleIconFile': 'AppIcon',
+            'CFBundleName': 'Diffdesk', 'CFBundleIdentifier': 'dev.diffdesk.desktop',
+            'CFBundleExecutable': 'diffdesk', 'CFBundleIconFile': 'AppIcon',
             'LSMinimumSystemVersion': MINIMUM_MACOS,
             'GHLReleaseVersion': metadata['version'],
             'GHLCommit': metadata['commit'], 'CFBundleShortVersionString': metadata['version'].split('-')[0],
@@ -171,9 +171,9 @@ def verify(dist):
         info = json.loads(subprocess.check_output(
             [str(binary), '--version', '--json'], cwd=folder, text=True,
             env={'PATH': '/usr/bin:/bin', 'HOME': os.environ['HOME']}))
-        require(info == {'version': metadata['version'], 'commit': metadata['commit'], 'buildDate': info['buildDate']}, 'ghl --version reports another build')
+        require(info == {'version': metadata['version'], 'commit': metadata['commit'], 'buildDate': info['buildDate']}, 'diffdesk --version reports another build')
         commit_date = datetime.fromisoformat(command('git', 'show', '-s', '--format=%cI', metadata['commit']))
-        require(datetime.fromisoformat(info['buildDate'].replace('Z', '+00:00')) == commit_date, 'ghl --version reports another build date')
+        require(datetime.fromisoformat(info['buildDate'].replace('Z', '+00:00')) == commit_date, 'diffdesk --version reports another build date')
         subprocess.run(['codesign', '--verify', '--deep', '--strict', str(bundle)], check=True)
     print(f'Release verified: {archive.name} (checksum, bundle, notices, minimum macOS, signature, terminal and metadata)')
 
