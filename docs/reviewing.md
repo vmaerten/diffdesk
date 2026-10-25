@@ -22,7 +22,7 @@ Each comment saves its original code. When those lines change, the comment shows
 
 **Comments** opens a side panel listing the branch's comments by file, including files outside the current diff. **View in diff** reveals available lines without clearing Viewed, and the panel stays open beside the diff. Inline cards can be collapsed; their folded state survives reloads.
 
-**Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments as Markdown, including viewed files and files outside the diff. Individual cards have their own copy button. Exports include paths, line numbers and current code, with original code labelled when current code is unavailable.
+**Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments as Markdown, including viewed files and files outside the diff. Individual cards have their own copy button. Exports include paths, line numbers, comment IDs, status, replies and current code, with original code labelled when current code is unavailable.
 
 `ghl comments` exports the reviewed branch's comments on files in the selected comparison, including untracked files in working-tree reviews, with their replies. Add `--json` for structured output, `--all` to include resolved comments, or a revision argument to review another target. It prints without opening the window; its file scope can be narrower than the panel's.
 
