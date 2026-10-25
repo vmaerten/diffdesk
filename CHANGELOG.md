@@ -19,6 +19,7 @@
 - Copy comments in a compact text sized for an agent: each comment gives its ID, `path:lines` and body, and quotes only the lines the file no longer has, removed by the change or changed since. `ghl comments` prints the same text, and `--code` quotes every comment's current lines. ([#238](https://github.com/vmaerten/ghl/pull/238))
 - Show the reviewed branch's GitHub pull request in the title bar: its number with the colour of its state, the local commits GitHub does not have yet and conflicts with its base. Click it for the title, reviews, merge status, what is not pushed, and a link to GitHub. It needs the GitHub CLI, signed in; Settings, under GitHub, says which account it uses and turns it off. ([#242](https://github.com/vmaerten/ghl/pull/242))
 - Show the pull request's checks, GitHub Actions runs and commit statuses, in its pill: how many fail, how many are done while they run, or a tick. The popover lists them failing first with their logs, says when they ran without your local changes, and follows running checks every 15 seconds while the window is in front. ([#246](https://github.com/vmaerten/ghl/pull/246))
+- Show the pull request in the status bar instead of the title bar, with Settings, under GitHub: its state, failing checks, unpushed commits and conflicts in words, and the same popover. ([#249](https://github.com/vmaerten/ghl/pull/249))
 
 ### 🐛 Fixes
 

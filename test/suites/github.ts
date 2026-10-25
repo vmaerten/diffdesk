@@ -66,5 +66,47 @@ export default {
     await load('?target=stack%2Fb')
     await settled(page)
     check('the setting turns it off', (await pill()) === null)
+
+    await page.evaluate(() =>
+      localStorage.setItem(
+        'desktopFixture.settings',
+        JSON.stringify({ version: 1, pullRequestPlace: 'status-bar' }),
+      ),
+    )
+    await load('?target=stack%2Fb')
+    await until(page, `document.querySelector('.footer-pr')`)
+    const footer = await page.evaluate(
+      () => document.querySelector('.footer-pr')?.textContent ?? null,
+    )
+    check(
+      'the status bar can show it instead, in words',
+      footer === '#42 Open1 failing1 not pushed' && (await pill()) === null,
+      footer ?? '(none)',
+    )
+    await page.click('.footer-pr')
+    await until(page, `document.querySelector('.pr-popover')`)
+    const above = await page.evaluate(() => {
+      const popover = document.querySelector('.pr-popover')!.getBoundingClientRect()
+      const bar = document.querySelector('.review-footer')!.getBoundingClientRect()
+      return popover.height > 0 && popover.top >= 0 && popover.bottom <= bar.top
+        ? true
+        : JSON.stringify({ popover, bar, button: document.querySelector('.footer-pr')!.getBoundingClientRect() })
+    })
+    check('  and its popover opens above it, uncut', above === true, String(above))
+    await page.keyboard.press('Escape')
+
+    // The Settings window saves, and Go hands the change to the review.
+    await page.evaluate(() =>
+      window.go?.main.desktopApp.SaveSettings(
+        JSON.stringify({ version: 1, pullRequestPlace: 'title-bar' }),
+      ),
+    )
+    check(
+      'changing the place moves it at once',
+      await until(
+        page,
+        `document.querySelector('.pr-pill') && !document.querySelector('.footer-pr')`,
+      ),
+    )
   },
 } satisfies Suite

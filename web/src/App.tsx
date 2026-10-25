@@ -26,6 +26,8 @@ import { comparisonNote, type Picker, type ComparisonProps } from './ComparisonC
 import { untrackedToggleable, workingTreeToggleable } from './ScopeControls.tsx'
 import DesktopToolbar from './DesktopToolbar.tsx'
 import ReviewFooter from './ReviewFooter.tsx'
+import { usePullRequest } from './PullRequestPill.tsx'
+import type { PullRequestPlace } from './desktopSettings.ts'
 import { layerTarget, neighbourLayer } from './StackPicker.tsx'
 import { DesktopSidebarFoot, DesktopSidebarHead } from './DesktopSidebar.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
@@ -93,7 +95,7 @@ export default function App({
   onFileMenu,
   languageRevision = null,
   symbolPanel = false,
-  showPullRequest = false,
+  pullRequests = null,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -116,8 +118,8 @@ export default function App({
   languageRevision?: number | null
   /** Offers a Symbol tab beside Comments, with references, while code intelligence is on. */
   symbolPanel?: boolean
-  /** Show the reviewed branch's GitHub pull request in the title bar. */
-  showPullRequest?: boolean
+  /** Where to show the reviewed branch's GitHub pull request; null shows none. */
+  pullRequests?: PullRequestPlace | null
 }) {
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
@@ -551,6 +553,12 @@ export default function App({
   }, [])
 
   const baseSource = data ? BASE_SOURCES[data.base.source] : null
+  // Loaded here, not where it shows: changing its place moves it without asking GitHub again.
+  const pullRequest = usePullRequest(
+    pullRequests ? repoId : null,
+    data && data.target.ref !== 'HEAD' ? data.target.ref : null,
+    data?.loadId ?? 0,
+  )
 
   const repoName = data?.repo.path.split('/').filter(Boolean).at(-1) ?? 'Repository'
   const comparison: ComparisonProps = {
@@ -587,6 +595,7 @@ export default function App({
               data.files.map((file) => file.path),
             )
       }
+      pullRequest={pullRequests === 'status-bar' ? pullRequest : null}
     />
   )
   const tabs = symbolTab ? (
@@ -654,7 +663,7 @@ export default function App({
             onToggleComments={toggleComments}
             copiedAll={copied === 'all'}
             onCopyAll={() => copyComments()}
-            showPullRequest={showPullRequest}
+            pullRequest={pullRequests === 'title-bar' ? pullRequest : null}
           />,
           toolbar,
         )}
