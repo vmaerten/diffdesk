@@ -5,8 +5,7 @@ import { defineConfig } from 'astro/config'
 const repo = 'https://github.com/vmaerten/ghl'
 
 export default defineConfig({
-  site: 'https://vmaerten.github.io',
-  base: '/ghl',
+  site: 'https://ghl.vmaerten.fr',
   integrations: [
     starlight({
       title: 'ghl',
