@@ -111,12 +111,12 @@ def main():
                 assert restarted['pid'] == app.pid and restarted['pid'] != initial['pid']
                 assert restarted['repos'] == 1
                 empty = wait(server, 'empty', checkpoint)
-                assert empty['tabs'] == 0 and empty['mountedReviews'] == 0 and empty['welcome']
+                assert empty['tabs'] == 0 and empty['mountedReviews'] == 0 and empty['welcome'], empty
                 assert app.poll() is None
                 app.send_signal(signal.SIGTERM)
                 app.wait(timeout=15)
                 assert app.returncode == 0
-                report = {'complete': True, 'standalone': args.standalone, 'checks': ['native rendering', 'context expansion', 'UI comment create/edit/delete', 'OS Markdown clipboard', 'Viewed', 'relative Unicode path from second caller', 'same process/window reuse', 'unminimise', 'switch back', 'shutdown', 'restart persistence', 'CLI tab deduplication', 'UI close tab', 'one mounted review', 'close last tab keeps window', 'inline context draft restoration', 'scroll restoration', 'lightweight view captures', 'panel draft restoration', 'Ctrl+Tab', 'reload preserves drafts', 'Settings appearance and code size', 'menu commands'], 'events': server.events}
+                report = {'complete': True, 'standalone': args.standalone, 'checks': ['native rendering', 'context expansion', 'UI comment create/edit/delete', 'OS comment clipboard', 'Viewed', 'relative Unicode path from second caller', 'same process/window reuse', 'unminimise', 'switch back', 'shutdown', 'restart persistence', 'CLI tab deduplication', 'UI close tab', 'one mounted review', 'close last tab keeps window', 'inline context draft restoration', 'scroll restoration', 'lightweight view captures', 'panel draft restoration', 'Ctrl+Tab', 'reload preserves drafts', 'Settings appearance and code size', 'menu commands'], 'events': server.events}
                 (ROOT / '.task/desktop/validation.json').write_text(json.dumps(report, indent=2))
                 print(json.dumps({'complete': True, 'checks': report['checks'], 'report': '.task/desktop/validation.json'}))
             finally:

@@ -171,9 +171,9 @@
       // Settings saves from its own window, and Go hands each save to every
       // window: save as it would, check the review follows and Go kept it, then
       // put them back for the rest of the run.
-      const api = window.go.main.desktopApp
-      const original = (await api.Settings()) || JSON.stringify({ version: 1 })
-      await api.SaveSettings(
+      const desktopApp = window.go.main.desktopApp
+      const original = (await desktopApp.Settings()) || JSON.stringify({ version: 1 })
+      await desktopApp.SaveSettings(
         JSON.stringify({
           ...JSON.parse(original),
           appearance: dark ? 'light' : 'dark',
@@ -190,8 +190,8 @@
           document.querySelector('.desktop-shell').style.getPropertyValue('--code-size') === '13px',
         'Code size did not apply',
       )
-      check(JSON.parse(await api.Settings()).codeSize === 13, 'Settings not saved')
-      await api.SaveSettings(original)
+      check(JSON.parse(await desktopApp.Settings()).codeSize === 13, 'Settings not saved')
+      await desktopApp.SaveSettings(original)
       await wait(
         () => root.dataset.theme === (dark ? 'github-dimmed' : 'github-light'),
         'System appearance did not return',
@@ -264,8 +264,8 @@
       )
       const clipboard = await navigator.clipboard.readText()
       check(
-        clipboard.includes('edited in native WebView') && clipboard.includes('line 20'),
-        'Native clipboard lacks Markdown/code',
+        clipboard.includes('edited in native WebView') && clipboard.includes('context.txt:20'),
+        'Native clipboard lacks the comment or its location',
       )
       // The Copy All Comments menu item (⇧⌘C) reaches the same clipboard.
       await window.runtime.ClipboardSetText('before the menu copy')
@@ -349,14 +349,16 @@
   const inspect = (state) => {
     if (!state.active) {
       if (active)
-        setTimeout(async () => {
+        void (async () => {
+          for (let i = 0; i < 30 && !document.querySelector('.desktop-empty'); i++)
+            await new Promise((resolve) => setTimeout(resolve, 100))
           await report({
             phase: 'empty',
             tabs: state.tabs.length,
             mountedReviews: document.querySelectorAll('.app').length,
             welcome: Boolean(document.querySelector('.desktop-empty')),
           })
-        }, 100)
+        })()
       active = ''
       return
     }
