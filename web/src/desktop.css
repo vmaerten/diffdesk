@@ -501,7 +501,9 @@ body,
   border-radius: 7px;
   box-shadow: 0 0 0 1px var(--border);
 }
-.settings-choices button[aria-pressed='true'] :is(.appearance-thumb, .titlebar-thumb) {
+.settings-choices
+  button[aria-pressed='true']
+  :is(.appearance-thumb, .titlebar-thumb, .place-thumb) {
   box-shadow:
     0 0 0 2px var(--bg-raised),
     0 0 0 4px var(--accent);
@@ -582,6 +584,52 @@ body,
   height: 6px;
   border-radius: 3px;
   background: var(--counter-bg);
+}
+/* A window with its title bar and status bar; the green mark is the pull request. */
+.place-thumb {
+  position: relative;
+  width: 96px;
+  height: 60px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--bg-raised);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.place-thumb::before,
+.place-thumb::after {
+  content: '';
+  position: absolute;
+}
+.place-thumb::before {
+  inset: 0 0 auto;
+  height: 15px;
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 9px 50%, #ff5f57 2px, transparent 2.5px),
+    radial-gradient(circle at 15px 50%, #febc2e 2px, transparent 2.5px),
+    radial-gradient(circle at 21px 50%, #28c840 2px, transparent 2.5px), var(--chrome-opaque);
+}
+.place-thumb::after {
+  inset: auto 0 0;
+  height: 10px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+.place-thumb > span {
+  position: absolute;
+  z-index: 1;
+  width: 18px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--success);
+}
+.place-thumb.title-bar > span {
+  top: 4.5px;
+  right: 8px;
+}
+.place-thumb.status-bar > span {
+  bottom: 2px;
+  left: 8px;
 }
 .stepper {
   display: inline-flex;
@@ -979,6 +1027,33 @@ button.stack-branch:focus-visible::after {
   border-left: 1px solid var(--border);
   color: var(--warn);
 }
+/* In the status bar: the same items as the pill, in words. They give way before
+   Next does. */
+.footer-pr {
+  display: flex;
+  flex-shrink: 5;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+}
+.footer-pr b {
+  color: var(--text);
+  font: 600 12px var(--mono);
+}
+.footer-pr .icon {
+  width: 14px;
+  height: 14px;
+}
+.footer-pr:hover,
+.footer-pr[aria-expanded='true'] {
+  color: var(--text);
+}
 .pr-popover {
   position: absolute;
   top: calc(100% + 6px);
@@ -991,6 +1066,11 @@ button.stack-branch:focus-visible::after {
   background: var(--bg-overlay);
   box-shadow: 0 16px 40px -12px rgb(0 0 0 / 45%);
   font-size: 12.5px;
+}
+.pr-popover.upward {
+  position: fixed;
+  top: auto;
+  right: auto;
 }
 .pr-head {
   display: flex;

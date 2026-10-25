@@ -13,6 +13,7 @@ import {
   readSettings,
   type DesktopSettings,
   type LanguageId,
+  type PullRequestPlace,
 } from './desktopSettings.ts'
 import {
   homeRelative,
@@ -29,6 +30,11 @@ const APPEARANCES: { value: Appearance; label: string }[] = [
   { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
+]
+
+const PULL_REQUEST_PLACES: { place: PullRequestPlace; label: string }[] = [
+  { place: 'title-bar', label: 'Title bar' },
+  { place: 'status-bar', label: 'Status bar' },
 ]
 
 const TITLE_BARS = [
@@ -579,6 +585,26 @@ function GitHubPane({ settings, onChange }: PaneProps) {
           onChange={(event) => onChange({ showPullRequests: event.target.checked })}
         />
       </label>
+      {settings.showPullRequests && (
+        <div className="settings-field">
+          <span className="settings-label">Show it in</span>
+          <div className="settings-choices" role="group" aria-label="Show it in">
+            {PULL_REQUEST_PLACES.map(({ place, label }) => (
+              <button
+                key={place}
+                type="button"
+                aria-pressed={settings.pullRequestPlace === place}
+                onClick={() => onChange({ pullRequestPlace: place })}
+              >
+                <span className={`place-thumb ${place}`} aria-hidden="true">
+                  <span />
+                </span>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
