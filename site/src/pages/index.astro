@@ -1,0 +1,239 @@
+---
+import '@fontsource-variable/geist'
+import '@fontsource-variable/geist-mono'
+import '../styles/landing.css'
+import { version } from '../../../package.json'
+import AppWindow from '../components/AppWindow.astro'
+import InstallCommand from '../components/InstallCommand.astro'
+import ThemeSelect from '../components/ThemeSelect.astro'
+
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/')
+const repo = 'https://github.com/vmaerten/ghl'
+const changelog = `${repo}/blob/main/CHANGELOG.md`
+const guide = `${base}guide/getting-started/`
+const description =
+  'A native macOS diff viewer with a GitHub-like review flow: comment on your own changes, then hand the comments to your agent.'
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ghl · Review the PR you are about to open</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    <link rel="canonical" href={new URL(base, Astro.site)} />
+    <meta property="og:title" content="ghl" />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={new URL(base, Astro.site)} />
+    {/* Same rule as Starlight's theme provider, inlined so the page never flashes the wrong theme. */}
+    <script is:inline>
+      ;(() => {
+        let stored = ''
+        try {
+          stored = localStorage.getItem('starlight-theme') ?? ''
+        } catch {}
+        const light = matchMedia('(prefers-color-scheme: light)').matches
+        document.documentElement.dataset.theme =
+          stored === 'light' || stored === 'dark' ? stored : light ? 'light' : 'dark'
+      })()
+    </script>
+  </head>
+  <body>
+    <header class="wrap top">
+      <a href={base} class="brand"><img src={`${base}favicon.svg`} alt="" width="28" height="28" />ghl</a>
+      <nav aria-label="Main">
+        <a href={guide}>guide</a>
+        <a href={changelog}>changelog</a>
+        <a href={repo} class="button">github ↗</a>
+        <ThemeSelect />
+      </nav>
+    </header>
+
+    <main>
+      <section class="wrap hero">
+        <div class="title">
+          <p class="eyebrow">$ ghl</p>
+          <h1>Review the PR you are about to open, without opening it.</h1>
+        </div>
+        <div class="intro">
+          <p class="lede">
+            A native macOS diff viewer for the work still on your machine. Comment on lines like on GitHub, then hand
+            the comments back to whoever writes the code: you, or your agent.
+          </p>
+          <InstallCommand />
+          <p class="requirements">{version} · macOS 13+ · Apple Silicon · Git · MIT</p>
+        </div>
+      </section>
+
+      <section class="wrap section" aria-label="From the terminal to the ghl window">
+        <div class="stage">
+          <AppWindow />
+          <div class="terminal">
+            <div class="bar">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>~/dev/api · stack-nav
+            </div>
+            <pre><span class="prompt">$</span> ghl
+<span class="out">main...stack-nav · 4 files · +42 −9</span>
+<span class="out">opened in ghl ↖</span>
+
+<span class="prompt">$</span> ghl comments | pbcopy
+<span class="prompt">$</span> <span class="cursor"></span></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section">
+        <p class="eyebrow">// the loop</p>
+        <h2>Review the change before anyone else has to.</h2>
+        <ol class="loop">
+          <li>
+            <p class="step">01 · write</p>
+            You or your agent change the code. Nothing is committed yet.
+          </li>
+          <li class="arrow" aria-hidden="true">→</li>
+          <li>
+            <p class="step">02 · ghl</p>
+            The branch against its base, working tree included, in one window.
+          </li>
+          <li class="arrow" aria-hidden="true">→</li>
+          <li>
+            <p class="step">03 · comment</p>
+            Select lines, press <kbd class="kbd">c</kbd>. Fold what you read with <kbd class="kbd">v</kbd>.
+          </li>
+          <li class="arrow" aria-hidden="true">→</li>
+          <li class="last">
+            <p class="step">04 · hand back</p>
+            <kbd class="kbd">⇧⌘C</kbd> copies the comments as Markdown. Fix, run <code>ghl</code> again.
+          </li>
+        </ol>
+      </section>
+
+      <section class="band">
+        <div class="wrap">
+          <div class="copy">
+            <p class="eyebrow">// for agents</p>
+            <h2>Comments an agent can act on.</h2>
+            <p>
+              Each remark carries the code it was written against, so a stale line number never sends the agent to the
+              wrong place. When the lines change, the comment says so and keeps the original.
+            </p>
+            <p><code>ghl comments --json</code> gives the same thing to a script.</p>
+          </div>
+          <pre class="export"><span class="prompt">$</span> ghl comments
+<span class="heading"># 2 comments on main...stack-nav</span>
+
+<span class="heading">## go/internal/app/stack.go</span>
+
+**L48–L49**
+
+```
+if layer.Merged &#123;
+    continue
+```
+
+Log why the layer is skipped.
+
+<span class="heading">## web/src/stack.ts</span>
+
+**L15**
+
+```
+  return index &gt; 0 ? live[index - 1] : undefined
+```
+
+Return null here, like layerBelow does.</pre>
+        </div>
+      </section>
+
+      <section class="wrap section features-section">
+        <p class="eyebrow">// features</p>
+        <h2>Everything a review needs, nothing it does not.</h2>
+        <div class="features">
+          <div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M12 4v16"></path></svg>
+            <h3>Unified or split</h3>
+            <p>A file tree in diff order, expandable context, and a search across the whole diff, not just what is on screen.</p>
+          </div>
+          <div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="4" y="3" width="16" height="5" rx="1.5"></rect><rect x="4" y="10" width="16" height="5" rx="1.5"></rect><rect x="4" y="17" width="16" height="4" rx="1.5"></rect></svg>
+            <h3>Stacks and bases</h3>
+            <p>The base comes from your choice, the branch, or its gh stack chain. Step through layers with <kbd class="kbd">[</kbd> and <kbd class="kbd">]</kbd>.</p>
+          </div>
+          <div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5h14v10H9l-4 4z"></path></svg>
+            <h3>Comments that last</h3>
+            <p>Stored per branch in the checkout's .git folder. Switch branches and back: they are where you left them.</p>
+          </div>
+          <div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M8 12l3 3 5-6"></path></svg>
+            <h3>Viewed files</h3>
+            <p>Press <kbd class="kbd">v</kbd> and the file folds away. Change its diff and the tick clears itself.</p>
+          </div>
+          <div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M8 12h8M12 8v8"></path></svg>
+            <h3>Any comparison</h3>
+            <p>Another branch without checking it out, a single commit, with or without untracked files and whitespace.</p>
+          </div>
+          <div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"></path></svg>
+            <h3>Light, dark, your theme</h3>
+            <p>Follows macOS, with a syntax theme for each mode and your code font. Image changes get before and after previews.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section reference">
+        <div class="usage-column">
+          <p class="eyebrow">// usage</p>
+          <h2>One command, a few flags.</h2>
+          <dl class="usage">
+            <div><dt>ghl</dt><dd>The current branch, uncommitted work included.</dd></div>
+            <div><dt>ghl feature</dt><dd>Another revision, without checking it out.</dd></div>
+            <div><dt>ghl --base main</dt><dd>The comparison base. Otherwise gh stack or the trunk.</dd></div>
+            <div><dt>ghl --repo ../other</dt><dd>Another checkout.</dd></div>
+            <div><dt>ghl comments --json</dt><dd>The comments with their code, without the window.</dd></div>
+          </dl>
+        </div>
+        <div class="keys-column">
+          <p class="eyebrow">// keys</p>
+          <h2>Hands stay on the keyboard.</h2>
+          <ul class="keys">
+            <li><kbd class="kbd">j</kbd><kbd class="kbd">k</kbd> next, previous file</li>
+            <li><kbd class="kbd">v</kbd> toggle Viewed</li>
+            <li><kbd class="kbd">c</kbd> comment lines</li>
+            <li><kbd class="kbd">b</kbd><kbd class="kbd">t</kbd> base, target</li>
+            <li><kbd class="kbd">[</kbd><kbd class="kbd">]</kbd> stack layers</li>
+            <li><kbd class="kbd">⌘</kbd><kbd class="kbd">F</kbd> search the diff</li>
+            <li><kbd class="kbd">⌘</kbd><kbd class="kbd">1</kbd><kbd class="kbd">2</kbd> unified, split</li>
+            <li><kbd class="kbd">⇧</kbd><kbd class="kbd">⌘</kbd><kbd class="kbd">C</kbd> copy comments</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="wrap closing">
+        <div class="cta">
+          <div>
+            <h2>Review before you push.</h2>
+            <p>Free and open source under the MIT license. Needs macOS 13 or later on Apple Silicon, and Git.</p>
+          </div>
+          <div class="commands">
+            <code><span class="prompt">$</span> brew install --cask vmaerten/tap/ghl</code>
+            <code><span class="prompt">$</span> mise use -g github:vmaerten/ghl@latest</code>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="wrap">
+      <div class="bottom">
+        <span>ghl · MIT · vmaerten/ghl</span>
+        <nav aria-label="Footer">
+          <a href={guide}>guide</a><a href={changelog}>changelog</a><a href={repo}>github ↗</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

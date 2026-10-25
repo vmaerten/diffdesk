@@ -1,0 +1,7 @@
+[build]
+  command = "pnpm --dir site build"
+  publish = "site/dist"
+
+[build.environment]
+  NODE_VERSION = "24.21.0"
+  PNPM_VERSION = "11.6.0"

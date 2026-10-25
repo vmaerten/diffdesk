@@ -1,0 +1,54 @@
+---
+const installers = [
+  { name: 'brew', command: 'brew install --cask vmaerten/tap/ghl' },
+  { name: 'mise', command: 'mise use -g github:vmaerten/ghl@latest' },
+]
+---
+
+<install-command>
+  <div class="segmented" role="group" aria-label="Install with">
+    {
+      installers.map(({ name, command }, index) => (
+        <button type="button" data-command={command} aria-pressed={String(index === 0)}>
+          {name}
+        </button>
+      ))
+    }
+  </div>
+  <div class="command">
+    <span class="prompt" aria-hidden="true">$</span>
+    <code>{installers[0]!.command}</code>
+    <button type="button" data-copy>Copy</button>
+  </div>
+</install-command>
+
+<script>
+  class InstallCommand extends HTMLElement {
+    connectedCallback() {
+      const code = this.querySelector('code')!
+      const copy = this.querySelector<HTMLButtonElement>('[data-copy]')!
+
+      for (const button of this.querySelectorAll<HTMLButtonElement>('[data-command]')) {
+        button.addEventListener('click', () => {
+          for (const other of this.querySelectorAll('[data-command]')) {
+            other.setAttribute('aria-pressed', String(other === button))
+          }
+          code.textContent = button.dataset.command!
+        })
+      }
+
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.textContent ?? '')
+          copy.textContent = 'Copied'
+        } catch {
+          getSelection()?.selectAllChildren(code)
+          copy.textContent = 'Press ⌘C'
+        }
+        setTimeout(() => (copy.textContent = 'Copy'), 1500)
+      })
+    }
+  }
+
+  customElements.define('install-command', InstallCommand)
+</script>
