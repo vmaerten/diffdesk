@@ -205,12 +205,23 @@ func run() error {
 		}
 	}
 	appMenu := native.Menu.New()
-	appMenu.AddRole(application.AppMenu)
+	// Wails' AppMenu role, with Settings where macOS apps keep it. Its Show All
+	// is the UnHide role, which has no selector; ShowAll has one.
+	ghlMenu := appMenu.AddSubmenu("ghl")
+	ghlMenu.AddRole(application.About)
+	ghlMenu.AddSeparator()
+	item(ghlMenu, "Settings…", "CmdOrCtrl+,", command("settings"))
+	ghlMenu.AddSeparator()
+	ghlMenu.AddRole(application.ServicesMenu)
+	ghlMenu.AddSeparator()
+	ghlMenu.AddRole(application.Hide)
+	ghlMenu.AddRole(application.HideOthers)
+	ghlMenu.AddRole(application.ShowAll)
+	ghlMenu.AddSeparator()
+	ghlMenu.AddRole(application.Quit)
 	fileMenu := appMenu.AddSubmenu("File")
 	item(fileMenu, "Open Repository…", "CmdOrCtrl+o", func(*application.Context) { desktop.chooseRepository() })
 	item(fileMenu, "Close Review", "CmdOrCtrl+w", command("close-tab"))
-	fileMenu.AddSeparator()
-	item(fileMenu, "Settings…", "CmdOrCtrl+,", command("settings"))
 	appMenu.AddRole(application.EditMenu)
 	viewMenu := appMenu.AddSubmenu("View")
 	item(viewMenu, "Toggle Sidebar", "Ctrl+CmdOrCtrl+s", command("sidebar"))
