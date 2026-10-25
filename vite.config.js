@@ -7,7 +7,7 @@ import { BRIDGE, simulateDesktopRuntime } from './desktop/simulator.ts'
  * @type {import('vite').Plugin}
  */
 const desktopRuntime = {
-  name: 'ghl-desktop-runtime',
+  name: 'diffdesk-desktop-runtime',
   apply: 'serve',
   transformIndexHtml: () => [
     {

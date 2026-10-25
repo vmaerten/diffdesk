@@ -18,7 +18,7 @@ export const isolatedGit = {
 
 /** The review server without the desktop window, built by `task build`. */
 export function goBinary(): string {
-  return realpathSync(fileURLToPath(new URL('../go/dist/ghl-dev', import.meta.url)))
+  return realpathSync(fileURLToPath(new URL('../go/dist/diffdesk-dev', import.meta.url)))
 }
 
 /** Serve `repoPath` on a free port; `args` adds options such as `--base`, `env` variables. */
@@ -82,7 +82,7 @@ export async function serveGo(
  * fake one, as `tsrs`. Go and Rust then have none, whatever this machine has.
  */
 export function fakeLanguageServers(): { path: string; cleanup: () => void } {
-  const path = mkdtempSync(join(tmpdir(), 'ghl-servers-'))
+  const path = mkdtempSync(join(tmpdir(), 'diffdesk-servers-'))
   const server = fileURLToPath(new URL('./fakeLanguageServer.ts', import.meta.url))
   writeFileSync(join(path, 'tsrs'), `#!/bin/sh\nexec '${process.execPath}' '${server}' "$@"\n`, {
     mode: 0o755,

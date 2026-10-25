@@ -286,7 +286,7 @@ export default {
       await page.evaluate((value: string) => {
         document.documentElement.dataset.theme = value
       }, theme)
-      await page.screenshot({ path: join(tmpdir(), `ghl-comment-${theme}.png`) })
+      await page.screenshot({ path: join(tmpdir(), `diffdesk-comment-${theme}.png`) })
     }
     await page.click('.comment-collapse')
     await page.waitForSelector('.comment-collapse[aria-expanded="false"]')
@@ -312,7 +312,7 @@ export default {
         () => document.activeElement?.classList.contains('comment-collapse') === true,
       ),
     )
-    await page.screenshot({ path: join(tmpdir(), 'ghl-comment-collapsed.png') })
+    await page.screenshot({ path: join(tmpdir(), 'diffdesk-comment-collapsed.png') })
     await ready()
     await page.waitForSelector('.comment-collapse[aria-expanded="false"]')
     check(

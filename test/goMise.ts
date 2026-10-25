@@ -50,7 +50,7 @@ assert.match(
   /^2026\.10\.2 /,
   'Use mise 2026.10.2 for release acceptance (GHL_TEST_MISE can select it)',
 )
-const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-mise-')))
+const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'diffdesk-mise-')))
 const reportFile = join(root, '.task', published ? 'mise-published.json' : 'mise-acceptance.json')
 const report = {
   complete: false,

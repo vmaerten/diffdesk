@@ -185,11 +185,11 @@ function stackedChain(root: string) {
 }
 
 export function createFixture(): Fixture {
-  const path = mkdtempSync(join(tmpdir(), 'ghl-fixture-'))
+  const path = mkdtempSync(join(tmpdir(), 'diffdesk-fixture-'))
 
   git(path, ['init', '--initial-branch=main'])
   git(path, ['config', 'user.email', 'fixture@example.invalid'])
-  git(path, ['config', 'user.name', 'ghl fixture'])
+  git(path, ['config', 'user.name', 'diffdesk fixture'])
   // Signing would prompt, and a global hooks path could run anything.
   git(path, ['config', 'commit.gpgsign', 'false'])
   git(path, ['config', 'core.hooksPath', '/dev/null'])

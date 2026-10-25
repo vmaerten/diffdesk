@@ -1,5 +1,5 @@
 {
-  "name": "ghl",
+  "name": "diffdesk",
   "version": "0.4.0",
   "private": true,
   "description": "Review the PR you are about to open, without opening it",

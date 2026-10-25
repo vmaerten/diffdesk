@@ -22,7 +22,7 @@ import type { DiffPayload } from '../src/types.ts'
 import { findChrome } from './harness.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const temporary = mkdtempSync(join(tmpdir(), 'ghl-dev-test-'))
+const temporary = mkdtempSync(join(tmpdir(), 'diffdesk-dev-test-'))
 const checkout = join(temporary, 'development checkout')
 const repo = join(temporary, 'review é with spaces')
 mkdirSync(checkout)
@@ -220,7 +220,7 @@ try {
   const page = await browser.newPage()
   await page.goto(url, { waitUntil: 'networkidle0' })
   await page.waitForSelector('.sidebar-title')
-  await page.evaluate('window.__ghl_dev_marker = 123')
+  await page.evaluate('window.__diffdesk_dev_marker = 123')
   const sidebarPath = join(checkout, 'web/src/DesktopSidebar.tsx')
   const sidebar = readFileSync(sidebarPath, 'utf8')
   assert.ok(sidebar.includes('<span className="sidebar-title">Changes</span>'))
@@ -235,7 +235,7 @@ try {
     "document.querySelector('.sidebar-title')?.textContent === 'Changes HMR'",
   )
   assert.equal(
-    await page.evaluate('window.__ghl_dev_marker'),
+    await page.evaluate('window.__diffdesk_dev_marker'),
     123,
     'React refresh does not reload the page',
   )
@@ -248,7 +248,7 @@ try {
     "getComputedStyle(document.querySelector('.sidebar-title')).outlineColor === 'rgb(12, 34, 56)'",
   )
   assert.equal(
-    await page.evaluate('window.__ghl_dev_marker'),
+    await page.evaluate('window.__diffdesk_dev_marker'),
     123,
     'CSS refresh does not reload the page',
   )
@@ -270,7 +270,7 @@ try {
   }, 'Go restart')
   latestPid = after.pid
   assert.equal(
-    await page.evaluate('window.__ghl_dev_marker'),
+    await page.evaluate('window.__diffdesk_dev_marker'),
     123,
     'backend restart leaves the frontend running',
   )

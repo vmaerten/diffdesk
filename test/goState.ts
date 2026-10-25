@@ -16,7 +16,7 @@ import { createHash } from 'node:crypto'
 
 import type { Comment, DiffPayload, StoredState } from '../src/types.ts'
 
-const root = realpathSync(mkdtempSync(join(tmpdir(), 'ghl-go-state-')))
+const root = realpathSync(mkdtempSync(join(tmpdir(), 'diffdesk-go-state-')))
 const repo = join(root, 'repo')
 mkdirSync(repo)
 const git = (...args: string[]) =>

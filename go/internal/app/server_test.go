@@ -122,7 +122,7 @@ func TestAPIValidationAndSecurity(t *testing.T) {
 	for _, test := range []struct {
 		host, origin, contentType string
 		status                    int
-	}{{"evil.example", "", "application/json", 403}, {"127.0.0.1", "https://evil.example", "application/json", 403}, {"localhost", "null", "application/json", 403}, {"ghl.localhost", "", "application/json", 403}, {"localhost:1234", "http://localhost:1234", "application/json; charset=utf-8", 200}, {"localhost:1234", "http://localhost:3000", "text/plain", 415}, {"localhost:1234", "http://localhost:3000", "", 415}} {
+	}{{"evil.example", "", "application/json", 403}, {"127.0.0.1", "https://evil.example", "application/json", 403}, {"localhost", "null", "application/json", 403}, {"diffdesk.localhost", "", "application/json", 403}, {"localhost:1234", "http://localhost:1234", "application/json; charset=utf-8", 200}, {"localhost:1234", "http://localhost:3000", "text/plain", 415}, {"localhost:1234", "http://localhost:3000", "", 415}} {
 		r := httptest.NewRequest("POST", "http://127.0.0.1/r/"+s.id+"/api/viewed", strings.NewReader(`{"range":"r","clear":true}`))
 		r.Host = test.host
 		if test.origin != "" {

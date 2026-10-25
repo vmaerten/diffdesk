@@ -120,7 +120,7 @@ export default {
     check(
       'Settings name the server this checkout would run',
       typescript?.name === 'TypeScript · tsrs' &&
-        typescript.detail.includes('ghl-servers-') &&
+        typescript.detail.includes('diffdesk-servers-') &&
         typescript.state === 'idle',
       JSON.stringify(typescript),
     )

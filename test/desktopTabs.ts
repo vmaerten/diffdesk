@@ -9,7 +9,7 @@ import { installDesktopRuntime, serveDesktopUI } from './desktopRuntime.ts'
 import { serveGo } from './goBinary.ts'
 import { findChrome } from './harness.ts'
 
-const repo = mkdtempSync(join(tmpdir(), 'ghl-desktop-tabs-'))
+const repo = mkdtempSync(join(tmpdir(), 'diffdesk-desktop-tabs-'))
 const git = (...args: string[]) =>
   execFileSync('git', args, {
     cwd: repo,

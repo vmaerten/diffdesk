@@ -17,7 +17,7 @@ import (
 // untrackedPatch also returns the files left out, each with the reason: one file
 // Git must not read never takes the whole review or export down.
 func (r Repository) untrackedPatch(ctx context.Context, paths []string) (string, []FileStat, []string, error) {
-	tmp, err := os.MkdirTemp("", "ghl-untracked-")
+	tmp, err := os.MkdirTemp("", "diffdesk-untracked-")
 	if err != nil {
 		return "", nil, nil, err
 	}

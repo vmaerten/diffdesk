@@ -244,7 +244,7 @@ tasks:
   build:
     desc: Build the review server without the desktop window, for the tests
     cmds:
-      - CGO_ENABLED=0 go -C go build -trimpath -o dist/ghl-dev ./cmd/ghl-dev
+      - CGO_ENABLED=0 go -C go build -trimpath -o dist/diffdesk-dev ./cmd/diffdesk-dev
 
   test:
     desc: Test the Go runtime, API contracts and the desktop UI

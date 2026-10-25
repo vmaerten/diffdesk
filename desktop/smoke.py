@@ -63,7 +63,7 @@ def main():
     server.events = []
     threading.Thread(target=server.serve_forever, daemon=True).start()
     app = None
-    with tempfile.TemporaryDirectory(prefix='ghl-smoke-') as directory:
+    with tempfile.TemporaryDirectory(prefix='diffdesk-smoke-') as directory:
         folder = Path(directory).resolve()
         first, second = folder / 'first', folder / 'second é space'
         fixture(first, True)

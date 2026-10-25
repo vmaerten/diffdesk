@@ -17,7 +17,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "ghl-dev:", err)
+		fmt.Fprintln(os.Stderr, "diffdesk-dev:", err)
 		os.Exit(1)
 	}
 }
