@@ -60,7 +60,7 @@ Stack metadata is read from `.git/gh-stack`, including worktree-specific metadat
 
 Only working-tree reviews are answered, on added and unchanged lines: a server reads the files on disk, and those are the only lines numbered as on disk. Deleted lines and revision reviews stay plain, and the status bar says so. A file changed since the review loaded asks for a refresh (`r`).
 
-Settings list each language's server for the review shown, with where it comes from: Go uses `gopls`, Rust `rust-analyzer`, and TypeScript the checkout's own `tsrs` or TypeScript 7 `tsc`, then `tsrs` or `typescript-language-server` on PATH, unless you pick one. The servers run on the reviewed code, as your editor would; ghl finds them through your login shell, so tools installed with Homebrew or mise work even when the app was opened from the Finder. A server starts on the first lookup and stops after 10 minutes without one. The status bar shows the diff's servers and whether they are starting, indexing or failed.
+Settings list each language's server for the review shown, with where it comes from: Go uses `gopls`, Rust `rust-analyzer`, and TypeScript `tsrs` from the checkout or PATH, then the checkout's TypeScript 7 `tsc`, then `typescript-language-server`, unless you pick one. The servers run on the reviewed code, as your editor would; ghl finds them through your login shell, so tools installed with Homebrew or mise work even when the app was opened from the Finder. A server starts on the first lookup and stops after 10 minutes without one. The status bar shows the diff's servers and whether they are starting, indexing or failed.
 
 ## Images and appearance
 
