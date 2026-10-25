@@ -30,3 +30,10 @@ export function exportComments(layer: DemoLayer, comments: DemoComment[]): strin
   })
   return asText(served, { range })
 }
+
+/** The export line by line; the count, then each comment's ID and lines, stand out like the headings they replace. */
+export const exportLines = (text: string) =>
+  text
+    .trimEnd()
+    .split('\n')
+    .map((line, index) => ({ line, heading: index === 0 || /^[0-9a-f]{8} \S/.test(line) }))

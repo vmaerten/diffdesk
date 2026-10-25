@@ -7,7 +7,7 @@ import {
 import { FileDiff } from '@pierre/diffs/react'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { DiffSide } from '../../../../src/types.ts'
-import { exportComments } from './comments.ts'
+import { exportComments, exportLines } from './comments.ts'
 import { layers, startLayer, type DemoComment, type DemoFile } from './fixtures.ts'
 import StackMenu from './StackMenu.tsx'
 import './demo.css'
@@ -306,19 +306,12 @@ export default function DiffDemo() {
         </div>
         <pre>
           <span className="prompt">$</span> ghl comments{'\n'}
-          {text
-            .trimEnd()
-            .split('\n')
-            .map((line, index) => (
-              // The count, then each comment's ID and lines, stand out like the headings they replace.
-              <span
-                key={index}
-                className={index === 0 || /^[0-9a-f]{8} \S/.test(line) ? 'heading' : undefined}
-              >
-                {line}
-                {'\n'}
-              </span>
-            ))}
+          {exportLines(text).map(({ line, heading }, index) => (
+            <span key={index} className={heading ? 'heading' : undefined}>
+              {line}
+              {'\n'}
+            </span>
+          ))}
         </pre>
       </div>
     </>

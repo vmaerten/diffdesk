@@ -6,7 +6,7 @@ import '../styles/window.css'
 import { version } from '../../../package.json'
 import AppWindow from '../components/AppWindow.astro'
 import DiffDemo from '../components/demo/DiffDemo.tsx'
-import { exportComments } from '../components/demo/comments.ts'
+import { exportComments, exportLines } from '../components/demo/comments.ts'
 import { goComment, layers, startLayer } from '../components/demo/fixtures.ts'
 import InstallCommand from '../components/InstallCommand.astro'
 import ThemeSelect from '../components/ThemeSelect.astro'
@@ -17,14 +17,9 @@ const changelog = `${repo}/blob/main/CHANGELOG.md`
 const guide = `${base}guide/getting-started/`
 const description =
   'A native macOS diff viewer with a GitHub-like review flow: comment on your own changes, then hand the comments to your agent.'
-const lines = (markdown: string) =>
-  markdown
-    .trimEnd()
-    .split('\n')
-    .map((line) => ({ line, heading: line.startsWith('#') }))
 const reviewed = layers[startLayer]!
-const firstExport = lines(exportComments(reviewed, reviewed.comments))
-const fullExport = lines(exportComments(reviewed, [goComment, ...reviewed.comments]))
+const firstExport = exportLines(exportComments(reviewed, reviewed.comments))
+const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.comments]))
 ---
 
 <!doctype html>
