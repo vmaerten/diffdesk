@@ -19,6 +19,7 @@ export default function CommentsPanel({
   canView,
   onUpdate,
   onDelete,
+  onResolve,
   onRetry,
   tabs,
 }: {
@@ -35,6 +36,7 @@ export default function CommentsPanel({
   canView: (comment: ServedComment) => boolean
   onUpdate: (comment: ServedComment, body: string) => void
   onDelete: (id: string) => void
+  onResolve: (id: string) => void
   onRetry: (comment: ServedComment) => void
   /** Comments and Symbol, in place of the title, while code intelligence shows both. */
   tabs?: ReactNode
@@ -166,6 +168,7 @@ export default function CommentsPanel({
                       setDraft(item.body)
                     }}
                     onDelete={onDelete}
+                    onResolve={onResolve}
                     onRetry={onRetry}
                   >
                     <footer className="comment-navigation">

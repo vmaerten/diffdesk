@@ -96,7 +96,6 @@ export default function DiffDemo() {
   const [picker, setPicker] = useState(false)
   const [copied, setCopied] = useState(false)
   const pane = useRef<HTMLDivElement>(null)
-  const nextId = useRef(0)
   const cards = useRef(new Map<string, HTMLElement>())
 
   const layer = layers[current]!
@@ -142,7 +141,7 @@ export default function DiffDemo() {
 
   function addComment(body: string) {
     if (!composer) return
-    const comment = { ...composer, id: String(nextId.current++), body }
+    const comment = { ...composer, id: crypto.randomUUID(), body }
     update((each) => ({ ...each, comments: [...each.comments, comment] }))
     setComposer(null)
   }
