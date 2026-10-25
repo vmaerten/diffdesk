@@ -43,11 +43,11 @@ ghl --base main        # choose the comparison base
 ghl --repo ../other    # review another checkout
 ```
 
-Move through files with `j` and `k`, tick a file Viewed with `v`, and switch between unified and split diffs with `Cmd+1` and `Cmd+2`.
+Move through files with `j` and `k`, or jump to one by name with `Cmd+P`. Tick a file Viewed with `v`, and switch between unified and split diffs with `Cmd+1` and `Cmd+2`. `Cmd+K` finds any other command by name.
 
 ## Comment and hand over
 
-Select lines and press `c`, or click the gutter's `+`. Comments belong to the reviewed branch and survive refreshes, restarts and reinstalls.
+Select lines and press `c`, or click the gutter's `+`. Comments belong to the reviewed branch and survive refreshes, restarts and reinstalls. **Resolve** on a card closes a comment once it is addressed, and keeps it.
 
 `Shift+Cmd+C` copies every comment for an agent: its ID, path, lines and text, and only the code the file no longer has. From the terminal, without opening the window:
 

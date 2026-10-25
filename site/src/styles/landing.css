@@ -514,6 +514,7 @@ install-command {
 .band .copy code {
   color: var(--text);
   font-size: 15px;
+  white-space: nowrap;
 }
 
 .export {
@@ -534,7 +535,7 @@ install-command {
 
 .features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -556,6 +557,16 @@ install-command {
 .features h3 {
   margin: 14px 0 6px;
   font-size: 17px;
+}
+
+.features .beta {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: 600 11px var(--mono);
+  vertical-align: 2px;
 }
 
 .features p {
@@ -717,6 +728,10 @@ install-command {
 
   .loop .arrow {
     display: none;
+  }
+
+  .features {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .usage div {
