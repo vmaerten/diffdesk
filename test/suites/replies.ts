@@ -1,0 +1,113 @@
+import { asMarkdown } from '../../src/export.ts'
+import { execFileSync } from 'node:child_process'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import type { DiffPayload, StoredState } from '../../src/types.ts'
+import { clickTreeRow, COMMENTS_OPEN, type Suite } from '../harness.ts'
+
+/** Replies and resolution come from the terminal; the window only shows them. */
+export default {
+  name: 'comment-replies',
+  async run({ page, load, url, repoPath }, check) {
+    await load()
+    const endpoint = new URL(url())
+    const api = (route: string) =>
+      `${endpoint.origin}${endpoint.pathname}/api/${route}${endpoint.search}`
+    const answered = {
+      id: 'reply-answered',
+      path: 'src/core/cache.ts',
+      side: 'additions',
+      start: 24,
+      end: 25,
+      body: 'Extract this cache policy.',
+      range: 'main..feature',
+    }
+    const resolved = { ...answered, id: 'reply-resolved', start: 26, end: 26, body: 'Done.' }
+    for (const comment of [answered, resolved]) {
+      const response = await fetch(api('comments'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(comment),
+      })
+      check('seed comment accepted', response.ok)
+    }
+    const gitDir = execFileSync('git', ['-C', repoPath, 'rev-parse', '--absolute-git-dir'], {
+      encoding: 'utf8',
+    }).trim()
+    const stateFile = join(gitDir, 'ghl/state.json')
+    const state: StoredState = JSON.parse(readFileSync(stateFile, 'utf8'))
+    for (const comment of state.comments) {
+      if (comment.id === answered.id) {
+        comment.status = 'answered'
+        comment.replies = [
+          { author: 'agent', body: 'Kept it inline.', createdAt: '2026-10-25T10:00:00.000Z' },
+          { author: 'reviewer', body: 'Extract it anyway.', createdAt: '2026-10-25T11:00:00.000Z' },
+          { author: 'agent', body: 'Moved to policy.ts.', createdAt: '2026-10-25T12:00:00.000Z' },
+        ]
+      }
+      if (comment.id === resolved.id) comment.status = 'resolved'
+    }
+    writeFileSync(stateFile, JSON.stringify(state))
+    await load()
+
+    await clickTreeRow(page, answered.path)
+    const card = `.diff [data-comment-id="${answered.id}"]`
+    await page.waitForSelector(card)
+    check(
+      'an answered comment is badged',
+      (await page.$eval(`${card} .badge.on`, (el) => el.textContent)) === 'Answered',
+    )
+    const replies = await page.$$eval(`${card} .comment-replies li`, (items) =>
+      items.map((item) => item.textContent),
+    )
+    check(
+      'its replies are listed in order with their author',
+      JSON.stringify(replies) ===
+        JSON.stringify([
+          'AgentKept it inline.',
+          'ReviewerExtract it anyway.',
+          'AgentMoved to policy.ts.',
+        ]),
+      JSON.stringify(replies),
+    )
+    check(
+      'a resolved comment is hidden from the diff',
+      (await page.$(`.diff [data-comment-id="${resolved.id}"]`)) === null,
+    )
+    check(
+      'the comment count leaves resolved comments out',
+      (await page.$eval('.copy-all .counter', (el) => el.textContent?.trim())) === '1',
+    )
+
+    await page.click('.comments-trigger')
+    await page.waitForSelector(COMMENTS_OPEN)
+    check(
+      'the panel leaves resolved comments out',
+      JSON.stringify(
+        await page.$$eval('.comments-panel .comment', (cards) =>
+          cards.map((el) => el.getAttribute('data-comment-id')),
+        ),
+      ) === JSON.stringify([answered.id]),
+    )
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async (value: string) => {
+            document.documentElement.dataset.copied = value
+          },
+        },
+      })
+    })
+    const payload = (await (await fetch(api('diff'))).json()) as DiffPayload
+    await page.click('.comments-panel-toolbar button')
+    check(
+      'copy all leaves resolved comments out, like ghl comments',
+      (await page.evaluate(() => document.documentElement.dataset.copied)) ===
+        asMarkdown(
+          payload.comments.filter((comment) => comment.status !== 'resolved'),
+          { range: payload.range },
+        ),
+    )
+  },
+} satisfies Suite

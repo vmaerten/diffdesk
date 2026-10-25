@@ -26,6 +26,7 @@ import untracked from './suites/untracked.ts'
 import search from './suites/search.ts'
 import whitespace from './suites/whitespace.ts'
 import fileMenu from './suites/fileMenu.ts'
+import replies from './suites/replies.ts'
 
 const SUITES: Suite[] = [
   themes,
@@ -45,6 +46,7 @@ const SUITES: Suite[] = [
   search,
   whitespace,
   fileMenu,
+  replies,
 ]
 
 /**

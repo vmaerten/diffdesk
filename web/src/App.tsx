@@ -117,7 +117,15 @@ export default function App({
   const [picking, setPicking] = useState<Picker | null>(null)
   const [selection, select] = useReviewSelection(onRouteChange)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
-  const [{ comments, saving }, commentPersistence] = useCommentPersistence(repoId, commentStore)
+  const [{ comments: stored, saving }, commentPersistence] = useCommentPersistence(
+    repoId,
+    commentStore,
+  )
+  /** Resolved comments are closed; `ghl comments` leaves them out too. */
+  const comments = useMemo(
+    () => stored.filter((comment) => comment.status !== 'resolved'),
+    [stored],
+  )
   /** Momentary, so the button can say the clipboard actually took it. */
   const [copied, setCopied] = useState<string | null>(null)
   const [copyError, setCopyError] = useState<string | null>(null)

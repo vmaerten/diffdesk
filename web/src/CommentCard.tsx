@@ -81,6 +81,14 @@ export default function CommentCard({
             Lines changed
           </span>
         )}
+        {comment.status === 'answered' && (
+          <span
+            className="badge on"
+            title="Answered by the agent: resolve or reopen it with ghl comments"
+          >
+            Answered
+          </span>
+        )}
         {!onToggle && <span className="spacer" />}
         {state === 'saving' && (
           <span className="comment-state" role="status">
@@ -154,6 +162,18 @@ export default function CommentCard({
           </div>
         )}
         <p>{comment.body}</p>
+        {comment.replies && comment.replies.length > 0 && (
+          <ol className="comment-replies" aria-label="Replies">
+            {comment.replies.map((reply, index) => (
+              <li key={index}>
+                <span className="comment-reply-author">
+                  {reply.author === 'agent' ? 'Agent' : 'Reviewer'}
+                </span>
+                <p>{reply.body}</p>
+              </li>
+            ))}
+          </ol>
+        )}
         {(comment.stale || comment.code.length === 0) && comment.anchor.length > 0 && (
           <details className="comment-original">
             <summary>Original code</summary>
