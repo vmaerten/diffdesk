@@ -409,7 +409,31 @@ install-command {
 }
 
 .demo-hint {
-  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 26px;
+  max-width: 940px;
+  margin: 24px auto 0;
+  padding: 0;
+  list-style: none;
+  color: var(--dim);
+  font: 13px/1.4 var(--sans);
+}
+
+.demo-hint li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.demo-hint .keys {
+  display: flex;
+  gap: 3px;
+}
+
+.demo-terminal {
+  margin-top: 14px;
   color: var(--faint);
   font: 12.5px/1.6 var(--mono);
   text-align: center;
