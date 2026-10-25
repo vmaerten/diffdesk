@@ -1,10 +1,10 @@
 # Runtime desktop : Wails v2, Wails v3 ou Electron
 
-Statut : comparatif du 24 octobre 2026, avant de choisir le runtime qui succède à Wails v2.16. « Vérifié » signifie lu dans le code source, la documentation de la version citée ou des données de release ; le reste est marqué « non vérifié ».
+Statut : comparatif du 24 octobre 2026, avant de choisir le runtime qui succède à Wails v2.16. Décision : Wails v3, livré le 25 octobre ([#207](https://github.com/vmaerten/ghl/pull/207)), suivi du menu contextuel natif ([#208](https://github.com/vmaerten/ghl/pull/208)). « Vérifié » signifie lu dans le code source, la documentation de la version citée ou des données de release ; le reste est marqué « non vérifié ».
 
 ## Résumé
 
-Recommandation : **Wails v3**, en figeant une beta. Il lève les limites qui nous ont arrêtés en v2 (barre compacte, plusieurs fenêtres et onglets natifs, menus contextuels natifs) et garde un seul processus Go et une archive de 7,5 Mio. Le portage sur `main` est fait (branche `feat/wails-v3`), et les mesures du 24 octobre le donnent au moins aussi bon que v2 partout.
+Recommandation : **Wails v3**, en figeant une beta. Il lève les limites qui nous ont arrêtés en v2 (barre compacte, plusieurs fenêtres et onglets natifs, menus contextuels natifs) et garde un seul processus Go et une archive de 7,5 Mio. Les mesures du 24 octobre le donnent au moins aussi bon que v2 partout.
 
 Electron ferait mieux sur quatre points : même moteur en production que dans les tests (Chromium), placement libre des boutons de fenêtre, translucidité qui suit le focus, apparence changeable à chaud. Mesuré sur ghl, il démarre et change d'onglet 14 à 92 ms plus vite, rouvre une review depuis le terminal 60 ms plus lentement, et occupe 70 à 140 Mio de plus au repos. Il coûte une archive 16 fois plus lourde (119 Mio contre 7,5), un processus principal en JavaScript à côté du serveur Go, une réécriture des menus, du packaging et du smoke natif, et une montée de version majeure tous les six mois au plus tard. Il n'apporte rien sur la signature ni les mises à jour automatiques, qui exigent un Developer ID dans les trois cas.
 
@@ -57,7 +57,7 @@ Electron embarque son Chromium (M156 pour Electron 45) : le même moteur partout
 
 ## Mesures
 
-Banc du 24 octobre 2026 sur un Apple M5 Pro sous macOS 26.6.2. Les trois apps sont construites depuis `main` (`c530c67`) avec la même interface : Wails v2, Wails v3 (portage de la branche `feat/wails-v3`) et un prototype Electron 45 (branche `spike/electron`) qui lance le serveur Go à côté. Chaque essai démarre l'app sur un dépôt de test, ouvre un second dépôt en onglet, change 30 fois d'onglet dans l'interface, puis rouvre 10 fois une review depuis le terminal. Deux charges : 1 fichier et 2 lignes changées, puis 40 fichiers et 2 000 lignes changées. 4 séries, en alternant l'ordre des runtimes. La mémoire est l'empreinte physique de l'app, de ses processus fils (aides Electron, serveur Go) et des processus WebKit qui lui sont rattachés. Les chiffres sont des médianes, avec l'écart minimum–maximum des 4 séries.
+Banc du 24 octobre 2026 sur un Apple M5 Pro sous macOS 26.6.2. Les trois apps sont construites depuis `main` (`c530c67`) avec la même interface : Wails v2, Wails v3 (le portage de #207) et un prototype Electron 45 (branche `spike/electron`) qui lance le serveur Go à côté. Chaque essai démarre l'app sur un dépôt de test, ouvre un second dépôt en onglet, change 30 fois d'onglet dans l'interface, puis rouvre 10 fois une review depuis le terminal. Deux charges : 1 fichier et 2 lignes changées, puis 40 fichiers et 2 000 lignes changées. 4 séries, en alternant l'ordre des runtimes. La mémoire est l'empreinte physique de l'app, de ses processus fils (aides Electron, serveur Go) et des processus WebKit qui lui sont rattachés. Les chiffres sont des médianes, avec l'écart minimum–maximum des 4 séries.
 
 | | Wails v2 | Wails v3 | Electron 45 |
 | --- | --- | --- | --- |
@@ -104,7 +104,7 @@ Aucune des trois options ne permet une mise à jour automatique sans Developer I
 
 ## Coût du changement
 
-**Wails v3.** Le portage tient en deux commits sur la branche `feat/wails-v3` : les services, la fenêtre, les menus, les dialogues et les événements de v3 dans `main.go` et `launch.go`, et un module `native.js` qui reconstruit l'interface que la page attend à partir du runtime v3, sans toucher à l'interface React. Il a révélé un trou : la page v3 a pour origine `wails://localhost`, que le serveur de review acceptait comme `localhost` ; il n'accepte plus que `http` et `https`. Les tests Go passent et le banc l'a fait tourner 8 fois sans erreur. Restent le smoke natif, la documentation et le passage à Go 1.26 (`desktop/go.mod`).
+**Wails v3.** Le portage (#207) tient en deux commits : les services, la fenêtre, les menus, les dialogues et les événements de v3 dans `main.go` et `launch.go`, et un module `native.js` qui reconstruit l'interface que la page attend à partir du runtime v3, sans toucher à l'interface React. Il a révélé un trou : la page v3 a pour origine `wails://localhost`, que le serveur de review acceptait comme `localhost` ; il n'accepte plus que `http` et `https`. La suite complète, le smoke natif et la vérification de release passent ; cette dernière a relevé que Wails impose macOS 10.13 au linker, d'où un `-mmacosx-version-min=13.0` dans le build. Le module desktop demande Go 1.26.
 
 **Electron.** Le prototype de la branche `spike/electron` (serveur Go à côté, onglets, instance unique, une partie des menus) tient en deux fichiers JavaScript (510 lignes) et un `main` Go d'une cinquantaine de lignes, mais l'app complète demande plus. Tout le code natif passe en JavaScript : processus principal, les 26 entrées de menu, dialogues, instance unique, lancement et arrêt du serveur Go. Puis le packaging (Forge ou electron-builder, signature ad hoc, binaire Go dans le bundle), la release (GoReleaser ne suffit plus), `bridge.js` et `simulator.ts` réécrits autour de l'IPC, et le smoke natif refait, mais pilotable avec Puppeteer comme le reste des tests. Node entre dans la chaîne de build de l'app. Estimation : plusieurs PRs, puis une montée de majeure Electron au moins tous les six mois.
 
@@ -113,7 +113,6 @@ Aucune des trois options ne permet une mise à jour automatique sans Developer I
 - Un seul Mac, sous macOS 26.6.2 : macOS 13, dont le WebKit est plus ancien, n'a pas été mesuré.
 - Le prototype Electron ne porte qu'une partie des menus et rien de Reveal in Finder ; une vraie app Electron aurait plus de code dans son processus principal.
 - Les longues sessions : la mémoire de WebKit croît à chaque changement de review, sur une durée bien plus longue que 40 changements.
-- Le smoke natif n'a pas encore tourné sur le portage v3.
 
 ## Sources
 
