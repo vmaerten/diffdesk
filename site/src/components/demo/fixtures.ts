@@ -1,6 +1,6 @@
 // A three-layer stack: the bottom layer is merged and pruned, so the one under review falls back to the trunk.
 
-import type { DiffSide } from '../../../../src/types.ts'
+import type { Check, DiffSide } from '../../../../src/types.ts'
 
 export interface DemoFile {
   path: string
@@ -18,9 +18,20 @@ export interface DemoComment {
   body: string
 }
 
+/** What GitHub has for a layer's pull request, beyond what every layer shares. */
+export interface DemoPullRequest {
+  number: number
+  title: string
+  /** The commit GitHub ran the checks on. */
+  head: string
+  checks: Check[]
+  /** Local commits GitHub does not have yet. */
+  ahead: number
+}
+
 export interface DemoLayer {
   branch: string
-  pr: number
+  pr: DemoPullRequest
   /** What the layer is compared with: the nearest live layer below it, or the trunk. */
   base: string
   pruned: boolean
@@ -103,11 +114,24 @@ export const goComment: DemoComment = {
   body: 'Log why the layer is skipped.',
 }
 
+/** A check that started at 10:00 and, unless it still runs, took `seconds`. */
+function check(name: string, state: Check['state'], seconds = 0): Check {
+  const startedAt = '2026-10-25T10:00:00Z'
+  const completedAt = new Date(Date.parse(startedAt) + seconds * 1000).toISOString()
+  return { name, state, url: '', startedAt, ...(state === 'running' ? {} : { completedAt }) }
+}
+
 /** Bottom layer first, as gh stack lists them. */
 export const layers: DemoLayer[] = [
   {
     branch: 'stack-model',
-    pr: 209,
+    pr: {
+      number: 209,
+      title: 'Model the stack from gh-stack metadata',
+      head: '5be0d17',
+      checks: [],
+      ahead: 0,
+    },
     base: 'main',
     pruned: true,
     files: [],
@@ -116,7 +140,17 @@ export const layers: DemoLayer[] = [
   },
   {
     branch: 'stack-nav',
-    pr: 211,
+    pr: {
+      number: 211,
+      title: 'Review the layer below or above with [ and ]',
+      head: 'a41c9e2',
+      checks: [
+        check('test', 'passed', 134),
+        check('lint', 'passed', 41),
+        check('build', 'passed', 112),
+      ],
+      ahead: 0,
+    },
     base: 'main',
     pruned: false,
     files: [
@@ -159,7 +193,17 @@ func liveLayers(stack []Layer) []Layer {
   },
   {
     branch: 'stack-picker',
-    pr: 212,
+    pr: {
+      number: 212,
+      title: 'Pick a stack layer from the comparison capsule',
+      head: 'e7d3b08',
+      checks: [
+        check('test', 'running'),
+        check('lint', 'passed', 38),
+        check('build', 'passed', 106),
+      ],
+      ahead: 1,
+    },
     base: 'stack-nav',
     pruned: false,
     files: [

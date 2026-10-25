@@ -6,10 +6,17 @@ import {
 } from '@pierre/diffs'
 import { FileDiff } from '@pierre/diffs/react'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import type { DiffSide } from '../../../../src/types.ts'
+import type { DiffSide, PullRequest } from '../../../../src/types.ts'
 import { commentRange } from '../../../../web/src/commentRange.ts'
+import PullRequestPill from '../../../../web/src/PullRequestPill.tsx'
 import { exportComments, exportLines } from './comments.ts'
-import { layers, startLayer, type DemoComment, type DemoFile } from './fixtures.ts'
+import {
+  layers,
+  startLayer,
+  type DemoComment,
+  type DemoFile,
+  type DemoLayer,
+} from './fixtures.ts'
 import StackMenu from './StackMenu.tsx'
 import './demo.css'
 
@@ -37,6 +44,22 @@ const reviews = layers.map((layer) => {
     additions: files.reduce((sum, file) => sum + file.additions, 0),
     deletions: files.reduce((sum, file) => sum + file.deletions, 0),
   }
+})
+
+/** A layer's pull request, as the app hears of it from gh. */
+const pullRequestOf = ({ pr: { ahead, ...pr }, base, pruned }: DemoLayer): PullRequest => ({
+  ...pr,
+  url: 'https://github.com/vmaerten/ghl/pulls',
+  state: pruned ? 'merged' : 'open',
+  author: 'you',
+  base,
+  review: 'required',
+  approvedBy: [],
+  changesRequestedBy: [],
+  requested: [],
+  mergeable: 'mergeable',
+  sync: { ahead, behind: 0 },
+  uncommitted: false,
 })
 
 /** The nearest layer left to open above (1) or below (-1); a pruned one has nothing to diff. */
@@ -210,6 +233,9 @@ export default function DiffDemo() {
             )}
           </div>
           <div className="actions">
+            <span className="optional">
+              <PullRequestPill pr={pullRequestOf(layer)} workingTree place="title-bar" />
+            </span>
             <div className="segmented optional" role="group" aria-label="Diff layout">
               {(['unified', 'split'] as const).map((style) => (
                 <button
