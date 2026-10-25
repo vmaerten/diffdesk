@@ -351,6 +351,7 @@ install-command {
 
 /* The terminal hangs under the window's right corner, over the empty end of the status bar. */
 .stage {
+  position: relative;
   display: flex;
   flex-direction: column;
   padding-top: 24px;
