@@ -8,10 +8,21 @@ import {
   codeVariables,
   DEFAULT_SETTINGS,
   isFontName,
+  LANGUAGE_SERVERS,
   latestSaver,
   readSettings,
   type DesktopSettings,
+  type LanguageId,
 } from './desktopSettings.ts'
+import {
+  homeRelative,
+  languageConfig,
+  sendLanguageConfig,
+  SERVER_CHOICE_LABELS,
+  stateLabel,
+  useLanguageStatus,
+} from './codeIntelligence.ts'
+import type { LanguageStatus } from '../../src/types.ts'
 import desktopStyles from './desktop.css?inline'
 
 const APPEARANCES: { value: Appearance; label: string }[] = [
@@ -36,7 +47,7 @@ const PREVIEW = `diff --git a/open.go b/open.go
  }
 `
 
-type Pane = 'appearance' | 'code' | 'window'
+type Pane = 'appearance' | 'code' | 'window' | 'intelligence'
 
 const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
   {
@@ -86,6 +97,23 @@ const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
       >
         <rect x="3.5" y="5" width="17" height="14" rx="2.5" />
         <path d="M3.5 9.5h17" />
+      </svg>
+    ),
+  },
+  {
+    id: 'intelligence',
+    label: 'Intelligence',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z" />
       </svg>
     ),
   },
@@ -179,6 +207,9 @@ export default function SettingsWindow() {
         )}
         {settings && pane === 'code' && <CodePane settings={settings} onChange={change} />}
         {settings && pane === 'window' && <WindowPane settings={settings} onChange={change} />}
+        {settings && pane === 'intelligence' && (
+          <IntelligencePane settings={settings} onChange={change} />
+        )}
       </main>
     </div>
   )
@@ -345,6 +376,124 @@ function WindowPane({ settings, onChange }: PaneProps) {
         </div>
       </div>
     </div>
+  )
+}
+
+const LANGUAGE_LABELS: Record<LanguageId, string> = {
+  go: 'Go',
+  typescript: 'TypeScript',
+  rust: 'Rust',
+}
+
+/** Where the server comes from, or why there is none. */
+function serverDetail(language: LanguageStatus | undefined): string {
+  if (!language) return "Open a review to see its checkout's server."
+  if (language.state === 'failed' && language.error)
+    return language.error.split('\n')[0]!.slice(0, 160)
+  if (!language.server)
+    return language.state === 'off' ? 'Off' : `Not found — ${language.install ?? 'not installed'}`
+  const path = homeRelative(language.server.path)
+  return language.server.origin === 'checkout' ? `${path} · from this checkout` : path
+}
+
+/** The review the main window shows, whose checkout decides which servers would run. */
+function useShownRepository(): string | null {
+  const [repoId, setRepoId] = useState<string | null>(null)
+  useEffect(() => {
+    const read = async () => {
+      const tabs = await window.go?.main.desktopApp.Tabs()
+      const shown = tabs?.tabs.find((tab) => tab.id === tabs.active)
+      setRepoId(shown ? (new URL(shown.route, location.href).pathname.split('/')[2] ?? null) : null)
+    }
+    read().catch(() => setRepoId(null))
+  }, [])
+  return repoId
+}
+
+function IntelligencePane({ settings, onChange }: PaneProps) {
+  const repoId = useShownRepository()
+  // The review sends the settings to the review server when Go hands them over;
+  // sending them from here too lets this list follow a change at once.
+  const config = languageConfig(settings)
+  const sent = useRef(config)
+  const [revision, setRevision] = useState(0)
+  useEffect(() => {
+    if (config === sent.current) return
+    sent.current = config
+    let current = true
+    const send = async () => {
+      await sendLanguageConfig(config)
+      if (current) setRevision((count) => count + 1)
+    }
+    // The review shows a failure to send.
+    send().catch(() => {})
+    return () => {
+      current = false
+    }
+  }, [config])
+  const [status] = useLanguageStatus(repoId, revision)
+  return (
+    <>
+      <div className="settings-group">
+        <label className="settings-field">
+          <span className="settings-label">
+            <span>
+              Use language servers <span className="beta-badge">Beta</span>
+            </span>
+            <small>
+              Hold ⌘ over a symbol for its type, ⌘-click for its definition, in working-tree
+              reviews. The servers run on the reviewed code, as your editor would.
+            </small>
+          </span>
+          <input
+            type="checkbox"
+            checked={settings.codeIntelligence}
+            onChange={(event) => onChange({ codeIntelligence: event.target.checked })}
+          />
+        </label>
+      </div>
+      <h2 className="settings-heading">Language servers</h2>
+      <div className="settings-group language-servers">
+        {(Object.keys(LANGUAGE_SERVERS) as LanguageId[]).map((id) => {
+          const language = status?.languages.find((entry) => entry.id === id)
+          const server = language?.server
+          const unavailable = language?.state === 'missing' || language?.state === 'failed'
+          return (
+            <label className="settings-field language-server" data-language={id} key={id}>
+              <span className="settings-label">
+                <span>
+                  {LANGUAGE_LABELS[id]}
+                  {server && ` · ${server.name}${language.version ? ` ${language.version}` : ''}`}
+                </span>
+                <small className={unavailable ? 'unavailable' : undefined}>
+                  {serverDetail(language)}
+                </small>
+              </span>
+              {language && (
+                <span className="server-state" data-state={language.state}>
+                  {stateLabel(language)}
+                </span>
+              )}
+              <select
+                aria-label={`${LANGUAGE_LABELS[id]} language server`}
+                value={settings.languageServers[id]}
+                onChange={(event) =>
+                  onChange({
+                    languageServers: { ...settings.languageServers, [id]: event.target.value },
+                  })
+                }
+              >
+                {LANGUAGE_SERVERS[id].map((choice) => (
+                  <option key={choice} value={choice}>
+                    {SERVER_CHOICE_LABELS[choice] ?? choice}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )
+        })}
+      </div>
+    </>
   )
 }
 

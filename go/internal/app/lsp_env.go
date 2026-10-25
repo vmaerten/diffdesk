@@ -51,6 +51,10 @@ func loginEnvironment(shell, root string, timeout time.Duration) ([]string, erro
 // serverEnvironment is the login shell's environment, or this process's with
 // the usual install directories added when the shell cannot tell.
 func serverEnvironment(root string) []string {
+	// The UI tests choose the servers: GHL_LSP_PATH replaces the shell's PATH.
+	if path := os.Getenv("GHL_LSP_PATH"); path != "" {
+		return append(os.Environ(), "PATH="+path)
+	}
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "/bin/zsh"
