@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent,
   type Ref,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -29,7 +30,14 @@ import { layerTarget, neighbourLayer } from './StackPicker.tsx'
 import { DesktopSidebarFoot, DesktopSidebarHead } from './DesktopSidebar.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
 import Resizer, { storedWidth } from './Resizer.tsx'
-import { commandOf, type ReviewCommand, type WindowCommand } from './commands.ts'
+import {
+  commandOf,
+  fileCommandOf,
+  type FileCommand,
+  type ReviewCommand,
+  type WindowCommand,
+} from './commands.ts'
+import { contextFile } from './fileMenu.ts'
 import { asMarkdown } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
 import type { SavedView, SavedViewHandle } from './savedView.ts'
@@ -77,6 +85,7 @@ export default function App({
   toolbar,
   sidebarHidden,
   onReveal,
+  onFileMenu,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -93,6 +102,8 @@ export default function App({
   sidebarHidden: boolean
   /** Selects a file of the checkout in Finder. */
   onReveal?: (path: string) => Promise<void>
+  /** Opens the native context menu of a file at x, y; without it, the default menu stays. */
+  onFileMenu?: (path: string, x: number, y: number, viewed: boolean) => Promise<void>
 }) {
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
@@ -300,6 +311,37 @@ export default function App({
     [diffStyle, commentsOpen, captureView],
   )
 
+  const runFileCommand = useStableCallback((command: FileCommand, path: string) => {
+    switch (command) {
+      case 'viewed':
+        void toggleViewed(path, !(path in viewed))
+        break
+      case 'copy-path':
+        navigator.clipboard
+          .writeText(path)
+          .catch((cause) =>
+            setCopyError(`Could not copy ${path}. ${cause instanceof Error ? cause.message : ''}`),
+          )
+        break
+      case 'reveal':
+        onReveal?.(path).catch((cause) =>
+          setError(`could not reveal ${path}: ${cause instanceof Error ? cause.message : cause}`),
+        )
+        break
+    }
+  })
+
+  const openFileMenu = useStableCallback((event: MouseEvent) => {
+    const path = onFileMenu && contextFile(event.nativeEvent)
+    if (!path) return
+    // The native menu replaces the page's default one.
+    event.preventDefault()
+    event.stopPropagation()
+    onFileMenu(path, event.clientX, event.clientY, path in viewed).catch((cause) =>
+      setError(`could not open the file menu: ${cause instanceof Error ? cause.message : cause}`),
+    )
+  })
+
   /** Every review command by name: the single-letter keys and the desktop menus. */
   const runCommand = useStableCallback((command: ReviewCommand | WindowCommand) => {
     switch (command) {
@@ -331,7 +373,9 @@ export default function App({
         commentSelection()
         break
       case 'viewed':
-        if (activePath) void toggleViewed(activePath, !(activePath in viewed))
+      case 'copy-path':
+      case 'reveal':
+        if (activePath) runFileCommand(command, activePath)
         break
       case 'unified':
       case 'split':
@@ -354,24 +398,6 @@ export default function App({
         break
       case 'reset-viewed':
         void resetViewed()
-        break
-      case 'copy-path':
-        if (activePath)
-          navigator.clipboard
-            .writeText(activePath)
-            .catch((cause) =>
-              setCopyError(
-                `Could not copy ${activePath}. ${cause instanceof Error ? cause.message : ''}`,
-              ),
-            )
-        break
-      case 'reveal':
-        if (activePath && onReveal)
-          onReveal(activePath).catch((cause) =>
-            setError(
-              `could not reveal ${activePath}: ${cause instanceof Error ? cause.message : cause}`,
-            ),
-          )
         break
     }
   })
@@ -426,6 +452,15 @@ export default function App({
     window.addEventListener('desktop:command', listener)
     return () => window.removeEventListener('desktop:command', listener)
   }, [runCommand])
+
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const { command, path } = fileCommandOf(event)
+      runFileCommand(command, path)
+    }
+    window.addEventListener('desktop:file-command', listener)
+    return () => window.removeEventListener('desktop:file-command', listener)
+  }, [runFileCommand])
 
   const resizeSidebar = useCallback((width: number) => {
     setSidebarWidth(width)
@@ -494,7 +529,7 @@ export default function App({
   )
 
   return (
-    <div className="app" data-repo={repoName}>
+    <div className="app" data-repo={repoName} onContextMenu={openFileMenu}>
       {toolbar &&
         createPortal(
           <DesktopToolbar

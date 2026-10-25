@@ -186,6 +186,7 @@ func run() error {
 		},
 	})
 	desktop.startup(native, window)
+	desktop.addFileMenu(native, window)
 	window.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
 		desktop.ready.Do(func() { go desktop.process(context.Background()) })
 	})

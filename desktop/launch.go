@@ -101,14 +101,16 @@ func parseLaunch(args []string, cwd string) (launch, error) {
 }
 
 type desktopApp struct {
-	app      *application.App
-	window   *application.WebviewWindow
-	mu       sync.RWMutex
-	backend  *reviewBackend
-	requests chan launch
-	ready    sync.Once
-	tabs     reviewTabs
-	settings *settingsStore
+	app    *application.App
+	window *application.WebviewWindow
+	// The file menu's Viewed box, ticked for each file it opens on.
+	viewedItem *application.MenuItem
+	mu         sync.RWMutex
+	backend    *reviewBackend
+	requests   chan launch
+	ready      sync.Once
+	tabs       reviewTabs
+	settings   *settingsStore
 }
 
 func (d *desktopApp) startup(app *application.App, window *application.WebviewWindow) {

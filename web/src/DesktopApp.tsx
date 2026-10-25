@@ -46,6 +46,7 @@ interface DesktopAPI {
   Settings(): Promise<string>
   SaveSettings(raw: string): Promise<void>
   RevealInFinder(tabID: string, path: string): Promise<void>
+  OpenFileMenu(path: string, x: number, y: number, viewed: boolean): Promise<void>
 }
 declare global {
   interface Window {
@@ -248,6 +249,9 @@ export default function DesktopApp() {
   const reveal = useStableCallback(async (path: string) =>
     window.go?.main.desktopApp.RevealInFinder(latest.current.active, path),
   )
+  const fileMenu = useStableCallback(async (path: string, x: number, y: number, viewed: boolean) =>
+    window.go?.main.desktopApp.OpenFileMenu(path, Math.round(x), Math.round(y), viewed),
+  )
   const routeChanged = useStableCallback((route: string) => {
     const active = latest.current.tabs.find((tab) => tab.id === latest.current.active)
     if (active && active.route !== route)
@@ -414,6 +418,7 @@ export default function DesktopApp() {
               toolbar={toolbar}
               sidebarHidden={sidebarHidden}
               onReveal={reveal}
+              onFileMenu={fileMenu}
             />
           )}
         </div>

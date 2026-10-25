@@ -1,9 +1,13 @@
 import type { Picker } from './ComparisonControls.tsx'
 
+/** The commands on one file: the active one from the menus, the clicked one from its context menu. */
+export type FileCommand = 'viewed' | 'copy-path' | 'reveal'
+
 /**
  * Named commands. Keys send review commands; in the desktop app, every menu
  * item arrives as a `desktop:command` event naming one of these, the names Go
- * writes in desktop/main.go.
+ * writes in desktop/main.go. The file context menu sends `desktop:file-command`
+ * with the file (desktop/filemenu.go).
  */
 export type ReviewCommand =
   | Picker
@@ -13,7 +17,7 @@ export type ReviewCommand =
   | 'layer-above'
   | 'refresh'
   | 'comment'
-  | 'viewed'
+  | FileCommand
   | 'unified'
   | 'split'
   | 'working-tree'
@@ -22,10 +26,11 @@ export type ReviewCommand =
   | 'comments'
   | 'copy-comments'
   | 'reset-viewed'
-  | 'copy-path'
-  | 'reveal'
 
 export type WindowCommand = 'reload' | 'close-tab' | 'settings' | 'shortcuts' | 'sidebar'
 
 export const commandOf = (event: Event) =>
   (event as CustomEvent<ReviewCommand | WindowCommand>).detail
+
+export const fileCommandOf = (event: Event) =>
+  (event as CustomEvent<{ command: FileCommand; path: string }>).detail
