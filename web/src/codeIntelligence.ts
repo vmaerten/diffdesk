@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { LanguageServersStatus, LanguageStatus } from '../../src/types.ts'
+import type {
+  LanguageServersStatus,
+  LanguageStatus,
+  SymbolAnswer,
+  SymbolQuery,
+} from '../../src/types.ts'
 import type { DesktopSettings } from './desktopSettings.ts'
 
 export const SERVER_CHOICE_LABELS: Record<string, string> = {
@@ -120,4 +125,33 @@ export function stateLabel(language: LanguageStatus): string {
     case 'failed':
       return 'Failed'
   }
+}
+
+/** What the review server accepts as a token: an identifier, nothing around it. */
+export const IDENTIFIER = /^[\p{L}\p{Nl}_$][\p{L}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}_$]*$/u
+
+/** The file changed on disk since the review loaded: a refresh is needed first. */
+export class StaleSymbolError extends Error {}
+
+export async function lookUpSymbol(
+  repoId: string,
+  query: SymbolQuery,
+  signal?: AbortSignal,
+): Promise<SymbolAnswer> {
+  const params = new URLSearchParams({
+    path: query.path,
+    line: String(query.line),
+    character: String(query.character),
+    token: query.token,
+  })
+  const response = await fetch(`/r/${repoId}/api/lsp/symbol?${params}`, { signal })
+  if (response.status === 409) throw new StaleSymbolError((await failure(response)).message)
+  if (!response.ok) throw await failure(response)
+  return (await response.json()) as SymbolAnswer
+}
+
+/** The language server that answers for path, if one can. */
+export function serverFor(languages: readonly LanguageStatus[], path: string) {
+  const language = languagesOf({ enabled: true, languages: [...languages] }, [path])[0]
+  return language && language.state !== 'missing' ? language : undefined
 }
