@@ -3,7 +3,7 @@ import { rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
-import { asMarkdown } from '../../src/export.ts'
+import { asText } from '../../src/export.ts'
 import type { DiffPayload } from '../../src/types.ts'
 import {
   allTreeRows,
@@ -240,7 +240,7 @@ export default {
         await Promise.resolve()
         return text
       })()`)
-      check(name, copied === asMarkdown(payload.comments, { range: payload.range }), String(copied))
+      check(name, copied === asText(payload.comments, { range: payload.range }), String(copied))
       await until(
         page,
         `document.querySelector('.titlebar-actions .copy-all').textContent.startsWith('Copied')`,

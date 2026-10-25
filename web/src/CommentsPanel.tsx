@@ -73,7 +73,7 @@ export default function CommentsPanel({
         onClick={() => onCopy()}
       >
         <Icon name="copy" />
-        {copied === 'all' ? 'Copied' : 'Copy all as Markdown'}
+        {copied === 'all' ? 'Copied' : 'Copy all'}
         <kbd>⇧⌘C</kbd>
       </button>
     </div>

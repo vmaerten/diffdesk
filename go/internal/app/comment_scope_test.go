@@ -76,7 +76,7 @@ func TestBranchCommentsSurviveComparisonChangesAndCheckout(t *testing.T) {
 			t.Fatal(err)
 		}
 		var output, notices bytes.Buffer
-		if err := writeComments(ctx, review, s.store, false, true, &output, &notices); err != nil {
+		if err := writeComments(ctx, review, s.store, ExportOptions{JSON: true}, &output, &notices); err != nil {
 			t.Fatal(err)
 		}
 		if strings.Contains(output.String(), "commit-comment") != (branch == "feature") || strings.Contains(output.String(), "legacy") {

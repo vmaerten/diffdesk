@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 
-import { asMarkdown } from '../src/export.ts'
+import { asText } from '../src/export.ts'
 import type { ServedComment } from '../src/types.ts'
 import type { Check } from './harness.ts'
 
@@ -9,7 +9,7 @@ export async function runExport(check: Check): Promise<void> {
     repo: string
     range: string
     comments: ServedComment[]
-    markdown: string
+    text: string
   }[] = JSON.parse(
     readFileSync(
       new URL('../go/internal/app/testdata/comment-export.json', import.meta.url),
@@ -17,7 +17,7 @@ export async function runExport(check: Check): Promise<void> {
     ),
   )
   for (const [i, golden] of goldens.entries()) {
-    check(`shared Markdown golden ${i}`, asMarkdown(golden.comments, golden) === golden.markdown)
+    check(`shared text golden ${i}`, asText(golden.comments, golden) === golden.text)
   }
   const comment: ServedComment = {
     id: 'e1a',
@@ -57,57 +57,62 @@ export async function runExport(check: Check): Promise<void> {
   ]
 
   const paths = ['\ue000.txt', '😀.txt', 'a.txt', 'A.txt', 'A.txt']
-  const headings = (
-    asMarkdown(
+  const order = [
+    ...asText(
       paths.map((path, i) => ({ ...comment, path, id: String(i) })),
       { range: 'main..HEAD' },
-    ).match(/^## .*/gm) ?? []
-  ).join(' | ')
+    ).matchAll(/^\S+ (.+):\d+(?:-\d+)?$/gm),
+  ]
+    .map((match) => match[1])
+    .join(' | ')
   check(
     'export ordering is stable across Unicode paths and locales',
-    headings === '## A.txt | ## a.txt | ## 😀.txt | ## \ue000.txt',
-    headings,
+    order === 'A.txt | A.txt | a.txt | 😀.txt | \ue000.txt',
+    order,
   )
 
-  const md = asMarkdown(forExport, { range: 'main..HEAD' })
+  const text = asText(forExport, { range: 'main..HEAD' })
+  check('the text counts what it carries', text.startsWith('3 comments on main..HEAD\n'), text)
   check(
-    'markdown counts what it carries',
-    md.startsWith('# 3 comments on main..HEAD'),
-    md.split('\n')[0],
+    '  names each comment by ID and lines',
+    text.includes('\ne1a src/one.ts:11-12\nfirst\n') &&
+      text.includes('\ne2 src/two.ts:1\nsecond\n'),
+    text,
   )
   check(
-    '  groups under one heading per file',
-    (md.match(/^## .*/gm) ?? []).join(' | ') === '## src/one.ts | ## src/two.ts',
-    (md.match(/^## .*/gm) ?? []).join(' | '),
+    '  leaves out the code the file still has',
+    !text.includes('const added = 2') && !text.includes('and these lead'),
+    text,
   )
   check(
-    '  labels a range as a range',
-    md.includes('**L11–L12**'),
-    md.includes('**L11–L12**') ? 'yes' : md,
+    '  and quotes lines that have changed since',
+    text.includes('moved on\nwas:\n  gone\n'),
+    text,
   )
-  check('  and a single line as one', md.includes('**L1**'), md.includes('**L1**') ? 'yes' : 'no')
+  const removed = asText([{ ...comment, side: 'deletions', code: ['removed()'] }], {
+    range: 'main..HEAD',
+  })
   check(
-    '  says so when the lines have moved',
-    md.includes('These lines have changed'),
-    md.includes('These lines have changed') ? 'yes' : 'no',
+    '  or that the change removed',
+    removed.includes('src/one.ts:11-12 (removed lines)\nfirst\ncode:\n  removed()\n'),
+    removed,
   )
   // No instruction: "apply these" is the prompt of whoever pastes it, and it is
   // not this tool's place to write that for them.
   check(
     '  and tells the reader nothing to do',
-    !/apply|please|fix these/i.test(md),
-    (md.match(/apply|please|fix these/i) ?? []).join(''),
+    !/apply|please|fix these/i.test(text),
+    (text.match(/apply|please|fix these/i) ?? []).join(''),
   )
   check(
-    'an empty review says so rather than printing a bare heading',
-    asMarkdown([], { range: 'main..HEAD' }) === 'No comments on main..HEAD.\n',
-    JSON.stringify(asMarkdown([], { range: 'main..HEAD' })),
+    'an empty review says so rather than printing a bare count',
+    asText([], { range: 'main..HEAD' }) === 'No comments on main..HEAD.\n',
+    JSON.stringify(asText([], { range: 'main..HEAD' })),
   )
-  const unavailable = asMarkdown([{ ...comment, code: [], stale: false }], { range: 'main..other' })
+  const unavailable = asText([{ ...comment, code: [], stale: false }], { range: 'main..other' })
   check(
-    'off-diff exports identify historical code instead of dropping its context',
-    unavailable.includes('Code is unavailable') &&
-      unavailable.includes(comment.anchor[0]!) &&
-      !unavailable.includes('These lines have changed'),
+    'off-diff exports quote the lines as written instead of dropping their context',
+    unavailable.includes(`was:\n  ${comment.anchor[0]}`),
+    unavailable,
   )
 }

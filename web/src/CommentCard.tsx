@@ -111,7 +111,7 @@ export default function CommentCard({
           type="button"
           className="comment-copy"
           onClick={() => onCopy(comment)}
-          title="Copy comment with code"
+          title="Copy comment"
           aria-label={copied ? 'Copied comment' : 'Copy comment'}
         >
           <Icon name="copy" />

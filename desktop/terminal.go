@@ -17,14 +17,17 @@ func runTerminal(ctx context.Context, args []string, cwd string, stdout, stderr 
 	case len(args) > 1 && args[0] == "comments" && (args[1] == "resolve" || args[1] == "reopen"):
 		return true, setStatus(ctx, args[1], args[2:], cwd, stdout)
 	case len(args) > 0 && args[0] == "comments":
+		var options app.ExportOptions
 		rest, jsonOutput := withoutFlag(args[1:], "--json")
 		rest, all := withoutFlag(rest, "--all")
+		rest, code := withoutFlag(rest, "--code")
+		options.JSON, options.All, options.Code = jsonOutput, all, code
 		request, err := parseLaunch(rest, cwd)
 		if err != nil {
 			return true, err
 		}
 		selection := app.Selection{Base: request.base, Target: request.target}
-		return true, app.ExportComments(ctx, request.repo, selection, all, jsonOutput, stdout, stderr)
+		return true, app.ExportComments(ctx, request.repo, selection, options, stdout, stderr)
 	case len(args) > 0 && args[0] == "--version":
 		rest, jsonOutput := withoutFlag(args[1:], "--json")
 		if len(rest) > 0 {

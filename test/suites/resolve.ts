@@ -1,4 +1,4 @@
-import { asMarkdown } from '../../src/export.ts'
+import { asText } from '../../src/export.ts'
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -78,7 +78,7 @@ export default {
     check(
       'copy all leaves resolved comments out, like ghl comments',
       (await page.evaluate(() => document.documentElement.dataset.copied)) ===
-        asMarkdown(
+        asText(
           payload.comments.filter((comment) => comment.status !== 'resolved'),
           { range: payload.range },
         ),

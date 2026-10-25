@@ -35,9 +35,19 @@ func readingOrder(comments []ServedComment) []ServedComment {
 	return ordered
 }
 
-func writeCommentExport(comments []ServedComment, repo, comparison string, jsonOutput bool, out io.Writer) error {
+// ExportOptions selects what ExportComments writes.
+type ExportOptions struct {
+	// All includes resolved comments.
+	All  bool
+	JSON bool
+	// Code quotes the current lines of every comment, not only the lines its
+	// file no longer has.
+	Code bool
+}
+
+func writeCommentExport(comments []ServedComment, repo, comparison string, options ExportOptions, out io.Writer) error {
 	ordered := readingOrder(comments)
-	if jsonOutput {
+	if options.JSON {
 		entries := make([]exportedComment, 0, len(ordered))
 		for _, c := range ordered {
 			entry := exportedComment{ID: c.ID, Path: c.Path, Side: c.Side, Start: c.Start, End: c.End, Body: c.Body, Code: c.Code, Status: c.Status}
@@ -55,6 +65,13 @@ func writeCommentExport(comments []ServedComment, repo, comparison string, jsonO
 			Comments []exportedComment `json:"comments"`
 		}{repo, comparison, entries})
 	}
+	return writeCommentText(ordered, comparison, options.Code, out)
+}
+
+// writeCommentText is what an agent is handed, by `ghl comments` and by Copy
+// alike: every line costs it tokens, so a comment quotes only the lines its file
+// no longer has, removed or changed since. src/export.ts writes the same text.
+func writeCommentText(ordered []ServedComment, comparison string, withCode bool, out io.Writer) error {
 	if len(ordered) == 0 {
 		_, err := fmt.Fprintf(out, "No comments on %s.\n", comparison)
 		return err
@@ -64,33 +81,31 @@ func writeCommentExport(comments []ServedComment, repo, comparison string, jsonO
 		plural = "s"
 	}
 	var text strings.Builder
-	fmt.Fprintf(&text, "# %d comment%s on %s\n", len(ordered), plural, comparison)
-	file := ""
+	fmt.Fprintf(&text, "%d comment%s on %s\n", len(ordered), plural, comparison)
+	block := func(label string, lines []string) {
+		fmt.Fprintf(&text, "%s:\n", label)
+		for _, line := range lines {
+			fmt.Fprintf(&text, "  %s\n", line)
+		}
+	}
 	for _, c := range ordered {
-		if c.Path != file {
-			file = c.Path
-			fmt.Fprintf(&text, "\n## %s\n", file)
-		}
-		label := fmt.Sprintf("L%d", c.Start)
-		if c.Start != c.End {
-			label += fmt.Sprintf("–L%d", c.End)
-		}
 		// The ID is what `ghl comments resolve` and `reopen` take back.
-		label = "**" + label + "** · " + shortID(c.ID)
+		location := fmt.Sprintf("%s %s:%d", shortID(c.ID), c.Path, c.Start)
+		if c.End != c.Start {
+			location += fmt.Sprintf("-%d", c.End)
+		}
+		if c.Side == "deletions" {
+			location += " (removed lines)"
+		}
 		if c.Status != "" && c.Status != statusOpen {
-			label += " · " + c.Status
+			location += " · " + c.Status
 		}
-		fmt.Fprintf(&text, "\n%s\n", label)
-		if len(c.Code) > 0 {
-			fmt.Fprintf(&text, "\n```\n%s\n```\n", strings.Join(c.Code, "\n"))
+		fmt.Fprintf(&text, "\n%s\n%s\n", location, c.Body)
+		if len(c.Code) > 0 && (withCode || c.Side == "deletions") {
+			block("code", c.Code)
 		}
-		fmt.Fprintf(&text, "\n%s\n", c.Body)
 		if (c.Stale || len(c.Code) == 0) && len(c.Anchor) > 0 {
-			explanation := "These lines have changed since the remark was written. They read:"
-			if len(c.Code) == 0 {
-				explanation = "Code is unavailable in the current comparison. Original lines:"
-			}
-			fmt.Fprintf(&text, "\n> %s\n\n```\n%s\n```\n", explanation, strings.Join(c.Anchor, "\n"))
+			block("was", c.Anchor)
 		}
 	}
 	_, err := io.WriteString(out, text.String())
@@ -98,9 +113,8 @@ func writeCommentExport(comments []ServedComment, repo, comparison string, jsonO
 }
 
 // ExportComments writes the branch's comments on the files of a comparison, as
-// Markdown or JSON, with their code. Untracked files count as part of it.
-// Resolved comments are left out unless all is set.
-func ExportComments(ctx context.Context, repoPath string, selection Selection, all, jsonOutput bool, stdout, stderr io.Writer) error {
+// text or JSON. Untracked files count as part of it.
+func ExportComments(ctx context.Context, repoPath string, selection Selection, options ExportOptions, stdout, stderr io.Writer) error {
 	repo, err := openRepository(ctx, repoPath)
 	if err != nil {
 		return err
@@ -110,10 +124,10 @@ func ExportComments(ctx context.Context, repoPath string, selection Selection, a
 	if err != nil {
 		return err
 	}
-	return writeComments(ctx, review, storeFor(repo), all, jsonOutput, stdout, stderr)
+	return writeComments(ctx, review, storeFor(repo), options, stdout, stderr)
 }
 
-func writeComments(ctx context.Context, review *Review, store *Store, all, jsonOutput bool, stdout, stderr io.Writer) error {
+func writeComments(ctx context.Context, review *Review, store *Store, options ExportOptions, stdout, stderr io.Writer) error {
 	state, notice, err := store.Snapshot()
 	if err != nil {
 		return err
@@ -134,7 +148,7 @@ func writeComments(ctx context.Context, review *Review, store *Store, all, jsonO
 	}
 	selected := make([]Comment, 0, len(state.Comments))
 	for _, comment := range review.branchComments(state.Comments) {
-		if paths[comment.Path] && (all || comment.Status != statusResolved) {
+		if paths[comment.Path] && (options.All || comment.Status != statusResolved) {
 			selected = append(selected, comment)
 		}
 	}
@@ -142,7 +156,7 @@ func writeComments(ctx context.Context, review *Review, store *Store, all, jsonO
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return writeCommentExport(comments, review.repo.Path, review.Range, jsonOutput, stdout)
+	return writeCommentExport(comments, review.repo.Path, review.Range, options, stdout)
 }
 
 // The first group of a UUID: findComment takes any unique prefix back.
