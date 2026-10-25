@@ -999,10 +999,27 @@ button:disabled {
   padding: 6px 0 0;
 }
 .comment-reply-author {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 0 12px;
   color: var(--text-dim);
   font-size: 12px;
+}
+.harness-mark {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.harness-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  background: var(--wash-strong);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 700;
 }
 .comment-provenance {
   padding: 2px 12px 6px;

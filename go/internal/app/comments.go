@@ -18,6 +18,7 @@ const (
 	statusResolved = "resolved"
 	authorAgent    = "agent"
 	authorReviewer = "reviewer"
+	maxHarness     = 40
 )
 
 func validThread(c Comment) bool {
@@ -25,7 +26,7 @@ func validThread(c Comment) bool {
 		return false
 	}
 	for _, reply := range c.Replies {
-		if (reply.Author != authorAgent && reply.Author != authorReviewer) || reply.Body == "" || reply.CreatedAt == "" {
+		if (reply.Author != authorAgent && reply.Author != authorReviewer) || reply.Body == "" || reply.CreatedAt == "" || len(reply.Harness) > maxHarness {
 			return false
 		}
 	}
@@ -160,13 +161,16 @@ func findComment(comments []Comment, id string) (int, error) {
 	return found, nil
 }
 
-// discuss takes a turn on a comment: the agent replies, which hands it to the
-// reviewer, or the reviewer resolves or reopens it. It reports how many
-// comments on the same branch are left open.
-func (c repositoryComments) discuss(ctx context.Context, verb, id, body string) (Comment, int, error) {
-	body = strings.TrimSpace(body)
+// discuss takes a turn on a comment: the agent replies, signed with its
+// harness when known, which hands it to the reviewer; or the reviewer resolves
+// or reopens it. It reports how many comments on the same branch are left open.
+func (c repositoryComments) discuss(ctx context.Context, verb, id, body, harness string) (Comment, int, error) {
+	body, harness = strings.TrimSpace(body), strings.TrimSpace(harness)
 	if verb == "reply" && body == "" {
 		return Comment{}, 0, invalidComment("A reply needs a message")
+	}
+	if len(harness) > maxHarness {
+		return Comment{}, 0, invalidComment("A harness name has at most 40 characters")
 	}
 	var saved Comment
 	state, err := c.store.Mutate(ctx, func(state *StoredState) error {
@@ -181,7 +185,7 @@ func (c repositoryComments) discuss(ctx context.Context, verb, id, body string) 
 				return invalidComment("The reviewer resolved this comment")
 			}
 			comment.Status = statusAnswered
-			comment.Replies = append(comment.Replies, Reply{Author: authorAgent, Body: body, CreatedAt: now()})
+			comment.Replies = append(comment.Replies, Reply{Author: authorAgent, Harness: harness, Body: body, CreatedAt: now()})
 		case "resolve":
 			comment.Status = statusResolved
 		case "reopen":

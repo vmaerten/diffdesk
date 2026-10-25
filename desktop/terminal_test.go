@@ -40,6 +40,13 @@ func TestTerminalCommandsAnswerWithoutTheApp(t *testing.T) {
 
 func TestCommentCheckAndReply(t *testing.T) {
 	ctx := context.Background()
+	getenv = func(name string) string {
+		if name == "AI_AGENT" {
+			return "crush_0-1_agent"
+		}
+		return ""
+	}
+	t.Cleanup(func() { getenv = os.Getenv })
 	repo := fixtureRepo(t, "check")
 	state := `{"version":2,"viewed":{},"comments":[{"id":"c0ffee00-1","path":"hello.txt","side":"additions","start":1,"end":1,"body":"Say hello","anchor":["after"],"range":"main..main","branch":"main","createdAt":"t","status":"open"}]}`
 	if err := os.MkdirAll(filepath.Join(repo, ".git", "ghl"), 0700); err != nil {
@@ -67,10 +74,28 @@ func TestCommentCheckAndReply(t *testing.T) {
 	if out, err := run("check", "--repo", repo, "--base", "HEAD"); err != nil || !strings.HasPrefix(out, "No open comments") {
 		t.Fatalf("answered comment still open: %v %q", err, out)
 	}
-	if out, err := run("--repo", repo, "--base", "HEAD"); err != nil || !strings.Contains(out, "**L1** · c0ffee00 · answered") || !strings.Contains(out, "↳ agent: Said hello") {
+	if out, err := run("--repo", repo, "--base", "HEAD"); err != nil || !strings.Contains(out, "**L1** · c0ffee00 · answered") || !strings.Contains(out, "↳ crush: Said hello") {
 		t.Fatalf("export without the reply: %v\n%s", err, out)
 	}
 	if _, err := run("check", "--bogus"); !errors.As(err, &status) || status.code != 2 {
 		t.Fatalf("check error: %v", err)
+	}
+}
+
+func TestDetectHarness(t *testing.T) {
+	t.Cleanup(func() { getenv = os.Getenv })
+	for _, test := range []struct {
+		env  map[string]string
+		want string
+	}{
+		{map[string]string{"AI_AGENT": "claude-code_2-1-309_agent", "CODEX_SANDBOX": "seatbelt"}, "claude-code"},
+		{map[string]string{"CLAUDECODE": "1"}, "claude-code"},
+		{map[string]string{"CODEX_SANDBOX": "seatbelt"}, "codex"},
+		{map[string]string{}, ""},
+	} {
+		getenv = func(name string) string { return test.env[name] }
+		if got := detectHarness(); got != test.want {
+			t.Errorf("%v: got %q, want %q", test.env, got, test.want)
+		}
 	}
 }

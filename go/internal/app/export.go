@@ -90,7 +90,11 @@ func writeCommentExport(comments []ServedComment, repo, comparison string, jsonO
 		}
 		fmt.Fprintf(&text, "\n%s\n", c.Body)
 		for _, reply := range c.Replies {
-			fmt.Fprintf(&text, "\n↳ %s: %s\n", reply.Author, reply.Body)
+			author := reply.Author
+			if reply.Harness != "" {
+				author = reply.Harness
+			}
+			fmt.Fprintf(&text, "\n↳ %s: %s\n", author, reply.Body)
 		}
 		if (c.Stale || len(c.Code) == 0) && len(c.Anchor) > 0 {
 			explanation := "These lines have changed since the remark was written. They read:"

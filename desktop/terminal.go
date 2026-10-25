@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/vmaerten/ghl/internal/app"
@@ -103,7 +104,7 @@ func check(ctx context.Context, args []string, cwd string, stdout, stderr io.Wri
 }
 
 var usages = map[string]string{
-	"reply":   "ghl comments reply <id> <message>",
+	"reply":   "ghl comments reply <id> <message> [--as <harness>]",
 	"resolve": "ghl comments resolve <id>",
 	"reopen":  "ghl comments reopen <id> [<message>]",
 }
@@ -112,11 +113,17 @@ var usages = map[string]string{
 // so an unquoted one still arrives whole.
 func discuss(ctx context.Context, verb string, args []string, cwd string, stdout io.Writer) error {
 	var flags, words []string
+	harness, named := "", false
 	for i := 0; i < len(args); i++ {
 		switch arg := args[i]; {
 		case arg == "--":
 			words = append(words, args[i+1:]...)
 			i = len(args)
+		case arg == "--as" && i+1 < len(args):
+			harness, named = args[i+1], true
+			i++
+		case strings.HasPrefix(arg, "--as="):
+			harness, named = strings.TrimPrefix(arg, "--as="), true
 		case (arg == "--repo" || arg == "--base") && i+1 < len(args):
 			flags = append(flags, arg, args[i+1])
 			i++
@@ -136,5 +143,36 @@ func discuss(ctx context.Context, verb string, args []string, cwd string, stdout
 	if len(words) == 0 || (verb == "resolve" && len(words) > 1) || (verb == "reply" && len(words) == 1) {
 		return fmt.Errorf("usage: %s", usages[verb])
 	}
-	return app.DiscussComment(ctx, request.repo, verb, words[0], strings.Join(words[1:], " "), stdout)
+	if named && verb != "reply" {
+		return fmt.Errorf("--as applies to reply only")
+	}
+	if verb == "reply" && !named {
+		harness = detectHarness()
+	}
+	return app.DiscussComment(ctx, request.repo, verb, words[0], strings.Join(words[1:], " "), harness, stdout)
+}
+
+// getenv is replaced in tests, which run inside whatever agent started them.
+var getenv = os.Getenv
+
+// detectHarness names the agent that runs ghl from what harnesses export:
+// AI_AGENT, such as claude-code_2-1-309_agent, then each one's own marker.
+func detectHarness() string {
+	if agent := getenv("AI_AGENT"); agent != "" {
+		name, _, _ := strings.Cut(agent, "_")
+		return name
+	}
+	for _, marker := range []struct{ env, harness string }{
+		{"CLAUDECODE", "claude-code"},
+		{"CODEX_SANDBOX", "codex"},
+		{"CODEX_SANDBOX_NETWORK_DISABLED", "codex"},
+		{"GEMINI_CLI", "gemini-cli"},
+		{"CURSOR_AGENT", "cursor"},
+		{"OPENCODE_CLIENT", "opencode"},
+	} {
+		if getenv(marker.env) != "" {
+			return marker.harness
+		}
+	}
+	return ""
 }

@@ -2,6 +2,7 @@ import { useId, useRef, type ReactNode } from 'react'
 import type { ServedComment } from '../../src/types.ts'
 import type { SaveState } from './commentPersistence.ts'
 import Icon from './Icon.tsx'
+import ReplyAuthor from './ReplyAuthor.tsx'
 
 export const lineLabel = (start: number, end: number) =>
   start === end ? `L${start}` : `L${start}–L${end}`
@@ -179,9 +180,7 @@ export default function CommentCard({
           <ol className="comment-replies" aria-label="Replies">
             {comment.replies.map((reply, index) => (
               <li key={index}>
-                <span className="comment-reply-author">
-                  {reply.author === 'agent' ? 'Agent' : 'Reviewer'}
-                </span>
+                <ReplyAuthor reply={reply} />
                 <p>{reply.body}</p>
               </li>
             ))}

@@ -86,7 +86,9 @@ type Comment struct {
 // Reply is a turn in a comment's thread: the agent answering, or the reviewer
 // reopening it.
 type Reply struct {
-	Author    string `json:"author"`
+	Author string `json:"author"`
+	// Harness names the agent that replied, such as claude-code or codex.
+	Harness   string `json:"harness,omitempty"`
 	Body      string `json:"body"`
 	CreatedAt string `json:"createdAt"`
 }

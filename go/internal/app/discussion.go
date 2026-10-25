@@ -83,16 +83,20 @@ func shortID(id string) string {
 }
 
 // DiscussComment takes a turn on the comment whose ID starts with id: verb is
-// reply for the agent, resolve or reopen for the reviewer.
-func DiscussComment(ctx context.Context, repoPath, verb, id, message string, stdout io.Writer) error {
+// reply for the agent, signed with harness, or resolve or reopen for the reviewer.
+func DiscussComment(ctx context.Context, repoPath, verb, id, message, harness string, stdout io.Writer) error {
 	repo, err := openRepository(ctx, repoPath)
 	if err != nil {
 		return err
 	}
-	_, open, err := (repositoryComments{store: storeFor(repo)}).discuss(ctx, verb, id, message)
+	_, open, err := (repositoryComments{store: storeFor(repo)}).discuss(ctx, verb, id, message, harness)
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "ok, %d open left\n", open)
+	unsigned := ""
+	if verb == "reply" && strings.TrimSpace(harness) == "" {
+		unsigned = "; unsigned: add --as <your harness> to name it"
+	}
+	_, err = fmt.Fprintf(stdout, "ok, %d open left%s\n", open, unsigned)
 	return err
 }

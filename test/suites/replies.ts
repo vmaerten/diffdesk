@@ -40,9 +40,19 @@ export default {
       if (comment.id === answered.id) {
         comment.status = 'answered'
         comment.replies = [
-          { author: 'agent', body: 'Kept it inline.', createdAt: '2026-10-25T10:00:00.000Z' },
+          {
+            author: 'agent',
+            harness: 'claude-code',
+            body: 'Kept it inline.',
+            createdAt: '2026-10-25T10:00:00.000Z',
+          },
           { author: 'reviewer', body: 'Extract it anyway.', createdAt: '2026-10-25T11:00:00.000Z' },
-          { author: 'agent', body: 'Moved to policy.ts.', createdAt: '2026-10-25T12:00:00.000Z' },
+          {
+            author: 'agent',
+            harness: 'crush',
+            body: 'Moved to policy.ts.',
+            createdAt: '2026-10-25T12:00:00.000Z',
+          },
         ]
       }
       if (comment.id === resolved.id) comment.status = 'resolved'
@@ -61,14 +71,19 @@ export default {
       items.map((item) => item.textContent),
     )
     check(
-      'its replies are listed in order with their author',
+      'its replies are listed in order, each agent named by its harness',
       JSON.stringify(replies) ===
         JSON.stringify([
-          'AgentKept it inline.',
+          'Claude CodeKept it inline.',
           'ReviewerExtract it anyway.',
-          'AgentMoved to policy.ts.',
+          'CCrushMoved to policy.ts.',
         ]),
       JSON.stringify(replies),
+    )
+    check(
+      '  with its mark, or its initial when ghl has none',
+      (await page.$(`${card} [data-harness="claude-code"] svg.harness-mark`)) !== null &&
+        (await page.$(`${card} [data-harness="crush"] .harness-initial`)) !== null,
     )
     check(
       'a resolved comment is hidden from the diff',

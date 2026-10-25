@@ -24,31 +24,31 @@ func TestCommentTurns(t *testing.T) {
 		}
 	}
 	var invalid invalidComment
-	if _, _, err := comments.discuss(ctx, "reply", "a1b2", "done"); !errors.As(err, &invalid) {
+	if _, _, err := comments.discuss(ctx, "reply", "a1b2", "done", ""); !errors.As(err, &invalid) {
 		t.Fatalf("ambiguous prefix: %v", err)
 	}
-	if _, _, err := comments.discuss(ctx, "reply", "a1b", "done"); !errors.Is(err, errCommentMissing) {
+	if _, _, err := comments.discuss(ctx, "reply", "a1b", "done", ""); !errors.Is(err, errCommentMissing) {
 		t.Fatalf("prefix under four characters: %v", err)
 	}
-	if _, _, err := comments.discuss(ctx, "reply", "a1b2c3", "  "); err == nil {
+	if _, _, err := comments.discuss(ctx, "reply", "a1b2c3", "  ", ""); err == nil {
 		t.Fatal("empty reply accepted")
 	}
 
-	saved, open, err := comments.discuss(ctx, "reply", "a1b2c3", " Renamed. ")
-	if err != nil || saved.Status != statusAnswered || open != 1 || len(saved.Replies) != 1 || saved.Replies[0].Author != authorAgent || saved.Replies[0].Body != "Renamed." {
+	saved, open, err := comments.discuss(ctx, "reply", "a1b2c3", " Renamed. ", "claude-code")
+	if err != nil || saved.Status != statusAnswered || open != 1 || len(saved.Replies) != 1 || saved.Replies[0].Author != authorAgent || saved.Replies[0].Harness != "claude-code" || saved.Replies[0].Body != "Renamed." {
 		t.Fatalf("reply: %+v %d %v", saved, open, err)
 	}
-	if saved, _, err = comments.discuss(ctx, "resolve", "a1b2c3", ""); err != nil || saved.Status != statusResolved {
+	if saved, _, err = comments.discuss(ctx, "resolve", "a1b2c3", "", ""); err != nil || saved.Status != statusResolved {
 		t.Fatalf("resolve: %+v %v", saved, err)
 	}
-	if _, _, err := comments.discuss(ctx, "reply", "a1b2c3", "again"); !errors.As(err, &invalid) {
+	if _, _, err := comments.discuss(ctx, "reply", "a1b2c3", "again", ""); !errors.As(err, &invalid) {
 		t.Fatalf("reply to a resolved comment: %v", err)
 	}
-	saved, open, err = comments.discuss(ctx, "reopen", "a1b2c3d4-one", "Not quite")
+	saved, open, err = comments.discuss(ctx, "reopen", "a1b2c3d4-one", "Not quite", "")
 	if err != nil || saved.Status != statusOpen || open != 2 || len(saved.Replies) != 2 || saved.Replies[1].Author != authorReviewer {
 		t.Fatalf("reopen: %+v %d %v", saved, open, err)
 	}
-	if saved, _, err = comments.discuss(ctx, "reopen", "a1b2c3", ""); err != nil || len(saved.Replies) != 2 {
+	if saved, _, err = comments.discuss(ctx, "reopen", "a1b2c3", "", ""); err != nil || len(saved.Replies) != 2 {
 		t.Fatalf("reopen without a message added a reply: %+v %v", saved, err)
 	}
 }
@@ -70,7 +70,7 @@ func TestCheckQuotesOnlyWhatTheFileLacks(t *testing.T) {
 		}
 	}
 	for _, turn := range [][3]string{{"reply", "1111", "Added"}, {"reply", "4444", "Done"}, {"reopen", "4444", "Still long"}} {
-		if _, _, err := comments.discuss(ctx, turn[0], turn[1], turn[2]); err != nil {
+		if _, _, err := comments.discuss(ctx, turn[0], turn[1], turn[2], ""); err != nil {
 			t.Fatal(err)
 		}
 	}

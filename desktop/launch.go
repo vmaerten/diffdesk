@@ -18,7 +18,7 @@ Usage:
   ghl [target] [--repo <path>] [--base <ref>]
   ghl comments [target] [--repo <path>] [--base <ref>] [--json] [--all]
   ghl comments check [target] [--repo <path>] [--base <ref>] [--json] [--code]
-  ghl comments reply <id> <message> [--repo <path>]
+  ghl comments reply <id> <message> [--as <harness>] [--repo <path>]
   ghl comments resolve <id> [--repo <path>]
   ghl comments reopen <id> [<message>] [--repo <path>]
   ghl skill
@@ -31,7 +31,9 @@ Usage:
   check      Print the branch's open comments for an agent, without the code it
              can read in the file unless --code. Exits 1 while any remain, 2 on
              an error.
-  reply      Answer a comment as the agent; it waits for the reviewer.
+  reply      Answer a comment as the agent; it waits for the reviewer. The reply
+             names the harness found in AI_AGENT or its own variables, or the
+             one given with --as, such as codex or crush.
   resolve    Close a comment, as the reviewer.
   reopen     Hand a comment back to the agent, with an optional reply.
              <id> is a comment ID or any unique prefix of 4 characters or more.

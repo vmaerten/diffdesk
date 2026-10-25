@@ -51,7 +51,8 @@ export function asMarkdown(comments: ServedComment[], { range }: { range: string
     out.push('', `**${lineLabel(comment)}** · ${comment.id.slice(0, 8)}${status}`)
     if (comment.code.length > 0) out.push('', '```', ...comment.code, '```')
     out.push('', comment.body)
-    for (const reply of comment.replies ?? []) out.push('', `↳ ${reply.author}: ${reply.body}`)
+    for (const reply of comment.replies ?? [])
+      out.push('', `↳ ${reply.harness || reply.author}: ${reply.body}`)
     if ((comment.stale || comment.code.length === 0) && comment.anchor.length > 0) {
       out.push(
         '',

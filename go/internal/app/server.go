@@ -307,7 +307,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(w, 400, err)
 			return
 		}
-		saved, _, err := (repositoryComments{store: s.store}).discuss(r.Context(), "resolve", body.ID, "")
+		saved, _, err := (repositoryComments{store: s.store}).discuss(r.Context(), "resolve", body.ID, "", "")
 		if err != nil {
 			failComment(w, err)
 			return

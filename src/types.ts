@@ -165,6 +165,8 @@ export type CommentStatus = 'open' | 'answered' | 'resolved'
 /** The agent answering a comment, or the reviewer reopening it. */
 export interface Reply {
   author: 'agent' | 'reviewer'
+  /** The agent's harness, such as `claude-code` or `codex`, when it was known. */
+  harness?: string
   body: string
   createdAt: string
 }
