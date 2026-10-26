@@ -313,7 +313,7 @@ export default function DesktopApp() {
               {layout.shown.map((index) => {
                 const tab = state.tabs[index]!
                 const query = new URL(tab.route, location.href).searchParams
-                const comparison = `${query.get('base') ?? 'Auto base'} → ${query.get('target') ?? 'Working tree'}`
+                const comparison = `${query.get('base') ?? 'Auto base'} ← ${query.get('target') ?? 'Working tree'}`
                 const cut = tab.path.lastIndexOf('/') + 1
                 return (
                   <div
