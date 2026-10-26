@@ -151,5 +151,74 @@ export default {
       'closing search restores the original source selection',
       (await page.evaluate(SELECTED_TEXT)) === beforeSearch,
     )
+
+    await load()
+    const selectSourceWord = (except = '') =>
+      page.evaluate((excludedWord) => {
+        for (const host of document.querySelectorAll('.diff diffs-container')) {
+          for (const line of host.shadowRoot?.querySelectorAll('[data-line]') ?? []) {
+            const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT)
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+              const match = [...(node.textContent ?? '').matchAll(/\b[A-Za-z_]\w{3,}\b/g)].find(
+                (candidate) => candidate[0] !== excludedWord,
+              )
+              if (!match) continue
+              const range = document.createRange()
+              range.setStart(node, match.index)
+              range.setEnd(node, match.index + match[0].length)
+              const selection = window.getSelection()
+              selection?.removeAllRanges()
+              selection?.addRange(range)
+              return selection?.toString() ?? ''
+            }
+          }
+        }
+        return ''
+      }, except)
+
+    const word = await selectSourceWord()
+    check('source text inside the diff shadow root can be selected', word.length > 0)
+    if (!word) return
+    await page.evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'f', metaKey: true, bubbles: true, cancelable: true
+    }))`)
+    await page.waitForSelector('.diff-search:not([hidden]) .diff-search-input')
+    check(
+      'Cmd+F searches the selected source text immediately',
+      (await page.$eval('input.diff-search-input', (input) => input.value)) === word,
+    )
+    await poll(
+      () => page.$eval('.diff-search-count', (element) => element.textContent),
+      (resultCount) => /^1\/\d+$/.test(resultCount ?? ''),
+    )
+    check(
+      'the selected text has search results without typing',
+      /^1\/\d+$/.test(
+        (await page.$eval('.diff-search-count', (element) => element.textContent)) ?? '',
+      ),
+    )
+
+    const otherWord = await selectSourceWord(word)
+    check('another source word can be selected with search open', otherWord.length > 0)
+    if (!otherWord) return
+    await page.evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'f', ctrlKey: true, bubbles: true, cancelable: true
+    }))`)
+    await frames(page)
+    check(
+      'Ctrl+F replaces an open search with newly selected source text',
+      (await page.$eval('input.diff-search-input', (input) => input.value)) === otherWord,
+    )
+
+    await page.keyboard.press('Escape')
+    await page.evaluate(() => window.getSelection()?.removeAllRanges())
+    await page.evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'f', metaKey: true, bubbles: true, cancelable: true
+    }))`)
+    await page.waitForSelector('.diff-search:not([hidden]) .diff-search-input')
+    check(
+      'opening search without selected text preserves the previous query',
+      (await page.$eval('input.diff-search-input', (input) => input.value)) === otherWord,
+    )
   },
 } satisfies Suite
