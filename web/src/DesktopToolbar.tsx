@@ -89,8 +89,9 @@ export default function DesktopToolbar(
           </span>
           <ComparisonSelector picker="base" {...props} />
         </span>
+        {/* GitHub's "base ← compare": the target merges into the base. */}
         <span className="capsule-arrow" aria-hidden="true">
-          →
+          ←
         </span>
         <span className="base-anchor">
           <button
