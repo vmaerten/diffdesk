@@ -58,7 +58,7 @@ def notices():
     sections = [(ROOT / '.task/release/THIRD_PARTY_NOTICES.txt').read_text()]
     count = 0
     for path, version in sorted(linked_modules(binary)):
-        if path == 'github.com/vmaerten/ghl':
+        if path == 'github.com/vmaerten/diffdesk':
             continue  # Project code is covered by the archive's LICENSE.
         module = modules[path]
         require(module['Version'] == version, f'Linked module version mismatch: {path}')
@@ -150,7 +150,7 @@ def verify(dist):
         ]:
             require(marker in text, f'Missing notice: {marker}')
         for path, version in linked_modules(binary):
-            if path != 'github.com/vmaerten/ghl':
+            if path != 'github.com/vmaerten/diffdesk':
                 require(f'{path}@{version}' in text, f'Missing linked Go notice: {path}')
         info = plistlib.loads((bundle / 'Contents/Info.plist').read_bytes())
         for key, value in {

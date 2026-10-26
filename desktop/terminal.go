@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/vmaerten/ghl/internal/app"
+	"github.com/vmaerten/diffdesk/internal/app"
 )
 
 // runTerminal answers the commands that print instead of opening a window.

@@ -12,7 +12,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/vmaerten/ghl/internal/app"
+	"github.com/vmaerten/diffdesk/internal/app"
 )
 
 func main() {

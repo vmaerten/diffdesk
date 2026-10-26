@@ -39,9 +39,9 @@ tasks:
       # Wails links with -mmacosx-version-min=10.13 itself; the last flag sets macOS 13.
       LDFLAGS: >-
         -s -w -extldflags=-mmacosx-version-min=13.0
-        -X github.com/vmaerten/ghl/internal/app.version={{.BUILD_VERSION}}
-        -X github.com/vmaerten/ghl/internal/app.commit={{.BUILD_COMMIT}}
-        -X github.com/vmaerten/ghl/internal/app.buildDate={{.BUILD_DATE}}
+        -X github.com/vmaerten/diffdesk/internal/app.version={{.BUILD_VERSION}}
+        -X github.com/vmaerten/diffdesk/internal/app.commit={{.BUILD_COMMIT}}
+        -X github.com/vmaerten/diffdesk/internal/app.buildDate={{.BUILD_DATE}}
     preconditions:
       - sh: '[ "{{OS}}" = darwin ]'
         msg: The desktop app currently targets macOS
