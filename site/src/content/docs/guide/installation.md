@@ -79,7 +79,16 @@ A running window keeps the version it started with: quit Diffdesk (`Cmd+Q`) to u
 
 ## Moving from ghl to Diffdesk
 
-- `brew upgrade` moves the `ghl` cask to `diffdesk`: it replaces `ghl.app` with `Diffdesk.app`, and links `ghl` beside `diffdesk`.
+Homebrew trusts a cask by name, so trust the new one before upgrading, or `brew upgrade` skips it:
+
+```bash
+brew update
+brew trust --cask vmaerten/tap/diffdesk
+brew upgrade --cask diffdesk
+rm -rf "$(brew --caskroom)/ghl"
+```
+
+- The upgrade replaces `ghl.app` with `Diffdesk.app`, and links `ghl` beside `diffdesk`. It leaves an empty `ghl` entry that `brew list` shows and `brew doctor` reports; the last line removes it.
 - With mise, the tool stays `github:vmaerten/ghl`; after `mise upgrade`, the command is `diffdesk`.
 - Comments and Viewed stay in each checkout's `.git/ghl/state.json`. Settings are read from `~/Library/Application Support/ghl` until the first change, then saved under `Diffdesk`. The sidebar and panel widths start over once.
 - A ghl window still open keeps running until you quit it.

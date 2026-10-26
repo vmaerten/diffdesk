@@ -12,7 +12,7 @@
 
 ### 📦 Distribution
 
-- Publish `diffdesk_<version>_darwin_arm64.zip` and the `diffdesk` cask: `brew upgrade` moves an installed `ghl` cask to it, replacing `ghl.app` with `Diffdesk.app`. mise keeps the `github:vmaerten/ghl` tool. The site moves to [diffdesk.vmaerten.fr](https://diffdesk.vmaerten.fr). ([#260](https://github.com/vmaerten/ghl/pull/260))
+- Publish `diffdesk_<version>_darwin_arm64.zip` and the `diffdesk` cask, which replaces the `ghl` cask. Homebrew trusts a cask by name: run `brew update` and `brew trust --cask vmaerten/tap/diffdesk`, then `brew upgrade --cask diffdesk` replaces `ghl.app` with `Diffdesk.app`, and `rm -rf "$(brew --caskroom)/ghl"` removes the empty `ghl` entry it leaves behind. mise keeps the `github:vmaerten/ghl` tool. The site moves to [diffdesk.vmaerten.fr](https://diffdesk.vmaerten.fr). ([#260](https://github.com/vmaerten/ghl/pull/260))
 
 ## 0.4.0
 
