@@ -13,7 +13,7 @@ L'app s'appelle Diffdesk depuis la PR #260 : bundle `Diffdesk.app` (`dev.diffdes
 - [ ] Rattacher `diffdesk.vmaerten.fr` au site Netlify et garder `ghl.vmaerten.fr` en alias, pour la redirection de `netlify.toml`.
 - [ ] Après `task release`, vérifier dans le tap : `Casks/diffdesk.rb`, `cask_renames.json`, plus de `Casks/ghl.rb`. Mettre à jour le README du tap.
 - [ ] Sur une machine avec le cask `ghl` : `brew update && brew upgrade` doit remplacer `ghl.app` par `Diffdesk.app` et garder la commande `ghl`.
-- [ ] `task release:mise:published -- vX.Y.Z --previous v0.4.0` : la mise à jour de ghl vers diffdesk.
+- [ ] `task release:mise:published VERSION=X.Y.Z PREVIOUS=0.4.0` : la mise à jour de ghl vers diffdesk.
 - [ ] Mettre à jour la description du dépôt GitHub.
 
 ## Nettoyage, une ou deux versions plus tard
