@@ -31,8 +31,8 @@ export async function serveGo(
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
       ...isolatedGit,
-      GHL_GH: fakeGh,
-      ...(process.env.GHL_TEST_GIT_PATH ? { PATH: process.env.GHL_TEST_GIT_PATH } : {}),
+      DIFFDESK_GH: fakeGh,
+      ...(process.env.DIFFDESK_TEST_GIT_PATH ? { PATH: process.env.DIFFDESK_TEST_GIT_PATH } : {}),
       ...env,
     },
   })

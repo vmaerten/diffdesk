@@ -33,10 +33,10 @@ export default defineConfig({
     // In dev, Vite serves the UI and forwards data calls to the dev server (`task dev:go`).
     proxy: {
       '/r': {
-        target: process.env.GHL_DEV_API ?? 'http://127.0.0.1:5181',
+        target: process.env.DIFFDESK_DEV_API ?? 'http://127.0.0.1:5181',
         bypass: (req) => (req.url?.includes('/api/') ? undefined : req.url),
       },
-      '/api': process.env.GHL_DEV_API ?? 'http://127.0.0.1:5181',
+      '/api': process.env.DIFFDESK_DEV_API ?? 'http://127.0.0.1:5181',
     },
   },
 })

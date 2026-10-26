@@ -67,7 +67,7 @@ func run() error {
 	}
 	// Local acceptance tests may supply a probe; its path also keeps their app
 	// apart from the user's.
-	probePath := os.Getenv("GHL_DESKTOP_PROBE")
+	probePath := os.Getenv("DIFFDESK_DESKTOP_PROBE")
 	instanceID := "cf7c8359-dbb0-4c1c-a09f-301b26d2a917"
 	if probePath != "" {
 		instanceID = fmt.Sprintf("diffdesk-test-%x", sha256.Sum256([]byte(probePath)))
@@ -95,7 +95,7 @@ func run() error {
 		// each start one: a single app wins the lock and they all deliver to it.
 		openArgs := []string{"-n", "-a", bundle}
 		if probePath != "" {
-			openArgs = append(openArgs, "--env", "GHL_DESKTOP_PROBE="+probePath)
+			openArgs = append(openArgs, "--env", "DIFFDESK_DESKTOP_PROBE="+probePath)
 		}
 		if err := exec.Command("/usr/bin/open", append(openArgs, "--args", "--desktop-window")...).Run(); err != nil {
 			return err
@@ -154,8 +154,8 @@ func run() error {
 		return err
 	}
 	desktop := &desktopApp{backend: backend, requests: requests, settings: settings}
-	// Tabs are off for now; GHL_DESKTOP_TABS=1 keeps them for the smoke tests.
-	desktop.tabs.single = os.Getenv("GHL_DESKTOP_TABS") != "1"
+	// Tabs are off for now; DIFFDESK_DESKTOP_TABS=1 keeps them for the smoke tests.
+	desktop.tabs.single = os.Getenv("DIFFDESK_DESKTOP_TABS") != "1"
 	compact := settings.compactTitleBar()
 	handler, err := desktopAssets(assets, backend.handler(), compact)
 	if err != nil {

@@ -157,8 +157,8 @@ def verify(dist):
             'CFBundleName': 'Diffdesk', 'CFBundleIdentifier': 'dev.diffdesk.desktop',
             'CFBundleExecutable': 'diffdesk', 'CFBundleIconFile': 'AppIcon',
             'LSMinimumSystemVersion': MINIMUM_MACOS,
-            'GHLReleaseVersion': metadata['version'],
-            'GHLCommit': metadata['commit'], 'CFBundleShortVersionString': metadata['version'].split('-')[0],
+            'DiffdeskReleaseVersion': metadata['version'],
+            'DiffdeskCommit': metadata['commit'], 'CFBundleShortVersionString': metadata['version'].split('-')[0],
         }.items():
             require(info.get(key) == value, f'Wrong bundle metadata: {key}')
         icon = (folder / ICON).read_bytes()

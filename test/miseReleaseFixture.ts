@@ -37,7 +37,7 @@ export async function miseReleaseFixture(directory: string, archive: string) {
   cpSync(extracted, predecessor, { recursive: true })
   execFileSync('plutil', [
     '-insert',
-    'GHLFixture',
+    'DiffdeskFixture',
     '-string',
     'predecessor',
     join(predecessor, 'Diffdesk.app/Contents/Info.plist'),

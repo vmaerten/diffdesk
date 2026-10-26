@@ -22,10 +22,10 @@ type settingsStore struct {
 	legacy []string
 }
 
-// newSettingsStore uses GHL_DESKTOP_SETTINGS when set, so tests never touch
+// newSettingsStore uses DIFFDESK_DESKTOP_SETTINGS when set, so tests never touch
 // the user's own settings.
 func newSettingsStore() (*settingsStore, error) {
-	if path := os.Getenv("GHL_DESKTOP_SETTINGS"); path != "" {
+	if path := os.Getenv("DIFFDESK_DESKTOP_SETTINGS"); path != "" {
 		return &settingsStore{path: path}, nil
 	}
 	dir, err := os.UserConfigDir()

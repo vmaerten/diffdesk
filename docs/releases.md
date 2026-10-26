@@ -72,7 +72,7 @@ There is no paid signing, notarisation or automatic update. Go, Node, pnpm, Task
 ## mise acceptance
 
 
-Use mise **2026.10.2**; `GHL_TEST_MISE` can point at that binary. All mise configuration, data, cache and state live in temporary directories outside the checkout: the tests change neither your mise configuration nor a global `diffdesk`.
+Use mise **2026.10.2**; `DIFFDESK_TEST_MISE` can point at that binary. All mise configuration, data, cache and state live in temporary directories outside the checkout: the tests change neither your mise configuration nor a global `diffdesk`.
 
 ```bash
 task release:snapshot

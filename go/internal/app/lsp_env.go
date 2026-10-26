@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const environmentMarker = "__GHL_ENVIRONMENT__"
+const environmentMarker = "__DIFFDESK_ENVIRONMENT__"
 
 // loginEnvironment asks the user's shell for the environment a terminal opened
 // in root would have. Launched from the Finder, Diffdesk inherits launchd's PATH,
@@ -51,8 +51,8 @@ func loginEnvironment(shell, root string, timeout time.Duration) ([]string, erro
 // serverEnvironment is the login shell's environment, or this process's with
 // the usual install directories added when the shell cannot tell.
 func serverEnvironment(root string) []string {
-	// The UI tests choose the servers: GHL_LSP_PATH replaces the shell's PATH.
-	if path := os.Getenv("GHL_LSP_PATH"); path != "" {
+	// The UI tests choose the servers: DIFFDESK_LSP_PATH replaces the shell's PATH.
+	if path := os.Getenv("DIFFDESK_LSP_PATH"); path != "" {
 		return append(os.Environ(), "PATH="+path)
 	}
 	shell := os.Getenv("SHELL")

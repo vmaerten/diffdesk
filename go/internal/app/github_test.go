@@ -23,7 +23,7 @@ func fakeGH(t *testing.T, output string, exit int) (args func() []string) {
 	if err := os.WriteFile(script, []byte(body), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("GHL_GH", script)
+	t.Setenv("DIFFDESK_GH", script)
 	return func() []string {
 		raw, err := os.ReadFile(recorded)
 		if err != nil {

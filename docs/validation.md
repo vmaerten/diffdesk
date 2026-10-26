@@ -29,7 +29,7 @@ The browser installer downloads into the ignored `.task/browser/` directory, and
 | `release:snapshot` | The archive itself: checksum, members, bundle metadata, minimum macOS, notices, signature and `ghl --version` on the extracted app outside the checkout |
 | `release:mise` | Installation through the real mise client: PATH, shims, terminal commands with only Git, the window from the mise install, upgrade, rollback, corrupt downloads and uninstall |
 
-The UI suites run several at once, each on its own fixture and browser context; `GHL_TEST_JOBS` sets how many. They drive the production UI with the Wails bindings simulated by `desktop/simulator.ts`, while `desktop:smoke` drives the real native window. Neither opens your Chrome profile or changes a real repository; the clipboard check writes fixture Markdown to the system clipboard.
+The UI suites run several at once, each on its own fixture and browser context; `DIFFDESK_TEST_JOBS` sets how many. They drive the production UI with the Wails bindings simulated by `desktop/simulator.ts`, while `desktop:smoke` drives the real native window. Neither opens your Chrome profile or changes a real repository; the clipboard check writes fixture Markdown to the system clipboard.
 
 ## Promotion policy
 

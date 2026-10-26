@@ -70,7 +70,7 @@ def main():
         fixture(second, False)
         script = folder / 'probe.js'
         script.write_text(f'window.smokeCollector = "http://127.0.0.1:{server.server_port}/";\n' + Path(__file__).with_name('native-smoke.js').read_text())
-        env = {**os.environ, 'GHL_DESKTOP_PROBE': str(script), 'GHL_DESKTOP_SETTINGS': str(folder / 'settings.json'), 'GHL_DESKTOP_TABS': '1'}
+        env = {**os.environ, 'DIFFDESK_DESKTOP_PROBE': str(script), 'DIFFDESK_DESKTOP_SETTINGS': str(folder / 'settings.json'), 'DIFFDESK_DESKTOP_TABS': '1'}
         binary = BINARY
         if args.standalone:
             bundle = folder / 'Diffdesk.app'

@@ -113,7 +113,7 @@ if (selected.length > 0) {
   // Each suite drives its own renderer: half the cores keeps them from starving each other.
   const jobs = Math.max(
     1,
-    Number(process.env.GHL_TEST_JOBS ?? Math.min(8, Math.floor(availableParallelism() / 2))),
+    Number(process.env.DIFFDESK_TEST_JOBS ?? Math.min(8, Math.floor(availableParallelism() / 2))),
   )
 
   try {

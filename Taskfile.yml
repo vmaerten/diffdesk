@@ -7,11 +7,11 @@ vars:
 # key; it only holds the YAML anchors.
 x-build-metadata:
   version: &build-version
-    sh: node -p 'process.env.GHL_BUILD_VERSION ?? require("./package.json").version'
+    sh: node -p 'process.env.DIFFDESK_BUILD_VERSION ?? require("./package.json").version'
   commit: &build-commit
     sh: |
-      if [ "${GHL_BUILD_COMMIT+x}" ]; then
-        printf '%s' "$GHL_BUILD_COMMIT"
+      if [ "${DIFFDESK_BUILD_COMMIT+x}" ]; then
+        printf '%s' "$DIFFDESK_BUILD_COMMIT"
       else
         git rev-parse HEAD | tr -d '\n'
         if [ -n "$(git status --porcelain --untracked-files=no)" ]; then printf '%s' '-dirty'; fi
@@ -65,10 +65,10 @@ tasks:
         {{regexReplaceAll `-.*$` .BUILD_VERSION "" | shellQuote}}
         '.task/desktop/Diffdesk.app/Contents/Info.plist'
       - >-
-        plutil -replace GHLReleaseVersion -string {{.BUILD_VERSION | shellQuote}}
+        plutil -replace DiffdeskReleaseVersion -string {{.BUILD_VERSION | shellQuote}}
         '.task/desktop/Diffdesk.app/Contents/Info.plist'
       - >-
-        plutil -replace GHLCommit -string {{.BUILD_COMMIT | shellQuote}}
+        plutil -replace DiffdeskCommit -string {{.BUILD_COMMIT | shellQuote}}
         '.task/desktop/Diffdesk.app/Contents/Info.plist'
       - codesign --force --deep --sign - '.task/desktop/Diffdesk.app'
 
@@ -182,9 +182,9 @@ tasks:
       DEV_REPO: '{{if .REPO}}{{if isAbs .REPO}}{{.REPO}}{{else}}{{.USER_WORKING_DIR}}/{{.REPO}}{{end}}{{else}}{{.USER_WORKING_DIR}}{{end}}'
       DEV_API_PORT: '{{.BACKEND_PORT | default "5181"}}'
     env:
-      GHL_DEV_REPO: '{{.DEV_REPO}}'
-      GHL_DEV_BASE: '{{.BASE | default ""}}'
-      GHL_DEV_BACKEND_PORT: '{{.DEV_API_PORT}}'
+      DIFFDESK_DEV_REPO: '{{.DEV_REPO}}'
+      DIFFDESK_DEV_BASE: '{{.BASE | default ""}}'
+      DIFFDESK_DEV_BACKEND_PORT: '{{.DEV_API_PORT}}'
     preconditions:
       - sh: '{{and (regexMatch `^[0-9]+$` .DEV_API_PORT) (gt (atoi .DEV_API_PORT) 0) (le (atoi .DEV_API_PORT) 65535)}}'
         msg: BACKEND_PORT must be between 1 and 65535
@@ -207,10 +207,10 @@ tasks:
       REPO_ID: '{{base .REPO_ROOT}}-{{substr 0 7 (sha1sum .REPO_ROOT)}}'
       REVIEW_PATH: '/r/{{.REPO_ID | urlquery | replace "+" "%20"}}{{if .BASE}}?base={{.BASE | urlquery}}{{end}}'
     env:
-      GHL_DEV_API: 'http://127.0.0.1:{{.DEV_API_PORT}}'
+      DIFFDESK_DEV_API: 'http://127.0.0.1:{{.DEV_API_PORT}}'
     cmds:
       - cmd: |
-          until curl --noproxy '*' --fail --silent --max-time 1 "$GHL_DEV_API/api/health" >/dev/null; do sleep 0.1; done
+          until curl --noproxy '*' --fail --silent --max-time 1 "$DIFFDESK_DEV_API/api/health" >/dev/null; do sleep 0.1; done
         timeout: 30s
       - >-
         pnpm exec vite --host 127.0.0.1 --strictPort --port {{.DEV_PORT | shellQuote}}

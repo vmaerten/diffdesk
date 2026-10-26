@@ -36,7 +36,7 @@ class ReleaseGuards(unittest.TestCase):
         output = result.stdout + result.stderr
         for value in ['app.version=9.8.7-rc.1', 'app.commit=' + '0' * 40,
                       'app.buildDate=2026-01-01T00:00:00Z',
-                      'GHLReleaseVersion -string 9.8.7-rc.1',
+                      'DiffdeskReleaseVersion -string 9.8.7-rc.1',
                       'CFBundleShortVersionString -string 9.8.7']:
             self.assertIn(value, output)
 
