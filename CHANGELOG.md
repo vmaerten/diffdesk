@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- Start a diff search with the selected source text when pressing `Cmd+F`, and replace an open search with a new selection. ([#270](https://github.com/vmaerten/diffdesk/pull/270))
+- Check why code intelligence is unavailable with **Check IntelliSense Status…** in the command palette (`Cmd+K`): see the checkout and target, whether the working tree is included, and each language server's state, path, errors and installation command. The diagnostic explains that choosing a target branch does not check it out.
+
+### Fixes
+
+- Hide Git status dots on folders in the file tree, keeping status indicators on individual files. ([#269](https://github.com/vmaerten/diffdesk/pull/269))
+
 ## 0.5.0
 
 ### 💥 Breaking changes

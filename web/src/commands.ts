@@ -29,6 +29,7 @@ export type ReviewCommand =
   | 'reset-viewed'
   | 'palette'
   | 'go-to-file'
+  | 'code-intelligence-status'
 
 /** Go's menus open a repository and Settings themselves; only the palette sends those two. */
 export type WindowCommand =
@@ -82,6 +83,7 @@ export const COMMANDS: CommandEntry[] = [
   { name: 'copy-comments', label: 'Copy All Comments', group: 'Review', keys: '⇧⌘C' },
   { name: 'refresh', label: 'Refresh', group: 'Review', keys: 'r' },
   { name: 'shortcuts', label: 'Keyboard Shortcuts', group: 'Help' },
+  { name: 'code-intelligence-status', label: 'Check IntelliSense Status…', group: 'Help' },
 ]
 
 /** Run a command the way a menu item does: App and DesktopApp each take theirs. */

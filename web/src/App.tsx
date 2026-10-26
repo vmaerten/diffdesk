@@ -46,6 +46,7 @@ import { contextFile } from './fileMenu.ts'
 import { languagesOf, useLanguageStatus } from './codeIntelligence.ts'
 import { useSymbolCard } from './SymbolCard.tsx'
 import SymbolPanel, { PanelTabs, type PanelTab, type SymbolTarget } from './SymbolPanel.tsx'
+import CodeIntelligenceStatus from './CodeIntelligenceStatus.tsx'
 import type { LanguageStatus } from '../../src/types.ts'
 import { asText } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
@@ -97,6 +98,7 @@ export default function App({
   onReveal,
   onFileMenu,
   languageRevision = null,
+  codeIntelligenceEnabled = false,
   symbolPanel = false,
   pullRequests = null,
 }: {
@@ -119,6 +121,8 @@ export default function App({
   onFileMenu?: (path: string, x: number, y: number, viewed: boolean) => Promise<void>
   /** Changes when the review server has new code intelligence settings; null while it is off. */
   languageRevision?: number | null
+  /** The preference, even before its configuration reaches the review server. */
+  codeIntelligenceEnabled?: boolean
   /** Offers a Symbol tab beside Comments, with references, while code intelligence is on. */
   symbolPanel?: boolean
   /** Where to show the reviewed branch's GitHub pull request; null shows none. */
@@ -142,6 +146,7 @@ export default function App({
   const [viewed, viewedPersistence] = useViewedPersistence(repoId, viewedStore)
   const [picking, setPicking] = useState<Picker | null>(null)
   const palette = useRef<PaletteHandle>(null)
+  const [checkingIntelligence, setCheckingIntelligence] = useState(false)
   const [selection, select] = useReviewSelection(onRouteChange)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
   const [{ comments: stored, saving }, commentPersistence] = useCommentPersistence(
@@ -430,6 +435,9 @@ export default function App({
   /** Every review command by name: the single-letter keys and the desktop menus. */
   const runCommand = useStableCallback((command: CommandName) => {
     switch (command) {
+      case 'code-intelligence-status':
+        setCheckingIntelligence(true)
+        break
       case 'palette':
       case 'go-to-file':
         setPicking(null)
@@ -710,6 +718,17 @@ export default function App({
           toolbar,
         )}
       {symbols.card}
+      {checkingIntelligence && (
+        <CodeIntelligenceStatus
+          repoId={repoId}
+          data={data}
+          activePath={activePath ?? null}
+          enabled={codeIntelligenceEnabled}
+          settingsApplied={languageRevision !== null}
+          symbolPanel={symbolPanel}
+          onClose={() => setCheckingIntelligence(false)}
+        />
+      )}
       <CommandPalette
         handle={palette}
         files={entries}
