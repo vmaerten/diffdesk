@@ -71,8 +71,8 @@ export async function miseReleaseFixture(directory: string, archive: string) {
       [name, bytes],
       ['checksums.txt', Buffer.from(`${digest}  ${name}\n`)],
     ] as [string, Buffer][]) {
-      const download = `/vmaerten/ghl/releases/download/v${version}/${filename}`
-      const api = `/repos/vmaerten/ghl/releases/assets/${assets.size + 1}`
+      const download = `/vmaerten/diffdesk/releases/download/v${version}/${filename}`
+      const api = `/repos/vmaerten/diffdesk/releases/assets/${assets.size + 1}`
       assets.set(download, payload)
       assets.set(api, payload)
       release.assets.push({
@@ -100,13 +100,13 @@ export async function miseReleaseFixture(directory: string, archive: string) {
       return
     }
     let result: unknown
-    if (path === '/repos/vmaerten/ghl/releases')
+    if (path === '/repos/vmaerten/diffdesk/releases')
       result = available.map((tag) => releases.find((release) => release.tag_name === tag))
-    if (path === '/repos/vmaerten/ghl/releases/latest')
+    if (path === '/repos/vmaerten/diffdesk/releases/latest')
       result = releases.find(
         (release) => release.tag_name === available.find((tag) => !tag.includes('-')),
       )
-    if (path.startsWith('/repos/vmaerten/ghl/releases/tags/'))
+    if (path.startsWith('/repos/vmaerten/diffdesk/releases/tags/'))
       result = releases.find(
         (release) => release.tag_name === decodeURIComponent(path.split('/').at(-1) ?? ''),
       )

@@ -2,10 +2,10 @@ cask "diffdesk" do
   version "@VERSION@"
   sha256 "@SHA256@"
 
-  url "https://github.com/vmaerten/ghl/releases/download/v#{version}/diffdesk_#{version}_darwin_arm64.zip"
+  url "https://github.com/vmaerten/diffdesk/releases/download/v#{version}/diffdesk_#{version}_darwin_arm64.zip"
   name "Diffdesk"
   desc "Review the PR you are about to open, without opening it"
-  homepage "https://github.com/vmaerten/ghl"
+  homepage "https://github.com/vmaerten/diffdesk"
 
   depends_on arch: :arm64
   depends_on macos: :ventura

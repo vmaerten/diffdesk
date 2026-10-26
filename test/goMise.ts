@@ -110,10 +110,10 @@ const run = async (binary: string, argv: string[], overrides: NodeJS.ProcessEnv 
     })
   ).stdout.trim()
 const mise = (...argv: string[]) => run(miseBinary, argv)
-const tool = 'github:vmaerten/ghl'
+const tool = 'github:vmaerten/diffdesk'
 const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN
 const github = async (path: string, accept = 'application/vnd.github+json') => {
-  const response = await fetch(`https://api.github.com/repos/vmaerten/ghl/${path}`, {
+  const response = await fetch(`https://api.github.com/repos/vmaerten/diffdesk/${path}`, {
     headers: { Accept: accept, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     signal: AbortSignal.timeout(30_000),
   })
@@ -123,10 +123,10 @@ const github = async (path: string, accept = 'application/vnd.github+json') => {
 const download = async (asset: ReleaseAsset) => {
   const url = new URL(asset.url)
   assert.equal(url.origin, 'https://api.github.com')
-  assert.ok(url.pathname.startsWith('/repos/vmaerten/ghl/releases/assets/'))
+  assert.ok(url.pathname.startsWith('/repos/vmaerten/diffdesk/releases/assets/'))
   return Buffer.from(
     await (
-      await github(url.pathname.replace('/repos/vmaerten/ghl/', ''), 'application/octet-stream')
+      await github(url.pathname.replace('/repos/vmaerten/diffdesk/', ''), 'application/octet-stream')
     ).arrayBuffer(),
   )
 }
