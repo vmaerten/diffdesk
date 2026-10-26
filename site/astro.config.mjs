@@ -3,7 +3,7 @@ import react from '@astrojs/react'
 import starlight from '@astrojs/starlight'
 import { defineConfig } from 'astro/config'
 
-const repo = 'https://github.com/vmaerten/ghl'
+const repo = 'https://github.com/vmaerten/diffdesk'
 
 export default defineConfig({
   site: 'https://diffdesk.vmaerten.fr',

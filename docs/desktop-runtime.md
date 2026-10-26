@@ -1,6 +1,6 @@
 # Runtime desktop : Wails v2, Wails v3 ou Electron
 
-Statut : comparatif du 24 octobre 2026, avant de choisir le runtime qui succède à Wails v2.16. Décision : Wails v3, livré le 25 octobre ([#207](https://github.com/vmaerten/ghl/pull/207)), suivi du menu contextuel natif ([#208](https://github.com/vmaerten/ghl/pull/208)). « Vérifié » signifie lu dans le code source, la documentation de la version citée ou des données de release ; le reste est marqué « non vérifié ».
+Statut : comparatif du 24 octobre 2026, avant de choisir le runtime qui succède à Wails v2.16. Décision : Wails v3, livré le 25 octobre ([#207](https://github.com/vmaerten/diffdesk/pull/207)), suivi du menu contextuel natif ([#208](https://github.com/vmaerten/diffdesk/pull/208)). « Vérifié » signifie lu dans le code source, la documentation de la version citée ou des données de release ; le reste est marqué « non vérifié ».
 
 ## Résumé
 

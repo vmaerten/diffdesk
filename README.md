@@ -15,7 +15,7 @@ brew install --cask vmaerten/tap/diffdesk
 With [mise](https://mise.jdx.dev/):
 
 ```bash
-mise use -g github:vmaerten/ghl@latest
+mise use -g github:vmaerten/diffdesk@latest
 ```
 
 Both put the `diffdesk` command on PATH, and Homebrew also links `ghl`, its name before the app became Diffdesk. Homebrew installs `Diffdesk.app` in `/Applications`; mise keeps it in its own install directory. See the [installation guide](https://diffdesk.vmaerten.fr/guide/installation/) for upgrades, rollback and moving from the 0.2.0 browser CLI.

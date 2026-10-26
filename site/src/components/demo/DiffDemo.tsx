@@ -86,7 +86,7 @@ const reviews = layers.map((layer) => {
 /** A layer's pull request, as the app hears of it from gh. */
 const pullRequestOf = ({ pr: { ahead, ...pr }, base, pruned }: DemoLayer): PullRequest => ({
   ...pr,
-  url: 'https://github.com/vmaerten/ghl/pulls',
+  url: 'https://github.com/vmaerten/diffdesk/pulls',
   state: pruned ? 'merged' : 'open',
   author: 'you',
   base,
