@@ -878,6 +878,49 @@ body,
   width: min(420px, calc(100vw - 48px));
 }
 
+.intelligence-sheet {
+  width: min(640px, calc(100vw - 48px));
+}
+.intelligence-sheet .desktop-sheet-body {
+  padding: 0 20px;
+  overflow-wrap: anywhere;
+}
+.intelligence-sheet p {
+  color: var(--text-dim);
+}
+.intelligence-comparison > div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 12px;
+  margin-block: 6px;
+}
+.intelligence-sheet dd {
+  margin: 0;
+}
+.intelligence-summary li + li {
+  margin-top: 6px;
+}
+.intelligence-servers > div {
+  padding-block: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.intelligence-servers dt,
+.intelligence-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.intelligence-servers dt span {
+  color: var(--text-dim);
+}
+.intelligence-servers p {
+  margin: 4px 0 0;
+}
+.intelligence-servers pre {
+  white-space: pre-wrap;
+  color: var(--warn);
+}
+
 /* The review renders its controls here, through a portal; they take the title
    bar's middle and right columns. */
 .titlebar-review {

@@ -52,8 +52,9 @@ const BUSY = new Set<LanguageStatus['state']>(['starting', 'indexing'])
 export function useLanguageStatus(
   repoId: string | null,
   revision: number | null,
-): [LanguageServersStatus | null, () => void] {
+): [LanguageServersStatus | null, () => void, string | null] {
   const [status, setStatus] = useState<LanguageServersStatus | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [asked, setAsked] = useState(0)
   const active = repoId !== null && revision !== null
   const refresh = useCallback(() => setAsked((count) => count + 1), [])
@@ -61,9 +62,11 @@ export function useLanguageStatus(
   useEffect(() => {
     if (!active) {
       setStatus(null)
+      setError(null)
       return
     }
     const request = ++latest.current
+    setError(null)
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     const load = async () => {
@@ -76,13 +79,16 @@ export function useLanguageStatus(
         timer = setTimeout(refresh, 1000)
     }
     // A failed look leaves the last known state; the next change asks again.
-    load().catch(() => {})
+    load().catch((cause) => {
+      if (!controller.signal.aborted && request === latest.current)
+        setError(cause instanceof Error ? cause.message : String(cause))
+    })
     return () => {
       controller.abort()
       if (timer) clearTimeout(timer)
     }
   }, [active, repoId, revision, asked, refresh])
-  return [status, refresh]
+  return [status, refresh, error]
 }
 
 function extensionOf(path: string): string {
@@ -100,15 +106,18 @@ export function languagesOf(
   const extensions = new Set(paths.map(extensionOf))
   return status.languages.filter((language) => {
     if (language.state === 'off') return false
-    // Helm owns only the files of its charts' templates folders.
-    if (language.directories)
-      return paths.some(
-        (path) =>
-          language.directories!.some((dir) => path.startsWith(`${dir}/`)) &&
-          language.extensions.includes(extensionOf(path)),
-      )
-    return language.extensions.some((extension) => extensions.has(extension))
+    return language.directories
+      ? paths.some((path) => languageSupportsPath(language, path))
+      : language.extensions.some((extension) => extensions.has(extension))
   })
+}
+
+/** Helm covers chart templates only; the other servers cover their extensions. */
+export function languageSupportsPath(language: LanguageStatus, path: string): boolean {
+  return (
+    language.extensions.includes(extensionOf(path)) &&
+    (!language.directories || language.directories.some((dir) => path.startsWith(`${dir}/`)))
+  )
 }
 
 /** A server's path as a home-relative one, which is how people read them. */

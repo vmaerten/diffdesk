@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { Page } from 'puppeteer-core'
 
 import { installDesktopRuntime } from '../desktopRuntime.ts'
-import { clickTreeRow, poll, sleep, type Suite } from '../harness.ts'
+import { clickTreeRow, command, poll, sleep, type Suite } from '../harness.ts'
 
 const SELECTED_TEXT = `(() => {
   for (const host of document.querySelectorAll('.diff diffs-container')) {
@@ -110,6 +110,27 @@ export default {
         }
       })
 
+    const diagnostics = async () => {
+      await command(page, 'palette')
+      await page.waitForSelector('dialog.command-palette[open] .palette-input')
+      await page.type('.palette-input', 'IntelliSense')
+      await page.waitForSelector('.palette-item[data-selected="true"]')
+      await page.keyboard.press('Enter')
+      await page.waitForSelector('.intelligence-sheet[open]')
+      await page.waitForSelector('.intelligence-servers [data-language]')
+      return page.$eval('.intelligence-sheet', (element) => element.textContent ?? '')
+    }
+
+    const disabledDiagnostic = await diagnostics()
+    check(
+      'the palette diagnoses disabled code intelligence and missing servers',
+      disabledDiagnostic.includes('Code intelligence is disabled') &&
+        disabledDiagnostic.includes('gopls@latest') &&
+        disabledDiagnostic.includes('Working treeIncluded'),
+      disabledDiagnostic,
+    )
+    await page.keyboard.press('Escape')
+
     const settings = await openSettings()
     const before = await poll(
       () => rows(settings),
@@ -155,6 +176,16 @@ export default {
     await settings.select('.language-server[data-language="typescript"] select', 'off')
     const off = await poll(footer, (state) => state.servers.length === 0)
     check('a language turned off leaves the status bar', off.text === '', JSON.stringify(off))
+    const offDiagnostic = await diagnostics()
+    check(
+      'diagnostics keep disabled languages visible',
+      await page.$eval(
+        '.intelligence-servers [data-language="typescript"]',
+        (element) => element.getAttribute('data-state') === 'off',
+      ),
+      offDiagnostic,
+    )
+    await page.keyboard.press('Escape')
     const status = await poll(serverStatus, (next) =>
       next.languages.some((language) => language.id === 'typescript' && language.choice === 'off'),
     )
@@ -181,6 +212,16 @@ export default {
       revision.text === 'Code intelligence: working tree only',
       JSON.stringify(revision),
     )
+    const revisionDiagnostic = await diagnostics()
+    check(
+      'diagnostics explain that selecting a branch does not check it out',
+      revisionDiagnostic.includes('Checkoutmain') &&
+        revisionDiagnostic.includes('Targetfeature') &&
+        revisionDiagnostic.includes('Working treeExcluded') &&
+        revisionDiagnostic.includes('does not check it out'),
+      revisionDiagnostic,
+    )
+    await page.keyboard.press('Escape')
 
     // index.ts uses engine_3, whose definition the diff shows, and parser_2, whose it does not.
     writeFileSync(join(repoPath, 'src/index.ts'), INDEX)
