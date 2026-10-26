@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.0
+
+### 💥 Breaking changes
+
+- Rename the app Diffdesk, with a new icon: a D cut in two, red for the base and green for the target. The app is `Diffdesk.app` and its command `diffdesk`; Homebrew and `task install` still link `ghl` beside it, but mise puts only `diffdesk` on PATH. Comments and Viewed stay in `.git/ghl/state.json`, settings move to `~/Library/Application Support/Diffdesk` and are read from `ghl` until the first change, and the sidebar and panel widths start over once. ([#260](https://github.com/vmaerten/ghl/pull/260))
+
+### 🐛 Fixes
+
+- Draw tabs two columns wide in the symbol card and the Symbol panel, as the diff does, instead of eight, which spread a Go struct across the card. ([#262](https://github.com/vmaerten/ghl/pull/262))
+
+### 📦 Distribution
+
+- Publish `diffdesk_<version>_darwin_arm64.zip` and the `diffdesk` cask: `brew upgrade` moves an installed `ghl` cask to it, replacing `ghl.app` with `Diffdesk.app`. mise keeps the `github:vmaerten/ghl` tool. The site moves to [diffdesk.vmaerten.fr](https://diffdesk.vmaerten.fr). ([#260](https://github.com/vmaerten/ghl/pull/260))
+
 ## 0.4.0
 
 ### ✨ Features
