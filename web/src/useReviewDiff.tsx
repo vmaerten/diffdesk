@@ -521,6 +521,11 @@ export function useReviewDiff({
   const activeSearchMatch = searchMatches[boundedSearchIndex]
 
   const openSearch = useCallback(() => {
+    const selectedText = window.getSelection()?.toString().trim()
+    if (selectedText) {
+      setSearchQuery(selectedText)
+      setSearchIndex(0)
+    }
     if (searchOpen) {
       searchInputRef.current?.focus()
       searchInputRef.current?.select()
