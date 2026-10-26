@@ -13,7 +13,7 @@ L'app s'appelle Diffdesk depuis la PR #260 : bundle `Diffdesk.app` (`dev.diffdes
 - [x] `diffdesk.vmaerten.fr` sert le site, et `ghl.vmaerten.fr` y redirige.
 - [x] Le tap a `Casks/diffdesk.rb` et `cask_renames.json`, plus de `Casks/ghl.rb` ; son README pointe vers `diffdesk`.
 - [x] Sur une machine avec le cask `ghl`, `brew upgrade` remplace `ghl.app` par `Diffdesk.app` et garde la commande `ghl`, mais seulement après `brew trust --cask vmaerten/tap/diffdesk` : Homebrew fait confiance à un cask par son nom, et saute sinon la mise à jour sans rien dire. Il laisse une entrée `Caskroom/ghl` vide, que `brew doctor` signale. Le guide d'installation, le README du tap et les notes de 0.5.0 donnent les deux commandes.
-- [ ] `task release:mise:published VERSION=0.5.0 PREVIOUS=0.4.0` : la mise à jour de ghl vers diffdesk. Il faut mise 2026.10.2.
+- [x] `task release:mise:published VERSION=0.5.0 PREVIOUS=0.4.0` passe avec mise 2026.10.2 : installation, mise à jour depuis 0.4.0, retour arrière et désinstallation.
 - [ ] Mettre `https://diffdesk.vmaerten.fr` en site web du dépôt GitHub ; la description ne nomme pas l'app.
 
 ## Nettoyage, une ou deux versions plus tard
