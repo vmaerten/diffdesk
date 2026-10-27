@@ -123,12 +123,12 @@ const github = async (path: string, accept = 'application/vnd.github+json') => {
 const download = async (asset: ReleaseAsset) => {
   const url = new URL(asset.url)
   assert.equal(url.origin, 'https://api.github.com')
-  assert.ok(url.pathname.startsWith('/repos/vmaerten/ghl/releases/assets/'))
-  return Buffer.from(
-    await (
-      await github(url.pathname.replace('/repos/vmaerten/ghl/', ''), 'application/octet-stream')
-    ).arrayBuffer(),
-  )
+  // GitHub redirects the old repository name and returns canonical asset URLs.
+  const path = url.pathname.match(
+    /^\/repos\/vmaerten\/(?:ghl|diffdesk)\/(releases\/assets\/\d+)$/,
+  )?.[1]
+  assert.ok(path, `Unexpected release asset URL: ${asset.url}`)
+  return Buffer.from(await (await github(path, 'application/octet-stream')).arrayBuffer())
 }
 /** Releases up to 0.2.0 shipped a browser CLI tarball instead of the app. */
 const cliArchiveName = (version: string) => `ghl_${version}_darwin_arm64.tar.gz`
