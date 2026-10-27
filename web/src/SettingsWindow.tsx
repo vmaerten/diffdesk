@@ -25,6 +25,8 @@ import {
 } from './codeIntelligence.ts'
 import type { GitHubAccount, LanguageStatus } from '../../src/types.ts'
 import desktopStyles from './desktop.css?inline'
+import { copyDebugLogs, debugLog } from './debugLog.ts'
+import { startDebugActions } from './debugActions.ts'
 
 const APPEARANCES: { value: Appearance; label: string }[] = [
   { value: 'system', label: 'System' },
@@ -195,6 +197,10 @@ export default function SettingsWindow() {
   useEffect(() => {
     if (settings && changed.current) save(JSON.stringify(settings))
   }, [settings, save])
+  useEffect(() => {
+    debugLog.configure(settings?.debugLogging ?? false)
+    if (settings?.debugLogging) return startDebugActions('settings')
+  }, [settings?.debugLogging])
   const title = PANES.find(({ id }) => id === pane)!.label
   useEffect(() => {
     window.runtime?.WindowSetTitle(title)
@@ -232,7 +238,12 @@ export default function SettingsWindow() {
           <AppearancePane settings={settings} onChange={change} />
         )}
         {settings && pane === 'code' && <CodePane settings={settings} onChange={change} />}
-        {settings && pane === 'window' && <WindowPane settings={settings} onChange={change} />}
+        {settings && pane === 'window' && (
+          <>
+            <WindowPane settings={settings} onChange={change} />
+            <DebugLogging settings={settings} onChange={change} />
+          </>
+        )}
         {settings && pane === 'intelligence' && (
           <IntelligencePane settings={settings} onChange={change} />
         )}
@@ -245,6 +256,74 @@ export default function SettingsWindow() {
 interface PaneProps {
   settings: DesktopSettings
   onChange: (patch: Partial<DesktopSettings>) => void
+}
+
+function DebugLogging({ settings, onChange }: PaneProps) {
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState(false)
+  return (
+    <>
+      <h2 className="settings-heading">Diagnostics</h2>
+      <div className="settings-group">
+        <label className="settings-field">
+          <span className="settings-label">
+            Debug logging
+            <small>
+              Record clicks, mouse buttons, keyboard actions, navigation and scroll positions on
+              this Mac. Typed text, clipboard contents and source code are not recorded.
+            </small>
+          </span>
+          <input
+            type="checkbox"
+            checked={settings.debugLogging}
+            onChange={(event) => onChange({ debugLogging: event.target.checked })}
+          />
+        </label>
+        <div className="settings-field">
+          <span className="settings-label">
+            Debug logs
+            <small>
+              All recorded events are kept in debug.log beside settings.json until you clear them.
+              Enable logging, reproduce the issue, then copy the logs.
+            </small>
+          </span>
+          <button
+            type="button"
+            className="button"
+            onClick={async () => {
+              try {
+                await copyDebugLogs()
+                setError(false)
+                setMessage('Debug logs copied.')
+              } catch {
+                setError(true)
+                setMessage('Could not copy debug logs. Try again.')
+              }
+            }}
+          >
+            Copy debug logs
+          </button>
+          <button
+            type="button"
+            className="button"
+            onClick={async () => {
+              try {
+                await debugLog.clear()
+                setError(false)
+                setMessage('Debug logs cleared.')
+              } catch {
+                setError(true)
+                setMessage('Could not clear debug logs. Try again.')
+              }
+            }}
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+      {message && <p role={error ? 'alert' : 'status'}>{message}</p>}
+    </>
+  )
 }
 
 function AppearancePane({ settings, onChange }: PaneProps) {

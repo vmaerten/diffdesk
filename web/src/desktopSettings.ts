@@ -26,6 +26,8 @@ export interface DesktopSettings extends AppearanceSettings {
   codeSize: number
   /** Read by the app when it opens its window: a change applies at the next launch. */
   compactTitleBar: boolean
+  /** Local action and scroll diagnostics, without source or comment text. */
+  debugLogging: boolean
   /** Beta: hover and definitions from the language servers installed on this Mac. */
   codeIntelligence: boolean
   /** References in a Symbol tab beside Comments, under code intelligence. */
@@ -42,6 +44,7 @@ export const DEFAULT_SETTINGS: DesktopSettings = {
   codeFont: 'SF Mono',
   codeSize: 12,
   compactTitleBar: false,
+  debugLogging: false,
   codeIntelligence: false,
   symbolPanel: true,
   languageServers: {
@@ -82,6 +85,7 @@ export function readSettings(raw: string): DesktopSettings {
     codeFont,
     codeSize,
     compactTitleBar,
+    debugLogging,
     codeIntelligence,
     symbolPanel,
     languageServers,
@@ -108,6 +112,7 @@ export function readSettings(raw: string): DesktopSettings {
         : DEFAULT_SETTINGS.codeSize,
     compactTitleBar:
       typeof compactTitleBar === 'boolean' ? compactTitleBar : DEFAULT_SETTINGS.compactTitleBar,
+    debugLogging: typeof debugLogging === 'boolean' ? debugLogging : DEFAULT_SETTINGS.debugLogging,
     codeIntelligence:
       typeof codeIntelligence === 'boolean' ? codeIntelligence : DEFAULT_SETTINGS.codeIntelligence,
     symbolPanel: typeof symbolPanel === 'boolean' ? symbolPanel : DEFAULT_SETTINGS.symbolPanel,

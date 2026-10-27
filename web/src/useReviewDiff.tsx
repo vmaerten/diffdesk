@@ -23,6 +23,7 @@ import { diffFilesLoader, type ContextError } from './diffFiles.ts'
 import { searchDiff } from './diffSearch.ts'
 import { treeOrder } from './fileOrder.ts'
 import { commentRange } from './commentRange.ts'
+import { debugLog } from './debugLog.ts'
 import type { SavedView } from './savedView.ts'
 import type { TokenHandlers } from './SymbolCard.tsx'
 import type {
@@ -166,6 +167,50 @@ export function useReviewDiff({
   }, [comments, collapsedComments])
   const draftsRef = useRef(new Map<string, string>(savedView?.drafts ?? []))
   const scrollTopRef = useRef(savedView?.scrollTop ?? 0)
+  const lastInput = useRef({ kind: 'none', at: 0 })
+  const hasFiles = (data?.files.length ?? 0) > 0
+  useEffect(() => {
+    const pane = paneRef.current
+    const track = (event: Event) => {
+      lastInput.current = { kind: event.type, at: performance.now() }
+    }
+    const focus = (event: FocusEvent) => {
+      if (!(event.target instanceof HTMLElement) || !event.target.closest('.comment-composer'))
+        return
+      debugLog.record('comment.focus', {
+        event: event.type,
+        target: event.target.tagName,
+        next: event.relatedTarget instanceof HTMLElement ? event.relatedTarget.tagName : null,
+        scroll: scrollTopRef.current,
+      })
+    }
+    pane?.addEventListener('focusin', focus)
+    pane?.addEventListener('focusout', focus)
+    for (const event of ['wheel', 'pointerdown', 'keydown', 'touchstart'])
+      pane?.addEventListener(event, track, { passive: true, capture: true })
+    return () => {
+      pane?.removeEventListener('focusin', focus)
+      pane?.removeEventListener('focusout', focus)
+      for (const event of ['wheel', 'pointerdown', 'keydown', 'touchstart'])
+        pane?.removeEventListener(event, track, true)
+    }
+  }, [hasFiles])
+  useEffect(() => {
+    if (!composer || !debugLog.enabled) return
+    const frame = requestAnimationFrame(() => {
+      const rect = paneRef.current?.querySelector('.comment-composer')?.getBoundingClientRect()
+      debugLog.record('comment.rendered', {
+        path: composer.path,
+        side: composer.side,
+        end: composer.end,
+        scroll: scrollTopRef.current,
+        top: rect?.top,
+        bottom: rect?.bottom,
+        focus: document.activeElement?.tagName,
+      })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [composer])
   const expansionsRef = useRef<SavedView['expansions']>(savedView?.expansions ?? [])
   const replayed = useRef(new Set<string>())
   const restored = useRef(false)
@@ -406,6 +451,7 @@ export function useReviewDiff({
   /** Selects a line of the new side and scrolls to it, as a definition is shown. */
   const revealLine = useStableCallback((path: string, line: number) => {
     if (!canRevealLine(path, 'additions', line)) return
+    debugLog.record('navigate.definition', { path, line, scroll: scrollTopRef.current })
     setSearchOpen(false)
     setRevealedPath(path)
     setCommentTarget({ path, side: 'additions', start: line, end: line })
@@ -413,6 +459,12 @@ export function useReviewDiff({
 
   const revealComment = useStableCallback((comment: ServedComment) => {
     if (!canRevealComment(comment)) return
+    debugLog.record('navigate.comment', {
+      path: comment.path,
+      side: comment.side,
+      end: comment.end,
+      scroll: scrollTopRef.current,
+    })
     foldComment(comment, false)
     setSearchOpen(false)
     setRevealedPath(comment.path)
@@ -450,14 +502,31 @@ export function useReviewDiff({
   }, [commentTarget, items, revealFile])
 
   /** Open a composer on a selected range, from the gutter or from `c`. */
-  const openComposer = useStableCallback((path: string, range: SelectedLineRange) => {
-    const item = allItems.find((entry) => entry.path === path)
-    const hunks = item?.type === 'diff' ? item.fileDiff.hunks : []
-    const { side, start, end } = commentRange(hunks, range)
-    setComposer({ key: threadKey(path, side, end), path, side, start, end, editing: null })
-  })
+  const openComposer = useStableCallback(
+    (path: string, range: SelectedLineRange, source: 'gutter' | 'selection') => {
+      const item = allItems.find((entry) => entry.path === path)
+      const hunks = item?.type === 'diff' ? item.fileDiff.hunks : []
+      const { side, start, end } = commentRange(hunks, range)
+      debugLog.record('comment.open', {
+        path,
+        side,
+        start,
+        end,
+        source,
+        scroll: scrollTopRef.current,
+      })
+      setComposer({ key: threadKey(path, side, end), path, side, start, end, editing: null })
+    },
+  )
 
   const editComment = useStableCallback((comment: Comment) => {
+    debugLog.record('comment.edit', {
+      path: comment.path,
+      side: comment.side,
+      start: comment.start,
+      end: comment.end,
+      scroll: scrollTopRef.current,
+    })
     foldComment(comment, false)
     const key = threadKey(comment.path, comment.side, comment.end)
     draftsRef.current.set(`${key}:${comment.id}`, comment.body)
@@ -481,6 +550,7 @@ export function useReviewDiff({
    * the page, which is what made it look like the diff had stopped responding.
    */
   const closeComposer = useStableCallback(() => {
+    debugLog.record('comment.close', { path: composer?.path, scroll: scrollTopRef.current })
     setComposer(null)
     viewRef.current?.clearSelectedLines()
   })
@@ -492,6 +562,7 @@ export function useReviewDiff({
       // Not `target`: that name already means the revision under review.
       const item = items[bounded]
       if (!item) return
+      debugLog.record('navigate.file', { path: item.path, scroll: scrollTopRef.current })
       setActivePath(item.path)
 
       // The tree folds directories, so ask it to bring the file back into view
@@ -603,6 +674,14 @@ export function useReviewDiff({
   const submitComment = useStableCallback((body: string) => {
     if (!composer || !data) return
     const { path, side, start, end, editing } = composer
+    debugLog.record('comment.submit', {
+      path,
+      side,
+      start,
+      end,
+      editing: editing !== null,
+      scroll: scrollTopRef.current,
+    })
     onSubmit({ path, side, start, end, editing, body })
     draftsRef.current.delete(`${composer.key}:${editing ?? 'new'}`)
     // Releasing the selection lets the gutter button follow the pointer again.
@@ -613,7 +692,7 @@ export function useReviewDiff({
     const selection = viewRef.current?.getSelectedLines()
     if (!selection) return
     const path = items.find((item) => item.id === selection.id)?.path
-    if (path) openComposer(path, selection.range)
+    if (path) openComposer(path, selection.range, 'selection')
   })
 
   const navigate = useCallback(
@@ -667,7 +746,7 @@ export function useReviewDiff({
       // Only the gutter opens a composer here: a plain drag selects, and `c` is
       // what turns a selection into a comment.
       if (!requested || context.item.type !== 'diff') return
-      openComposer(context.item.fileDiff.name, requested)
+      openComposer(context.item.fileDiff.name, requested, 'gutter')
     },
   )
 
@@ -822,6 +901,11 @@ export function useReviewDiff({
   useEffect(() => {
     if (!savedView || !data || items.length === 0 || restored.current) return
     restored.current = true
+    debugLog.record('view.restore', {
+      path: savedView.activePath,
+      scroll: savedView.scrollTop,
+      composer: savedView.composer?.key,
+    })
     setActivePath(savedView.activePath ?? null)
     const selectedItem = items.find((item) => item.path === savedView.selected?.path)
     if (selectedItem && savedView.selected)
@@ -931,6 +1015,22 @@ export function useReviewDiff({
         ref={viewRef}
         containerRef={scrollerRef}
         onScroll={(position) => {
+          const previous = scrollTopRef.current
+          if (debugLog.enabled && position !== previous)
+            debugLog.record(
+              Math.abs(position - previous) >
+                Math.max(200, (scrollerRef.current?.clientHeight ?? 0) / 2)
+                ? 'scroll.jump'
+                : 'scroll',
+              {
+                from: previous,
+                to: position,
+                path: active,
+                composer: composer?.key,
+                input: lastInput.current.kind,
+                inputAge: Math.round(performance.now() - lastInput.current.at),
+              },
+            )
           scrollTopRef.current = position
           replayExpansions()
           followScroll()

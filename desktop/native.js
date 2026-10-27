@@ -14,6 +14,9 @@ const methods = [
   'SaveSettings',
   'RevealInFinder',
   'OpenFileMenu',
+  'AppendDebugEvent',
+  'DebugLog',
+  'ClearDebugLog',
 ]
 window.go = {
   main: {

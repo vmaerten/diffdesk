@@ -14,6 +14,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       codeFont: 'Berkeley Mono',
       codeSize: 14,
       compactTitleBar: true,
+      debugLogging: true,
       codeIntelligence: true,
       symbolPanel: false,
       languageServers: {
@@ -38,6 +39,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       codeFont: 'Berkeley Mono',
       codeSize: 14,
       compactTitleBar: true,
+      debugLogging: true,
       codeIntelligence: true,
       symbolPanel: false,
       languageServers: {
@@ -62,6 +64,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       codeFont: 'Evil", serif; x',
       codeSize: 40,
       compactTitleBar: 'yes',
+      debugLogging: 'yes',
       codeIntelligence: 1,
       symbolPanel: 'no',
       // A Go setting may not name a TypeScript server, nor any setting a language Go does not know.

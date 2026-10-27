@@ -4,6 +4,7 @@
 
 ### Features
 
+- Enable **Debug logging** in Settings, under Window, to record clicks, mouse buttons, keyboard actions, comments, navigation and scrolling in a local file across reloads and restarts. Every event is kept until you clear the logs from the same pane, which also copies them with the app and WebView versions. Typed text, clipboard contents and source code are excluded.
 - Start a diff search with the selected source text when pressing `Cmd+F`, and replace an open search with a new selection. ([#270](https://github.com/vmaerten/diffdesk/pull/270))
 - Check why code intelligence is unavailable with **Check IntelliSense Status…** in the command palette (`Cmd+K`): see the checkout and target, whether the working tree is included, and each language server's state, path, errors and installation command. The diagnostic explains that choosing a target branch does not check it out.
 

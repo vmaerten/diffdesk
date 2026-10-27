@@ -1,6 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react'
 
 import type { Comment, ServedComment } from '../../src/types.ts'
+import { debugLog } from './debugLog.ts'
 
 export type SaveState = 'saving' | 'failed'
 export type CommentSubmission = Pick<Comment, 'path' | 'side' | 'start' | 'end' | 'body'> & {
@@ -244,14 +245,25 @@ export type CommentPersistence = ReturnType<typeof createCommentPersistence>
 export function createRepositoryCommentPersistence(repoId: string | null): CommentPersistence {
   return createCommentPersistence({
     save: async (comment, query, editing) => {
-      const response = await fetch(`/r/${repoId}/api/comments${query}`, {
-        method: editing ? 'PATCH' : 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(comment),
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const body: { comment: ServedComment } = await response.json()
-      return body.comment
+      const method = editing ? 'PATCH' : 'POST'
+      debugLog.record('comment.request', { repoId, path: comment.path, method })
+      try {
+        const response = await fetch(`/r/${repoId}/api/comments${query}`, {
+          method,
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(comment),
+        })
+        debugLog.record('comment.response', { repoId, status: response.status })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const body: { comment: ServedComment } = await response.json()
+        return body.comment
+      } catch (cause) {
+        debugLog.record('comment.failed', {
+          repoId,
+          name: cause instanceof Error ? cause.name : typeof cause,
+        })
+        throw cause
+      }
     },
     remove: async (id) => {
       const response = await fetch(`/r/${repoId}/api/comments?id=${encodeURIComponent(id)}`, {

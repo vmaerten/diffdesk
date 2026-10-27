@@ -10,6 +10,7 @@ import { runDesktopSettings } from './desktopSettings.ts'
 import { runTabOverflow } from './tabOverflow.ts'
 import { runCommentRange } from './commentRange.ts'
 import { runPaletteMatch } from './paletteMatch.ts'
+import { runDebugLog } from './debugLog.ts'
 
 import reviewPanel from './suites/reviewPanel.ts'
 import themes from './suites/themes.ts'
@@ -32,6 +33,7 @@ import codeIntelligence from './suites/codeIntelligence.ts'
 import resolve from './suites/resolve.ts'
 import github from './suites/github.ts'
 import palette from './suites/palette.ts'
+import debugLogging from './suites/debugLogging.ts'
 
 const SUITES: Suite[] = [
   themes,
@@ -55,6 +57,7 @@ const SUITES: Suite[] = [
   resolve,
   github,
   palette,
+  debugLogging,
 ]
 
 /**
@@ -69,6 +72,7 @@ const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'export', run: runExport },
   { name: 'comment-range', run: runCommentRange },
   { name: 'palette-match', run: runPaletteMatch },
+  { name: 'debug-log', run: runDebugLog },
 ]
 
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-'))
