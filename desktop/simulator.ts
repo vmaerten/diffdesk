@@ -1,5 +1,6 @@
 // Simulated Wails bindings, so the desktop UI runs in a browser: the dev server and the UI tests.
 import { readFileSync } from 'node:fs'
+import type { UpdateSnapshot } from '../web/src/updates.ts'
 
 export interface DesktopTab {
   id: string
@@ -25,6 +26,17 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
     given ??
     (location.pathname.startsWith('/r/') ? [{ id: '1', name: repoId, path: '', route }] : [])
   const state = { revision: 1, active: opened[0]?.id ?? '', tabs: opened }
+  let update: UpdateSnapshot = JSON.parse(
+    sessionStorage.getItem('desktopFixture.update') ?? 'null',
+  ) ?? {
+    revision: 0,
+    status: 'idle',
+    version: '',
+    manager: '',
+    notes: '',
+    message: '',
+    retry: '',
+  }
   const fixture = {
     clipboard: '',
     get settings() {
@@ -33,6 +45,18 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
     revealed: [] as string[],
     fileMenus: [] as { path: string; viewed: boolean }[],
     settingsOpened: 0,
+    updateInstalls: 0,
+    updateChecks: 0,
+    updateDismissals: 0,
+    publishUpdate: (patch: Partial<UpdateSnapshot>) => {
+      const next = { ...update, ...patch, revision: patch.revision ?? update.revision + 1 }
+      if (next.revision >= update.revision) {
+        update = next
+        sessionStorage.setItem('desktopFixture.update', JSON.stringify(update))
+      }
+      emit('desktop:update', structuredClone(next))
+      return structuredClone(update)
+    },
   }
   type Snapshot = typeof state
   const listeners = new Map<string, Set<(data: unknown) => void>>()
@@ -90,6 +114,24 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
           fixture.settingsOpened += 1
         },
         SaveTabView: async () => {},
+        UpdateStatus: async () => structuredClone(update),
+        CheckForUpdates: async () => {
+          if (['checking', 'installing', 'restarting'].includes(update.status)) return
+          fixture.updateChecks++
+          fixture.publishUpdate({ status: 'checking', message: '', retry: '' })
+        },
+        DismissUpdate: async () => {
+          if (['checking', 'installing', 'restarting'].includes(update.status))
+            return structuredClone(update)
+          fixture.updateDismissals++
+          return fixture.publishUpdate({ status: 'idle', message: '', retry: '' })
+        },
+        InstallUpdate: async () => {
+          if (update.status !== 'available' && update.retry !== 'install')
+            throw new Error('No update is available')
+          fixture.updateInstalls++
+          return fixture.publishUpdate({ status: 'installing', message: '', retry: '' })
+        },
         Settings: async () => fixture.settings,
         AppendDebugEvent: async (raw) => {
           localStorage.setItem(
