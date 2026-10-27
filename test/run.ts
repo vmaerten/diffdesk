@@ -34,6 +34,7 @@ import resolve from './suites/resolve.ts'
 import github from './suites/github.ts'
 import palette from './suites/palette.ts'
 import debugLogging from './suites/debugLogging.ts'
+import updates from './suites/updates.ts'
 
 const SUITES: Suite[] = [
   themes,
@@ -58,6 +59,7 @@ const SUITES: Suite[] = [
   github,
   palette,
   debugLogging,
+  updates,
 ]
 
 /**

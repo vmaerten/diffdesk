@@ -172,6 +172,28 @@
       // window: save as it would, check the review follows and Go kept it, then
       // put them back for the rest of the run.
       const desktopApp = window.go.main.desktopApp
+      check(
+        (await desktopApp.UpdateStatus()).status === 'idle',
+        'Unexpected update prompt at startup',
+      )
+      await desktopApp.CheckForUpdates()
+      await wait(
+        () => document.querySelector('.update-details'),
+        'Native update state did not reach the banner',
+      )
+      check(
+        (await desktopApp.UpdateStatus()).status === 'error',
+        'Test check reached a real updater',
+      )
+      document.querySelector('.update-actions button').click()
+      await wait(
+        () => !document.querySelector('.update-banner'),
+        'Dismiss did not clear native update state',
+      )
+      check(
+        (await desktopApp.UpdateStatus()).status === 'idle',
+        'Dismiss did not reach the updater',
+      )
       const original = (await desktopApp.Settings()) || JSON.stringify({ version: 1 })
       await desktopApp.SaveSettings(
         JSON.stringify({
