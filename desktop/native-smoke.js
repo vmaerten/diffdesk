@@ -178,6 +178,7 @@
           ...JSON.parse(original),
           appearance: dark ? 'light' : 'dark',
           codeSize: 13,
+          debugLogging: true,
         }),
       )
       await wait(
@@ -191,7 +192,17 @@
         'Code size did not apply',
       )
       check(JSON.parse(await desktopApp.Settings()).codeSize === 13, 'Settings not saved')
+      await wait(
+        async () => (await desktopApp.DebugLog()).includes('window.ready'),
+        'Debug logging did not reach the native file',
+      )
       await desktopApp.SaveSettings(original)
+      await wait(
+        async () => (await desktopApp.DebugLog()).includes('logging.disabled'),
+        'Debug logging did not turn off',
+      )
+      await desktopApp.ClearDebugLog()
+      check((await desktopApp.DebugLog()) === '', 'Native debug log did not clear')
       await wait(
         () => root.dataset.theme === (dark ? 'github-dimmed' : 'github-light'),
         'System appearance did not return',

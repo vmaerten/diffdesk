@@ -47,6 +47,7 @@ import { languagesOf, useLanguageStatus } from './codeIntelligence.ts'
 import { useSymbolCard } from './SymbolCard.tsx'
 import SymbolPanel, { PanelTabs, type PanelTab, type SymbolTarget } from './SymbolPanel.tsx'
 import CodeIntelligenceStatus from './CodeIntelligenceStatus.tsx'
+import { debugLog } from './debugLog.ts'
 import type { LanguageStatus } from '../../src/types.ts'
 import { asText } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
@@ -196,6 +197,13 @@ export default function App({
       return
     }
     const loadId = ++loadRef.current
+    debugLog.record('review.refresh', {
+      repoId,
+      loadId,
+      target: selection.target,
+      commit: selection.commit,
+      committed: selection.committed,
+    })
     requestRef.current?.abort()
     const controller = new AbortController()
     requestRef.current = controller
@@ -212,11 +220,23 @@ export default function App({
       const shown = new AbortController()
       shownRef.current = shown
       setData({ ...body, loadId, query: selection.query, signal: shown.signal })
+      debugLog.record('review.loaded', {
+        repoId,
+        loadId,
+        target: body.target.ref,
+        workingTree: body.target.workingTree,
+        files: body.files.length,
+      })
       receiveViewed({ ...body, query: selection.query })
       receiveComments(body.comments ?? [], body.commentBranch)
       setError(null)
     } catch (cause) {
       if (controller.signal.aborted) return
+      debugLog.record('review.failed', {
+        repoId,
+        loadId,
+        name: cause instanceof Error ? cause.name : typeof cause,
+      })
       setError(cause instanceof Error ? cause.message : String(cause))
     }
   }, [repoId, selection, commentPersistence, viewedPersistence])
@@ -434,6 +454,7 @@ export default function App({
 
   /** Every review command by name: the single-letter keys and the desktop menus. */
   const runCommand = useStableCallback((command: CommandName) => {
+    debugLog.record('review.command', { command })
     switch (command) {
       case 'code-intelligence-status':
         setCheckingIntelligence(true)

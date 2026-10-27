@@ -91,6 +91,16 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
         },
         SaveTabView: async () => {},
         Settings: async () => fixture.settings,
+        AppendDebugEvent: async (raw) => {
+          localStorage.setItem(
+            'desktopFixture.debugLog',
+            (localStorage.getItem('desktopFixture.debugLog') ?? '') + raw + '\n',
+          )
+        },
+        DebugLog: async () => localStorage.getItem('desktopFixture.debugLog') ?? '',
+        ClearDebugLog: async () => {
+          localStorage.removeItem('desktopFixture.debugLog')
+        },
         SaveSettings: async (raw) => {
           localStorage.setItem('desktopFixture.settings', raw)
           // oxlint-disable-next-line unicorn/require-post-message-target-origin -- a BroadcastChannel has no target origin.

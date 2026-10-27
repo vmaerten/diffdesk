@@ -22,6 +22,8 @@ import {
 } from './commentPersistence.ts'
 import { createRepositoryViewedPersistence, type ViewedPersistence } from './viewedPersistence.ts'
 import desktopStyles from './desktop.css?inline'
+import { debugLog } from './debugLog.ts'
+import { startDebugActions } from './debugActions.ts'
 
 interface ReviewTab {
   id: string
@@ -48,6 +50,9 @@ interface DesktopAPI {
   SaveSettings(raw: string): Promise<void>
   RevealInFinder(tabID: string, path: string): Promise<void>
   OpenFileMenu(path: string, x: number, y: number, viewed: boolean): Promise<void>
+  AppendDebugEvent(raw: string): Promise<void>
+  DebugLog(): Promise<string>
+  ClearDebugLog(): Promise<void>
 }
 declare global {
   interface Window {
@@ -103,6 +108,40 @@ export default function DesktopApp() {
   const viewedStores = useRef(new Map<string, ViewedPersistence>())
   const viewHandle = useRef<SavedViewHandle>(null)
   useEffect(() => {
+    debugLog.configure(settings?.debugLogging ?? false)
+    if (!settings?.debugLogging) return
+    const stopActions = startDebugActions('review')
+    const navigation = performance.getEntriesByType('navigation')[0] as
+      | PerformanceNavigationTiming
+      | undefined
+    debugLog.record('window.ready', { navigation: navigation?.type, window: 'review' })
+    const hidden = () => debugLog.record('window.visibility', { state: document.visibilityState })
+    const leaving = (event: PageTransitionEvent) =>
+      debugLog.record('window.pagehide', { persisted: event.persisted })
+    const failed = (event: ErrorEvent) =>
+      debugLog.record('window.error', {
+        name: event.error?.name,
+        file: event.filename.split('/').at(-1),
+        line: event.lineno,
+        column: event.colno,
+      })
+    const rejected = (event: PromiseRejectionEvent) =>
+      debugLog.record('window.rejection', {
+        name: event.reason instanceof Error ? event.reason.name : typeof event.reason,
+      })
+    document.addEventListener('visibilitychange', hidden)
+    window.addEventListener('pagehide', leaving)
+    window.addEventListener('error', failed)
+    window.addEventListener('unhandledrejection', rejected)
+    return () => {
+      stopActions()
+      document.removeEventListener('visibilitychange', hidden)
+      window.removeEventListener('pagehide', leaving)
+      window.removeEventListener('error', failed)
+      window.removeEventListener('unhandledrejection', rejected)
+    }
+  }, [settings?.debugLogging])
+  useEffect(() => {
     const api = window.go?.main.desktopApp
     const runtime = window.runtime
     if (!api || !runtime) {
@@ -119,12 +158,20 @@ export default function DesktopApp() {
       )
         return
       const view = viewHandle.current.capture()
+      debugLog.record('view.saved', {
+        tab: id,
+        path: view.activePath,
+        scroll: view.scrollTop,
+        composer: view.composer?.key,
+      })
       views.current.set(id, view)
       await api.SaveTabView(id, JSON.stringify(view))
     }
     const update = (next: Tabs) => {
       if (disposed || next.revision < latest.current.revision) return
       const previous = latest.current
+      if (previous.active !== next.active)
+        debugLog.record('tab.changed', { previous: previous.active, next: next.active })
       if (
         previous.active &&
         previous.active !== next.active &&
@@ -173,6 +220,7 @@ export default function DesktopApp() {
     apply(api.Tabs())
     const reload = () => {
       void save()
+        .then(() => debugLog.flush())
         .then(() => location.reload())
         .catch((cause) => setError(String(cause)))
     }
@@ -189,6 +237,7 @@ export default function DesktopApp() {
     // The window's menu commands; App takes the review's from the same event.
     const runCommand = (event: Event) => {
       const command = commandOf(event)
+      debugLog.record('command', { command })
       if (command === 'reload') reload()
       else if (command === 'close-tab') closeActive()
       else if (command === 'shortcuts') setShortcutsOpen(true)
