@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0
+
+### ✨ Features
+
+- Update Diffdesk from the app: a bottom banner offers new stable releases without interrupting the review. Choose **Later** to keep working, or **Update…**, then **Update and Restart**, to install through Homebrew or mise and reopen the active comparison. **Diffdesk → Check for Updates…** checks on demand; progress and retryable errors stay in the banner. Save drafts before restarting. ([#276](https://github.com/vmaerten/diffdesk/pull/276))
+- Read the proposed release’s changelog under **What’s new in…** before confirming an update, with headings, lists, code and links. The notes and update status stay available after reloading the review. ([#276](https://github.com/vmaerten/diffdesk/pull/276))
+
+### 🔧 Internal
+
+- Accept renamed repository asset URLs when validating published releases through mise. ([#275](https://github.com/vmaerten/diffdesk/pull/275))
+
 ## 0.6.0
 
 ### ✨ Features

@@ -198,10 +198,11 @@ func (installation updateInstallation) install(ctx context.Context, offered stri
 			return "", err
 		}
 	case "mise":
-		// A named latest request keeps following stable releases. --global
-		// avoids changing project pins, and --no-prune keeps the running bundle.
-		// https://mise.jdx.dev/cli/upgrade.html
-		if _, err := run(ctx, installation.command, "upgrade", "--global", "--bump", "--no-prune", "--minimum-release-age", "0", "--yes", "github:vmaerten/ghl@latest"); err != nil {
+		// use --global works with the pinned mise 2026.10.2 acceptance CLI;
+		// upgrade --global requires a newer mise. use keeps the running install,
+		// and --fuzzy saves latest even when the user enables version pinning.
+		// https://mise.jdx.dev/cli/use.html
+		if _, err := run(ctx, installation.command, "use", "--global", "--fuzzy", "--minimum-release-age", "0s", "--yes", "github:vmaerten/ghl@latest"); err != nil {
 			return "", err
 		}
 		raw, err := run(ctx, installation.command, "where", "github:vmaerten/ghl@latest")
