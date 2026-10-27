@@ -17,6 +17,10 @@ const methods = [
   'AppendDebugEvent',
   'DebugLog',
   'ClearDebugLog',
+  'UpdateStatus',
+  'CheckForUpdates',
+  'DismissUpdate',
+  'InstallUpdate',
 ]
 window.go = {
   main: {

@@ -161,6 +161,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	updateContext, cancelUpdates := context.WithCancel(context.Background())
+	defer cancelUpdates()
+	updater := &nativeUpdater{desktop: desktop, ctx: updateContext}
+	desktop.updater = updater
 	native := application.New(application.Options{
 		Name:     "Diffdesk",
 		Assets:   application.AssetOptions{Handler: handler, DisableLogging: true},
@@ -169,6 +173,7 @@ func run() error {
 		// Stop taking reviews first: a launcher that finds no app starts a new one,
 		// instead of getting a receipt for a review this app will never open.
 		OnShutdown: func() {
+			cancelUpdates()
 			owner.close()
 			backend.close()
 		},
@@ -189,7 +194,10 @@ func run() error {
 	desktop.startup(native, window)
 	desktop.addFileMenu(native, window)
 	window.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
-		desktop.ready.Do(func() { go desktop.process(context.Background()) })
+		desktop.ready.Do(func() {
+			go desktop.process(context.Background())
+			updater.check(false)
+		})
 	})
 	// Closing the review quits the app, so Settings must not keep it running.
 	window.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) { desktop.closeSettings() })
@@ -212,6 +220,7 @@ func run() error {
 	// is the UnHide role, which has no selector; ShowAll has one.
 	diffdeskMenu := appMenu.AddSubmenu("Diffdesk")
 	diffdeskMenu.AddRole(application.About)
+	updater.menu = diffdeskMenu.Add("Check for Updates…").OnClick(func(*application.Context) { updater.check(true) })
 	diffdeskMenu.AddSeparator()
 	item(diffdeskMenu, "Settings…", "CmdOrCtrl+,", func(*application.Context) { desktop.openSettings() })
 	diffdeskMenu.AddSeparator()

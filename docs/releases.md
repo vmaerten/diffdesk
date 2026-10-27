@@ -67,7 +67,7 @@ task release:mise:published VERSION=0.3.0 PREVIOUS=0.2.0
 brew install --cask vmaerten/tap/diffdesk
 ```
 
-There is no paid signing, notarisation or automatic update. Go, Node, pnpm, Task and GoReleaser stay pinned in `.mise.toml`, with download checksums in `mise.lock`.
+There is no paid signing or notarisation. Stable builds offer in-app updates through the Homebrew or mise installation that owns their bundle; see [installation](../site/src/content/docs/guide/installation.md#after-installing-upgrading-or-rolling-back). The updater reads the latest stable GitHub release and requires its Apple Silicon ZIP asset before offering it. If publication succeeds before the tap is updated, the updater verifies the installed version and keeps the app running until the cask catches up. Go, Node, pnpm, Task and GoReleaser stay pinned in `.mise.toml`, with download checksums in `mise.lock`.
 
 ## mise acceptance
 
