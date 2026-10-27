@@ -550,8 +550,8 @@ function IntelligencePane({ settings, onChange }: PaneProps) {
               Use language servers <span className="beta-badge">Beta</span>
             </span>
             <small>
-              Hold ⌘ over a symbol for its type, ⌘-click for its definition, in working-tree
-              reviews. The servers run on the reviewed code, as your editor would.
+              Hold ⌘ over a symbol for its type, ⌘-click for its definition, on any branch or
+              commit. The servers run on the reviewed code, as your editor would.
             </small>
           </span>
           <input

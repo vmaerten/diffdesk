@@ -1,4 +1,5 @@
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 
 import type { Page } from 'puppeteer-core'
@@ -208,17 +209,18 @@ export default {
     await load('?target=feature')
     const revision = await poll(footer, (state) => state.text !== '')
     check(
-      'a revision review says code intelligence needs the working tree',
-      revision.text === 'Code intelligence: working tree only',
+      'a revision review offers code intelligence in an isolated copy',
+      revision.text.includes('Revision copy') && revision.servers.length > 0,
       JSON.stringify(revision),
     )
     const revisionDiagnostic = await diagnostics()
     check(
-      'diagnostics explain that selecting a branch does not check it out',
+      'diagnostics identify the isolated revision without changing the checkout',
       revisionDiagnostic.includes('Checkoutmain') &&
         revisionDiagnostic.includes('Targetfeature') &&
         revisionDiagnostic.includes('Working treeExcluded') &&
-        revisionDiagnostic.includes('does not check it out'),
+        revisionDiagnostic.includes('Isolated revision') &&
+        revisionDiagnostic.includes('diffdesk-intelligence-'),
       revisionDiagnostic,
     )
     await page.keyboard.press('Escape')
@@ -550,6 +552,61 @@ export default {
       'turning the Symbol panel off removes References and the tabs',
       offered.join() === 'Go to definition ⌘ click' && (await page.$('.panel-tabs')) === null,
       JSON.stringify(offered),
+    )
+
+    const firstCommit = execFileSync('git', ['rev-list', '--reverse', 'main..feature'], {
+      cwd: repoPath,
+      encoding: 'utf8',
+    })
+      .trim()
+      .split('\n')[0]!
+    const checkoutText = readFileSync(join(repoPath, 'src/index.ts'), 'utf8')
+    for (const scope of [
+      { query: '?target=feature', path: 'src/core/cache.ts', line: 30, name: 'cache_29' },
+      { query: '?target=other', path: 'src/index.ts', line: 33, name: 'index_32' },
+      {
+        query: `?target=feature&commit=${firstCommit}`,
+        path: 'src/core/engine.ts',
+        line: 70,
+        name: 'engine_69',
+      },
+    ]) {
+      await load(scope.query)
+      await clickTreeRow(page, scope.path)
+      await sleep(SCROLL_SETTLE)
+      const at = await poll(() => token(scope.path, scope.line, scope.name), Boolean)
+      check(`revision ${scope.query} shows its symbol`, at !== null)
+      if (!at) continue
+      const request = page.waitForRequest((candidate) =>
+        candidate.url().includes('/api/lsp/symbol?'),
+      )
+      await page.keyboard.down('Meta')
+      await page.mouse.move(at.x, at.y)
+      const found = await poll(card, (state) => state?.signature === `const ${scope.name}: number`)
+      const sent = new URL((await request).url())
+      const comparison = await page.evaluate(
+        async () =>
+          (await (await fetch(location.pathname + '/api/diff' + location.search)).json())
+            .comparison,
+      )
+      check(
+        `IntelliSense answers on ${scope.query}`,
+        found?.signature === `const ${scope.name}: number` && found.meta.includes(scope.path),
+        JSON.stringify(found),
+      )
+      check(
+        'the lookup is pinned to the displayed commit',
+        sent.searchParams.get('revision') === comparison.after,
+      )
+      await page.keyboard.up('Meta')
+      await page.keyboard.press('Escape')
+    }
+    check(
+      'switching analysis revisions leaves the actual checkout and its edits intact',
+      execFileSync('git', ['branch', '--show-current'], {
+        cwd: repoPath,
+        encoding: 'utf8',
+      }).trim() === 'main' && readFileSync(join(repoPath, 'src/index.ts'), 'utf8') === checkoutText,
     )
 
     // The server's 409 is the answer under test; Chrome logs any 4xx as a console error.

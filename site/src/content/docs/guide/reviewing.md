@@ -62,7 +62,9 @@ Stack metadata is read from `.git/gh-stack`, including worktree-specific metadat
 
 **Settings › Intelligence** turns on answers from the language servers installed on your Mac. Hold `Cmd` over a symbol for its type and documentation, and `Cmd`-click it to go to its definition: the diff scrolls to the definition when it shows those lines, and `Cmd+[` comes back; otherwise the card shows the definition's code. Nothing happens without `Cmd`.
 
-Only working-tree reviews are answered, on added and unchanged lines: a server reads the files on disk, and those are the only lines numbered as on disk. Deleted lines and revision reviews stay plain, and the status bar says so. A file changed since the review loaded asks for a refresh (`r`).
+Added and unchanged lines work in working-tree, branch and commit reviews. For a committed revision, Diffdesk automatically prepares an isolated copy of the exact commit displayed, so choosing another branch leaves your current checkout and its edits intact. Copies are reused for the session and removed when the app stops. Deleted lines stay plain. A working-tree file changed since the review loaded asks for a refresh (`r`).
+
+Diffdesk reuses language-server executables installed in your checkout or on PATH. It does not install project dependencies in the isolated copy, so external imports may be unresolved. **Check IntelliSense Status…** in the command palette shows the analyzed revision, the copy's location and each server's state.
 
 **References** on the card opens a **Symbol** tab beside **Comments**: the symbol's definition and signature, then its references in the repository by file, in the tree's order. A reference the diff shows is marked `in diff` and opens there; the others show their line. **In this diff only** hides the rest. Settings › Intelligence › **Symbol panel** turns the tab and the action off.
 
