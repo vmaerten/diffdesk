@@ -90,7 +90,11 @@ export default {
       const bar = document.querySelector('.review-footer')!.getBoundingClientRect()
       return popover.height > 0 && popover.top >= 0 && popover.bottom <= bar.top
         ? true
-        : JSON.stringify({ popover, bar, button: document.querySelector('.footer-pr')!.getBoundingClientRect() })
+        : JSON.stringify({
+            popover,
+            bar,
+            button: document.querySelector('.footer-pr')!.getBoundingClientRect(),
+          })
     })
     check('  and its popover opens above it, uncut', above === true, String(above))
     await page.keyboard.press('Escape')

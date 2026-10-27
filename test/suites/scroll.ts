@@ -28,7 +28,10 @@ export default {
       // The files that scrolled out leave the viewport at once; wait for the
       // window to mount the ones that scrolled in.
       await frames(page)
-      return poll(() => page.evaluate(ON_SCREEN) as Promise<string[]>, (names) => names.length > 0)
+      return poll(
+        () => page.evaluate(ON_SCREEN) as Promise<string[]>,
+        (names) => names.length > 0,
+      )
     }
 
     const top = await at(0)

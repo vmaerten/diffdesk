@@ -1,16 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
-### Features
+### ✨ Features
 
-- Enable **Debug logging** in Settings, under Window, to record clicks, mouse buttons, keyboard actions, comments, navigation and scrolling in a local file across reloads and restarts. Every event is kept until you clear the logs from the same pane, which also copies them with the app and WebView versions. Typed text, clipboard contents and source code are excluded.
+- Enable **Debug logging** in Settings, under Window, to record clicks, mouse buttons, keyboard actions, comments, navigation and scrolling in a local file across reloads and restarts. Every event is kept until you clear the logs from the same pane, which also copies them with the app and WebView versions. Typed text, clipboard contents and source code are excluded. ([#272](https://github.com/vmaerten/diffdesk/pull/272))
 - Start a diff search with the selected source text when pressing `Cmd+F`, and replace an open search with a new selection. ([#270](https://github.com/vmaerten/diffdesk/pull/270))
-- Check why code intelligence is unavailable with **Check IntelliSense Status…** in the command palette (`Cmd+K`): see the checkout and target, whether the working tree is included, and each language server's state, path, errors and installation command. The diagnostic explains that choosing a target branch does not check it out.
+- Check why code intelligence is unavailable with **Check IntelliSense Status…** in the command palette (`Cmd+K`): see the checkout and target, whether the working tree is included, and each language server's state, path, errors and installation command. The diagnostic explains that choosing a target branch does not check it out. ([#271](https://github.com/vmaerten/diffdesk/pull/271))
 
-### Fixes
+### 🐛 Fixes
 
 - Hide Git status dots on folders in the file tree, keeping status indicators on individual files. ([#269](https://github.com/vmaerten/diffdesk/pull/269))
+- Keep truncated file and folder names legible in the translucent sidebar, instead of drawing the ellipsis over the remaining letters. ([#273](https://github.com/vmaerten/diffdesk/pull/273))
+- Point the comparison arrow from the reviewed target toward its base, matching the direction of the merge. ([#268](https://github.com/vmaerten/diffdesk/pull/268))
+
+### 📚 Documentation
+
+- Explain how to trust the renamed Diffdesk cask before upgrading a Homebrew installation from ghl. ([#266](https://github.com/vmaerten/diffdesk/pull/266))
 
 ## 0.5.0
 
