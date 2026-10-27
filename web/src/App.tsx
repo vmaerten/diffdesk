@@ -137,7 +137,11 @@ export default function App({
   // until the next refresh starts: a failed refresh leaves it on screen.
   const shownRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [languageStatus, refreshLanguages] = useLanguageStatus(repoId, languageRevision)
+  const [languageStatus, refreshLanguages] = useLanguageStatus(
+    repoId,
+    languageRevision,
+    data?.comparison.after,
+  )
   // A refreshed review may find a server stopped, or started, meanwhile.
   const shownLoad = data?.loadId
   useEffect(() => {
@@ -167,6 +171,9 @@ export default function App({
   const symbolTab = languageRevision !== null && symbolPanel
   const [panelTab, setPanelTab] = useState<PanelTab>('comments')
   const [symbolTarget, setSymbolTarget] = useState<SymbolTarget | null>(null)
+  useEffect(() => {
+    setSymbolTarget(null)
+  }, [data?.comparison.after])
   /** The toolbar's Comments button: shows the comments, or hides the panel showing them. */
   const toggleComments = () => {
     setPanelTab('comments')
@@ -351,9 +358,10 @@ export default function App({
   )
   const symbols = useSymbolCard({
     repoId,
-    enabled: languageRevision !== null && data?.target.workingTree === true,
+    enabled: languageRevision !== null && data !== null,
     languages: languageStatus?.languages ?? NO_LANGUAGES,
     loadId: data?.loadId,
+    revision: data?.comparison.after ?? undefined,
     canReveal: canRevealDefinition,
     reveal: revealDefinition,
     onAnswer: refreshLanguages,

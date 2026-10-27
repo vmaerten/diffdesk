@@ -52,6 +52,7 @@ const BUSY = new Set<LanguageStatus['state']>(['starting', 'indexing'])
 export function useLanguageStatus(
   repoId: string | null,
   revision: number | null,
+  snapshot?: string | null,
 ): [LanguageServersStatus | null, () => void, string | null] {
   const [status, setStatus] = useState<LanguageServersStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -59,6 +60,9 @@ export function useLanguageStatus(
   const active = repoId !== null && revision !== null
   const refresh = useCallback(() => setAsked((count) => count + 1), [])
   const latest = useRef(0)
+  useEffect(() => {
+    setStatus(null)
+  }, [repoId, snapshot])
   useEffect(() => {
     if (!active) {
       setStatus(null)
@@ -70,7 +74,8 @@ export function useLanguageStatus(
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     const load = async () => {
-      const response = await fetch(`/r/${repoId}/api/lsp`, { signal: controller.signal })
+      const suffix = snapshot ? `?${new URLSearchParams({ revision: snapshot })}` : ''
+      const response = await fetch(`/r/${repoId}/api/lsp${suffix}`, { signal: controller.signal })
       if (!response.ok) throw await failure(response)
       const next = (await response.json()) as LanguageServersStatus
       if (request !== latest.current) return
@@ -87,7 +92,7 @@ export function useLanguageStatus(
       controller.abort()
       if (timer) clearTimeout(timer)
     }
-  }, [active, repoId, revision, asked, refresh])
+  }, [active, repoId, revision, snapshot, asked, refresh])
   return [status, refresh, error]
 }
 
@@ -164,6 +169,7 @@ async function ask<T>(
     character: String(query.character),
     token: query.token,
   })
+  if (query.revision) params.set('revision', query.revision)
   const response = await fetch(`/r/${repoId}/api/lsp/${route}?${params}`, { signal })
   if (response.status === 409) throw new StaleSymbolError((await failure(response)).message)
   if (!response.ok) throw await failure(response)
