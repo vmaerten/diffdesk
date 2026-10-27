@@ -1,4 +1,4 @@
-import { frames, poll, TREE_ROWS, type Suite } from '../harness.ts'
+import { clickTreeRow, frames, poll, TREE_ROWS, type Suite } from '../harness.ts'
 
 const MIN = 180
 const DEFAULT = 272
@@ -67,6 +67,74 @@ export default {
       (await widths()).sidebar === MIN,
       `${(await widths()).sidebar}px`,
     )
+
+    // A translucent sidebar cannot mask clipped letters with a transparent
+    // ellipsis overlay. Exercise both filenames and flattened directory names.
+    const clippedNames = () =>
+      page.evaluate(() => {
+        const root = document.querySelector('file-tree-container')!.shadowRoot!
+        return [...root.querySelectorAll('[data-item-section="content"]')].flatMap((content) => {
+          const clipped = [
+            ...content.querySelectorAll<HTMLElement>('[data-truncate-content="visible"]'),
+          ].filter((label) => label.scrollWidth > label.clientWidth)
+          if (clipped.length === 0) return []
+          const overlays = [...content.querySelectorAll('[data-truncate-marker]')].filter(
+            (marker) => {
+              const style = getComputedStyle(marker)
+              return style.display !== 'none' && Number(style.opacity) > 0
+            },
+          )
+          const row = content.closest('[role="treeitem"]')!
+          return [
+            {
+              kind: row.getAttribute('data-item-type'),
+              path: row.getAttribute('data-item-path'),
+              legible:
+                overlays.length === 0 &&
+                clipped.every((label) => {
+                  const style = getComputedStyle(label)
+                  return style.overflowX === 'hidden' && style.textOverflow === 'ellipsis'
+                }),
+            },
+          ]
+        })
+      })
+
+    for (const mode of ['light', 'dark'] as const) {
+      await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: mode }])
+      await page.waitForFunction(
+        (wanted) => document.documentElement.dataset.colorMode === wanted,
+        {},
+        mode,
+      )
+      await page.mouse.move(1000, 500)
+      await frames(page)
+      const names = await clippedNames()
+      check(
+        `${mode}: narrow rows truncate files and flattened directories without overlapping letters`,
+        names.some((row) => row.kind === 'file') &&
+          names.some((row) => row.kind === 'folder') &&
+          names.every((row) => row.legible),
+        names
+          .filter((row) => !row.legible)
+          .map((row) => row.path)
+          .join(', '),
+      )
+
+      const path = 'src/core/engine_pool.ts'
+      check(`${mode}: the truncated file can be selected`, await clickTreeRow(page, path))
+      const point = await page.evaluate((selectedPath) => {
+        const row = document
+          .querySelector('file-tree-container')!
+          .shadowRoot!.querySelector(`[data-item-path="${selectedPath}"]`)!
+        const box = row.getBoundingClientRect()
+        return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+      }, path)
+      await page.mouse.move(point.x, point.y)
+      await frames(page)
+      const selected = (await clippedNames()).find((row) => row.path === path)
+      check(`${mode}: selection and hover keep truncated text legible`, selected?.legible === true)
+    }
 
     await drag(2000)
     const maxed = await widths()
