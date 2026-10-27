@@ -166,7 +166,7 @@ func TestInstallUpdateVerifiesVersionBeforeRestart(t *testing.T) {
 				if manager == "Homebrew" {
 					expected = [][]string{{"manager", "update"}, {"manager", "upgrade", "--cask", "vmaerten/tap/diffdesk"}}
 				} else {
-					expected = [][]string{{"manager", "upgrade", "--global", "--bump", "--no-prune", "--minimum-release-age", "0", "--yes", "github:vmaerten/ghl@latest"}, {"manager", "where", "github:vmaerten/ghl@latest"}}
+					expected = [][]string{{"manager", "use", "--global", "--fuzzy", "--minimum-release-age", "0s", "--yes", "github:vmaerten/ghl@latest"}, {"manager", "where", "github:vmaerten/ghl@latest"}}
 				}
 				expected = append(expected, []string{want + "/Contents/MacOS/diffdesk", "--version", "--json"})
 				if !reflect.DeepEqual(calls, expected) {
@@ -192,6 +192,29 @@ func TestInstallUpdateStopsOnManagerFailure(t *testing.T) {
 		if _, err := (updateInstallation{manager, "manager", "/app"}).install(context.Background(), "0.7.0; touch /tmp/no", run); err == nil || calls != 0 {
 			t.Fatal("invalid version reached the package manager")
 		}
+	}
+}
+
+func TestMiseUpdaterCommandAcceptsPinnedCLI(t *testing.T) {
+	mise := os.Getenv("GHL_TEST_MISE")
+	if mise == "" {
+		t.Skip("set GHL_TEST_MISE to the pinned release-acceptance mise binary")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	run := func(ctx context.Context, executable string, args ...string) ([]byte, error) {
+		if executable == mise {
+			if args[0] == "where" {
+				return []byte("/fixture\n"), nil
+			}
+			// Exercise the real CLI parser, without installing anything or changing
+			// the user's mise configuration. Lookup and version verification are fixtures.
+			return runUpdateCommand(ctx, executable, append(args, "--help")...)
+		}
+		return []byte(`{"version":"0.7.0"}`), nil
+	}
+	if _, err := (updateInstallation{"mise", mise, "/fixture/Diffdesk.app"}).install(ctx, "0.7.0", run); err != nil {
+		t.Fatalf("the updater command is incompatible with the acceptance CLI: %v", err)
 	}
 }
 
