@@ -146,9 +146,38 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		_, _ = w.Write(data)
 	case route == "lsp" && r.Method == "GET" && s.lsp != nil:
-		reply(w, 200, s.lsp.status(s.repo.Path, s.chartTemplates(r.Context())))
+		revision := r.URL.Query().Get("revision")
+		if revision != "" && !objectIDRE.MatchString(revision) {
+			fail(w, 400, fmt.Errorf("Expected a full commit ID"))
+			return
+		}
+		scope := s
+		s.lsp.mu.Lock()
+		enabled := s.lsp.config.Enabled
+		s.lsp.mu.Unlock()
+		if revision != "" && enabled {
+			scope, err = s.intelligenceScope(r.Context(), revision)
+			if err != nil {
+				fail(w, 422, err)
+				return
+			}
+		}
+		status := s.lsp.status(scope.repo.Path, scope.chartTemplates(r.Context()))
+		status.Workspace = &intelligenceWorkspace{Kind: "working-tree", Path: s.repo.Path}
+		if revision != "" {
+			status.Workspace = &intelligenceWorkspace{Kind: "revision", Revision: revision}
+			if enabled {
+				status.Workspace.Path = scope.repo.Path
+			}
+		}
+		reply(w, 200, status)
 	case (route == "lsp/symbol" || route == "lsp/references") && r.Method == "GET" && s.lsp != nil:
 		q := r.URL.Query()
+		revision := q.Get("revision")
+		if revision != "" && !objectIDRE.MatchString(revision) {
+			fail(w, 400, fmt.Errorf("Expected a full commit ID"))
+			return
+		}
 		line, lineErr := strconv.Atoi(q.Get("line"))
 		character, characterErr := strconv.Atoi(q.Get("character"))
 		query := symbolQuery{Path: q.Get("path"), Line: line, Character: character, Token: q.Get("token")}
@@ -158,11 +187,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), lspQueryTimeout)
 		defer cancel()
+		scope, err := s.intelligenceScope(ctx, revision)
+		if err != nil {
+			fail(w, 422, err)
+			return
+		}
 		var answer any
 		if route == "lsp/symbol" {
-			answer, err = s.symbol(ctx, query)
+			answer, err = scope.symbol(ctx, query)
 		} else {
-			answer, err = s.references(ctx, query)
+			answer, err = scope.references(ctx, query)
 		}
 		if err != nil {
 			status := 422

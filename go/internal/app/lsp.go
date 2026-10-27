@@ -253,11 +253,14 @@ func (c *languageClient) recentFailure(retry time.Duration) error {
 // languageServers starts, shares and stops the language servers of every
 // repository the runtime serves.
 type languageServers struct {
-	mu      sync.Mutex
-	config  lspConfig
-	clients map[clientKey]*languageClient
-	envs    map[string]*environmentEntry
-	closed  bool
+	mu          sync.Mutex
+	config      lspConfig
+	clients     map[clientKey]*languageClient
+	envs        map[string]*environmentEntry
+	closed      bool
+	workspaceMu sync.Mutex
+	workspaces  map[string]revisionWorkspace
+	origins     map[string]string
 
 	languages []language
 	// The environment servers run in; the login shell's unless a test replaces it.
@@ -275,6 +278,7 @@ type environmentEntry struct {
 func newLanguageServers() *languageServers {
 	return &languageServers{
 		clients: map[clientKey]*languageClient{}, envs: map[string]*environmentEntry{},
+		workspaces: map[string]revisionWorkspace{}, origins: map[string]string{},
 		languages: defaultLanguages(), environment: serverEnvironment,
 		idle: 10 * time.Minute, retry: 30 * time.Second,
 	}
@@ -283,6 +287,7 @@ func newLanguageServers() *languageServers {
 // env is resolved once a minute at most: the login shell takes half a second,
 // and a server installed meanwhile shows up at the next look.
 func (m *languageServers) env(root string) []string {
+	root = m.origin(root)
 	m.mu.Lock()
 	entry := m.envs[root]
 	if entry == nil {
@@ -350,6 +355,7 @@ func (m *languageServers) close() {
 	}
 	m.mu.Unlock()
 	stopClients(stopping)
+	m.closeWorkspaces()
 }
 
 func stopClients(clients []*languageClient) {
@@ -456,7 +462,7 @@ func (m *languageServers) start(client *languageClient, root string, l language,
 		close(client.ready)
 	}
 	env := m.env(root)
-	server := l.find(root, env, choice)
+	server := m.findServer(root, l, env, choice)
 	if server == nil {
 		abandon(fmt.Errorf("No %s language server found: %s", l.Label, l.Install))
 		return
@@ -689,8 +695,9 @@ type languageStatus struct {
 }
 
 type lspStatus struct {
-	Enabled   bool             `json:"enabled"`
-	Languages []languageStatus `json:"languages"`
+	Enabled   bool                   `json:"enabled"`
+	Languages []languageStatus       `json:"languages"`
+	Workspace *intelligenceWorkspace `json:"workspace,omitempty"`
 }
 
 // status says, for each language, which server root would use and what it is doing.
@@ -711,7 +718,7 @@ func (m *languageServers) status(root string, templates []string) lspStatus {
 		if l.Templates {
 			entry.Directories = templates
 		}
-		entry.Server = l.find(root, env, entry.Choice)
+		entry.Server = m.findServer(root, l, env, entry.Choice)
 		switch client := clients[l.ID]; {
 		case entry.Choice == "off":
 			entry.State = "off"

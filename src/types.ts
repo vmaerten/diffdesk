@@ -271,10 +271,13 @@ export interface LanguageStatus {
 export interface LanguageServersStatus {
   enabled: boolean
   languages: LanguageStatus[]
+  workspace?: { kind: 'working-tree' | 'revision'; revision?: string; path?: string }
 }
 
 /** A token the diff shows, as the code intelligence routes take it. */
 export interface SymbolQuery {
+  /** Exact new-side commit; omitted when querying the working tree. */
+  revision?: string
   path: string
   /** From 1, as the diff counts lines. */
   line: number

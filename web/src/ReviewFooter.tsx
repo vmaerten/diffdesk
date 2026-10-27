@@ -49,11 +49,13 @@ export default function ReviewFooter({
       {status.map((item) => (
         <span key={item as string}>{item}</span>
       ))}
-      {languages && data && !data.target.workingTree && (
-        <span className="code-intelligence-status">Code intelligence: working tree only</span>
-      )}
-      {languages && data?.target.workingTree && languages.length > 0 && (
+      {languages && data && languages.length > 0 && (
         <span className="code-intelligence-status">
+          {!data.target.workingTree && (
+            <span title="Analyzing an isolated copy of the displayed revision">
+              Revision copy ·{' '}
+            </span>
+          )}
           {languages.map((language) => (
             <span
               key={language.id}
