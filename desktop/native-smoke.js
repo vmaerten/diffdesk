@@ -62,7 +62,7 @@
       const data = await diff()
       const health = await (await fetch('/api/health')).json()
       const name = data.repo.path.split('/').at(-1)
-      if (name === 'first') {
+      if (name === 'first' && health.repos.length === 1) {
         const { Window } = await import('/wails/runtime.js')
         const fillsScreen = async () => {
           const size = await Window.Size()
