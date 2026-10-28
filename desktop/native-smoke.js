@@ -62,6 +62,27 @@
       const data = await diff()
       const health = await (await fetch('/api/health')).json()
       const name = data.repo.path.split('/').at(-1)
+      if (name === 'first') {
+        const { Window } = await import('/wails/runtime.js')
+        const fillsScreen = async () => {
+          const size = await Window.Size()
+          return (
+            (await Window.IsMaximised()) &&
+            Math.abs(size.width - screen.availWidth) <= 4 &&
+            Math.abs(size.height - screen.availHeight) <= 4
+          )
+        }
+        if (!data.comments.some((c) => c.body === 'persistent desktop fixture')) {
+          await wait(fillsScreen, 'Window did not start maximised')
+        }
+        // Keep the scrolling fixture's viewport fixed across screen sizes,
+        // including when the persisted review returns after a restart.
+        await Window.UnMaximise()
+        await wait(async () => {
+          const size = await Window.Size()
+          return Math.abs(size.width - 1280) <= 4 && Math.abs(size.height - 800) <= 4
+        }, 'Unmaximising did not restore the default window size')
+      }
       const minimized = await window.runtime.WindowIsMinimised()
       const baseReport = {
         tabs: tabState.tabs.length,
