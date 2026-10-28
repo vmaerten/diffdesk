@@ -1,17 +1,19 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 
-/** A macOS sheet: a modal dialog over the window, closed by Escape or Done. */
+/** A macOS sheet: a modal dialog over the window, closed by Escape or Done. `actions` sit before Done. */
 export default function DesktopSheet({
   open,
   title,
   className,
   onClose,
+  actions,
   children,
 }: {
   open: boolean
   title: string
   className: string
   onClose: () => void
+  actions?: ReactNode
   children: ReactNode
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
@@ -31,6 +33,7 @@ export default function DesktopSheet({
       <h2 id={titleId}>{title}</h2>
       <div className="desktop-sheet-body">{children}</div>
       <footer>
+        {actions}
         <button type="button" className="button primary" onClick={onClose}>
           Done
         </button>

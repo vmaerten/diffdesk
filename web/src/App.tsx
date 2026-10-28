@@ -763,7 +763,6 @@ export default function App({
           activePath={activePath ?? null}
           enabled={codeIntelligenceEnabled}
           settingsApplied={languageRevision !== null}
-          symbolPanel={symbolPanel}
           onClose={() => setCheckingIntelligence(false)}
         />
       )}

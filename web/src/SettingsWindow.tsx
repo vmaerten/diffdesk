@@ -197,6 +197,16 @@ export default function SettingsWindow() {
   useEffect(() => {
     if (settings && changed.current) save(JSON.stringify(settings))
   }, [settings, save])
+  // Another window changes them too, as IntelliSense's Turn On does: follow it
+  // without saving it back, or the next change here would undo it.
+  useEffect(
+    () =>
+      window.runtime?.EventsOn<string>('desktop:settings', (raw) => {
+        changed.current = false
+        setSettings(readSettings(raw))
+      }),
+    [],
+  )
   useEffect(() => {
     debugLog.configure(settings?.debugLogging ?? false)
     if (settings?.debugLogging) return startDebugActions('settings')
