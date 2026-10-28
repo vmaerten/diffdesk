@@ -39,6 +39,9 @@ export type WindowCommand =
   | 'sidebar'
   | 'open-repository'
   | 'settings'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'zoom-reset'
 
 export type CommandName = ReviewCommand | WindowCommand
 
@@ -61,6 +64,9 @@ export const COMMANDS: CommandEntry[] = [
   { name: 'close-tab', label: 'Close Review', group: 'File', keys: '⌘W' },
   { name: 'sidebar', label: 'Toggle Sidebar', group: 'View', keys: '⌃⌘S' },
   { name: 'reload', label: 'Reload', group: 'View', keys: '⌘R' },
+  { name: 'zoom-in', label: 'Zoom In', group: 'View', keys: '⌘+' },
+  { name: 'zoom-out', label: 'Zoom Out', group: 'View', keys: '⌘−' },
+  { name: 'zoom-reset', label: 'Actual Size', group: 'View', keys: '⌘0' },
   { name: 'unified', label: 'Unified', group: 'View', keys: '⌘1' },
   { name: 'split', label: 'Split', group: 'View', keys: '⌘2' },
   { name: 'working-tree', label: 'Include Working Tree', group: 'View' },

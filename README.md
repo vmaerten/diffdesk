@@ -65,6 +65,8 @@ See the [reviewing guide](https://diffdesk.vmaerten.fr/guide/reviewing/) for com
 | `Cmd+K` | Command palette |
 | `Cmd+P` | Go to a file |
 | `Cmd+f` | Search the diff |
+| `Cmd+-` / `Cmd++` | Zoom the interface out / in |
+| `Cmd+0` | Actual size (100%) |
 | `Cmd` + hover / click | Symbol info / go to definition (beta, in Settings) |
 | `Cmd+[` | Back from a definition |
 | `Cmd+1` / `Cmd+2` | Unified / split diff |

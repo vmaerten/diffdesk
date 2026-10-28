@@ -67,6 +67,12 @@ body {
 }
 :root {
   --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --native-toolbar-height: 52px;
+  --titlebar-height: max(
+    var(--native-toolbar-height),
+    calc(var(--native-toolbar-height) / var(--ui-zoom, 1))
+  );
+  zoom: var(--ui-zoom, 1);
 }
 /* The --code-* values come from Settings, set on .desktop-shell. The review
    and the Settings preview share this card surface; the preview is not a
@@ -126,8 +132,8 @@ body,
   grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
   align-items: center;
   column-gap: 12px;
-  /* The unified toolbar height, where macOS centers the window buttons. */
-  height: 52px;
+  /* Keep room for the native window buttons when the page is zoomed out. */
+  height: var(--titlebar-height);
   padding: 0 12px;
   background: var(--chrome-bg);
   border-bottom: 1px solid var(--border);
@@ -138,7 +144,7 @@ body,
   gap: 4px;
   min-width: 0;
   /* Clear of the window buttons. */
-  padding-left: 72px;
+  padding-left: max(72px, calc(84px / var(--ui-zoom, 1) - 12px));
 }
 .desktop-titlebar :is(button, select) {
   --wails-draggable: no-drag;
@@ -360,7 +366,7 @@ body,
 .desktop-sheet {
   width: min(640px, calc(100vw - 48px));
   max-height: calc(100vh - 80px);
-  margin: 52px auto auto;
+  margin: var(--titlebar-height) auto auto;
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -1612,8 +1618,8 @@ button.stack-branch:focus-visible::after {
 
 /* The compact toolbar (Settings, Window): macOS centres the window buttons in
    38 px, so the title bar and its controls shrink with it. */
-:root[data-titlebar='compact'] .desktop-titlebar {
-  height: 38px;
+:root[data-titlebar='compact'] {
+  --native-toolbar-height: 38px;
 }
 :root[data-titlebar='compact'] :is(.titlebar-button, .titlebar-more) {
   height: 24px;
@@ -1623,9 +1629,6 @@ button.stack-branch:focus-visible::after {
 }
 :root[data-titlebar='compact'] :is(.desktop-tab, .segmented) {
   height: 24px;
-}
-:root[data-titlebar='compact'] .desktop-sheet {
-  margin-top: 38px;
 }
 :root[data-titlebar='compact'] .compare-capsule {
   height: 26px;
