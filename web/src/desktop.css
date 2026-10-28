@@ -1972,9 +1972,11 @@ button.stack-branch:focus-visible::after {
   pointer-events: none;
 }
 
-/* Updates ask in a sheet, since installing one restarts the app. */
-.update-sheet {
+/* Updates ask in a sheet, since installing one restarts the app. Centred: it
+   is about the app, not the review under the title bar. */
+.desktop-sheet.update-sheet {
   width: min(540px, calc(100vw - 48px));
+  margin: auto;
 }
 .update-sheet > * {
   flex-shrink: 0;
