@@ -180,9 +180,8 @@ func run() error {
 	})
 	window := native.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name: "review", Title: "Diffdesk", URL: "/", JS: string(probe),
-		Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
 		// Width and Height are the size the window's zoom button returns to.
-		StartState: application.WindowStateMaximised,
+		Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
 		// Translucent until the page paints: launch shows the system material in
 		// either appearance instead of a fixed colour.
 		BackgroundType: application.BackgroundTypeTranslucent,
@@ -195,6 +194,9 @@ func run() error {
 	desktop.addFileMenu(native, window)
 	window.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
 		desktop.ready.Do(func() {
+			// Wails centres the window after applying StartState, cancelling
+			// AppKit's zoom animation. Maximise once that setup has finished.
+			window.Maximise()
 			go desktop.process(context.Background())
 			updater.check(false)
 		})
