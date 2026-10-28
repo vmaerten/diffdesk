@@ -203,6 +203,13 @@ func run() error {
 	})
 	// Closing the review quits the app, so Settings must not keep it running.
 	window.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) { desktop.closeSettings() })
+	// Wails reloads the page after its renderer dies, which the new page cannot
+	// tell apart from a reload it asked for.
+	window.OnWindowEvent(events.Mac.WebViewWebContentProcessDidTerminate, func(*application.WindowEvent) {
+		if err := desktop.settings.recordNativeEvent("webview.terminated", map[string]any{"window": "review"}); err != nil {
+			fmt.Fprintln(os.Stderr, "diffdesk: debug log:", err)
+		}
+	})
 	// Every menu item reaches the page as one named command: the shell takes the
 	// window's, the mounted review the rest. Single-letter shortcuts stay in the
 	// page, since a key without a modifier would also capture typing. The command
