@@ -58,6 +58,7 @@ interface DesktopAPI {
   UpdateStatus(): Promise<UpdateSnapshot>
   CheckForUpdates(): Promise<void>
   DismissUpdate(): Promise<UpdateSnapshot>
+  SkipUpdate(): Promise<UpdateSnapshot>
   InstallUpdate(): Promise<UpdateSnapshot>
 }
 declare global {
