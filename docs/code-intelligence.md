@@ -82,6 +82,25 @@ Les lectures passent en `GET` : la règle de #188 vise les écritures, et le `PU
 
 Le serveur du checkout passe en premier : c'est la version que le projet a choisie. Exception : tsrs passe avant le `tsc` du checkout, parce qu'il répond plus vite et avec moins de mémoire (79 contre 115 ms au premier survol, 99 contre 159 Mo sur ce dépôt). Python, Terraform et Helm sont venus en cours de route (`code-intel/06-languages`). Helm ne se reconnaît pas à l'extension : ghl liste les `Chart.yaml` suivis par Git, et le statut donne leurs dossiers `templates` à la fenêtre.
 
+### Mesures
+
+Le 28 octobre 2026, avec un client LSP jetable : trois lancements à froid par serveur, médianes, sur un symbole utilisé partout. Chaque serveur part de l'environnement que ghl lui donne (shell de login, racine du projet). « Premier survol » court de `didOpen` à la première réponse non vide ; la mémoire additionne le serveur et ses descendants.
+
+| Projet | Serveur | Premier survol | Références | Mémoire |
+|---|---|---|---|---|
+| Ce dépôt, `web/` | tsrs 0.18 | 22 ms | 1 ms | 105 Mo |
+| | `tsc` TypeScript 7.0.2 | 46 ms | 1 ms | 170 Mo |
+| Frontend TypeScript, 1 265 fichiers, 1 215 références | tsrs 0.18 | 149 ms | 15 ms | 338 Mo |
+| | `tsc` TypeScript 7.0.2 | 303 ms | 27 ms | 617 Mo |
+| Backend Python, 2 962 fichiers, 1 531 références, son `.venv` sur le PATH | basedpyright 1.40.2 | 1,82 s | 578 ms | 1,12 Go |
+| | pyright 1.1.414 | 1,32 s | 645 ms | 944 Mo |
+| | ty 0.0.94 | 220 ms | 199 ms | 500 Mo |
+| Ce dépôt, `go/` | gopls 0.24.0 | 156 ms | 17 ms | 282 Mo |
+
+- tsrs reste devant `tsc` : deux fois plus rapide et deux fois plus léger sur le gros frontend. typescript-language-server n'a pas pu tourner : il lui faut le `tsserver.js` que TypeScript 7 ne fournit plus.
+- basedpyright reste devant pyright. À `.venv` égal, pyright gagne 0,5 s au premier survol et 16 % de mémoire, avec le même survol ; mais basedpyright trouve seul le `.venv` du projet, et ghl n'en active aucun. Sans lui, pyright répond en 589 ms mais ignore les types des dépendances.
+- ty est le plus rapide et le plus léger, mais son survol se réduit à `<class 'X'>`, sans signature ni docstring : il reste un choix manuel.
+
 ### Le nom sous le pointeur
 
 Shiki fusionne souvent les tokens : ` helper(name)` en Python, `.Values.replicaCount` dans un template Helm. La fenêtre mesure les caractères du token pour trouver le nom sous le pointeur, l'envoie avec sa colonne, et dessine le soulignement par-dessus le diff, à la taille du nom.
