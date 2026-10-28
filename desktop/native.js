@@ -20,6 +20,7 @@ const methods = [
   'UpdateStatus',
   'CheckForUpdates',
   'DismissUpdate',
+  'SkipUpdate',
   'InstallUpdate',
 ]
 window.go = {

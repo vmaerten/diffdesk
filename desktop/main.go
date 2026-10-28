@@ -163,7 +163,8 @@ func run() error {
 	}
 	updateContext, cancelUpdates := context.WithCancel(context.Background())
 	defer cancelUpdates()
-	updater := &nativeUpdater{desktop: desktop, ctx: updateContext}
+	updater := &nativeUpdater{desktop: desktop, ctx: updateContext, skipPath: filepath.Join(filepath.Dir(settings.path), "skipped-update")}
+	updater.session.skipped = loadSkippedVersion(updater.skipPath)
 	desktop.updater = updater
 	native := application.New(application.Options{
 		Name:     "Diffdesk",

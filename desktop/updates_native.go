@@ -24,6 +24,8 @@ type nativeUpdater struct {
 	ctx     context.Context
 	session updateSession
 	menu    *application.MenuItem
+	// Beside the settings, which belong to the UI.
+	skipPath string
 }
 
 func (u *nativeUpdater) publish(state updateSnapshot) {
@@ -113,6 +115,16 @@ func (d *desktopApp) DismissUpdate() updateSnapshot {
 	state := d.updater.session.dismiss()
 	d.updater.publish(state)
 	return state
+}
+
+// SkipUpdate dismisses the offered version until a newer one, or a check the user asks for.
+func (d *desktopApp) SkipUpdate() (updateSnapshot, error) {
+	state, version := d.updater.session.skip()
+	d.updater.publish(state)
+	if version == "" {
+		return state, nil
+	}
+	return state, saveSkippedVersion(d.updater.skipPath, version)
 }
 
 // No path, version or command is accepted from the page. A confirmation can

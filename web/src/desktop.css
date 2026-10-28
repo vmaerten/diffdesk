@@ -1972,60 +1972,72 @@ button.stack-branch:focus-visible::after {
   pointer-events: none;
 }
 
-/* Updates stay above the review without taking its focus or blocking editing. */
-.update-banner {
-  position: fixed;
-  z-index: 25;
-  right: 20px;
-  bottom: 44px;
+/* Updates ask in a sheet, since installing one restarts the app. Centred: it
+   is about the app, not the review under the title bar. */
+.desktop-sheet.update-sheet {
+  width: min(540px, calc(100vw - 48px));
+  margin: auto;
+}
+.update-sheet > * {
+  flex-shrink: 0;
+}
+.update-sheet-head {
   display: flex;
   align-items: center;
-  gap: 14px;
-  width: min(760px, calc(100% - 40px));
-  max-height: calc(100vh - 100px);
-  overflow: auto;
-  padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
-  border-radius: 10px;
-  background: var(--bg-overlay);
-  color: var(--text);
-  box-shadow: 0 7px 26px rgb(0 0 0 / 16%);
+  gap: 16px;
+  padding: 22px 22px 16px;
 }
-.update-icon {
+.update-sheet-head img {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: 56px;
+  height: 56px;
 }
-.update-copy {
-  flex: 1;
-  min-width: 0;
+.desktop-sheet.update-sheet h2 {
+  padding: 0;
+  font-size: 15px;
+  text-align: left;
 }
-.update-copy h2 {
-  margin: 0 0 5px;
-  font-size: 13px;
-  font-weight: 600;
-}
-.update-copy p {
-  margin: 0;
+.update-sheet-head p {
+  margin: 4px 0 0;
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: 12px;
+}
+/* A long changelog scrolls here, and the buttons stay in view. */
+.update-sheet > .update-sheet-notes {
+  flex-shrink: 1;
+  min-height: 0;
+  max-height: 320px;
+  margin: 0 22px;
+  padding: 12px 16px;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: var(--wash);
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.update-sheet-notes:focus:not(:focus-visible) {
+  outline: none;
+}
+.update-sheet-note {
+  margin: 12px 22px 0;
+  color: var(--text-dim);
+  font-size: 11.5px;
   line-height: 1.5;
 }
-.update-copy p.update-note {
-  margin-top: 7px;
+.update-sheet-note + .update-sheet-note {
+  margin-top: 4px;
 }
-.update-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
+.update-sheet footer {
   gap: 8px;
+  padding: 16px 22px 20px;
 }
-.update-actions .button {
-  padding: 6px 12px;
-  white-space: nowrap;
+.update-sheet .update-skip {
+  margin-right: auto;
 }
 .update-details {
-  margin-top: 8px;
+  margin: 12px 22px 0;
   color: var(--text-dim);
   font-size: 11px;
 }
@@ -2041,11 +2053,14 @@ button.stack-branch:focus-visible::after {
   overflow-wrap: anywhere;
 }
 .update-progress {
-  height: 3px;
-  margin-top: 12px;
+  height: 4px;
+  margin: 4px 22px 22px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: 2px;
   background: var(--accent-soft);
+}
+.update-sheet-notes + .update-progress {
+  margin-top: 16px;
 }
 .update-progress span {
   display: block;
@@ -2055,109 +2070,64 @@ button.stack-branch:focus-visible::after {
   background: var(--accent);
   animation: update-progress 1.5s ease-in-out infinite alternate;
 }
-.update-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--accent-soft);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: update-spin 1s linear infinite;
-}
 @keyframes update-progress {
   to {
     transform: translateX(185%);
   }
 }
-@keyframes update-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@media (max-width: 900px) {
-  .update-banner {
-    flex-wrap: wrap;
-  }
-  .update-copy {
-    flex-basis: calc(100% - 50px);
-  }
-  .update-actions {
-    margin-left: auto;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
-  .update-progress span,
-  .update-spinner {
+  .update-progress span {
     animation: none;
   }
 }
-.update-banner:has(.update-notes[open]) {
-  align-items: flex-start;
+.update-sheet-notes :is(h1, h2, h3, h4, h5, h6) {
+  margin: 14px 0 6px;
+  color: var(--text-dim);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
-.update-notes {
-  margin-top: 9px;
-  font-size: 11px;
-}
-.update-notes > summary {
-  width: fit-content;
-  color: var(--accent);
-  cursor: default;
-}
-.update-notes-body {
-  max-height: 250px;
-  margin-top: 10px;
-  padding-top: 10px;
-  overflow: auto;
-  border-top: 1px solid var(--border-subtle);
-  color: var(--text);
-  font-size: 12px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-.update-notes-body :is(h1, h2, h3, h4, h5, h6) {
-  margin: 14px 0 8px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.update-notes-body > :first-child {
+.update-sheet-notes > :first-child {
   margin-top: 0;
 }
-.update-notes-body p {
-  margin: 6px 0;
-  color: var(--text);
-  font-size: 12px;
-  line-height: 1.6;
+.update-sheet-notes > :last-child {
+  margin-bottom: 0;
 }
-.update-notes-body :is(ul, ol) {
-  margin: 7px 0;
+.update-sheet-notes p {
+  margin: 6px 0;
+}
+.update-sheet-notes :is(ul, ol) {
+  margin: 6px 0;
   padding-left: 18px;
 }
-.update-notes-body li + li {
-  margin-top: 7px;
+.update-sheet-notes li + li {
+  margin-top: 5px;
 }
-.update-notes-body a {
+.update-sheet-notes a {
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.update-notes-body code {
+.update-sheet-notes code {
   border-radius: 3px;
   padding: 1px 3px;
-  background: var(--wash);
+  background: var(--wash-strong);
   font: 11px/1.6 var(--mono);
 }
-.update-notes-body pre {
+.update-sheet-notes pre {
   max-width: 100%;
   overflow: auto;
   padding: 8px;
   border: 1px solid var(--border-subtle);
   border-radius: 5px;
-  background: var(--wash);
+  background: var(--bg-raised);
 }
-.update-notes-body pre code {
+.update-sheet-notes pre code {
   padding: 0;
   background: transparent;
 }
-.update-notes-body blockquote {
+.update-sheet-notes blockquote {
   margin: 8px 0;
   padding-left: 12px;
   border-left: 2px solid var(--border);

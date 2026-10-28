@@ -1,6 +1,11 @@
 package main
 
-import "sync"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+)
 
 // A revision lets a reloaded page subscribe before reading without replacing
 // a newer event with the older reply. Installation targets never come from JS.
@@ -19,6 +24,8 @@ type updateSession struct {
 	state        updateSnapshot
 	busy         bool
 	installation updateInstallation
+	// A version the user skipped: only a check they ask for offers it again.
+	skipped string
 }
 
 func (s *updateSession) snapshot() updateSnapshot {
@@ -57,7 +64,7 @@ func (s *updateSession) checked(installation updateInstallation, current string,
 		if manual {
 			s.state.Status, s.state.Message, s.state.Retry = "error", err.Error(), retry
 		}
-	case offered.Version != "":
+	case offered.Version != "" && (manual || offered.Version != s.skipped):
 		s.installation = installation
 		s.state.Status, s.state.Version, s.state.Manager = "available", offered.Version, installation.manager
 		s.state.Notes = offered.Notes
@@ -107,4 +114,38 @@ func (s *updateSession) dismiss() updateSnapshot {
 		s.installation = updateInstallation{}
 	}
 	return s.state
+}
+
+// skip dismisses the offered version and returns it, to keep across launches.
+func (s *updateSession) skip() (updateSnapshot, string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.busy || s.state.Status != "available" {
+		return s.state, ""
+	}
+	version := s.state.Version
+	s.skipped = version
+	s.state = updateSnapshot{Revision: s.state.Revision + 1, Status: "idle"}
+	s.installation = updateInstallation{}
+	return s.state, version
+}
+
+// loadSkippedVersion returns "" when nothing valid was skipped.
+func loadSkippedVersion(path string) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	version := strings.TrimSpace(string(raw))
+	if _, ok := stableVersion(version); !ok {
+		return ""
+	}
+	return version
+}
+
+func saveSkippedVersion(path, version string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(version+"\n"), 0o644)
 }
