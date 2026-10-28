@@ -1,5 +1,6 @@
 // Simulated Wails bindings, so the desktop UI runs in a browser: the dev server and the UI tests.
 import { readFileSync } from 'node:fs'
+import type { SavedView } from '../web/src/savedView.ts'
 import type { UpdateSnapshot } from '../web/src/updates.ts'
 
 export interface DesktopTab {
@@ -45,6 +46,7 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
     revealed: [] as string[],
     fileMenus: [] as { path: string; viewed: boolean }[],
     settingsOpened: 0,
+    savedViews: {} as Record<string, SavedView>,
     updateInstalls: 0,
     updateChecks: 0,
     updateDismissals: 0,
@@ -113,7 +115,9 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
         OpenSettings: async () => {
           fixture.settingsOpened += 1
         },
-        SaveTabView: async () => {},
+        SaveTabView: async (id: string, raw: string) => {
+          fixture.savedViews[id] = JSON.parse(raw)
+        },
         UpdateStatus: async () => structuredClone(update),
         CheckForUpdates: async () => {
           if (['checking', 'installing', 'restarting'].includes(update.status)) return

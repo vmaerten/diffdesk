@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // The append-only trace lives beside settings.json. No rotation or pruning:
@@ -37,6 +38,28 @@ func (s *settingsStore) appendDebugEvent(raw string) error {
 	}
 	_, err = io.Copy(file, &compact)
 	return errors.Join(err, file.Close())
+}
+
+// recordNativeEvent logs what no page can report, such as its own renderer
+// dying, when the settings have debug logging on.
+func (s *settingsStore) recordNativeEvent(event string, details map[string]any) error {
+	raw, err := s.load()
+	var stored struct {
+		DebugLogging bool `json:"debugLogging"`
+	}
+	if err != nil || raw == "" || json.Unmarshal([]byte(raw), &stored) != nil || !stored.DebugLogging {
+		return err
+	}
+	line, err := json.Marshal(map[string]any{
+		"time":    time.Now().UTC().Format("2006-01-02T15:04:05.000Z07:00"),
+		"page":    "native",
+		"event":   event,
+		"details": details,
+	})
+	if err != nil {
+		return err
+	}
+	return s.appendDebugEvent(string(line))
 }
 
 func (s *settingsStore) readDebugLog() (string, error) {

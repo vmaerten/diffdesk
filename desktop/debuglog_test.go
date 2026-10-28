@@ -90,3 +90,38 @@ func TestDebugLogRejectsInvalidEventsWithoutChangingHistory(t *testing.T) {
 		t.Fatal("invalid events changed the history")
 	}
 }
+
+func TestNativeEventsFollowTheDebugLoggingSetting(t *testing.T) {
+	store := &settingsStore{path: filepath.Join(t.TempDir(), "settings.json")}
+	details := map[string]any{"window": "review"}
+	for _, settings := range []string{"", `{"version":1}`, `{"version":1,"debugLogging":false}`} {
+		if settings != "" {
+			if err := store.save(settings); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := store.recordNativeEvent("webview.terminated", details); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if raw, _ := store.readDebugLog(); raw != "" {
+		t.Fatalf("logged with logging off: %q", raw)
+	}
+	if err := store.save(`{"version":1,"debugLogging":true}`); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.recordNativeEvent("webview.terminated", details); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := store.readDebugLog()
+	var event struct {
+		Time, Page, Event string
+		Details           map[string]string
+	}
+	if err := json.Unmarshal([]byte(raw), &event); err != nil {
+		t.Fatalf("%q: %v", raw, err)
+	}
+	if event.Page != "native" || event.Event != "webview.terminated" || event.Details["window"] != "review" || !strings.HasSuffix(event.Time, "Z") {
+		t.Fatalf("unexpected event: %+v", event)
+	}
+}

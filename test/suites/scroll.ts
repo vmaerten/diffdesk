@@ -73,5 +73,18 @@ export default {
       mounted > 0 && mounted < claimed,
       `${mounted} files mounted of ${claimed}`,
     )
+
+    // Wails reloads the page when its renderer dies, without the save Cmd+R
+    // makes first: the view must already be saved while reading. The window
+    // may still settle the position, so compare with where it rests.
+    await at(0.5)
+    check(
+      'the reading position is saved without a reload',
+      await until(
+        page,
+        `Object.values(window.desktopFixture.savedViews)
+          .some((view) => view.scrollTop > 0 && view.scrollTop === ${SCROLLER}.scrollTop)`,
+      ),
+    )
   },
 } satisfies Suite

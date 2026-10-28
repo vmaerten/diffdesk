@@ -244,6 +244,19 @@ export default function DesktopApp() {
         .then(() => location.reload())
         .catch((cause) => setError(String(cause)))
     }
+    // A reload nobody asked for, after the renderer dies, restores the last
+    // saved view: keep it close behind the reader, not only saved on the way out.
+    let pendingSave: number | undefined
+    const saveSoon = () => {
+      clearTimeout(pendingSave)
+      pendingSave = window.setTimeout(
+        () => void save().catch((cause) => setError(String(cause))),
+        500,
+      )
+    }
+    const activity = ['scroll', 'input', 'pointerup', 'keyup']
+    for (const event of activity)
+      document.addEventListener(event, saveSoon, { capture: true, passive: true })
     const closeActive = () => apply(api.CloseTab(latest.current.active))
     const cycle = (event: KeyboardEvent) => {
       if (!event.ctrlKey || event.key !== 'Tab' || latest.current.tabs.length < 2) return
@@ -272,6 +285,8 @@ export default function DesktopApp() {
     window.addEventListener('keydown', cycle)
     return () => {
       disposed = true
+      clearTimeout(pendingSave)
+      for (const event of activity) document.removeEventListener(event, saveSoon, { capture: true })
       unsubscribe()
       window.removeEventListener('desktop:command', runCommand)
       window.removeEventListener('keydown', cycle)
