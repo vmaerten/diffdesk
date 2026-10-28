@@ -1,6 +1,6 @@
 {
   "name": "diffdesk",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "private": true,
   "description": "Review the PR you are about to open, without opening it",
   "license": "MIT",

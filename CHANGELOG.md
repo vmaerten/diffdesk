@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.8.0
 
-### Features
+### ✨ Features
 
-- Use code intelligence on any reviewed branch or commit: Diffdesk prepares an isolated copy of the displayed revision for symbol information, definitions and references, while keeping your checkout and uncommitted edits intact. Copies are reused and cleaned up when the app stops; the IntelliSense diagnostic shows the analyzed version and its location. Project dependencies are not installed automatically.
+- Use code intelligence on any reviewed branch or commit: Diffdesk prepares an isolated copy of the displayed revision for symbol information, definitions and references, while keeping your checkout and uncommitted edits intact. Copies are reused and cleaned up when the app stops; the IntelliSense diagnostic shows the analyzed version and its location. Project dependencies are not installed automatically. ([#278](https://github.com/vmaerten/diffdesk/pull/278))
+
+### 🐛 Fixes
+
+- Open the window maximised from the terminal, Finder or Dock, instead of leaving it at 1280 × 800. The zoom button still restores that default size. ([#280](https://github.com/vmaerten/diffdesk/pull/280))
 
 ## 0.7.1
 
