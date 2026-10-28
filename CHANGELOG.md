@@ -6,6 +6,12 @@
 
 - Use code intelligence on any reviewed branch or commit: Diffdesk prepares an isolated copy of the displayed revision for symbol information, definitions and references, while keeping your checkout and uncommitted edits intact. Copies are reused and cleaned up when the app stops; the IntelliSense diagnostic shows the analyzed version and its location. Project dependencies are not installed automatically.
 
+## 0.7.1
+
+### 🐛 Fixes
+
+- Let Homebrew manage its metadata refreshes during in-app updates: Diffdesk now runs only `brew upgrade --cask vmaerten/tap/diffdesk`, without forcing a separate `brew update` first. ([#279](https://github.com/vmaerten/diffdesk/pull/279))
+
 ## 0.7.0
 
 ### ✨ Features
