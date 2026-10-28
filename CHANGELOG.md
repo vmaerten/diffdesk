@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+### 🐛 Fixes
+
+- Let Homebrew manage its metadata refreshes during in-app updates: Diffdesk now runs only `brew upgrade --cask vmaerten/tap/diffdesk`, without forcing a separate `brew update` first. ([#279](https://github.com/vmaerten/diffdesk/pull/279))
+
 ## 0.7.0
 
 ### ✨ Features
