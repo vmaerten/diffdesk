@@ -193,6 +193,51 @@
       // window: save as it would, check the review follows and Go kept it, then
       // put them back for the rest of the run.
       const desktopApp = window.go.main.desktopApp
+      // Menus and the palette scale the whole document, including the file
+      // tree and shadow-root code. Native traffic lights keep their own size.
+      await wait(() => innerWidth === 1280, 'WebView did not follow the restored window size')
+      const sidebarWidth = document.querySelector('.sidebar').getBoundingClientRect().width
+      const lineHeight = () =>
+        host()?.shadowRoot?.querySelector('[data-line]')?.getBoundingClientRect().height
+      const originalLineHeight = lineHeight()
+      const originalSettings = await desktopApp.Settings()
+      const pageZoom = () => Number(getComputedStyle(root).zoom)
+      const zoom = (detail) => window.dispatchEvent(new CustomEvent('desktop:command', { detail }))
+      zoom('zoom-out')
+      await wait(() => pageZoom() === 0.9, 'Zoom Out did not reduce page scale')
+      zoom('zoom-out')
+      await wait(() => pageZoom() === 0.8, 'Repeated Zoom Out did not reduce page scale')
+      await wait(
+        () => lineHeight() > 0 && lineHeight() < originalLineHeight * 0.85,
+        'Code did not follow page zoom',
+      )
+      check(
+        Math.abs(
+          document.querySelector('.sidebar').getBoundingClientRect().width - sidebarWidth * 0.8,
+        ) < 1,
+        'File tree did not follow page zoom',
+      )
+      check(
+        document.querySelector('.titlebar-button').getBoundingClientRect().left >= 80,
+        'Zoom moved toolbar controls under the native window buttons',
+      )
+      check(
+        Math.abs(
+          document.querySelector('.desktop-shell').getBoundingClientRect().bottom - innerHeight,
+        ) < 1,
+        'Zoom left an empty area at the bottom of the window',
+      )
+      zoom('zoom-in')
+      await wait(() => pageZoom() === 0.9, 'Zoom In did not increase page scale')
+      zoom('zoom-reset')
+      await wait(() => pageZoom() === 1, 'Actual Size did not reset page scale')
+      await wait(() => lineHeight() === originalLineHeight, 'Actual Size did not restore code size')
+      check((await desktopApp.Settings()) === originalSettings, 'Zoom changed saved preferences')
+      // Leave the review at 80% while the remaining checks exercise context
+      // expansion, pointer selection, comments and saved views under zoom.
+      zoom('zoom-out')
+      zoom('zoom-out')
+      await wait(() => pageZoom() === 0.8, 'Page zoom did not settle before review checks')
       check(
         (await desktopApp.UpdateStatus()).status === 'idle',
         'Unexpected update prompt at startup',

@@ -113,6 +113,62 @@ export default {
     const opened = () => page.evaluate(`window.desktopFixture.settingsOpened`) as Promise<number>
     check('Settings… opens the Settings window', (await poll(opened, (n) => n === 1)) === 1)
 
+    const zoom = () => page.evaluate(() => Number(getComputedStyle(document.documentElement).zoom))
+    const originalSettings = await page.evaluate(() => window.go!.main.desktopApp.Settings())
+    const sidebarWidth = await page.$eval('.sidebar', (node) => node.getBoundingClientRect().width)
+    for (const [query, label, expected] of [
+      ['zoom out', 'Zoom Out', 0.9],
+      ['zoom in', 'Zoom In', 1],
+      ['actual size', 'Actual Size', 1],
+    ] as const) {
+      await open()
+      await search(query, label)
+      await page.keyboard.press('Enter')
+      await page.waitForSelector(OPEN, { hidden: true })
+      check(
+        `${label} changes the page scale`,
+        (await poll(zoom, (scale) => scale === expected)) === expected,
+      )
+    }
+
+    await page.evaluate(() => {
+      for (let i = 0; i < 30; i++)
+        window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'zoom-out' }))
+    })
+    check(
+      'rapid Zoom Out commands stop at 50%',
+      (await poll(zoom, (scale) => scale === 0.5)) === 0.5,
+    )
+    check(
+      'the file tree scales with the page',
+      Math.abs(
+        (await page.$eval('.sidebar', (node) => node.getBoundingClientRect().width)) -
+          sidebarWidth / 2,
+      ) < 1,
+    )
+    check(
+      'title bar controls stay clear of the native window buttons',
+      (await page.$eval('.titlebar-button', (node) => node.getBoundingClientRect().left)) >= 80,
+    )
+    check(
+      'the page still fills the window',
+      await page.$eval(
+        '.desktop-shell',
+        (node) => Math.abs(node.getBoundingClientRect().bottom - innerHeight) < 1,
+      ),
+    )
+    await page.evaluate(() => {
+      for (let i = 0; i < 30; i++)
+        window.dispatchEvent(new CustomEvent('desktop:command', { detail: 'zoom-in' }))
+    })
+    check('rapid Zoom In commands stop at 200%', (await poll(zoom, (scale) => scale === 2)) === 2)
+    await command(page, 'zoom-reset')
+    check('reset returns to 100%', (await poll(zoom, (scale) => scale === 1)) === 1)
+    check(
+      'zoom leaves the saved preferences intact',
+      (await page.evaluate(() => window.go!.main.desktopApp.Settings())) === originalSettings,
+    )
+
     await command(page, 'go-to-file')
     await page.waitForSelector(`${OPEN} .palette-input`, { timeout: 5_000 })
     const files = await items()

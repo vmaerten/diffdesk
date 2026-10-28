@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStableCallback, useWorkerPool } from '@pierre/diffs/react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
@@ -75,6 +75,20 @@ const Review = memo(App)
 export default function DesktopApp() {
   const [state, setState] = useState(EMPTY)
   const [settings, setSettings] = useState<DesktopSettings | null>(null)
+  const [zoom, setZoom] = useState(1)
+  const changeZoom = useStableCallback((direction: -1 | 0 | 1) => {
+    setZoom((current) =>
+      direction === 0 ? 1 : Math.max(5, Math.min(20, Math.round(current * 10) + direction)) / 10,
+    )
+  })
+  useLayoutEffect(() => {
+    // Scale the root so dialogs and popovers follow the review. Wails clamps
+    // native page zoom to 100% on macOS, including its SetZoom method.
+    document.documentElement.style.setProperty('--ui-zoom', String(zoom))
+    return () => {
+      document.documentElement.style.removeProperty('--ui-zoom')
+    }
+  }, [zoom])
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
   const [sidebarHidden, setSidebarHidden] = useState(() => {
@@ -250,6 +264,9 @@ export default function DesktopApp() {
       else if (command === 'sidebar') toggleSidebar()
       else if (command === 'open-repository') api.OpenRepository().catch(failed)
       else if (command === 'settings') api.OpenSettings().catch(failed)
+      else if (command === 'zoom-in') changeZoom(1)
+      else if (command === 'zoom-out') changeZoom(-1)
+      else if (command === 'zoom-reset') changeZoom(0)
     }
     window.addEventListener('desktop:command', runCommand)
     window.addEventListener('keydown', cycle)
@@ -259,7 +276,7 @@ export default function DesktopApp() {
       window.removeEventListener('desktop:command', runCommand)
       window.removeEventListener('keydown', cycle)
     }
-  }, [apply, toggleSidebar])
+  }, [apply, toggleSidebar, changeZoom])
   // The Settings window saves each change, and Go sends it to every window. A
   // change that arrives before the first read is the newer of the two.
   useEffect(() => {
