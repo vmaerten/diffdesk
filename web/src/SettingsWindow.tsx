@@ -24,6 +24,7 @@ import {
   useLanguageStatus,
 } from './codeIntelligence.ts'
 import type { GitHubAccount, LanguageStatus } from '../../src/types.ts'
+import InstallServer, { installNote } from './InstallServer.tsx'
 import desktopStyles from './desktop.css?inline'
 import { copyDebugLogs, debugLog } from './debugLog.ts'
 import { startDebugActions } from './debugActions.ts'
@@ -509,8 +510,12 @@ function serverDetail(language: LanguageStatus | undefined): string {
   if (!language) return "Open a review to see its checkout's server."
   if (language.state === 'failed' && language.error)
     return language.error.split('\n')[0]!.slice(0, 160)
-  if (!language.server)
-    return language.state === 'off' ? 'Off' : `Not found — ${language.install ?? 'not installed'}`
+  if (!language.server) {
+    if (language.state === 'off') return 'Off'
+    if (language.installs?.length || language.installing || language.installError)
+      return installNote(language)
+    return language.install ? `Not installed · ${language.install}` : 'Not installed'
+  }
   const path = homeRelative(language.server.path)
   return language.server.origin === 'checkout' ? `${path} · from this checkout` : path
 }
@@ -550,7 +555,7 @@ function IntelligencePane({ settings, onChange }: PaneProps) {
       current = false
     }
   }, [config])
-  const [status] = useLanguageStatus(repoId, revision)
+  const [status, refresh] = useLanguageStatus(repoId, revision)
   return (
     <>
       <div className="settings-group">
@@ -559,10 +564,7 @@ function IntelligencePane({ settings, onChange }: PaneProps) {
             <span>
               Use language servers <span className="beta-badge">Beta</span>
             </span>
-            <small>
-              Hold ⌘ over a symbol for its type, ⌘-click for its definition, on any branch or
-              commit. The servers run on the reviewed code, as your editor would.
-            </small>
+            <small>⌘-hover for types, ⌘-click for definitions, on any branch or commit.</small>
           </span>
           <input
             type="checkbox"
@@ -573,7 +575,7 @@ function IntelligencePane({ settings, onChange }: PaneProps) {
         <label className="settings-field">
           <span className="settings-label">
             Symbol panel
-            <small>References in a Symbol tab beside Comments.</small>
+            <small>References beside Comments.</small>
           </span>
           <input
             type="checkbox"
@@ -589,7 +591,8 @@ function IntelligencePane({ settings, onChange }: PaneProps) {
           const server = language?.server
           const unavailable = language?.state === 'missing' || language?.state === 'failed'
           return (
-            <label className="settings-field language-server" data-language={id} key={id}>
+            // Not a label: it holds the Install button besides the select.
+            <div className="settings-field language-server" data-language={id} key={id}>
               <span className="settings-label">
                 <span>
                   {LANGUAGE_LABELS[id]}
@@ -598,11 +601,15 @@ function IntelligencePane({ settings, onChange }: PaneProps) {
                 <small className={unavailable ? 'unavailable' : undefined}>
                   {serverDetail(language)}
                 </small>
+                {language?.installError && <pre>{language.installError.log}</pre>}
               </span>
-              {language && (
+              {language && language.state !== 'missing' && (
                 <span className="server-state" data-state={language.state}>
                   {stateLabel(language)}
                 </span>
+              )}
+              {language && (
+                <InstallServer repoId={repoId} language={language} onStarted={refresh} />
               )}
               <select
                 aria-label={`${LANGUAGE_LABELS[id]} language server`}
@@ -619,7 +626,7 @@ function IntelligencePane({ settings, onChange }: PaneProps) {
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
           )
         })}
       </div>

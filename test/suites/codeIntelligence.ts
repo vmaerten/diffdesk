@@ -44,6 +44,7 @@ interface ServerRow {
   name: string
   detail: string
   state: string | null
+  install: string
   choice: string
 }
 
@@ -84,7 +85,10 @@ export default {
           id: item.getAttribute('data-language') ?? '',
           name: item.querySelector('.settings-label > span')?.textContent ?? '',
           detail: item.querySelector('.settings-label small')?.textContent ?? '',
-          state: item.querySelector('.server-state')?.getAttribute('data-state') ?? null,
+          state:
+            item.querySelector('.server-state')?.getAttribute('data-state') ??
+            (item.querySelector('.install-server') ? 'missing' : null),
+          install: item.querySelector('.install-server .button')?.textContent ?? '',
           choice: item.querySelector('select')?.value ?? '',
         })),
       ) as Promise<ServerRow[]>
@@ -126,9 +130,35 @@ export default {
     check(
       'the palette diagnoses disabled code intelligence and missing servers',
       disabledDiagnostic.includes('IntelliSense is off') &&
-        disabledDiagnostic.includes('gopls@latest') &&
+        disabledDiagnostic.includes('Install with mise') &&
         disabledDiagnostic.includes('Working treeIncluded'),
       disabledDiagnostic,
+    )
+    const sheetRow = (id: string) =>
+      page.$eval(`.intelligence-servers [data-language="${id}"]`, (element) => ({
+        state: element.getAttribute('data-state'),
+        text: element.textContent ?? '',
+      }))
+    await page.click('.intelligence-servers [data-language="python"] .install-server .button')
+    const pythonRow = await poll(
+      () => sheetRow('python'),
+      (next) => next.state !== 'missing',
+    )
+    check(
+      'Install with mise installs a missing server, even while IntelliSense is off',
+      pythonRow.text.includes('basedpyright'),
+      JSON.stringify(pythonRow),
+    )
+    await page.click('.intelligence-servers [data-language="go"] .install-server .button')
+    const goRow = await poll(
+      () => sheetRow('go'),
+      (next) => next.text.includes('couldn’t install'),
+    )
+    check(
+      '  and a failed install shows its output, with Try Again',
+      goRow.text.includes('mise ERROR no metadata for go:golang.org/x/tools/gopls') &&
+        goRow.text.includes('Try Again'),
+      JSON.stringify(goRow),
     )
     await page.keyboard.press('Escape')
 
@@ -148,7 +178,7 @@ export default {
     )
     check(
       '  and how to install a missing one',
-      go?.state === 'missing' && go.detail.includes('gopls@latest'),
+      go?.state === 'missing' && go.install === 'Try Again' && go.detail.includes('mise'),
       JSON.stringify(go),
     )
     check('the status bar says nothing while it is off', (await footer()).text === '')

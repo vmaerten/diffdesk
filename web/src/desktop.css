@@ -2246,3 +2246,76 @@ button.stack-branch:focus-visible::after {
   padding-left: 12px;
   border-left: 2px solid var(--border);
 }
+
+/* Installing a missing language server, in the IntelliSense sheet and Settings. */
+.install-server {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1px;
+}
+.install-server > .button {
+  border-radius: 6px 0 0 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+/* A ▾ that opens the native menu of every way to install it. */
+.install-more {
+  position: relative;
+  display: inline-flex;
+}
+.install-more select.button {
+  width: 24px;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border-radius: 0 6px 6px 0;
+  color: transparent;
+  appearance: none;
+}
+.install-more::after {
+  content: '▾';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--primary-text);
+  font-size: 10px;
+  pointer-events: none;
+}
+.install-error {
+  flex-basis: 100%;
+  color: var(--danger);
+  font-size: 11px;
+  text-align: right;
+}
+.install-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: install-spin 1s linear infinite;
+}
+@keyframes install-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .install-spinner {
+    animation: none;
+  }
+}
+.language-server .settings-label pre {
+  max-height: 96px;
+  margin: 6px 0 0;
+  overflow: auto;
+  color: var(--danger);
+  font: 11px/1.5 var(--mono);
+  white-space: pre-wrap;
+}

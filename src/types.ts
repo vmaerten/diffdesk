@@ -264,6 +264,11 @@ export interface LanguageStatus {
   progress?: { title: string; message?: string; percentage?: number }
   /** How to install a missing server. */
   install?: string
+  /** The installs the page may run, by the managers this machine has. */
+  installs?: { manager: string; command: string }[]
+  /** The manager installing the server now. */
+  installing?: string
+  installError?: { manager: string; log: string }
   /** Why the server failed, with the end of its stderr. */
   error?: string
 }

@@ -43,11 +43,26 @@ export async function sendLanguageConfig(config: string): Promise<void> {
 
 const BUSY = new Set<LanguageStatus['state']>(['starting', 'indexing'])
 
+/** Starts installing a language's server with one of the managers its status offers. */
+export async function installLanguageServer(
+  repoId: string,
+  language: string,
+  manager: string,
+): Promise<void> {
+  const response = await fetch(`/r/${repoId}/api/lsp/install`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ language, manager }),
+  })
+  if (!response.ok) throw await failure(response)
+  await response.arrayBuffer()
+}
+
 /**
  * What each language's server is doing in this checkout, or null until known.
  *
  * `revision` changes whenever the settings reach the server; null stops
- * asking. Polled while a server starts or indexes, so its progress shows.
+ * asking. Polled while a server starts, indexes or installs, so its progress shows.
  */
 export function useLanguageStatus(
   repoId: string | null,
@@ -80,7 +95,7 @@ export function useLanguageStatus(
       const next = (await response.json()) as LanguageServersStatus
       if (request !== latest.current) return
       setStatus(next)
-      if (next.languages.some((language) => BUSY.has(language.state)))
+      if (next.languages.some((language) => BUSY.has(language.state) || language.installing))
         timer = setTimeout(refresh, 1000)
     }
     // A failed look leaves the last known state; the next change asks again.
