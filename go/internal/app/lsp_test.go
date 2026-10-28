@@ -123,7 +123,7 @@ func fakeServers(t *testing.T, mode string) (*languageServers, string, string) {
 	}
 	log := filepath.Join(bin, "starts")
 	m := newLanguageServers()
-	m.languages = []language{{ID: "go", Label: "Go", Extensions: []string{".go"}, Install: "install fakels",
+	m.languages = []language{{ID: "go", Label: "Go", Extensions: []string{".go"}, Installs: []installMethod{{"fake", []string{"install", "fakels"}}},
 		Servers: []languageServer{{Name: "fakels", Choice: "fakels", command: "fakels"}}}}
 	m.environment = func(string) []string {
 		return append(os.Environ(), "PATH="+bin, "GHL_FAKE_BINARY="+os.Args[0], "GHL_FAKE_LSP="+mode, "GHL_FAKE_LSP_LOG="+log)
