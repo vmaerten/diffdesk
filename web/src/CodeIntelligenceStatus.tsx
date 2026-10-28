@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import DesktopSheet from './DesktopSheet.tsx'
 import {
   homeRelative,
@@ -6,7 +7,37 @@ import {
   useLanguageStatus,
 } from './codeIntelligence.ts'
 import { sendCommand } from './commands.ts'
+import { readSettings } from './desktopSettings.ts'
 import type { LoadedReviewDiff } from './useReviewDiff.tsx'
+import type { LanguageStatus } from '../../src/types.ts'
+
+/** What keeps every language from answering, with the one action that fixes it. */
+interface Blocker {
+  title: string
+  detail: string
+  action?: { label: string; run: () => void }
+}
+
+/** The row's second column: the server, or what to do without one. */
+function serverCell(language: LanguageStatus) {
+  if (language.server)
+    return (
+      <>
+        <b>{language.server.name}</b>
+        {language.version ? ` ${language.version}` : ''}
+        {language.server.origin === 'checkout' ? ' · from this checkout' : ''}
+      </>
+    )
+  if (language.state === 'off') return 'Off in Settings'
+  if (language.install) return <code>{language.install}</code>
+  return 'No server found'
+}
+
+function stateCell(language: LanguageStatus): string {
+  if (language.state === 'idle') return 'Starts on ⌘-hover'
+  if (language.state === 'off' || language.state === 'missing') return ''
+  return stateLabel(language)
+}
 
 /** A fresh diagnostic of the checkout, available even when code intelligence is off. */
 export default function CodeIntelligenceStatus({
@@ -15,7 +46,6 @@ export default function CodeIntelligenceStatus({
   activePath,
   enabled,
   settingsApplied,
-  symbolPanel,
   onClose,
 }: {
   repoId: string | null
@@ -23,151 +53,155 @@ export default function CodeIntelligenceStatus({
   activePath: string | null
   enabled: boolean
   settingsApplied: boolean
-  symbolPanel: boolean
   onClose: () => void
 }) {
   const [status, refresh, error] = useLanguageStatus(repoId, 0, data?.comparison.after)
-  const language = status?.languages.find(
+  const [turnOnError, setTurnOnError] = useState<string | null>(null)
+  const api = window.go?.main.desktopApp
+  // Go owns the settings and sends the change to every window, this review included.
+  const turnOn = async () => {
+    if (!api) return
+    setTurnOnError(null)
+    try {
+      const settings = readSettings(await api.Settings())
+      await api.SaveSettings(JSON.stringify({ ...settings, codeIntelligence: true }))
+    } catch (cause) {
+      setTurnOnError(String(cause))
+    }
+  }
+  let blocker: Blocker | null = null
+  if (!enabled)
+    blocker = {
+      title: 'IntelliSense is off',
+      detail: turnOnError ?? 'No server runs until you turn it on.',
+      action: api ? { label: 'Turn On', run: () => void turnOn() } : undefined,
+    }
+  else if (error)
+    blocker = {
+      title: 'Couldn’t check the language servers',
+      detail: error,
+      action: { label: 'Try Again', run: refresh },
+    }
+  else if (!settingsApplied || (status && !status.enabled))
+    blocker = {
+      title: 'Applying your settings…',
+      detail: 'The review server hasn’t received them yet.',
+      action: { label: 'Try Again', run: refresh },
+    }
+  else if (!data) blocker = { title: 'Loading the review…', detail: 'Servers show once it loads.' }
+  const active = status?.languages.find(
     (entry) => activePath && languageSupportsPath(entry, activePath),
   )
-  const reasons: string[] = []
-  if (!enabled)
-    reasons.push('Code intelligence is disabled. Enable “Use language servers” in Settings.')
-  else if (!settingsApplied || (status && !status.enabled))
-    reasons.push('Code intelligence settings have not been applied to the review server yet.')
-  if (!data) reasons.push('The review has not loaded yet.')
-  if (error) reasons.push('Code intelligence status could not be checked.')
-  if (activePath && status) {
-    if (!language) reasons.push('No language server supports the active file.')
-    else if (language.state === 'off') reasons.push(`${language.label} is disabled in Settings.`)
-    else if (language.state === 'missing')
-      reasons.push(`${language.label} has no installed language server.`)
-    else if (language.state === 'failed')
-      reasons.push(`${language.label}’s language server failed. See its error below.`)
-    else if (language.state === 'starting' || language.state === 'indexing')
-      reasons.push(`${language.label}’s language server is ${stateLabel(language).toLowerCase()}`)
-  }
+  const copy = data?.comparison.after
   return (
-    <DesktopSheet open title="IntelliSense Status" className="intelligence-sheet" onClose={onClose}>
-      <dl className="intelligence-comparison">
-        <div>
-          <dt>Checkout</dt>
-          <dd>{data?.head.branch ?? 'Detached HEAD'}</dd>
-        </div>
-        <div>
-          <dt>Target</dt>
-          <dd>{data?.target.ref ?? 'Loading…'}</dd>
-        </div>
-        <div>
-          <dt>Working tree</dt>
-          <dd>{data ? (data.target.workingTree ? 'Included' : 'Excluded') : 'Loading…'}</dd>
-        </div>
-        <div>
-          <dt>Active file</dt>
-          <dd>{activePath ?? 'None'}</dd>
-        </div>
-        <div>
-          <dt>Analyzed version</dt>
-          <dd>
-            {data?.comparison.after
-              ? `Isolated revision ${data.comparison.after.slice(0, 12)}`
-              : 'Working tree'}
-          </dd>
-        </div>
-      </dl>
-      <div className="intelligence-summary" role="status">
-        {reasons.length > 0 ? (
-          <ul>
-            {reasons.map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-        ) : status ? (
-          <p>
-            Code intelligence is enabled for this comparison.{' '}
-            {language?.state === 'idle' ? 'The server starts on the first symbol lookup.' : ''}
-          </p>
-        ) : (
-          <p>Checking language servers…</p>
-        )}
-      </div>
-      {error && <p role="alert">Could not check language servers: {error}</p>}
-      {data?.comparison.after && (
-        <p>
-          Diffdesk analyzes an isolated copy of the displayed revision. Dependencies are not
-          installed automatically; some external imports may be unresolved.
-          {status?.workspace?.path && (
+    <DesktopSheet
+      open
+      title="IntelliSense"
+      className="intelligence-sheet"
+      onClose={onClose}
+      actions={
+        <>
+          <span className="intelligence-hint">
+            <kbd>⌘</kbd> hover for info · <kbd>⌘</kbd> click for definition
+          </span>
+          <button
+            type="button"
+            className="button"
+            onClick={() => {
+              onClose()
+              sendCommand('settings')
+            }}
+          >
+            Settings…
+          </button>
+        </>
+      }
+    >
+      {data && (
+        <p className="intelligence-context">
+          {data.base.ref} → {data.target.ref}
+          {copy ? (
             <>
               {' '}
-              Copy: <code>{homeRelative(status.workspace.path)}</code>.
+              · revision copy <code>{copy.slice(0, 7)}</code>
             </>
+          ) : (
+            ' · working tree'
           )}
         </p>
       )}
-      <p>
-        Hold ⌘ over an identifier on the new side of the diff for symbol info; ⌘-click opens its
-        definition. Deleted lines cannot be queried. If the file changed on disk, refresh the review
-        with <kbd>r</kbd>.
-      </p>
-      <p>
-        {symbolPanel
-          ? 'Choose References in the symbol card to see its uses.'
-          : 'Enable “Symbol panel” in Settings to show the References action.'}
-      </p>
-      <h3>Language servers</h3>
-      {!status && !error && <p>Checking language servers…</p>}
-      {status && (
-        <dl className="intelligence-servers">
-          {status.languages.map((entry) => (
-            <div key={entry.id} data-language={entry.id} data-state={entry.state}>
-              <dt>
-                {entry.label}
-                {language?.id === entry.id ? ' · active file' : ''}
-                <span>{stateLabel(entry)}</span>
-              </dt>
+      {blocker && (
+        <div className="intelligence-blocker" role="status">
+          <span>
+            <b>{blocker.title}</b>
+            {blocker.detail}
+          </span>
+          {blocker.action && (
+            <button type="button" className="button primary" onClick={blocker.action.run}>
+              {blocker.action.label}
+            </button>
+          )}
+        </div>
+      )}
+      {status ? (
+        <ul className="intelligence-servers" aria-label="Language servers">
+          {status.languages.map((language) => (
+            <li
+              key={language.id}
+              data-language={language.id}
+              data-state={language.state}
+              className={!enabled && language.state !== 'missing' ? 'muted' : undefined}
+            >
+              <i aria-hidden="true" />
+              <span className="intelligence-language">
+                {language.label}
+                {active?.id === language.id && <small>Active file</small>}
+              </span>
+              <span className="intelligence-server">{serverCell(language)}</span>
+              <span className="intelligence-state">{stateCell(language)}</span>
+              {language.error && <pre>{language.error}</pre>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        !error && <p className="intelligence-checking">Checking language servers…</p>
+      )}
+      {data && (
+        <details className="intelligence-details">
+          <summary>Details</summary>
+          <dl>
+            <div>
+              <dt>Checkout</dt>
+              <dd>{data.head.branch ?? 'Detached HEAD'}</dd>
+            </div>
+            <div>
+              <dt>Target</dt>
+              <dd>{data.target.ref}</dd>
+            </div>
+            <div>
+              <dt>Working tree</dt>
+              <dd>{data.target.workingTree ? 'Included' : 'Excluded'}</dd>
+            </div>
+            <div>
+              <dt>Active file</dt>
+              <dd>{activePath ?? 'None'}</dd>
+            </div>
+            <div>
+              <dt>Analyzed</dt>
               <dd>
-                {entry.server && (
-                  <p>
-                    {entry.server.name}
-                    {entry.version ? ` ${entry.version}` : ''} · {homeRelative(entry.server.path)}
-                  </p>
+                {copy ? `Isolated revision ${copy.slice(0, 12)}` : 'Working tree'}
+                {status?.workspace?.path && (
+                  <>
+                    {' '}
+                    in <code>{homeRelative(status.workspace.path)}</code>
+                  </>
                 )}
-                {entry.state === 'idle' && <p>Starts on the first symbol lookup.</p>}
-                {entry.progress && (
-                  <p>
-                    {entry.progress.title} {entry.progress.message}
-                    {entry.progress.percentage !== undefined
-                      ? ` (${entry.progress.percentage}%)`
-                      : ''}
-                  </p>
-                )}
-                {entry.error && <pre>{entry.error}</pre>}
-                {entry.install && (
-                  <p>
-                    Install: <code>{entry.install}</code>
-                  </p>
-                )}
-                {entry.state === 'off' && <p>Enable this language in Settings.</p>}
               </dd>
             </div>
-          ))}
-        </dl>
+          </dl>
+          {copy && <p>Dependencies aren’t installed in the copy: some imports may not resolve.</p>}
+        </details>
       )}
-      <div className="intelligence-actions">
-        <button type="button" className="button" onClick={refresh}>
-          Refresh status
-        </button>
-        <button
-          type="button"
-          className="button"
-          onClick={() => {
-            onClose()
-            sendCommand('settings')
-          }}
-        >
-          Open Settings…
-        </button>
-      </div>
     </DesktopSheet>
   )
 }

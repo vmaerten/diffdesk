@@ -125,7 +125,7 @@ export default {
     const disabledDiagnostic = await diagnostics()
     check(
       'the palette diagnoses disabled code intelligence and missing servers',
-      disabledDiagnostic.includes('Code intelligence is disabled') &&
+      disabledDiagnostic.includes('IntelliSense is off') &&
         disabledDiagnostic.includes('gopls@latest') &&
         disabledDiagnostic.includes('Working treeIncluded'),
       disabledDiagnostic,
@@ -153,15 +153,12 @@ export default {
     )
     check('the status bar says nothing while it is off', (await footer()).text === '')
 
-    await settings.evaluate(() =>
-      [...document.querySelectorAll<HTMLLabelElement>('label.settings-field')]
-        .find((field) => field.textContent?.startsWith('Use language servers'))
-        ?.querySelector('input')
-        ?.click(),
-    )
+    await diagnostics()
+    await page.click('.intelligence-blocker button')
     const on = await poll(footer, (state) => state.servers.length > 0)
+    await page.keyboard.press('Escape')
     check(
-      'turning it on shows the diff’s server in the status bar',
+      'Turn On in IntelliSense shows the diff’s server in the status bar',
       on.servers.join() === 'tsrs=idle' && on.text.endsWith('Beta'),
       JSON.stringify(on),
     )
@@ -174,6 +171,19 @@ export default {
       (await poll(saved, (stored) => stored.codeIntelligence === true)).codeIntelligence === true,
     )
 
+    check(
+      '  and the open Settings window follows',
+      await poll(
+        () =>
+          settings.evaluate(
+            () =>
+              [...document.querySelectorAll<HTMLLabelElement>('label.settings-field')]
+                .find((field) => field.textContent?.startsWith('Use language servers'))
+                ?.querySelector('input')?.checked === true,
+          ),
+        (checked) => checked,
+      ),
+    )
     await settings.select('.language-server[data-language="typescript"] select', 'off')
     const off = await poll(footer, (state) => state.servers.length === 0)
     check('a language turned off leaves the status bar', off.text === '', JSON.stringify(off))
@@ -197,8 +207,8 @@ export default {
     )
     check(
       '  and is saved',
-      (await poll(saved, (stored) => stored.languageServers?.typescript === 'off')).languageServers
-        ?.typescript === 'off',
+      (await poll(saved, (stored) => stored.languageServers?.typescript === 'off'))
+        .codeIntelligence === true,
     )
     await settings.select('.language-server[data-language="typescript"] select', 'auto')
     await poll(footer, (state) => state.servers.length > 0)
