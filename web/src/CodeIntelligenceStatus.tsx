@@ -8,6 +8,7 @@ import {
 } from './codeIntelligence.ts'
 import { sendCommand } from './commands.ts'
 import { readSettings } from './desktopSettings.ts'
+import InstallServer, { installNote } from './InstallServer.tsx'
 import type { LoadedReviewDiff } from './useReviewDiff.tsx'
 import type { LanguageStatus } from '../../src/types.ts'
 
@@ -29,6 +30,8 @@ function serverCell(language: LanguageStatus) {
       </>
     )
   if (language.state === 'off') return 'Off in Settings'
+  if (language.installs?.length || language.installing || language.installError)
+    return installNote(language)
   if (language.install) return <code>{language.install}</code>
   return 'No server found'
 }
@@ -158,8 +161,13 @@ export default function CodeIntelligenceStatus({
                 {active?.id === language.id && <small>Active file</small>}
               </span>
               <span className="intelligence-server">{serverCell(language)}</span>
-              <span className="intelligence-state">{stateCell(language)}</span>
-              {language.error && <pre>{language.error}</pre>}
+              <span className="intelligence-state">
+                {stateCell(language)}
+                <InstallServer repoId={repoId} language={language} onStarted={refresh} />
+              </span>
+              {(language.error ?? language.installError?.log) && (
+                <pre>{language.error ?? language.installError?.log}</pre>
+              )}
             </li>
           ))}
         </ul>

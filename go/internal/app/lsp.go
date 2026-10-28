@@ -40,15 +40,17 @@ type language struct {
 	Templates bool
 	// In Auto's order.
 	Servers []languageServer
-	// What to run when no server is found.
-	Install string
+	// How to install a server when none is found, in the order offered.
+	Installs []installMethod
 }
 
 func defaultLanguages() []language {
 	return []language{
-		{ID: "go", Label: "Go", Extensions: []string{".go"}, Install: "go install golang.org/x/tools/gopls@latest",
-			Servers: []languageServer{{Name: "gopls", Choice: "gopls", command: "gopls"}}},
-		{ID: "typescript", Label: "TypeScript", Extensions: []string{".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"}, Install: "npm install --save-dev tsrs",
+		{ID: "go", Label: "Go", Extensions: []string{".go"},
+			Installs: []installMethod{mise("go:golang.org/x/tools/gopls"), brew("gopls"), {"go", []string{"go", "install", "golang.org/x/tools/gopls@latest"}}},
+			Servers:  []languageServer{{Name: "gopls", Choice: "gopls", command: "gopls"}}},
+		{ID: "typescript", Label: "TypeScript", Extensions: []string{".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"},
+			Installs: []installMethod{mise("npm:tsrs"), {"npm", []string{"npm", "install", "--global", "tsrs"}}},
 			// tsrs before the checkout's own tsc: it answers the same protocol faster
 			// and in less memory (79 against 115 ms to a first hover, 99 against 159 MB).
 			Servers: []languageServer{
@@ -59,7 +61,8 @@ func defaultLanguages() []language {
 				{Name: "tsc", Choice: "tsc", checkout: "node_modules/.bin/tsc", args: []string{"--lsp", "--stdio"}, usable: typeScriptSeven},
 				{Name: "typescript-language-server", Choice: "typescript-language-server", command: "typescript-language-server", args: []string{"--stdio"}},
 			}},
-		{ID: "python", Label: "Python", Extensions: []string{".py", ".pyi"}, Install: "uv tool install basedpyright",
+		{ID: "python", Label: "Python", Extensions: []string{".py", ".pyi"},
+			Installs: []installMethod{mise("pipx:basedpyright"), brew("basedpyright"), {"uv", []string{"uv", "tool", "install", "basedpyright"}}},
 			Servers: []languageServer{
 				{Name: "basedpyright", Choice: "basedpyright", checkout: ".venv/bin/basedpyright-langserver", args: []string{"--stdio"}},
 				{Name: "pyright", Choice: "pyright", checkout: ".venv/bin/pyright-langserver", args: []string{"--stdio"}},
@@ -67,12 +70,15 @@ func defaultLanguages() []language {
 				{Name: "pyright", Choice: "pyright", command: "pyright-langserver", args: []string{"--stdio"}},
 				{Name: "ty", Choice: "ty", command: "ty", args: []string{"server"}},
 			}},
-		{ID: "terraform", Label: "Terraform", Extensions: []string{".tf", ".tfvars"}, Install: "brew install hashicorp/tap/terraform-ls",
-			Servers: []languageServer{{Name: "terraform-ls", Choice: "terraform-ls", command: "terraform-ls", args: []string{"serve"}}}},
-		{ID: "helm", Label: "Helm", Extensions: []string{".yaml", ".yml", ".tpl", ".txt"}, Templates: true, Install: "brew install helm-ls",
-			Servers: []languageServer{{Name: "helm_ls", Choice: "helm_ls", command: "helm_ls", args: []string{"serve"}}}},
-		{ID: "rust", Label: "Rust", Extensions: []string{".rs"}, Install: "rustup component add rust-analyzer",
-			Servers: []languageServer{{Name: "rust-analyzer", Choice: "rust-analyzer", command: "rust-analyzer"}}},
+		{ID: "terraform", Label: "Terraform", Extensions: []string{".tf", ".tfvars"},
+			Installs: []installMethod{mise("terraform-ls"), brew("terraform-ls")},
+			Servers:  []languageServer{{Name: "terraform-ls", Choice: "terraform-ls", command: "terraform-ls", args: []string{"serve"}}}},
+		{ID: "helm", Label: "Helm", Extensions: []string{".yaml", ".yml", ".tpl", ".txt"}, Templates: true,
+			Installs: []installMethod{mise("helm-ls"), brew("helm-ls")},
+			Servers:  []languageServer{{Name: "helm_ls", Choice: "helm_ls", command: "helm_ls", args: []string{"serve"}}}},
+		{ID: "rust", Label: "Rust", Extensions: []string{".rs"},
+			Installs: []installMethod{mise("rust-analyzer"), brew("rust-analyzer"), {"rustup", []string{"rustup", "component", "add", "rust-analyzer"}}},
+			Servers:  []languageServer{{Name: "rust-analyzer", Choice: "rust-analyzer", command: "rust-analyzer"}}},
 	}
 }
 
@@ -261,6 +267,10 @@ type languageServers struct {
 	workspaceMu sync.Mutex
 	workspaces  map[string]revisionWorkspace
 	origins     map[string]string
+	installing  map[string]*installJob
+	// Stops the installs still running when the review server stops.
+	installContext context.Context
+	cancelInstalls context.CancelFunc
 
 	languages []language
 	// The environment servers run in; the login shell's unless a test replaces it.
@@ -276,9 +286,11 @@ type environmentEntry struct {
 }
 
 func newLanguageServers() *languageServers {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &languageServers{
 		clients: map[clientKey]*languageClient{}, envs: map[string]*environmentEntry{},
 		workspaces: map[string]revisionWorkspace{}, origins: map[string]string{},
+		installing: map[string]*installJob{}, installContext: ctx, cancelInstalls: cancel,
 		languages: defaultLanguages(), environment: serverEnvironment,
 		idle: 10 * time.Minute, retry: 30 * time.Second,
 	}
@@ -355,6 +367,7 @@ func (m *languageServers) close() {
 	}
 	m.mu.Unlock()
 	stopClients(stopping)
+	m.stopInstalls()
 	m.closeWorkspaces()
 }
 
@@ -464,7 +477,8 @@ func (m *languageServers) start(client *languageClient, root string, l language,
 	env := m.env(root)
 	server := m.findServer(root, l, env, choice)
 	if server == nil {
-		abandon(fmt.Errorf("No %s language server found: %s", l.Label, l.Install))
+		_, command := l.installs(env)
+		abandon(fmt.Errorf("No %s language server found: %s", l.Label, command))
 		return
 	}
 	client.mu.Lock()
@@ -690,8 +704,13 @@ type languageStatus struct {
 	// off, missing, idle, starting, indexing, ready or failed.
 	State    string          `json:"state"`
 	Progress *progressReport `json:"progress,omitempty"`
+	// The command to show for a missing server, and the ones the page may run.
 	Install  string          `json:"install,omitempty"`
-	Error    string          `json:"error,omitempty"`
+	Installs []installOption `json:"installs,omitempty"`
+	// The manager installing the server now, or the install that failed.
+	Installing   string          `json:"installing,omitempty"`
+	InstallError *installFailure `json:"installError,omitempty"`
+	Error        string          `json:"error,omitempty"`
 }
 
 type lspStatus struct {
@@ -725,8 +744,12 @@ func (m *languageServers) status(root string, templates []string) lspStatus {
 		case client != nil:
 			client.describe(&entry)
 		}
-		if entry.Server == nil && entry.State != "off" {
-			entry.State, entry.Install = "missing", l.Install
+		if entry.Server == nil {
+			if entry.State != "off" {
+				entry.State = "missing"
+			}
+			entry.Installs, entry.Install = l.installs(env)
+			m.describeInstall(&entry)
 		}
 		result.Languages = append(result.Languages, entry)
 	}

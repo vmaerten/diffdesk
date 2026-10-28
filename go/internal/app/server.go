@@ -171,6 +171,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		reply(w, 200, status)
+	case route == "lsp/install" && r.Method == "POST" && s.lsp != nil:
+		var body struct {
+			Language string `json:"language"`
+			Manager  string `json:"manager"`
+		}
+		if err := decode(w, r, &body); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		if err := s.lsp.install(s.repo.Path, body.Language, body.Manager); err != nil {
+			fail(w, 409, err)
+			return
+		}
+		reply(w, 202, struct{}{})
 	case (route == "lsp/symbol" || route == "lsp/references") && r.Method == "GET" && s.lsp != nil:
 		q := r.URL.Query()
 		revision := q.Get("revision")
