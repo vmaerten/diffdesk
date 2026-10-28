@@ -48,6 +48,7 @@ import { useSymbolCard } from './SymbolCard.tsx'
 import SymbolPanel, { PanelTabs, type PanelTab, type SymbolTarget } from './SymbolPanel.tsx'
 import CodeIntelligenceStatus from './CodeIntelligenceStatus.tsx'
 import { debugLog } from './debugLog.ts'
+import { latestUpdate } from './updates.ts'
 import type { LanguageStatus } from '../../src/types.ts'
 import { asText } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
@@ -593,6 +594,7 @@ export default function App({
   /** The palette leaves out what would do nothing, and checks what shows a state. */
   const paletteCommands = (): PaletteCommand[] => {
     const stack = data?.base.stack
+    const update = latestUpdate()
     const applies: Partial<Record<CommandName, boolean>> = {
       stack: !!stack,
       'layer-below': !!stack && neighbourLayer(stack, -1) !== null,
@@ -606,6 +608,9 @@ export default function App({
       reveal: !!activePath && onReveal !== undefined,
       'reset-viewed': viewedCount > 0,
       'copy-comments': comments.length > 0,
+      'check-updates':
+        !!window.go && !['checking', 'installing', 'restarting'].includes(update.status),
+      'install-update': update.status === 'available',
     }
     const checked: Partial<Record<CommandName, boolean>> = {
       unified: diffStyle === 'unified',
@@ -618,6 +623,10 @@ export default function App({
     }
     return COMMANDS.filter((command) => applies[command.name] ?? true).map((command) => ({
       ...command,
+      label:
+        command.name === 'install-update'
+          ? `Update to ${update.version} and Restart…`
+          : command.label,
       checked: checked[command.name],
     }))
   }

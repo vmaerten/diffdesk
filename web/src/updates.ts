@@ -18,3 +18,12 @@ export const IDLE_UPDATE: UpdateSnapshot = {
   message: '',
   retry: '',
 }
+
+let latest = IDLE_UPDATE
+
+/** The snapshot the update sheet shows, read by the palette without rerendering the review. */
+export const latestUpdate = () => latest
+
+export const recordUpdate = (snapshot: UpdateSnapshot) => {
+  latest = snapshot
+}

@@ -8,7 +8,7 @@ import { useAppearance } from './appearance.ts'
 import { commandOf } from './commands.ts'
 import { languageConfig, sendLanguageConfig } from './codeIntelligence.ts'
 import ShortcutsSheet from './ShortcutsSheet.tsx'
-import UpdateBanner from './UpdateBanner.tsx'
+import UpdateSheet from './UpdateSheet.tsx'
 import type { UpdateSnapshot } from './updates.ts'
 import {
   codeLineHeight,
@@ -58,6 +58,7 @@ interface DesktopAPI {
   UpdateStatus(): Promise<UpdateSnapshot>
   CheckForUpdates(): Promise<void>
   DismissUpdate(): Promise<UpdateSnapshot>
+  SkipUpdate(): Promise<UpdateSnapshot>
   InstallUpdate(): Promise<UpdateSnapshot>
 }
 declare global {
@@ -526,7 +527,7 @@ export default function DesktopApp() {
           </button>
         </div>
       )}
-      <UpdateBanner />
+      <UpdateSheet />
       <ShortcutsSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   )

@@ -245,15 +245,15 @@
       await desktopApp.CheckForUpdates()
       await wait(
         () => document.querySelector('.update-details'),
-        'Native update state did not reach the banner',
+        'Native update state did not reach the sheet',
       )
       check(
         (await desktopApp.UpdateStatus()).status === 'error',
         'Test check reached a real updater',
       )
-      document.querySelector('.update-actions button').click()
+      document.querySelector('.update-sheet footer button').click()
       await wait(
-        () => !document.querySelector('.update-banner'),
+        () => !document.querySelector('dialog.update-sheet[open]'),
         'Dismiss did not clear native update state',
       )
       check(

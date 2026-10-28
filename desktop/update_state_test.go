@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -103,5 +105,52 @@ func TestUpdateSessionSerializesConcurrentInstalls(t *testing.T) {
 	session.installFailed("restart unavailable; reopen manually", false)
 	if _, _, ok := session.startInstall(); ok {
 		t.Fatal("a restart failure offered another installation")
+	}
+}
+
+func TestUpdateSessionSkip(t *testing.T) {
+	installation := updateInstallation{"Homebrew", "/fixture/brew", "/fixture/Diffdesk.app"}
+	release := updateRelease{Version: "0.7.0"}
+	var session updateSession
+	if _, version := session.skip(); version != "" {
+		t.Fatal("skipped a version that was never offered")
+	}
+	session.startCheck(false)
+	session.checked(installation, "0.6.0", release, nil, "", false)
+	state, version := session.skip()
+	if version != "0.7.0" || state.Status != "idle" {
+		t.Fatalf("skip: %+v %q", state, version)
+	}
+	if _, _, ok := session.startInstall(); ok {
+		t.Fatal("a skipped offer could still install")
+	}
+	session.startCheck(false)
+	if state := session.checked(installation, "0.6.0", release, nil, "", false); state.Status != "idle" {
+		t.Fatalf("a startup check offered the skipped version: %+v", state)
+	}
+	session.startCheck(false)
+	if state := session.checked(installation, "0.6.0", updateRelease{Version: "0.7.1"}, nil, "", false); state.Status != "available" {
+		t.Fatalf("a newer version stayed hidden: %+v", state)
+	}
+	session.startCheck(true)
+	if state := session.checked(installation, "0.6.0", release, nil, "", true); state.Status != "available" {
+		t.Fatalf("a manual check hid the skipped version: %+v", state)
+	}
+
+	path := filepath.Join(t.TempDir(), "Diffdesk", "skipped-update")
+	if loadSkippedVersion(path) != "" {
+		t.Fatal("a missing file skipped a version")
+	}
+	if err := saveSkippedVersion(path, "0.7.0"); err != nil {
+		t.Fatal(err)
+	}
+	if got := loadSkippedVersion(path); got != "0.7.0" {
+		t.Fatalf("loaded %q", got)
+	}
+	if err := os.WriteFile(path, []byte("latest"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := loadSkippedVersion(path); got != "" {
+		t.Fatalf("an invalid file skipped %q", got)
 	}
 }

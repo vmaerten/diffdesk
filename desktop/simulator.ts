@@ -50,6 +50,7 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
     updateInstalls: 0,
     updateChecks: 0,
     updateDismissals: 0,
+    updateSkips: 0,
     publishUpdate: (patch: Partial<UpdateSnapshot>) => {
       const next = { ...update, ...patch, revision: patch.revision ?? update.revision + 1 }
       if (next.revision >= update.revision) {
@@ -128,6 +129,11 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
           if (['checking', 'installing', 'restarting'].includes(update.status))
             return structuredClone(update)
           fixture.updateDismissals++
+          return fixture.publishUpdate({ status: 'idle', message: '', retry: '' })
+        },
+        SkipUpdate: async () => {
+          if (update.status !== 'available') return structuredClone(update)
+          fixture.updateSkips++
           return fixture.publishUpdate({ status: 'idle', message: '', retry: '' })
         },
         InstallUpdate: async () => {
