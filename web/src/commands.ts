@@ -31,7 +31,7 @@ export type ReviewCommand =
   | 'go-to-file'
   | 'code-intelligence-status'
 
-/** Go's menus open a repository and Settings themselves; only the palette sends those two. */
+/** Go's menus open a repository and Settings and check for updates themselves; only the palette sends those. */
 export type WindowCommand =
   | 'reload'
   | 'close-tab'
@@ -39,6 +39,8 @@ export type WindowCommand =
   | 'sidebar'
   | 'open-repository'
   | 'settings'
+  | 'check-updates'
+  | 'install-update'
   | 'zoom-in'
   | 'zoom-out'
   | 'zoom-reset'
@@ -59,6 +61,8 @@ export interface CommandEntry {
  * repeat desktop/main.go's, and the single keys App's KEY_COMMANDS.
  */
 export const COMMANDS: CommandEntry[] = [
+  { name: 'install-update', label: 'Update and Restart…', group: 'Diffdesk' },
+  { name: 'check-updates', label: 'Check for Updates…', group: 'Diffdesk' },
   { name: 'settings', label: 'Settings…', group: 'Diffdesk', keys: '⌘,' },
   { name: 'open-repository', label: 'Open Repository…', group: 'File', keys: '⌘O' },
   { name: 'close-tab', label: 'Close Review', group: 'File', keys: '⌘W' },

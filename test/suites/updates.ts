@@ -1,5 +1,7 @@
 import type { UpdateSnapshot } from '../../web/src/updates.ts'
-import { until, type Suite } from '../harness.ts'
+import { command, until, type Suite } from '../harness.ts'
+
+const SHEET = 'dialog.update-sheet[open]'
 
 export default {
   name: 'updates',
@@ -9,17 +11,33 @@ export default {
       page.evaluate(`window.desktopFixture.publishUpdate(${JSON.stringify(patch)})`)
     const click = (label: string) =>
       page.evaluate(
-        `([...document.querySelectorAll('.update-actions button')].find(button => button.textContent.trim() === ${JSON.stringify(label)})).click()`,
+        `([...document.querySelectorAll('.update-sheet footer button')].find(button => button.textContent.trim() === ${JSON.stringify(label)})).click()`,
       )
     const evaluateBoolean = async (expression: string) => (await page.evaluate(expression)) === true
-    const installs = () => page.evaluate('window.desktopFixture.updateInstalls')
-    const banner = (text: string) =>
+    const fixture = (name: string) => page.evaluate(`window.desktopFixture.${name}`)
+    const installs = () => fixture('updateInstalls')
+    const sheet = (text: string) =>
       until(
         page,
-        `document.querySelector('.update-banner h2')?.textContent === ${JSON.stringify(text)}`,
+        `document.querySelector(${JSON.stringify(`${SHEET} h2`)})?.textContent === ${JSON.stringify(text)}`,
       )
+    const closed = () => until(page, `!document.querySelector(${JSON.stringify(SHEET)})`)
+    /** Run a command from ⌘K, by its label. */
+    const palette = async (search: string, label: string) => {
+      await command(page, 'palette')
+      await page.waitForSelector('dialog.command-palette[open] .palette-input')
+      await page.keyboard.type(search)
+      return until(
+        page,
+        `(() => {
+          const item = [...document.querySelectorAll('.palette-item')].find((e) => e.querySelector('.palette-label').textContent === ${JSON.stringify(label)})
+          item?.click()
+          return !!item
+        })()`,
+      )
+    }
 
-    check('no update means no banner', (await page.$('.update-banner')) === null)
+    check('no update means no sheet', (await page.$(SHEET)) === null)
     await evaluateBoolean(
       `window.updateReviewBefore = document.querySelector('.desktop-review .app')`,
     )
@@ -51,14 +69,12 @@ export default {
       '### Features\n\n- Read **release notes** before updating.\n- Keep `drafts` open. ([#123](https://github.com/vmaerten/diffdesk/pull/123))\n\n<script>window.releaseNotesExecuted = true</script>\n\n![remote image](https://example.invalid/tracker.png)\n\n[unsafe](javascript:alert(1))'
     await publish({ status: 'available', version: '0.6.1', manager: 'Homebrew', notes })
     check(
-      'a new version appears in a nonmodal banner',
-      (await banner('Diffdesk 0.6.1 is available')) && (await page.$('dialog[open]')) === null,
+      'a new version opens the update sheet',
+      await sheet('A new version of Diffdesk is available'),
     )
     check(
-      'the banner does not steal focus from a draft',
-      await evaluateBoolean(
-        'document.activeElement === document.querySelector(".comment-composer textarea")',
-      ),
+      'the sheet takes the focus on its notes, where no key installs',
+      await evaluateBoolean(`document.activeElement?.classList.contains('update-sheet-notes')`),
     )
     check(
       'the review and draft stay mounted',
@@ -66,95 +82,125 @@ export default {
         `window.updateReviewBefore === document.querySelector('.desktop-review .app') && document.querySelector('.comment-composer textarea').value === 'keep this unsaved review draft'`,
       ),
     )
-    await page.click('.update-notes > summary')
-    await page.waitForSelector('.update-notes-body li strong')
+    await page.waitForSelector('.update-sheet-notes li strong')
     check(
-      'release notes render headings, lists, emphasis and code before installing',
+      'release notes show headings, lists, emphasis and code before installing',
       (await evaluateBoolean(
-        `document.querySelector('.update-notes-body h3').textContent === 'Features' && document.querySelector('.update-notes-body strong').textContent === 'release notes' && document.querySelector('.update-notes-body code').textContent === 'drafts'`,
+        `document.querySelector('.update-sheet-notes h3').textContent === 'Features' && document.querySelector('.update-sheet-notes strong').textContent === 'release notes' && document.querySelector('.update-sheet-notes code').textContent === 'drafts'`,
       )) && (await installs()) === 0,
     )
     check(
       'release links open outside the review',
       await evaluateBoolean(
-        `document.querySelector('.update-notes-body a[href="https://github.com/vmaerten/diffdesk/pull/123"]').target === '_blank'`,
+        `document.querySelector('.update-sheet-notes a[href="https://github.com/vmaerten/diffdesk/pull/123"]').target === '_blank'`,
       ),
     )
     check(
       'release Markdown cannot inject HTML or remote images',
       await evaluateBoolean(
-        `!document.querySelector('.update-notes-body script, .update-notes-body img, .update-notes-body [href^="javascript:"]') && !window.releaseNotesExecuted`,
+        `!document.querySelector('.update-sheet-notes script, .update-sheet-notes img, .update-sheet-notes [href^="javascript:"]') && !window.releaseNotesExecuted`,
       ),
     )
-    await click('Later')
     check(
-      'Later hides the banner without installing',
-      (await until(page, '!document.querySelector(".update-banner")')) && (await installs()) === 0,
+      'the sheet explains draft loss before restarting',
+      await evaluateBoolean(
+        `document.querySelector('.update-sheet-note').textContent.includes('Unsaved drafts')`,
+      ),
+    )
+    await click('Remind Me Later')
+    check(
+      'Remind Me Later hides the sheet without installing',
+      (await closed()) && (await installs()) === 0 && (await fixture('updateDismissals')) === 0,
+    )
+    check(
+      'the draft gets the focus back',
+      await evaluateBoolean(
+        'document.activeElement === document.querySelector(".comment-composer textarea")',
+      ),
     )
 
-    await publish({ status: 'available', version: '0.6.1', manager: 'Homebrew' })
-    await page.waitForSelector('.update-actions .primary')
-    await click('Update…')
     check(
-      'Update asks for confirmation before calling Go',
-      (await banner('Update and restart Diffdesk?')) && (await installs()) === 0,
-    )
-    check(
-      'confirmation explains draft loss and focuses Cancel',
-      await evaluateBoolean(
-        `document.querySelector('.update-copy').textContent.includes('Unsaved drafts') && document.activeElement.textContent === 'Cancel'`,
-      ),
+      '⌘K offers the hidden update',
+      (await palette('update', 'Update to 0.6.1 and Restart…')) &&
+        (await sheet('A new version of Diffdesk is available')),
     )
     await page.keyboard.press('Escape')
     check(
-      'Escape cancels only the update confirmation',
-      (await banner('Diffdesk 0.6.1 is available')) &&
+      'Escape hides the offer too',
+      (await closed()) &&
+        (await installs()) === 0 &&
         (await evaluateBoolean(
           `document.querySelector('.comment-composer textarea').value === 'keep this unsaved review draft'`,
-        )) &&
-        (await installs()) === 0,
+        )),
     )
-    await click('Update…')
-    await click('Cancel')
+    await palette('update', 'Update to 0.6.1 and Restart…')
+    await sheet('A new version of Diffdesk is available')
+    await click('Skip This Version')
     check(
-      'Cancel returns to the offer',
-      (await banner('Diffdesk 0.6.1 is available')) && (await installs()) === 0,
+      'Skip This Version tells Go and closes the sheet',
+      (await closed()) && (await fixture('updateSkips')) === 1 && (await installs()) === 0,
     )
-    await click('Update…')
+
+    const long = Array.from({ length: 80 }, (_, i) => `- Change number ${i + 1}`).join('\n')
+    await publish({ status: 'available', version: '0.6.1', manager: 'Homebrew', notes: long })
+    await sheet('A new version of Diffdesk is available')
+    await page.setViewport({ width: 800, height: 600 })
+    await page.waitForSelector('.update-sheet-notes li')
+    const fits = await page.evaluate(() => {
+      const box = document.querySelector('.update-sheet-notes')!
+      const bounds = document.querySelector('.update-sheet')!.getBoundingClientRect()
+      return (
+        box.scrollHeight > box.clientHeight &&
+        bounds.top >= 0 &&
+        bounds.bottom <= innerHeight &&
+        [...document.querySelectorAll('.update-sheet footer button')].every((button) => {
+          const rect = button.getBoundingClientRect()
+          return (
+            rect.left >= bounds.left && rect.right <= bounds.right && rect.bottom <= bounds.bottom
+          )
+        })
+      )
+    })
+    check('a long changelog scrolls, and the buttons fit the minimum window', fits)
+    await page.setViewport({ width: 1280, height: 800 })
+
+    await publish({ notes })
     await click('Update and Restart')
     check(
-      'confirmation starts one installation with honest progress',
-      (await banner('Updating Diffdesk…')) &&
+      'Update and Restart starts one installation with honest progress',
+      (await sheet('Updating to Diffdesk 0.6.1…')) &&
         (await installs()) === 1 &&
         (await page.$('[role="progressbar"]:not([aria-valuenow])')) !== null,
     )
     check(
       'installation cannot be dismissed or started twice',
-      (await page.$('.update-actions button')) === null,
+      (await page.$('.update-sheet footer button')) === null,
     )
+    await page.keyboard.press('Escape')
+    check('Escape does not hide an installation', await sheet('Updating to Diffdesk 0.6.1…'))
     await page.reload({ waitUntil: 'networkidle0' })
     check(
-      'reload recovers the ongoing native operation',
-      (await banner('Updating Diffdesk…')) && (await installs()) === 0,
-    )
-    await page.click('.update-notes > summary')
-    check(
-      'release notes survive a reload during installation',
-      await until(
-        page,
-        `document.querySelector('.update-notes-body strong')?.textContent === 'release notes'`,
-      ),
+      'reload recovers the ongoing native operation, with its notes',
+      (await sheet('Updating to Diffdesk 0.6.1…')) &&
+        (await installs()) === 0 &&
+        (await until(
+          page,
+          `document.querySelector('.update-sheet-notes strong')?.textContent === 'release notes'`,
+        )),
     )
     // A delayed event must not replace the newer status read after reload.
     await publish({ revision: 1, status: 'available', version: '0.5.0' })
-    check('an older event cannot overwrite installation', await banner('Updating Diffdesk…'))
+    check(
+      'an older event cannot overwrite installation',
+      await sheet('Updating to Diffdesk 0.6.1…'),
+    )
 
     await publish({
       status: 'error',
       message: 'Homebrew has not installed Diffdesk 0.6.1 yet.',
       retry: 'install',
     })
-    check('install failure stays in the banner', await banner('The update couldn’t be completed'))
+    check('install failure stays in the sheet', await sheet('The update couldn’t be completed'))
     await page.click('.update-details summary')
     check(
       'error details explain the failure',
@@ -165,63 +211,50 @@ export default {
     await click('Try Again')
     check(
       'retry repeats installation, without another check',
-      (await banner('Updating Diffdesk…')) &&
+      (await sheet('Updating to Diffdesk 0.6.1…')) &&
         (await installs()) === 1 &&
-        (await page.evaluate('window.desktopFixture.updateChecks')) === 0,
+        (await fixture('updateChecks')) === 0,
     )
     await publish({ status: 'restarting', message: '', retry: '' })
-    check('successful installation announces restart', await banner('Restarting Diffdesk…'))
+    check('successful installation announces restart', await sheet('Restarting Diffdesk…'))
 
     await publish({ status: 'error', message: 'GitHub is offline', retry: 'check' })
-    await page.waitForSelector('.update-actions .primary')
+    await page.waitForSelector('.update-sheet footer .primary')
     await click('Try Again')
     check(
       'a failed check retries checking, not installing',
-      (await banner('Checking for updates…')) &&
-        (await page.evaluate('window.desktopFixture.updateChecks')) === 1 &&
+      (await sheet('Checking for Updates…')) &&
+        (await fixture('updateChecks')) === 1 &&
         (await installs()) === 1,
     )
     await publish({ status: 'current', version: '0.6.1', message: '', retry: '' })
-    check('manual check reports an up-to-date version', await banner('You’re up to date'))
-    await click('Dismiss')
+    check('manual check reports an up-to-date version', await sheet('You’re up to date'))
+    await click('OK')
+    await closed()
+    check(
+      '⌘K checks for updates',
+      (await palette('check for', 'Check for Updates…')) &&
+        (await sheet('Checking for Updates…')) &&
+        (await fixture('updateChecks')) === 2,
+    )
     await publish({ status: 'available', version: '0.6.2', manager: 'mise', retry: '', notes: '' })
-    await page.waitForSelector('.update-actions .primary')
-    await page.click('.update-notes > summary')
     check(
       'a release without notes offers its GitHub release page',
       await until(
         page,
-        `document.querySelector('.update-notes-body a')?.href === 'https://github.com/vmaerten/diffdesk/releases/tag/v0.6.2'`,
+        `document.querySelector('.update-sheet-notes a')?.href === 'https://github.com/vmaerten/diffdesk/releases/tag/v0.6.2'`,
       ),
     )
-    await click('Update…')
     check(
-      'mise confirmation explains global selection and project pins',
+      'mise updates explain global selection and project pins',
       await evaluateBoolean(
-        `document.querySelector('.update-note').textContent.includes('Project version pins')`,
+        `[...document.querySelectorAll('.update-sheet-note')].some((note) => note.textContent.includes('Project version pins'))`,
       ),
     )
 
-    await page.setViewport({ width: 800, height: 600 })
-    const fits = await page.evaluate(() => {
-      const bounds = document.querySelector('.update-banner')!.getBoundingClientRect()
-      return (
-        bounds.left >= 0 &&
-        bounds.right <= innerWidth &&
-        bounds.top > 38 &&
-        bounds.bottom < innerHeight &&
-        [...document.querySelectorAll('.update-actions button')].every((button) => {
-          const rect = button.getBoundingClientRect()
-          return (
-            rect.left >= bounds.left && rect.right <= bounds.right && rect.bottom <= bounds.bottom
-          )
-        })
-      )
-    })
-    check('confirmation fits the minimum desktop window', fits)
     await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }])
     await publish({ status: 'installing' })
-    await banner('Updating Diffdesk…')
+    await sheet('Updating to Diffdesk 0.6.2…')
     check(
       'progress respects reduced motion',
       await evaluateBoolean(
@@ -233,7 +266,7 @@ export default {
       'updates remain visible on the welcome screen',
       await until(
         page,
-        `!!document.querySelector('.desktop-empty') && !!document.querySelector('.update-banner')`,
+        `!!document.querySelector('.desktop-empty') && !!document.querySelector(${JSON.stringify(SHEET)})`,
       ),
     )
   },
