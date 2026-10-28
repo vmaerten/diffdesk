@@ -30,6 +30,9 @@ type languageServer struct {
 	args     []string
 	// Whether the checkout can run it, beyond the file existing.
 	usable func(root string) bool
+	// Asks for references with the declaration: pyright, without it, leaves
+	// out the use the pointer is on and keeps the declarations anyway.
+	declarations bool
 }
 
 type language struct {
@@ -64,10 +67,10 @@ func defaultLanguages() []language {
 		{ID: "python", Label: "Python", Extensions: []string{".py", ".pyi"},
 			Installs: []installMethod{mise("pipx:basedpyright"), brew("basedpyright"), {"uv", []string{"uv", "tool", "install", "basedpyright"}}},
 			Servers: []languageServer{
-				{Name: "basedpyright", Choice: "basedpyright", checkout: ".venv/bin/basedpyright-langserver", args: []string{"--stdio"}},
-				{Name: "pyright", Choice: "pyright", checkout: ".venv/bin/pyright-langserver", args: []string{"--stdio"}},
-				{Name: "basedpyright", Choice: "basedpyright", command: "basedpyright-langserver", args: []string{"--stdio"}},
-				{Name: "pyright", Choice: "pyright", command: "pyright-langserver", args: []string{"--stdio"}},
+				{Name: "basedpyright", Choice: "basedpyright", checkout: ".venv/bin/basedpyright-langserver", args: []string{"--stdio"}, declarations: true},
+				{Name: "pyright", Choice: "pyright", checkout: ".venv/bin/pyright-langserver", args: []string{"--stdio"}, declarations: true},
+				{Name: "basedpyright", Choice: "basedpyright", command: "basedpyright-langserver", args: []string{"--stdio"}, declarations: true},
+				{Name: "pyright", Choice: "pyright", command: "pyright-langserver", args: []string{"--stdio"}, declarations: true},
 				{Name: "ty", Choice: "ty", command: "ty", args: []string{"server"}},
 			}},
 		{ID: "terraform", Label: "Terraform", Extensions: []string{".tf", ".tfvars"},
@@ -127,10 +130,11 @@ var (
 )
 
 type resolvedServer struct {
-	Name   string   `json:"name"`
-	Path   string   `json:"path"`
-	Origin string   `json:"origin"`
-	Args   []string `json:"-"`
+	Name         string   `json:"name"`
+	Path         string   `json:"path"`
+	Origin       string   `json:"origin"`
+	Args         []string `json:"-"`
+	Declarations bool     `json:"-"`
 }
 
 func isExecutable(path string) bool {
@@ -169,7 +173,7 @@ func (l language) find(root string, env []string, choice string) *resolvedServer
 		if choice != "auto" && choice != server.Choice {
 			continue
 		}
-		found := resolvedServer{Name: server.Name, Args: server.args}
+		found := resolvedServer{Name: server.Name, Args: server.args, Declarations: server.declarations}
 		if server.checkout != "" {
 			found.Path, found.Origin = filepath.Join(root, filepath.FromSlash(server.checkout)), "checkout"
 			if !isExecutable(found.Path) || (server.usable != nil && !server.usable(root)) {
