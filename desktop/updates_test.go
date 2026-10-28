@@ -164,7 +164,7 @@ func TestInstallUpdateVerifiesVersionBeforeRestart(t *testing.T) {
 				}
 				var expected [][]string
 				if manager == "Homebrew" {
-					expected = [][]string{{"manager", "update"}, {"manager", "upgrade", "--cask", "vmaerten/tap/diffdesk"}}
+					expected = [][]string{{"manager", "upgrade", "--cask", "vmaerten/tap/diffdesk"}}
 				} else {
 					expected = [][]string{{"manager", "use", "--global", "--fuzzy", "--minimum-release-age", "0s", "--yes", "github:vmaerten/ghl@latest"}, {"manager", "where", "github:vmaerten/ghl@latest"}}
 				}

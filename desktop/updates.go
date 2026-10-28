@@ -191,9 +191,6 @@ func (installation updateInstallation) install(ctx context.Context, offered stri
 	bundle := installation.bundle
 	switch installation.manager {
 	case "Homebrew":
-		if _, err := run(ctx, installation.command, "update"); err != nil {
-			return "", err
-		}
 		if _, err := run(ctx, installation.command, "upgrade", "--cask", "vmaerten/tap/diffdesk"); err != nil {
 			return "", err
 		}
