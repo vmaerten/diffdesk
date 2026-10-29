@@ -44,6 +44,7 @@ export type WindowCommand =
   | 'zoom-in'
   | 'zoom-out'
   | 'zoom-reset'
+  | 'wrap-lines'
 
 export type CommandName = ReviewCommand | WindowCommand
 
@@ -73,6 +74,7 @@ export const COMMANDS: CommandEntry[] = [
   { name: 'zoom-reset', label: 'Actual Size', group: 'View', keys: '⌘0' },
   { name: 'unified', label: 'Unified', group: 'View', keys: '⌘1' },
   { name: 'split', label: 'Split', group: 'View', keys: '⌘2' },
+  { name: 'wrap-lines', label: 'Wrap Lines', group: 'View', keys: '⌥Z' },
   { name: 'working-tree', label: 'Include Working Tree', group: 'View' },
   { name: 'untracked', label: 'Include Untracked Files', group: 'View' },
   { name: 'whitespace', label: 'Ignore Whitespace', group: 'View', keys: '⌥⌘W' },

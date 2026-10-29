@@ -50,6 +50,7 @@ interface ReviewDiffOptions {
   syntaxTheme: SyntaxTheme
   /** Row height for a code size other than the default, so virtualization estimates match. */
   lineHeight?: number
+  wrapLines: boolean
   viewed: ViewedMap
   comments: ServedComment[]
   copied: string | null
@@ -108,6 +109,7 @@ export function useReviewDiff({
   diffStyle,
   syntaxTheme,
   lineHeight,
+  wrapLines,
   viewed,
   comments,
   copied,
@@ -753,6 +755,7 @@ export function useReviewDiff({
   const options = useMemo(
     () => ({
       diffStyle,
+      overflow: wrapLines ? ('wrap' as const) : ('scroll' as const),
       loadDiffFiles,
       expansionLineCount: 20,
       hunkSeparators: 'line-info' as const,
@@ -787,6 +790,7 @@ export function useReviewDiff({
       diffStyle,
       syntaxTheme,
       lineHeight,
+      wrapLines,
       loadDiffFiles,
       onGutterUtilityClick,
       onLineSelectionEnd,

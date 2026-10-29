@@ -70,6 +70,7 @@ See the [reviewing guide](https://diffdesk.vmaerten.fr/guide/reviewing/) for com
 | `Cmd` + hover / click | Symbol info / go to definition (beta, in Settings) |
 | `Cmd+[` | Back from a definition |
 | `Cmd+1` / `Cmd+2` | Unified / split diff |
+| `Option+z` | Wrap long lines |
 | `Cmd+O` / `Cmd+W` | Open a repository / close the review |
 | `Shift+Cmd+C` | Copy all comments |
 | `Cmd+,` | Settings |

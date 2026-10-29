@@ -95,6 +95,7 @@ export default function App({
   onRouteChange,
   syntaxTheme,
   codeLineHeight,
+  wrapLines = false,
   toolbar,
   sidebarHidden,
   onReveal,
@@ -113,6 +114,7 @@ export default function App({
   syntaxTheme: SyntaxTheme
   /** Follows the code size, which changes the row height. */
   codeLineHeight?: number
+  wrapLines?: boolean
   /** The title bar node the review controls render into, once mounted. */
   toolbar: HTMLElement | null
   /** The title bar shows and hides the file tree. */
@@ -397,6 +399,7 @@ export default function App({
     diffStyle,
     syntaxTheme,
     lineHeight: codeLineHeight,
+    wrapLines,
     viewed,
     comments,
     copied,
@@ -555,6 +558,12 @@ export default function App({
       const tag = focused instanceof HTMLElement ? focused.tagName : null
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       if (focused instanceof HTMLElement && focused.isContentEditable) return
+      // ⌥Z, as in VS Code. By its code: Option turns the key into another character.
+      if (event.altKey && !event.metaKey && !event.ctrlKey && event.code === 'KeyZ') {
+        sendCommand('wrap-lines')
+        event.preventDefault()
+        return
+      }
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
       if (picking) return // the picker owns the keyboard while open
@@ -615,6 +624,7 @@ export default function App({
     const checked: Partial<Record<CommandName, boolean>> = {
       unified: diffStyle === 'unified',
       split: diffStyle === 'split',
+      'wrap-lines': wrapLines,
       'working-tree': !committed,
       untracked: withUntracked,
       whitespace: ignoreWhitespace,

@@ -464,6 +464,17 @@ function CodePane({ settings, onChange }: PaneProps) {
             </button>
           </span>
         </div>
+        <label className="settings-field">
+          <span className="settings-label">
+            Wrap lines
+            <small>Long lines continue below instead of scrolling sideways. ⌥Z</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={settings.wrapLines}
+            onChange={(event) => onChange({ wrapLines: event.target.checked })}
+          />
+        </label>
       </div>
       <Preview label="Preview" theme={activeTheme(settings)} />
     </>

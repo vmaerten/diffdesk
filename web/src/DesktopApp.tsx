@@ -90,6 +90,15 @@ export default function DesktopApp() {
       document.documentElement.style.removeProperty('--ui-zoom')
     }
   }, [zoom])
+  // Saved like a change from Settings: Go hands it back to every window, Settings included.
+  const toggleWrapLines = useStableCallback(() => {
+    if (!settings) return
+    const next = { ...settings, wrapLines: !settings.wrapLines }
+    setSettings(next)
+    window.go?.main.desktopApp
+      .SaveSettings(JSON.stringify(next))
+      .catch((cause) => setError(String(cause)))
+  })
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
   const [sidebarHidden, setSidebarHidden] = useState(() => {
@@ -281,6 +290,7 @@ export default function DesktopApp() {
       else if (command === 'zoom-in') changeZoom(1)
       else if (command === 'zoom-out') changeZoom(-1)
       else if (command === 'zoom-reset') changeZoom(0)
+      else if (command === 'wrap-lines') toggleWrapLines()
     }
     window.addEventListener('desktop:command', runCommand)
     window.addEventListener('keydown', cycle)
@@ -292,7 +302,7 @@ export default function DesktopApp() {
       window.removeEventListener('desktop:command', runCommand)
       window.removeEventListener('keydown', cycle)
     }
-  }, [apply, toggleSidebar, changeZoom])
+  }, [apply, toggleSidebar, changeZoom, toggleWrapLines])
   // The Settings window saves each change, and Go sends it to every window. A
   // change that arrives before the first read is the newer of the two.
   useEffect(() => {
@@ -505,6 +515,7 @@ export default function DesktopApp() {
               onRouteChange={routeChanged}
               syntaxTheme={syntaxTheme}
               codeLineHeight={codeLineHeight(settings.codeSize)}
+              wrapLines={settings.wrapLines}
               toolbar={toolbar}
               sidebarHidden={sidebarHidden}
               onReveal={reveal}
