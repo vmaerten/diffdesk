@@ -135,3 +135,64 @@ func TestWalkthroughFindsItsHunksAgain(t *testing.T) {
 		t.Fatalf("after clear: %q", got)
 	}
 }
+
+func TestServedWalkthrough(t *testing.T) {
+	ctx := context.Background()
+	path := t.TempDir()
+	gitFixture(t, path, "init", "-q", "-b", "main")
+	gitFixture(t, path, "config", "user.name", "Fixture")
+	gitFixture(t, path, "config", "user.email", "fixture@example.invalid")
+	writeFixture(t, path, "a.txt", "one\ntwo\nthree\nfour\n")
+	gitFixture(t, path, "add", ".")
+	gitFixture(t, path, "commit", "-qm", "base")
+	gitFixture(t, path, "checkout", "-qb", "feature")
+	writeFixture(t, path, "a.txt", "one\nthree\nfour\n")
+	document := `{"version":1,"title":"T","chapters":[{"title":"C","stops":[{"title":"S","summary":"s","hunks":["a.txt#1"]}]}]}`
+	if err := SetWalkthrough(ctx, path, Selection{Base: "main"}, strings.NewReader(document), &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	repo, err := openRepository(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	served := func(selection Selection) *ServedWalkthrough {
+		review, err := repo.Resolve(ctx, selection)
+		if err != nil {
+			t.Fatal(err)
+		}
+		w, err := review.walkthrough()
+		if err != nil || w == nil {
+			t.Fatalf("walkthrough: %v %v", w, err)
+		}
+		return w
+	}
+	w := served(Selection{Base: "main"})
+	// The hunk opens on context; its first row is the new side's line 1.
+	if at := w.Chapters[0].Stops[0].Hunks[0].At; at == nil || *at != (HunkPlace{ID: "a.txt#1", Path: "a.txt", Side: "additions", Line: 1}) || w.Elsewhere {
+		t.Fatalf("served: %+v elsewhere=%v", at, w.Elsewhere)
+	}
+	if !served(Selection{Base: "main", Committed: true}).Elsewhere {
+		t.Error("a walkthrough of the working tree reads as written for the committed diff")
+	}
+
+	if err := markRead(repo.GitDir, "feature", "another walkthrough", []int{0}); err != nil {
+		t.Fatal(err)
+	}
+	if read := served(Selection{Base: "main"}).Read; len(read) != 0 {
+		t.Fatalf("progress for a replaced walkthrough was kept: %v", read)
+	}
+	if err := markRead(repo.GitDir, "feature", w.CreatedAt, []int{0}); err != nil {
+		t.Fatal(err)
+	}
+	if read := served(Selection{Base: "main"}).Read; len(read) != 1 || read[0] != 0 {
+		t.Fatalf("read: %v", read)
+	}
+}
+
+func TestHunkOpeningOnRemovedLinesStartsOnTheOldSide(t *testing.T) {
+	review := &Review{Patch: "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -4,2 +4,1 @@\n-gone\n+kept\n context\n", sections: map[string]*section{}, Files: []FileStat{{Path: "a.txt"}}}
+	review.parseSections(map[string]string{})
+	if h := review.hunks()[0]; h.Side != "deletions" || h.Line != 4 {
+		t.Fatalf("%s:%d", h.Side, h.Line)
+	}
+}

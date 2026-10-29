@@ -69,6 +69,12 @@ export default function KeyboardShortcuts() {
       </div>
       <div>
         <dt>
+          <kbd>n</kbd> <kbd>p</kbd>
+        </dt>
+        <dd>Next or previous walkthrough stop</dd>
+      </div>
+      <div>
+        <dt>
           <kbd>v</kbd>
         </dt>
         <dd>Mark viewed</dd>
