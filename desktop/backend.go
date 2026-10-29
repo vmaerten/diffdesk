@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vmaerten/ghl/internal/app"
+	"github.com/vmaerten/diffdesk/internal/app"
 )
 
 type reviewBackend struct {

@@ -12,7 +12,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/vmaerten/ghl/internal/app"
+	"github.com/vmaerten/diffdesk/internal/app"
 )
 
 func main() {
@@ -24,9 +24,9 @@ func main() {
 
 func run() error {
 	// Environment defaults preserve paths with spaces through Air's shell runner.
-	repo := flag.String("repo", env("GHL_DEV_REPO", "."), "repository to register")
-	base := flag.String("base", os.Getenv("GHL_DEV_BASE"), "base ref carried by the announced URL")
-	port := flag.String("port", env("GHL_DEV_BACKEND_PORT", "0"), "loopback port, 0 for an ephemeral one")
+	repo := flag.String("repo", env("DIFFDESK_DEV_REPO", "."), "repository to register")
+	base := flag.String("base", os.Getenv("DIFFDESK_DEV_BASE"), "base ref carried by the announced URL")
+	port := flag.String("port", env("DIFFDESK_DEV_BACKEND_PORT", "0"), "loopback port, 0 for an ephemeral one")
 	flag.Parse()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()

@@ -16,7 +16,7 @@ Les défauts sont aux bords : la config git de l'utilisateur, les dépôts dans 
 
 Préfixe `hardening/`, en pile `gh stack` (#195) dans l'ordre ci-dessous : chaque PR a pour base la précédente.
 
-### 01 · `hardening/01-git-format` — Sortie git indépendante de la config utilisateur — [#184](https://github.com/vmaerten/ghl/pull/184)
+### 01 · `hardening/01-git-format` — Sortie git indépendante de la config utilisateur — [#184](https://github.com/vmaerten/diffdesk/pull/184)
 
 - Le parseur de patch (`headerMatches`, `parseSections`) suppose les préfixes `a/` et `b/`, et une ligne de contexte vide précédée d'un espace.
 - Avec `diff.mnemonicPrefix`, `diff.noprefix`, `diff.srcPrefix` ou `diff.dstPrefix`, aucun fichier n'est reconnu dans le patch. Les fichiers n'ont plus d'empreinte : Viewed ne tient pas, les commentaires renvoient 400 et le contexte ne s'ouvre pas.
@@ -24,13 +24,13 @@ Préfixe `hardening/`, en pile `gh stack` (#195) dans l'ordre ci-dessous : chaqu
 - Correctif : `--src-prefix=a/ --dst-prefix=b/` sur les deux `git diff` (review et non suivis), et `diff.suppressBlankEmpty=false` imposé aux commandes git du serveur.
 - Les autres réglages essayés (`color.diff=always`, `diff.renames=copies`, `core.quotePath=false`, `log.showSignature`) ne changent pas ce que lisent les parseurs.
 
-### 02 · `hardening/02-app-lifecycle` — Lancement depuis le Finder et arrêt — [#185](https://github.com/vmaerten/ghl/pull/185)
+### 02 · `hardening/02-app-lifecycle` — Lancement depuis le Finder et arrêt — [#185](https://github.com/vmaerten/diffdesk/pull/185)
 
 - Un lancement depuis le Finder, Spotlight ou le Dock passe par le lanceur, sans argument et avec `/` comme dossier courant. L'app essaie d'ouvrir `/` et affiche « not a git repository ». Sans argument et depuis `/`, le binaire doit ouvrir la fenêtre sans requête. À confirmer d'abord à la main : quitter ghl, le relancer depuis Spotlight.
 - Un `ghl` lancé pendant un Cmd+Q reçoit un accusé de réception, puis sa requête est perdue : le socket répond jusqu'au dernier `defer`. Fermer l'instance en premier dans `OnShutdown`.
 - Retirer les branches `ctx.Done()` mortes : Wails v2 n'annule jamais son contexte.
 
-### 03 · `hardening/03-state-lock` — Verrou et lecture de l'état — [#186](https://github.com/vmaerten/ghl/pull/186)
+### 03 · `hardening/03-state-lock` — Verrou et lecture de l'état — [#186](https://github.com/vmaerten/diffdesk/pull/186)
 
 - Chaque lecture prend le verrou. Un `refs/worktree/ghl-state-lock.lock` laissé par un crash fait échouer tout `/diff` (500 après 10 s), indéfiniment.
 - Sur un dépôt reftable, la contention n'est pas reconnue comme telle, et la transaction verrouille toute la pile de refs.
@@ -40,7 +40,7 @@ Préfixe `hardening/`, en pile `gh stack` (#195) dans l'ordre ci-dessous : chaqu
   - ne mettre en quarantaine que dans `Mutate` ;
   - remplacer le verrou de ref par un `flock` sur un fichier de `.git/ghl/`, que le noyau libère si le processus meurt.
 
-### 04 · `hardening/04-view-state` — État de vue de l'UI — [#187](https://github.com/vmaerten/ghl/pull/187)
+### 04 · `hardening/04-view-state` — État de vue de l'UI — [#187](https://github.com/vmaerten/diffdesk/pull/187)
 
 - Quand la comparaison change, le composer n'a plus de place où s'afficher mais reste ouvert, et tous les raccourcis à une lettre sont bloqués. Le fermer quand sa ligne quitte les hunks.
 - Le fichier actif est un index, jamais recalculé. Après un changement de commit, `j` et `k` sautent au dernier fichier ; après un scroll au trackpad, `v` marque le mauvais fichier. Le garder par chemin et le suivre au scroll.
@@ -49,13 +49,13 @@ Préfixe `hardening/`, en pile `gh stack` (#195) dans l'ordre ci-dessous : chaqu
 - Un tick Viewed encore en cours d'envoi est perdu au changement d'onglet. Il faut un store Viewed par onglet, comme pour les commentaires.
 - Le sélecteur de cible est libellé « base », et le panneau des commentaires ne trie pas les fichiers comme l'arbre.
 
-### 05 · `hardening/05-local-api` — API locale — [#188](https://github.com/vmaerten/ghl/pull/188)
+### 05 · `hardening/05-local-api` — API locale — [#188](https://github.com/vmaerten/diffdesk/pull/188)
 
 - Le contrôle d'`Origin` accepte tous les ports de `localhost`, et un POST `text/plain` passe sans preflight.
 - Une page servie sur `localhost:3000` peut donc créer ou supprimer des commentaires, changer Viewed ou réécrire `branch.*.ghlBase`.
 - Correctif : exiger `Content-Type: application/json` sur les requêtes qui écrivent ; l'UI et `backend.go` l'envoient déjà.
 
-### 06 · `hardening/06-repository-edge-cases` — Dépôts dans un état inhabituel — [#189](https://github.com/vmaerten/ghl/pull/189)
+### 06 · `hardening/06-repository-edge-cases` — Dépôts dans un état inhabituel — [#189](https://github.com/vmaerten/diffdesk/pull/189)
 
 - **Opération en cours.** Pendant un merge, un rebase ou un cherry-pick, toute la review et `ghl comments` renvoient 422. Calculer le diff quand même et remplir `state.operation`, que le bandeau de l'UI attend déjà.
 - **Fichiers non suivis problématiques.** Un lien symbolique, un FIFO ou un fichier de plus de 20 Mo fait échouer `ghl comments` et la review avec non suivis. Les lister comme indisponibles, comme les images.
@@ -64,14 +64,14 @@ Préfixe `hardening/`, en pile `gh stack` (#195) dans l'ordre ci-dessous : chaqu
 - **Dossier du dépôt.** `#`, `?` ou `%` dans son nom cassent l'URL des aperçus d'images.
 - **Erreurs git.** `optionalText` traite l'erreur fatale 128 comme une valeur absente.
 
-### 07 · `hardening/07-git-filters` — Filtres et textconv — [#190](https://github.com/vmaerten/ghl/pull/190)
+### 07 · `hardening/07-git-filters` — Filtres et textconv — [#190](https://github.com/vmaerten/diffdesk/pull/190)
 
 - Avec `eol=crlf`, un filtre clean ou un `textconv`, ouvrir du contexte renvoie 409 et les commentaires hors hunk passent stale. Le serveur compare les octets bruts du fichier au blob nettoyé ou au texte converti.
 - Correctif : `--no-textconv`, et vérifier les lectures du worktree avec `git hash-object --path`.
 - Décision prise le 24 octobre : `--no-textconv`, un fichier que l'utilisateur fait lire par textconv s'affiche comme Git le stocke, binaire le cas échéant, comme sur GitHub.
 - À vérifier ici : un aperçu d'image Git LFS montre probablement le pointeur.
 
-### 08 · `hardening/08-release` — Release — [#191](https://github.com/vmaerten/ghl/pull/191)
+### 08 · `hardening/08-release` — Release — [#191](https://github.com/vmaerten/diffdesk/pull/191)
 
 - **Token du tap.** `release:tap:access` ne détecte pas un token absent : le tap est public, la lecture passe sans token, et l'échec n'arrive qu'après publication. Exiger `HOMEBREW_TAP_TOKEN` pour un tag stable.
 - **Version de Go.** Avec Go 1.27.1, govulncheck trouve 12 failles de la bibliothèque standard atteignables, corrigées en 1.27.2 et 1.27.3. Passer `.mise.toml` à 1.27.3.
@@ -80,7 +80,7 @@ Préfixe `hardening/`, en pile `gh stack` (#195) dans l'ordre ci-dessous : chaqu
 - **Gatekeeper.** Ajouter une ligne pour qui télécharge le zip à la main (signature ad hoc, pas de notarisation).
 - **Option.** Séparer le build, sans secret et en `contents: read`, de la publication, pour qu'une dépendance de build compromise ne voie pas les tokens.
 
-### 09 · `hardening/09-performance` — Performance — [#192](https://github.com/vmaerten/ghl/pull/192)
+### 09 · `hardening/09-performance` — Performance — [#192](https://github.com/vmaerten/diffdesk/pull/192)
 
 Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 
@@ -90,7 +90,7 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 - Sans base dans l'URL, chaque requête lance deux processus git par branche locale. Un PATCH de commentaire refait un `Resolve` complet.
 - Ouvrir une review calcule le diff deux fois, à cause de la vérification préalable de `backend.open`.
 
-### 10 · `hardening/10-tests` — Tests — [#193](https://github.com/vmaerten/ghl/pull/193)
+### 10 · `hardening/10-tests` — Tests — [#193](https://github.com/vmaerten/diffdesk/pull/193)
 
 - Aucun garde rapide pour la régression TMPDIR de 0.3.0 : tester `userTempDir`.
 - Les suites UI contiennent environ 45 `sleep` fixes avant des assertions. Attendre plutôt la condition, avec les helpers existants.
@@ -100,7 +100,7 @@ Mesurer avant et après sur un gros diff, sinon rien ne justifie la PR.
 - `test/images.ts` écrit une capture de debug dans `/tmp`.
 - `test/goMise.ts` laisse tourner l'app précédente quand il échoue.
 
-### 11 · `hardening/11-cleanup` — Nettoyage — [#194](https://github.com/vmaerten/ghl/pull/194)
+### 11 · `hardening/11-cleanup` — Nettoyage — [#194](https://github.com/vmaerten/diffdesk/pull/194)
 
 - **Benchmark mémoire.** Il est cassé : `.repo-name` n'existe plus. Supprimer `memory.py`, `metrics.py`, `memory-probe.js`, `tab-memory.json`, `task desktop:memory` et la section correspondante du README.
 - **`PLAN.md`.** Reporter la note de la décision 7 dans `useReviewDiff.tsx`, puis supprimer le fichier.

@@ -7,7 +7,7 @@ Run `diffdesk` in a Git repository to open its review in the Diffdesk window; ru
 
 `Cmd+K` opens a command palette that finds a command by name and shows its shortcut, with a check on those that show a state, such as Split or Ignore Whitespace. `Cmd+P` lists the review's files with their folder, line counts and status, to jump to one by name; the palette's Commands and Files tabs switch between the two.
 
-This guide describes `main`. See the [changelog](https://github.com/vmaerten/ghl/blob/main/CHANGELOG.md) for changes that have not reached a published release.
+This guide describes `main`. See the [changelog](https://github.com/vmaerten/diffdesk/blob/main/CHANGELOG.md) for changes that have not reached a published release.
 
 ## Choose a comparison
 
@@ -43,7 +43,7 @@ Press `v` or tick a file to mark it Viewed. It folds in place and remains in the
 
 Right-click a file in the tree or on its header for **Viewed**, **Copy Path** and **Reveal in Finder** on that file; the Review menu does the same for the active file.
 
-Comments and Viewed are stored in `.git/ghl/state.json`, relative to the checkout's Git directory. Linked worktrees have their own state. See the [server guide](https://github.com/vmaerten/ghl/blob/main/go/README.md#state) for locking, atomic writes and corruption recovery.
+Comments and Viewed are stored in `.git/ghl/state.json`, relative to the checkout's Git directory. Linked worktrees have their own state. See the [server guide](https://github.com/vmaerten/diffdesk/blob/main/go/README.md#state) for locking, atomic writes and corruption recovery.
 
 ## Bases and stacks
 

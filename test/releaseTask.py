@@ -35,7 +35,7 @@ class ReleaseTask(unittest.TestCase):
         self.events = self.root / 'events.jsonl'
         self.env = {**os.environ, 'PATH': str(self.root / 'tools') + os.pathsep + os.environ['PATH'],
                     'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1',
-                    'GHL_TEST_EVENTS': str(self.events)}
+                    'DIFFDESK_TEST_EVENTS': str(self.events)}
         self.env.pop('RELEASE_TAG', None)
         self.env.pop('TAG', None)
         self.env.pop('RELEASE_REF', None)
@@ -43,7 +43,7 @@ class ReleaseTask(unittest.TestCase):
         self.env.pop('GITHUB_ACTIONS', None)
         self.tool('goreleaser', '''import hashlib
 log('build', tag=os.environ['RELEASE_TAG'], args=sys.argv[1:])
-if os.environ.get('GHL_TEST_BUILD_FAIL'): sys.exit(25)
+if os.environ.get('DIFFDESK_TEST_BUILD_FAIL'): sys.exit(25)
 version = os.environ['RELEASE_TAG'][1:]
 folder = Path('go/dist/release')
 folder.mkdir(parents=True)
@@ -65,29 +65,29 @@ if args[0] == 'api':
         elif path is None: path = flag
     log('api', method=method, path=path, raw=raw, args=args, token=os.environ.get('GH_TOKEN'))
     if path == 'repos/vmaerten/homebrew-tap':
-        sys.exit(1 if os.environ.get('GHL_TEST_TAP_DENIED') else 0)
+        sys.exit(1 if os.environ.get('DIFFDESK_TEST_TAP_DENIED') else 0)
     file = path.removeprefix('repos/vmaerten/homebrew-tap/contents/')
     if method == 'GET' and raw:
-        if file != 'Casks/diffdesk.rb' or not os.environ.get('GHL_TEST_CASK_VERSION'): sys.exit(1)
-        print(f'cask "diffdesk" do\\n  version "{os.environ["GHL_TEST_CASK_VERSION"]}"\\nend')
+        if file != 'Casks/diffdesk.rb' or not os.environ.get('DIFFDESK_TEST_CASK_VERSION'): sys.exit(1)
+        print(f'cask "diffdesk" do\\n  version "{os.environ["DIFFDESK_TEST_CASK_VERSION"]}"\\nend')
     elif method == 'GET':
-        sha = os.environ.get({'Casks/diffdesk.rb': 'GHL_TEST_CASK_SHA', 'cask_renames.json': 'GHL_TEST_RENAMES_SHA', 'Casks/ghl.rb': 'GHL_TEST_OLD_CASK_SHA'}[file])
+        sha = os.environ.get({'Casks/diffdesk.rb': 'DIFFDESK_TEST_CASK_SHA', 'cask_renames.json': 'DIFFDESK_TEST_RENAMES_SHA', 'Casks/ghl.rb': 'DIFFDESK_TEST_OLD_CASK_SHA'}[file])
         if not sha: sys.exit(1)
         print(sha)
-    elif os.environ.get('GHL_TEST_TAP_FAIL'): sys.exit(28)
+    elif os.environ.get('DIFFDESK_TEST_TAP_FAIL'): sys.exit(28)
     sys.exit(0)
 notes = Path(args[args.index('--notes-file') + 1]).read_text() if '--notes-file' in args else None
 log(args[1], args=args, notes=notes)
-if args[:2] == ['release', 'create'] and os.environ.get('GHL_TEST_CREATE_FAIL'): sys.exit(26)
+if args[:2] == ['release', 'create'] and os.environ.get('DIFFDESK_TEST_CREATE_FAIL'): sys.exit(26)
 if args[:2] == ['release', 'download']:
     version = args[2][1:]
     folder = Path(args[args.index('--dir') + 1])
     (folder / 'checksums.txt').write_text(hashlib.sha256(b'fixture asset').hexdigest() + f'  diffdesk_{version}_darwin_arm64.zip\\n')
 ''')
         (self.root / 'desktop/release.py').write_text('''import json,os,sys
-with open(os.environ['GHL_TEST_EVENTS'],'a') as f: f.write(json.dumps({'event':'verify','tag':os.environ['RELEASE_TAG']})+'\\n')
-if os.environ.get('GHL_TEST_VERIFY_FAIL'): sys.exit(27)
-if os.environ.get('GHL_TEST_TAMPER'):
+with open(os.environ['DIFFDESK_TEST_EVENTS'],'a') as f: f.write(json.dumps({'event':'verify','tag':os.environ['RELEASE_TAG']})+'\\n')
+if os.environ.get('DIFFDESK_TEST_VERIFY_FAIL'): sys.exit(27)
+if os.environ.get('DIFFDESK_TEST_TAMPER'):
     with open(f"go/dist/release/diffdesk_{os.environ['RELEASE_TAG'][1:]}_darwin_arm64.zip",'w') as f: f.write('tampered')
 ''')
         self.git('init', '-b', 'main')
@@ -103,7 +103,7 @@ if os.environ.get('GHL_TEST_TAMPER'):
 import json,os,subprocess,sys
 from pathlib import Path
 def log(event, **fields):
-    with open(os.environ['GHL_TEST_EVENTS'],'a') as f: f.write(json.dumps({'event':event,**fields})+'\\n')
+    with open(os.environ['DIFFDESK_TEST_EVENTS'],'a') as f: f.write(json.dumps({'event':event,**fields})+'\\n')
 ''' + body)
         path.chmod(0o755)
 
@@ -159,12 +159,12 @@ def log(event, **fields):
         self.assertEqual(events, [])
 
     def test_failed_build_does_not_publish(self):
-        result, events = self.run_release(GHL_TEST_BUILD_FAIL='1')
+        result, events = self.run_release(DIFFDESK_TEST_BUILD_FAIL='1')
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual([e['event'] for e in events], ['build'])
 
     def test_unreachable_tap_stops_before_publishing(self):
-        result, events = self.run_release(GHL_TEST_TAP_DENIED='1')
+        result, events = self.run_release(DIFFDESK_TEST_TAP_DENIED='1')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('HOMEBREW_TAP_TOKEN', result.stderr)
         self.assertNotIn('create', [e['event'] for e in events])
@@ -176,24 +176,24 @@ def log(event, **fields):
         self.assertNotIn('create', [e['event'] for e in events])
 
     def test_older_release_leaves_a_newer_cask(self):
-        result, events = self.run_release(GHL_TEST_CASK_VERSION='1.10.0', GHL_TEST_CASK_SHA='newer-blob')
+        result, events = self.run_release(DIFFDESK_TEST_CASK_VERSION='1.10.0', DIFFDESK_TEST_CASK_SHA='newer-blob')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('already offers diffdesk 1.10.0', result.stdout)
         self.assertNotIn('PUT', [e.get('method') for e in events])
 
     def test_failed_cask_push_leaves_the_release_published(self):
-        result, events = self.run_release(GHL_TEST_TAP_FAIL='1')
+        result, events = self.run_release(DIFFDESK_TEST_TAP_FAIL='1')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('edit', [e['event'] for e in events])
         self.assertEqual(events[-1]['method'], 'PUT')
 
     def test_existing_cask_is_replaced_in_place(self):
-        result, events = self.run_release(GHL_TEST_CASK_VERSION='1.2.2', GHL_TEST_CASK_SHA='previous-blob')
+        result, events = self.run_release(DIFFDESK_TEST_CASK_VERSION='1.2.2', DIFFDESK_TEST_CASK_SHA='previous-blob')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('sha=previous-blob', self.tap_write(events, 'Casks/diffdesk.rb')['args'])
 
     def test_first_release_renames_the_ghl_cask(self):
-        result, events = self.run_release(GHL_TEST_OLD_CASK_SHA='ghl-blob')
+        result, events = self.run_release(DIFFDESK_TEST_OLD_CASK_SHA='ghl-blob')
         self.assertEqual(result.returncode, 0, result.stderr)
         writes = [(e['method'], e['path'].rsplit('contents/', 1)[1]) for e in events if e.get('method', 'GET') != 'GET']
         self.assertEqual(writes, [('PUT', 'Casks/diffdesk.rb'), ('PUT', 'cask_renames.json'), ('DELETE', 'Casks/ghl.rb')])
@@ -203,23 +203,23 @@ def log(event, **fields):
         self.assertIn('sha=ghl-blob', self.tap_write(events, 'Casks/ghl.rb')['args'])
 
     def test_later_releases_only_update_the_cask(self):
-        result, events = self.run_release(GHL_TEST_RENAMES_SHA='renames-blob')
+        result, events = self.run_release(DIFFDESK_TEST_RENAMES_SHA='renames-blob')
         self.assertEqual(result.returncode, 0, result.stderr)
         writes = [e['path'].rsplit('contents/', 1)[1] for e in events if e.get('method', 'GET') != 'GET']
         self.assertEqual(writes, ['Casks/diffdesk.rb'])
 
     def test_failed_validation_does_not_publish(self):
-        result, events = self.run_release(GHL_TEST_VERIFY_FAIL='1')
+        result, events = self.run_release(DIFFDESK_TEST_VERIFY_FAIL='1')
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual([e['event'] for e in events], ['build', 'verify'])
 
     def test_changed_asset_does_not_publish(self):
-        result, events = self.run_release(GHL_TEST_TAMPER='1')
+        result, events = self.run_release(DIFFDESK_TEST_TAMPER='1')
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn('create', [e['event'] for e in events])
 
     def test_failed_upload_does_not_publish_draft(self):
-        result, events = self.run_release(GHL_TEST_CREATE_FAIL='1')
+        result, events = self.run_release(DIFFDESK_TEST_CREATE_FAIL='1')
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(events[-1]['event'], 'create')
         self.assertNotIn('edit', [e['event'] for e in events])

@@ -11,7 +11,7 @@ import (
 
 func TestUpdateSessionDismissAndRetry(t *testing.T) {
 	var session updateSession
-	installation := updateInstallation{"Homebrew", "/fixture/brew", "/fixture/Diffdesk.app"}
+	installation := updateInstallation{"Homebrew", "/fixture/brew", "/fixture/Diffdesk.app", ""}
 	if state, _, ok := session.startInstall(); ok || state.Version != "" {
 		t.Fatal("a page installed a version that was never offered")
 	}
@@ -87,7 +87,7 @@ func TestUpdateSessionCheckResults(t *testing.T) {
 func TestUpdateSessionSerializesConcurrentInstalls(t *testing.T) {
 	var session updateSession
 	session.startCheck(true)
-	session.checked(updateInstallation{"mise", "/fixture/mise", "/fixture/app"}, "0.6.0", updateRelease{Version: "0.7.0", Notes: "### Features\n\n- Better reviews"}, nil, "", true)
+	session.checked(updateInstallation{"mise", "/fixture/mise", "/fixture/app", miseTool}, "0.6.0", updateRelease{Version: "0.7.0", Notes: "### Features\n\n- Better reviews"}, nil, "", true)
 	var installed atomic.Int32
 	var group sync.WaitGroup
 	for range 32 {
@@ -109,7 +109,7 @@ func TestUpdateSessionSerializesConcurrentInstalls(t *testing.T) {
 }
 
 func TestUpdateSessionSkip(t *testing.T) {
-	installation := updateInstallation{"Homebrew", "/fixture/brew", "/fixture/Diffdesk.app"}
+	installation := updateInstallation{"Homebrew", "/fixture/brew", "/fixture/Diffdesk.app", ""}
 	release := updateRelease{Version: "0.7.0"}
 	var session updateSession
 	if _, version := session.skip(); version != "" {

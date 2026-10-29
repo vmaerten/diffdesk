@@ -16,13 +16,13 @@ import (
 )
 
 // TestFakeLanguageServer is the server the other tests start: this test
-// binary run again, speaking LSP on stdio. GHL_FAKE_LSP picks its behaviour.
+// binary run again, speaking LSP on stdio. DIFFDESK_FAKE_LSP picks its behaviour.
 func TestFakeLanguageServer(t *testing.T) {
-	mode := os.Getenv("GHL_FAKE_LSP")
+	mode := os.Getenv("DIFFDESK_FAKE_LSP")
 	if mode == "" {
 		t.Skip("started by the language server tests")
 	}
-	if log := os.Getenv("GHL_FAKE_LSP_LOG"); log != "" {
+	if log := os.Getenv("DIFFDESK_FAKE_LSP_LOG"); log != "" {
 		file, err := os.OpenFile(log, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 		if err == nil {
 			_, _ = file.WriteString("start\n")
@@ -125,7 +125,7 @@ func TestFakeLanguageServer(t *testing.T) {
 func fakeServers(t *testing.T, mode string) (*languageServers, string, string) {
 	t.Helper()
 	bin := t.TempDir()
-	script := "#!/bin/sh\nexec \"$GHL_FAKE_BINARY\" -test.run='^TestFakeLanguageServer$'\n"
+	script := "#!/bin/sh\nexec \"$DIFFDESK_FAKE_BINARY\" -test.run='^TestFakeLanguageServer$'\n"
 	if err := os.WriteFile(filepath.Join(bin, "fakels"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func fakeServers(t *testing.T, mode string) (*languageServers, string, string) {
 	m.languages = []language{{ID: "go", Label: "Go", Extensions: []string{".go"}, Installs: []installMethod{{"fake", []string{"install", "fakels"}}},
 		Servers: []languageServer{{Name: "fakels", Choice: "fakels", command: "fakels"}}}}
 	m.environment = func(string) []string {
-		return append(os.Environ(), "PATH="+bin, "GHL_FAKE_BINARY="+os.Args[0], "GHL_FAKE_LSP="+mode, "GHL_FAKE_LSP_LOG="+log)
+		return append(os.Environ(), "PATH="+bin, "DIFFDESK_FAKE_BINARY="+os.Args[0], "DIFFDESK_FAKE_LSP="+mode, "DIFFDESK_FAKE_LSP_LOG="+log)
 	}
 	t.Cleanup(m.close)
 	return m, t.TempDir(), log
@@ -394,7 +394,7 @@ func TestLSPRoutes(t *testing.T) {
 func TestLoginEnvironmentSkipsWhatStartupFilesPrint(t *testing.T) {
 	dir, _ := filepath.EvalSymlinks(t.TempDir())
 	shell := filepath.Join(dir, "shell")
-	script := "#!/bin/sh\necho 'Welcome to the shell'\nexport GHL_FROM_STARTUP=yes\neval \"$4\"\n"
+	script := "#!/bin/sh\necho 'Welcome to the shell'\nexport DIFFDESK_FROM_STARTUP=yes\neval \"$4\"\n"
 	if err := os.WriteFile(shell, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -403,7 +403,7 @@ func TestLoginEnvironmentSkipsWhatStartupFilesPrint(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Never print env itself: it holds the developer's secrets.
-	if value := environmentValue(env, "GHL_FROM_STARTUP"); value != "yes" {
+	if value := environmentValue(env, "DIFFDESK_FROM_STARTUP"); value != "yes" {
 		t.Fatalf("a variable set by the startup files: %q", value)
 	}
 	if environmentValue(env, "PATH") == "" {

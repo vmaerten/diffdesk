@@ -111,7 +111,7 @@ func TestInterruptedWriterLeavesCompleteStateAndReleasesLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=^TestStateCrashWorker$")
-	cmd.Env = append(os.Environ(), "GHL_STATE_CRASH_PATH="+s.path)
+	cmd.Env = append(os.Environ(), "DIFFDESK_STATE_CRASH_PATH="+s.path)
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +148,7 @@ func TestInterruptedWriterLeavesCompleteStateAndReleasesLock(t *testing.T) {
 }
 
 func TestStateCrashWorker(t *testing.T) {
-	path := os.Getenv("GHL_STATE_CRASH_PATH")
+	path := os.Getenv("DIFFDESK_STATE_CRASH_PATH")
 	if path == "" {
 		return
 	}

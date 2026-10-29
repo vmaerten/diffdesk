@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vmaerten/ghl/internal/app"
+	"github.com/vmaerten/diffdesk/internal/app"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -70,7 +70,7 @@ func (u *nativeUpdater) check(manual bool) {
 			u.publish(u.session.checked(installation, info.Version, offered, err, retry, manual))
 		}
 		fail := func(err error, retry string) { finish(updateInstallation{}, updateRelease{}, err, retry) }
-		if os.Getenv("GHL_DESKTOP_PROBE") != "" {
+		if os.Getenv("DIFFDESK_DESKTOP_PROBE") != "" {
 			fail(fmt.Errorf("updates are disabled in acceptance tests"), "")
 			return
 		}

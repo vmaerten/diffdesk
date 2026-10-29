@@ -113,7 +113,7 @@ export async function withHarness<T>(
   ) => Promise<T>,
 ): Promise<T> {
   const servers = fakeLanguageServers()
-  const server = await serveGo(repoPath, [], { GHL_LSP_PATH: servers.path })
+  const server = await serveGo(repoPath, [], { DIFFDESK_LSP_PATH: servers.path })
   let ui: Awaited<ReturnType<typeof serveDesktopUI>> | undefined
   let browser: Browser | undefined
   try {

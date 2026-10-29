@@ -1,4 +1,4 @@
-module github.com/vmaerten/ghl/desktop
+module github.com/vmaerten/diffdesk/desktop
 
 go 1.26.0
 
@@ -13,8 +13,8 @@ require (
 )
 
 require (
-	github.com/vmaerten/ghl v0.0.0
+	github.com/vmaerten/diffdesk v0.0.0
 	github.com/wailsapp/wails/v3 v3.0.0-beta.34
 )
 
-replace github.com/vmaerten/ghl => ../go
+replace github.com/vmaerten/diffdesk => ../go

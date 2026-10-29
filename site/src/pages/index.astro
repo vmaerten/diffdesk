@@ -12,7 +12,7 @@ import InstallCommand from '../components/InstallCommand.astro'
 import ThemeSelect from '../components/ThemeSelect.astro'
 
 const base = import.meta.env.BASE_URL.replace(/\/?$/, '/')
-const repo = 'https://github.com/vmaerten/ghl'
+const repo = 'https://github.com/vmaerten/diffdesk'
 const changelog = `${repo}/blob/main/CHANGELOG.md`
 const guide = `${base}guide/getting-started/`
 const description =
@@ -239,7 +239,7 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
           </div>
           <div class="commands">
             <code><span class="prompt">$</span> brew install --cask vmaerten/tap/diffdesk</code>
-            <code><span class="prompt">$</span> mise use -g github:vmaerten/ghl@latest</code>
+            <code><span class="prompt">$</span> mise use -g github:vmaerten/diffdesk@latest</code>
           </div>
         </div>
       </section>
@@ -247,7 +247,7 @@ const fullExport = exportLines(exportComments(reviewed, [goComment, ...reviewed.
 
     <footer class="wrap">
       <div class="bottom">
-        <span>Diffdesk · MIT · vmaerten/ghl</span>
+        <span>Diffdesk · MIT · vmaerten/diffdesk</span>
         <nav aria-label="Footer">
           <a href={guide}>guide</a><a href={changelog}>changelog</a><a href={repo}>github ↗</a>
         </nav>

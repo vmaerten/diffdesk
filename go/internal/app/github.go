@@ -78,9 +78,9 @@ var (
 )
 
 // ghPath finds gh. The app opened from the Finder gets a PATH without the
-// usual install places, so they are tried too. GHL_GH points tests at a fake.
+// usual install places, so they are tried too. DIFFDESK_GH points tests at a fake.
 func ghPath() (string, error) {
-	if path := os.Getenv("GHL_GH"); path != "" {
+	if path := os.Getenv("DIFFDESK_GH"); path != "" {
 		return path, nil
 	}
 	if path, err := exec.LookPath("gh"); err == nil {

@@ -43,12 +43,12 @@ assert.equal(
   'darwin-arm64',
   'Diffdesk ships for macOS on Apple Silicon',
 )
-const miseBinary = realpathSync(process.env.GHL_TEST_MISE ?? findExecutable('mise'))
+const miseBinary = realpathSync(process.env.DIFFDESK_TEST_MISE ?? findExecutable('mise'))
 const miseVersion = execFileSync(miseBinary, ['--version'], { encoding: 'utf8' }).trim()
 assert.match(
   miseVersion,
   /^2026\.10\.2 /,
-  'Use mise 2026.10.2 for release acceptance (GHL_TEST_MISE can select it)',
+  'Use mise 2026.10.2 for release acceptance (DIFFDESK_TEST_MISE can select it)',
 )
 const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'diffdesk-mise-')))
 const reportFile = join(root, '.task', published ? 'mise-published.json' : 'mise-acceptance.json')
@@ -110,10 +110,10 @@ const run = async (binary: string, argv: string[], overrides: NodeJS.ProcessEnv 
     })
   ).stdout.trim()
 const mise = (...argv: string[]) => run(miseBinary, argv)
-const tool = 'github:vmaerten/ghl'
+const tool = 'github:vmaerten/diffdesk'
 const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN
 const github = async (path: string, accept = 'application/vnd.github+json') => {
-  const response = await fetch(`https://api.github.com/repos/vmaerten/ghl/${path}`, {
+  const response = await fetch(`https://api.github.com/repos/vmaerten/diffdesk/${path}`, {
     headers: { Accept: accept, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     signal: AbortSignal.timeout(30_000),
   })
@@ -252,8 +252,8 @@ try {
     const info = JSON.parse(await run(binary, ['--version', '--json'], { PATH: onlyGit }))
     assert.equal(info.version, want.version)
     if (want.commit) assert.equal(info.commit, want.commit)
-    if (published && version === current && process.env.GHL_MISE_EXPECTED_COMMIT)
-      assert.equal(info.commit, process.env.GHL_MISE_EXPECTED_COMMIT)
+    if (published && version === current && process.env.DIFFDESK_MISE_EXPECTED_COMMIT)
+      assert.equal(info.commit, process.env.DIFFDESK_MISE_EXPECTED_COMMIT)
     assert.equal(
       await mise('exec', `${tool}@${version}`, '--', commandOf(version), '--version', '--json'),
       JSON.stringify(info),
@@ -354,6 +354,8 @@ try {
     window = binary
     await run(shim(), ['--repo', repo, '--base', 'main'], {
       PATH: onlyGit,
+      DIFFDESK_DESKTOP_PROBE: probe,
+      // Releases up to 0.5.0 read the probe under the former name.
       GHL_DESKTOP_PROBE: probe,
     })
     for (let attempt = 0; attempt < 100 && !windowRunning(binary); attempt++)
