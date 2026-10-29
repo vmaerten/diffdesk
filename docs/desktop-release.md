@@ -167,7 +167,7 @@ Prérequis : la PR 09. Puis `package.json` à 0.3.0, tag `v0.3.0`, workflow. Ens
 | 04 | En parallèle, les pages d'une même origine partagent un processus de rendu, et Chrome cesse de peindre celles qui ne sont pas au premier plan : arbre et diff virtualisés ne rendaient plus rien. | Un contexte de navigateur par suite, et les drapeaux qui empêchent la mise en veille des pages en arrière-plan. |
 | 04 | `waitForNetworkIdle` compte encore les requêtes du document précédent après une navigation : `settled` attendait toute sa limite. | La page compte elle-même ses requêtes en vol ; `settled` attend qu'elle soit calme depuis 300 ms. |
 | 04 | Le compteur Viewed bouge avant que l'écriture n'arrive au serveur ; le `sleep(1200)` laissait le `POST` finir avant un rechargement. | Attendre le compteur, puis que la page n'ait plus de requête en vol. |
-| 04 | L'objectif visait 4 suites à la fois. | La moitié des cœurs, au plus 8 : 7 ici, 28 s au lieu de 39 s, stable sur cinq passes. `GHL_TEST_JOBS` force une autre valeur. |
+| 04 | L'objectif visait 4 suites à la fois. | La moitié des cœurs, au plus 8 : 7 ici, 28 s au lieu de 39 s, stable sur cinq passes. `DIFFDESK_TEST_JOBS` force une autre valeur. |
 | 05 | `desktop/release.py` vérifie encore `ghl Desktop.app` dans l'archive. | Laissé à la PR 06, qui réécrit l'archive. |
 | 05 | `task install` refuse de remplacer un `~/.local/bin/ghl` qui n'est pas un lien, comme l'ancien CLI navigateur. | Gardé : on ne supprime pas un fichier inconnu ; à retirer à la main une fois. |
 | 05 | #136 demande un diagnostic à part, avec ses propres critères d'acceptation. | PR 09, juste avant la release, plutôt qu'au milieu de la PR 05. |

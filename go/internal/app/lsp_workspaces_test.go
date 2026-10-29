@@ -113,15 +113,15 @@ func TestIntelligenceWorkspacesReuseCopiesAndCheckoutServers(t *testing.T) {
 	gitFixture(t, repo.Path, "commit", "-qm", "symbols")
 	revision := gitFixture(t, repo.Path, "rev-parse", "HEAD")
 	// The server exists only in the original checkout, outside the commit.
-	writeFixture(t, repo.Path, "tools/fakels", "#!/bin/sh\nexec \"$GHL_FAKE_BINARY\" -test.run='^TestFakeLanguageServer$'\n")
+	writeFixture(t, repo.Path, "tools/fakels", "#!/bin/sh\nexec \"$DIFFDESK_FAKE_BINARY\" -test.run='^TestFakeLanguageServer$'\n")
 	if err := os.Chmod(filepath.Join(repo.Path, "tools/fakels"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	m.languages[0].Servers = []languageServer{{Name: "fakels", Choice: "fakels", checkout: "tools/fakels"}}
 	hooks := t.TempDir()
 	marker := filepath.Join(hooks, "ran")
-	t.Setenv("GHL_HOOK_MARKER", marker)
-	writeFixture(t, hooks, "post-checkout", "#!/bin/sh\n/usr/bin/touch \"$GHL_HOOK_MARKER\"\n")
+	t.Setenv("DIFFDESK_HOOK_MARKER", marker)
+	writeFixture(t, hooks, "post-checkout", "#!/bin/sh\n/usr/bin/touch \"$DIFFDESK_HOOK_MARKER\"\n")
 	if err := os.Chmod(filepath.Join(hooks, "post-checkout"), 0o755); err != nil {
 		t.Fatal(err)
 	}
