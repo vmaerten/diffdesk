@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### ✨ Features
+
+- Read a Markdown file rendered: its card header switches between **Source** and **Rendered**, which shows headings, lists, GFM tables and code blocks, and marks the blocks that hold added lines. Comments stay on source lines; viewing one, or a search match, switches back to Source. ([#302](https://github.com/vmaerten/diffdesk/pull/302))
+
 ## 0.9.0
 
 ### ✨ Features
