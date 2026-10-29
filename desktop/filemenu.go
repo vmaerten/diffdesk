@@ -22,6 +22,8 @@ func (d *desktopApp) addFileMenu(app *application.App, window *application.Webvi
 	menu.AddSeparator()
 	menu.Add("Copy Path").OnClick(command("copy-path"))
 	menu.Add("Reveal in Finder").OnClick(command("reveal"))
+	menu.AddSeparator()
+	menu.Add("Comment on File…").OnClick(command("comment-file"))
 	app.ContextMenu.Add("file", menu)
 }
 

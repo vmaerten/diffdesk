@@ -28,5 +28,24 @@
         { "id": "outside", "path": "é.txt", "side": "additions", "start": 7, "end": 7, "body": "Outside this diff", "code": [], "status": "open" }
       ]
     }
+  },
+  {
+    "repo": "/tmp/repo",
+    "range": "main..feature",
+    "comments": [
+      { "id": "line-comment", "path": "a.txt", "side": "additions", "start": 2, "end": 2, "body": "Here", "anchor": ["two"], "code": ["two"], "stale": false, "range": "main..feature", "createdAt": "2026-01-01T00:00:00.000Z", "status": "open" },
+      { "id": "file-comment", "path": "a.txt", "side": "additions", "start": 0, "end": 0, "body": "Split this file", "anchor": [], "code": [], "stale": false, "range": "main..feature", "createdAt": "2026-01-01T00:00:00.000Z", "status": "open" },
+      { "id": "review-comment", "path": "", "side": "additions", "start": 0, "end": 0, "body": "Simplify the naming everywhere", "anchor": [], "code": [], "stale": false, "range": "main..feature", "createdAt": "2026-01-01T00:00:00.000Z", "status": "resolved" }
+    ],
+    "text": "3 comments on main..feature\n\nreview-c (whole review) · resolved\nSimplify the naming everywhere\n\nfile-com a.txt (whole file)\nSplit this file\n\nline-com a.txt:2\nHere\n",
+    "export": {
+      "repo": "/tmp/repo",
+      "range": "main..feature",
+      "comments": [
+        { "id": "review-comment", "path": "", "side": "additions", "start": 0, "end": 0, "body": "Simplify the naming everywhere", "code": [], "status": "resolved" },
+        { "id": "file-comment", "path": "a.txt", "side": "additions", "start": 0, "end": 0, "body": "Split this file", "code": [], "status": "open" },
+        { "id": "line-comment", "path": "a.txt", "side": "additions", "start": 2, "end": 2, "body": "Here", "code": ["two"], "status": "open" }
+      ]
+    }
   }
 ]

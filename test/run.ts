@@ -18,6 +18,7 @@ import tree from './suites/tree.ts'
 import resize from './suites/resize.ts'
 import viewed from './suites/viewed.ts'
 import comments from './suites/comments.ts'
+import scopedComments from './suites/scopedComments.ts'
 import pickers from './suites/pickers.ts'
 import scroll from './suites/scroll.ts'
 import rename from './suites/rename.ts'
@@ -45,6 +46,7 @@ const SUITES: Suite[] = [
   resize,
   viewed,
   comments,
+  scopedComments,
   pickers,
   scroll,
   rename,

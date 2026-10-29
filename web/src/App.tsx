@@ -183,6 +183,14 @@ export default function App({
     setCommentsOpen((open) => !open || panelTab !== 'comments')
   }
   const panelEditor = useRef(savedView?.panelEditor ?? { editing: null, draft: '' })
+  /** The file a new whole-file comment is being written on in the panel; '' for the review. */
+  const [composing, setComposing] = useState<string | null>(null)
+  const compose = (path: string | null) => {
+    setComposing(path)
+    if (path === null) return
+    setPanelTab('comments')
+    setCommentsOpen(true)
+  }
   useEffect(
     () => () => {
       if (copyTimer.current) clearTimeout(copyTimer.current)
@@ -413,6 +421,7 @@ export default function App({
       void commentPersistence.retry(comment.id)
     },
     onRevealFile: revealFile,
+    onCommentFile: compose,
     tokenHandlers: symbols.handlers,
   })
   lines.current = {
@@ -444,6 +453,9 @@ export default function App({
           .catch((cause) =>
             setCopyError(`Could not copy ${path}. ${cause instanceof Error ? cause.message : ''}`),
           )
+        break
+      case 'comment-file':
+        compose(path)
         break
       case 'reveal':
         onReveal?.(path).catch((cause) =>
@@ -506,7 +518,11 @@ export default function App({
       case 'viewed':
       case 'copy-path':
       case 'reveal':
+      case 'comment-file':
         if (activePath) runFileCommand(command, activePath)
+        break
+      case 'comment-review':
+        compose('')
         break
       case 'unified':
       case 'split':
@@ -614,6 +630,7 @@ export default function App({
       untracked: untrackedToggleable(data),
       viewed: !!activePath,
       'copy-path': !!activePath,
+      'comment-file': !!activePath,
       reveal: !!activePath && onReveal !== undefined,
       'reset-viewed': viewedCount > 0,
       'copy-comments': comments.length > 0,
@@ -728,6 +745,12 @@ export default function App({
         onResolve={resolveComment}
         onRetry={(comment) => {
           void commentPersistence.retry(comment.id)
+        }}
+        composing={composing}
+        onCompose={compose}
+        onCreate={(path, body) => {
+          submitComment({ path, side: 'additions', start: 0, end: 0, editing: null, body })
+          setComposing(null)
         }}
       />
       {symbolTab && (

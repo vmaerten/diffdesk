@@ -105,7 +105,7 @@ func decodeState(raw []byte) (StoredState, error) {
 		if c.Status == "" {
 			c.Status = statusOpen
 		}
-		if c.ID == "" || !validPath(c.Path) || !validLocation(*c) || c.Anchor == nil || c.Range == "" || c.CreatedAt == "" || (c.Status != statusOpen && c.Status != statusResolved) {
+		if c.ID == "" || !validTarget(*c) || !validLocation(*c) || c.Anchor == nil || c.Range == "" || c.CreatedAt == "" || (c.Status != statusOpen && c.Status != statusResolved) {
 			return state, fmt.Errorf("Invalid comment in review state")
 		}
 	}

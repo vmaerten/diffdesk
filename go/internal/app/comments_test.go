@@ -1,10 +1,12 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -94,6 +96,9 @@ func TestRepositoryCommentValidation(t *testing.T) {
 	for _, draft := range []Comment{
 		{ID: "invalid", Path: "../outside", Side: "additions", Start: 1, End: 1, Range: "range"},
 		{ID: "unavailable", Path: "context.txt", Side: "additions", Start: 1000, End: 1001, Range: "range"},
+		// No lines and no path is the whole review; lines without a path are nothing.
+		{ID: "pathless", Path: "", Side: "additions", Start: 1, End: 1, Range: "range"},
+		{ID: "removed-file", Path: "context.txt", Side: "deletions", Start: 0, End: 0, Range: "range"},
 	} {
 		_, err := comments.create(ctx, review, draft)
 		var invalid invalidComment
@@ -183,5 +188,34 @@ func TestCommentResolution(t *testing.T) {
 	}
 	if saved, err := comments.setStatus(ctx, "a1b2c3d4-one", statusOpen); err != nil || saved.Status != statusOpen {
 		t.Fatalf("reopen: %+v %v", saved, err)
+	}
+}
+
+func TestWholeFileAndReviewComments(t *testing.T) {
+	ctx := context.Background()
+	repo := fixture(t)
+	comments := repositoryComments{store: storeFor(repo)}
+	review := compare(t, repo, false)
+	for _, draft := range []Comment{
+		{ID: "file", Path: "context.txt", Side: "additions", Range: review.Range, Body: "Split this file"},
+		{ID: "review", Side: "additions", Range: review.Range, Body: "Simplify the naming"},
+	} {
+		created, err := comments.create(ctx, review, draft)
+		if err != nil {
+			t.Fatalf("%s: %v", draft.ID, err)
+		}
+		if created.Comment.Stale || len(created.Comment.Anchor) != 0 || len(created.Comment.Code) != 0 {
+			t.Fatalf("%s carries lines: %+v", draft.ID, created.Comment)
+		}
+	}
+	// A fresh Store rereads the file: the state must still be valid.
+	var output, notices bytes.Buffer
+	if err := writeComments(ctx, review, &Store{path: comments.store.path}, ExportOptions{}, &output, &notices); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"review (whole review)\nSimplify the naming", "file context.txt (whole file)\nSplit this file"} {
+		if !strings.Contains(output.String(), want) {
+			t.Fatalf("export lacks %q:\n%s", want, output.String())
+		}
 	}
 }
