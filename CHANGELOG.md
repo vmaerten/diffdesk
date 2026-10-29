@@ -9,7 +9,7 @@
 
 ### 🐛 Fixes
 
-- Close the title bar's **Options** popover with Escape, which returns the focus to its button; opening a picker or running a menu command also closes it.
+- Close the title bar's **Options** popover with Escape, which returns the focus to its button; opening a picker or running a menu command also closes it. ([#304](https://github.com/vmaerten/diffdesk/pull/304))
 
 ## 0.9.0
 
