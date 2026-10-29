@@ -28,12 +28,12 @@ Snapshot versions use `<latest-version>-next-<short-commit>`. The date is the co
 
 ## Version tags and publication
 
-Set `package.json` to the intended version and commit it with the release's notes in `CHANGELOG.md`, under `## X.Y.Z`: rename `## Unreleased`, where each PR adds its entry. Group the entries under these headings, in this order, and keep only those with entries: `### 💥 Breaking changes`, `### ✨ Features`, `### 🐛 Fixes`, `### 📦 Distribution`, `### 📚 Documentation` and `### 🔧 Internal`. That section, without its heading, becomes the GitHub release notes; `release:build` fails when it is missing or empty. Supported versions are `X.Y.Z` and `X.Y.Z-prerelease`, with a matching `v`-prefixed tag on that commit. Before pushing the tag, run the native smoke test, then build and verify the same archive from its clean checkout:
+Set `package.json` to the intended version and commit it with the release's notes in `CHANGELOG.md`, under `## X.Y.Z`: rename `## Unreleased`, where each PR adds its entry. Group the entries under these headings, in this order, and keep only those with entries: `### 💥 Breaking changes`, `### ✨ Features`, `### 🐛 Fixes`, `### 📦 Distribution`, `### 📚 Documentation` and `### 🔧 Internal`. That section, without its heading, becomes the GitHub release notes; `release:build` fails when it is missing or empty. Supported versions are `X.Y.Z` and `X.Y.Z-prerelease`, with a matching `v`-prefixed tag on that commit. Before pushing the tag, run the native smoke test, then tag the commit locally (`release:build` resolves `RELEASE_TAG` to a commit) and build and verify the archive from its clean checkout:
 
 ```bash
 mise exec -- task desktop:smoke
-RELEASE_TAG=v0.3.0 mise exec -- task release:build
 git tag v0.3.0
+RELEASE_TAG=v0.3.0 mise exec -- task release:build
 git push origin refs/tags/v0.3.0
 ```
 
