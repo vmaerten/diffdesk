@@ -6,6 +6,7 @@
 
 - Read a Markdown file rendered: its card header switches between **Source** and **Rendered**, which shows headings, lists, GFM tables and code blocks, and marks the blocks that hold added lines. Comments stay on source lines; viewing one, or a search match, switches back to Source. ([#302](https://github.com/vmaerten/diffdesk/pull/302))
 - Wrap long lines instead of scrolling each file sideways, with **View → Wrap Lines**, `Option+z` or the command palette; Settings offers the same choice under Code, and it is kept across reviews and restarts. ([#303](https://github.com/vmaerten/diffdesk/pull/303))
+- Comment on a whole file, from its header, its context menu or **Review → Comment on File…**, or on the whole review, from the comments panel's `+` or **Review → Comment on Review…**. They are written and listed in the panel, review comments first, and Copy and `diffdesk comments` include them as `path (whole file)` and `(whole review)`. ([#305](https://github.com/vmaerten/diffdesk/pull/305))
 
 ### 🐛 Fixes
 

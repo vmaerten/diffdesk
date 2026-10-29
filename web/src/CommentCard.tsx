@@ -1,10 +1,15 @@
 import { useId, useRef, type ReactNode } from 'react'
 import type { ServedComment } from '../../src/types.ts'
+import { wholeFile } from '../../src/export.ts'
 import type { SaveState } from './commentPersistence.ts'
 import Icon from './Icon.tsx'
 
 export const lineLabel = (start: number, end: number) =>
   start === end ? `L${start}` : `L${start}–L${end}`
+
+/** Its lines, or what it is about when it has none. */
+export const commentLabel = (comment: Pick<ServedComment, 'path' | 'start' | 'end'>) =>
+  !wholeFile(comment) ? lineLabel(comment.start, comment.end) : comment.path ? 'File' : 'Review'
 
 export default function CommentCard({
   comment,
@@ -51,7 +56,7 @@ export default function CommentCard({
             onClick={onToggle}
             aria-expanded={!collapsed}
             aria-controls={contentId}
-            aria-label={`${collapsed ? 'Expand' : 'Collapse'} comment at ${lineLabel(comment.start, comment.end)}`}
+            aria-label={`${collapsed ? 'Expand' : 'Collapse'} comment at ${commentLabel(comment)}`}
             title={collapsed ? 'Expand comment' : 'Collapse comment'}
           >
             <svg
@@ -70,13 +75,13 @@ export default function CommentCard({
                 strokeLinejoin="round"
               />
             </svg>
-            <span className="comment-lines">{lineLabel(comment.start, comment.end)}</span>
+            <span className="comment-lines">{commentLabel(comment)}</span>
             {collapsed && (
               <span className="comment-preview">{comment.body.replace(/\s+/g, ' ')}</span>
             )}
           </button>
         ) : (
-          <span className="comment-lines">{lineLabel(comment.start, comment.end)}</span>
+          <span className="comment-lines">{commentLabel(comment)}</span>
         )}
         {comment.stale && (
           <span className="badge" title="The code has changed since this comment was written">

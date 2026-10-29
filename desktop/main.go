@@ -299,6 +299,8 @@ func run() error {
 	reviewMenu := appMenu.AddSubmenu("Review")
 	item(reviewMenu, "Mark as Viewed", "", command("viewed"))
 	item(reviewMenu, "Comment on Selection", "", command("comment"))
+	item(reviewMenu, "Comment on File…", "", command("comment-file"))
+	item(reviewMenu, "Comment on Review…", "", command("comment-review"))
 	reviewMenu.AddSeparator()
 	item(reviewMenu, "Copy File Path", "", command("copy-path"))
 	item(reviewMenu, "Reveal in Finder", "", command("reveal"))

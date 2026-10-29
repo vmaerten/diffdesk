@@ -27,6 +27,8 @@ Each comment saves its original code. When those lines change, the comment shows
 
 **Comments** opens a side panel listing the branch's comments by file, including files outside the current diff. **View in diff** reveals available lines without clearing Viewed, and the panel stays open beside the diff. Inline cards can be collapsed; their folded state survives reloads.
 
+A remark about a whole file goes through the comment button in its header, **Comment on File…** in its context menu or the Review menu; one about the whole review through the panel's `+` or **Review → Comment on Review…**. Both are written in the panel, where review comments come first, and are copied, exported and resolved like the others: the export names them `path (whole file)` and `(whole review)`, and `--json` gives them lines `0`, the review's with an empty path.
+
 **Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments, including viewed files and files outside the diff. Individual cards have their own copy button. The text is sized for an agent, which reads the code in the file it edits: each comment gives its ID, `path:lines` and body, and quotes only the lines the file no longer has, under `code:` for lines the change removed and `was:` for lines changed since the remark or outside the comparison.
 
 **Resolve** on a card closes the comment without deleting it: it leaves the diff, the panel, the count and Copy, and stays in the state file. `diffdesk comments reopen <id>` brings it back, and `diffdesk comments resolve <id>` closes one from the terminal; any unique prefix of 4 or more characters of the ID works.

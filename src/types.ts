@@ -135,10 +135,13 @@ export type DiffSide = 'deletions' | 'additions'
  */
 export interface Comment {
   id: string
-  /** The b-side path used by the comparison reader. */
+  /** The b-side path used by the comparison reader; '' for a comment on the whole review. */
   path: string
   side: DiffSide
-  /** 1-based in that side's version of the file. `end === start` for one line. */
+  /**
+   * 1-based in that side's version of the file. `end === start` for one line;
+   * both 0 for the whole file, or the whole review without a path.
+   */
   start: number
   end: number
   body: string

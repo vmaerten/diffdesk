@@ -99,7 +99,20 @@ func validPath(path string) bool {
 	}
 	return true
 }
+
+// wholeFile reports a comment on no lines: on its whole file, or on the whole
+// review when it has no path either.
+func wholeFile(c Comment) bool { return c.Start == 0 && c.End == 0 }
+
+// validTarget accepts a file of the repository, or no path for the whole review.
+func validTarget(c Comment) bool {
+	return validPath(c.Path) || (c.Path == "" && wholeFile(c))
+}
+
 func validLocation(c Comment) bool {
+	if wholeFile(c) {
+		return c.Side == "additions"
+	}
 	return (c.Side == "additions" || c.Side == "deletions") && c.Start >= 1 && c.End >= c.Start && c.End-c.Start < maxTextBytes
 }
 func changed() error {
@@ -653,6 +666,9 @@ func validText(s string) string {
 }
 
 func (r *Review) rawLines(ctx context.Context, c Comment) ([]string, error) {
+	if wholeFile(c) {
+		return []string{}, nil
+	}
 	if !validLocation(c) {
 		return nil, fmt.Errorf("Invalid line range")
 	}

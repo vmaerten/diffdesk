@@ -20,6 +20,8 @@ import type { CommentSubmission, SaveState } from './commentPersistence.ts'
 import ImageDiff from './ImageDiff.tsx'
 import MarkdownPreview, { addedLines, isMarkdown } from './MarkdownPreview.tsx'
 import CopyFileName from './CopyFileName.tsx'
+import Icon from './Icon.tsx'
+import { wholeFile } from '../../src/export.ts'
 import type { TreeEntry } from './FileTree.tsx'
 import { diffFilesLoader, type ContextError } from './diffFiles.ts'
 import { searchDiff } from './diffSearch.ts'
@@ -64,6 +66,8 @@ interface ReviewDiffOptions {
   onResolve: (id: string) => void
   onRetry: (comment: ServedComment) => void
   onRevealFile: (path: string) => void
+  /** Opens a comment on the whole file, in the comments panel. */
+  onCommentFile: (path: string) => void
   /** Hover and ⌘-click on symbols. */
   tokenHandlers?: TokenHandlers
 }
@@ -129,6 +133,7 @@ export function useReviewDiff({
   onResolve: resolveComment,
   onRetry: save,
   onRevealFile: revealFile,
+  onCommentFile: commentFile,
   tokenHandlers,
 }: ReviewDiffOptions) {
   const viewRef = useRef<CodeViewHandle<undefined>>(null)
@@ -309,6 +314,8 @@ export function useReviewDiff({
   const threads = useMemo(() => {
     const map = new Map<string, ServedComment[]>()
     for (const comment of comments) {
+      // A comment on a whole file or review has no line to sit under: the panel shows it.
+      if (wholeFile(comment)) continue
       // On `end`: the annotation row is emitted after its line, so anchoring on
       // the last line of the range puts the card under the block, as GitHub does.
       const key = threadKey(comment.path, comment.side, comment.end)
@@ -495,8 +502,11 @@ export function useReviewDiff({
   )
   // Revealing a comment opens the file for reading without clearing its Viewed tick.
   const canRevealComment = useCallback(
-    (comment: ServedComment) => canRevealLine(comment.path, comment.side, comment.end),
-    [canRevealLine],
+    (comment: ServedComment) =>
+      wholeFile(comment)
+        ? allItems.some((item) => item.path === comment.path)
+        : canRevealLine(comment.path, comment.side, comment.end),
+    [allItems, canRevealLine],
   )
   /** Selects a line of the new side and scrolls to it, as a definition is shown. */
   const revealLine = useStableCallback((path: string, line: number) => {
@@ -515,9 +525,13 @@ export function useReviewDiff({
       end: comment.end,
       scroll: scrollTopRef.current,
     })
-    foldComment(comment, false)
     setSearchOpen(false)
     setRevealedPath(comment.path)
+    if (wholeFile(comment)) {
+      selectByPath(comment.path)
+      return
+    }
+    foldComment(comment, false)
     setCommentTarget(comment)
   })
 
@@ -971,6 +985,18 @@ export function useReviewDiff({
               </button>
             </span>
           )}
+          <button
+            type="button"
+            className="file-copy-button"
+            aria-label={`Comment on ${path}`}
+            title="Comment on the whole file"
+            onClick={(event) => {
+              event.stopPropagation()
+              commentFile(path)
+            }}
+          >
+            <Icon name="comment" />
+          </button>
           <CopyFileName key={path} path={path} />
           <label className="viewed-toggle" onClick={(event) => event.stopPropagation()}>
             <input
@@ -986,7 +1012,7 @@ export function useReviewDiff({
         </div>
       )
     },
-    [viewed, toggleViewed, rendered, setRenderedPath],
+    [viewed, toggleViewed, rendered, setRenderedPath, commentFile],
   )
 
   const replayExpansions = useStableCallback(() => {

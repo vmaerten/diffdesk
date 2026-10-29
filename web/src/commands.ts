@@ -1,7 +1,7 @@
 import type { Picker } from './ComparisonControls.tsx'
 
 /** The commands on one file: the active one from the menus, the clicked one from its context menu. */
-export type FileCommand = 'viewed' | 'copy-path' | 'reveal'
+export type FileCommand = 'viewed' | 'copy-path' | 'reveal' | 'comment-file'
 
 /**
  * Named commands. Keys send review commands; in the desktop app, every menu
@@ -18,6 +18,7 @@ export type ReviewCommand =
   | 'layer-above'
   | 'refresh'
   | 'comment'
+  | 'comment-review'
   | FileCommand
   | 'unified'
   | 'split'
@@ -89,6 +90,8 @@ export const COMMANDS: CommandEntry[] = [
   { name: 'layer-above', label: 'Layer Above', group: 'Go', keys: ']' },
   { name: 'viewed', label: 'Mark as Viewed', group: 'Review', keys: 'v' },
   { name: 'comment', label: 'Comment on Selection', group: 'Review', keys: 'c' },
+  { name: 'comment-file', label: 'Comment on File…', group: 'Review' },
+  { name: 'comment-review', label: 'Comment on Review…', group: 'Review' },
   { name: 'copy-path', label: 'Copy File Path', group: 'Review' },
   { name: 'reveal', label: 'Reveal in Finder', group: 'Review' },
   { name: 'reset-viewed', label: 'Reset Viewed', group: 'Review' },
