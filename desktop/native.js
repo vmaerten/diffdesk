@@ -14,6 +14,14 @@ const methods = [
   'SaveSettings',
   'RevealInFinder',
   'OpenFileMenu',
+  'AppendDebugEvent',
+  'DebugLog',
+  'ClearDebugLog',
+  'UpdateStatus',
+  'CheckForUpdates',
+  'DismissUpdate',
+  'SkipUpdate',
+  'InstallUpdate',
 ]
 window.go = {
   main: {

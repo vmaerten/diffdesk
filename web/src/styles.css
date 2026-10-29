@@ -1170,3 +1170,129 @@ button:disabled {
     animation: none !important;
   }
 }
+
+/* A Markdown file shown rendered, in its card's file-level slot. */
+.markdown-mode {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.markdown-mode button {
+  height: 20px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+}
+.markdown-mode button[aria-pressed='true'] {
+  background: var(--wash-strong, var(--bg-overlay));
+  color: var(--text);
+}
+.markdown-preview {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 16px 32px 24px;
+  color: var(--text);
+  font:
+    14px/1.6 system-ui,
+    sans-serif;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.markdown-preview.loading {
+  color: var(--text-dim);
+}
+.markdown-preview > :first-child {
+  margin-top: 0;
+}
+.markdown-preview :is(h1, h2, h3, h4, h5, h6) {
+  margin: 24px 0 12px;
+  line-height: 1.25;
+}
+.markdown-preview :is(h1, h2) {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.markdown-preview h1 {
+  font-size: 1.8em;
+}
+.markdown-preview h2 {
+  font-size: 1.4em;
+}
+.markdown-preview h3 {
+  font-size: 1.15em;
+}
+.markdown-preview :is(p, ul, ol, blockquote, pre, table) {
+  margin: 0 0 12px;
+}
+.markdown-preview :is(ul, ol) {
+  padding-left: 24px;
+}
+.markdown-preview blockquote {
+  padding: 0 12px;
+  border-left: 3px solid var(--border);
+  color: var(--text-dim);
+}
+.markdown-preview code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--wash-strong, var(--bg-overlay));
+  font: 0.86em var(--mono, ui-monospace, monospace);
+}
+.markdown-preview pre {
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.markdown-preview pre code {
+  padding: 0;
+  background: none;
+}
+.markdown-preview table {
+  display: block;
+  max-width: 100%;
+  overflow: auto;
+  border-collapse: collapse;
+}
+.markdown-preview :is(th, td) {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+}
+.markdown-preview a {
+  color: var(--accent);
+}
+.markdown-preview .markdown-link {
+  color: var(--accent);
+}
+.markdown-preview hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+/* Added blocks carry the diff's addition colours; a row marks its cells, which
+   WebKit paints where it would not paint the row's own shadow. */
+.markdown-preview :not(tr)[data-changed],
+.markdown-preview tr[data-changed] > * {
+  background: var(--diff-addition);
+}
+.markdown-preview :not(tr, li)[data-changed] {
+  box-shadow:
+    -8px 0 0 var(--diff-addition),
+    -11px 0 0 var(--success);
+}
+/* Wide enough to take the bullet in: the bar stays clear of it. */
+.markdown-preview li[data-changed] {
+  box-shadow:
+    -24px 0 0 var(--diff-addition),
+    -27px 0 0 var(--success);
+}
+.markdown-preview tr[data-changed] > :first-child {
+  box-shadow: inset 3px 0 0 var(--success);
+}
+.markdown-preview[data-side='deletions'] {
+  box-shadow: inset 3px 0 0 var(--danger);
+}

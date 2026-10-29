@@ -135,10 +135,13 @@ export type DiffSide = 'deletions' | 'additions'
  */
 export interface Comment {
   id: string
-  /** The b-side path used by the comparison reader. */
+  /** The b-side path used by the comparison reader; '' for a comment on the whole review. */
   path: string
   side: DiffSide
-  /** 1-based in that side's version of the file. `end === start` for one line. */
+  /**
+   * 1-based in that side's version of the file. `end === start` for one line;
+   * both 0 for the whole file, or the whole review without a path.
+   */
   start: number
   end: number
   body: string
@@ -264,6 +267,11 @@ export interface LanguageStatus {
   progress?: { title: string; message?: string; percentage?: number }
   /** How to install a missing server. */
   install?: string
+  /** The installs the page may run, by the managers this machine has. */
+  installs?: { manager: string; command: string }[]
+  /** The manager installing the server now. */
+  installing?: string
+  installError?: { manager: string; log: string }
   /** Why the server failed, with the end of its stderr. */
   error?: string
 }
@@ -271,10 +279,13 @@ export interface LanguageStatus {
 export interface LanguageServersStatus {
   enabled: boolean
   languages: LanguageStatus[]
+  workspace?: { kind: 'working-tree' | 'revision'; revision?: string; path?: string }
 }
 
 /** A token the diff shows, as the code intelligence routes take it. */
 export interface SymbolQuery {
+  /** Exact new-side commit; omitted when querying the working tree. */
+  revision?: string
   path: string
   /** From 1, as the diff counts lines. */
   line: number

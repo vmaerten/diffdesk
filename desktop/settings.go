@@ -15,8 +15,9 @@ import (
 // belongs to the UI; this side only keeps a bounded, versioned JSON document,
 // and reads compactTitleBar, which the window needs before it exists.
 type settingsStore struct {
-	mu   sync.Mutex
-	path string
+	mu      sync.Mutex
+	debugMu sync.Mutex
+	path    string
 	// Read in turn while path does not exist yet: where the app kept them as
 	// "ghl", then as "ghl Desktop".
 	legacy []string

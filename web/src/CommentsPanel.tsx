@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode, type RefObject } from 'react'
 import type { ServedComment } from '../../src/types.ts'
 import type { SaveState } from './commentPersistence.ts'
-import CommentCard, { lineLabel } from './CommentCard.tsx'
+import CommentCard, { commentLabel } from './CommentCard.tsx'
 import Icon from './Icon.tsx'
 import { treeOrder } from './fileOrder.ts'
 
@@ -21,6 +21,9 @@ export default function CommentsPanel({
   onDelete,
   onResolve,
   onRetry,
+  composing,
+  onCompose,
+  onCreate,
   tabs,
 }: {
   savedEditor?: RefObject<{ editing: string | null; draft: string }>
@@ -38,6 +41,11 @@ export default function CommentsPanel({
   onDelete: (id: string) => void
   onResolve: (id: string) => void
   onRetry: (comment: ServedComment) => void
+  /** The file a new comment is being written on; '' for the whole review. */
+  composing: string | null
+  onCompose: (path: string | null) => void
+  /** A new comment on a whole file, or on the whole review for ''. */
+  onCreate: (path: string, body: string) => void
   /** Comments and Symbol, in place of the title, while code intelligence shows both. */
   tabs?: ReactNode
 }) {
@@ -46,22 +54,31 @@ export default function CommentsPanel({
   useEffect(() => {
     if (savedEditor) savedEditor.current = { editing, draft }
   }, [savedEditor, editing, draft])
+  const [newDraft, setNewDraft] = useState('')
   const groups = useMemo(() => {
-    const result = new Map<string, ServedComment[]>()
-    // Files in the tree's order, so the panel reads in the same sequence.
-    const order = treeOrder([...new Set(comments.map((comment) => comment.path))])
+    const paths = new Set(comments.map((comment) => comment.path))
+    if (composing !== null) paths.add(composing)
+    // The review first, then files in the tree's order, as the panel reads.
+    const order = treeOrder([...paths].filter(Boolean))
+    const rank = (path: string) => (path ? order.get(path)! : -1)
+    const result = new Map<string, ServedComment[]>(
+      [...paths].toSorted((a, b) => rank(a) - rank(b)).map((path) => [path, []]),
+    )
     for (const comment of comments.toSorted(
-      (a, b) =>
-        order.get(a.path)! - order.get(b.path)! ||
-        a.start - b.start ||
-        a.createdAt.localeCompare(b.createdAt),
-    )) {
-      const group = result.get(comment.path) ?? []
-      group.push(comment)
-      result.set(comment.path, group)
-    }
+      (a, b) => a.start - b.start || a.createdAt.localeCompare(b.createdAt),
+    ))
+      result.get(comment.path)!.push(comment)
     return [...result]
-  }, [comments])
+  }, [comments, composing])
+  const create = () => {
+    if (composing === null || !newDraft.trim()) return
+    onCreate(composing, newDraft.trim())
+    setNewDraft('')
+  }
+  const cancelCreate = () => {
+    setNewDraft('')
+    onCompose(null)
+  }
   const update = (comment: ServedComment) => {
     if (!draft.trim()) return
     onUpdate(comment, draft.trim())
@@ -89,6 +106,15 @@ export default function CommentsPanel({
             <Icon name="comment" /> Comments <span className="counter">{comments.length}</span>
           </h2>
         )}
+        <button
+          className="icon-button"
+          type="button"
+          aria-label="Comment on the review"
+          title="Comment on the whole review"
+          onClick={() => onCompose('')}
+        >
+          <Icon name="plus" />
+        </button>
         <button className="icon-button" type="button" aria-label="Close comments" onClick={onClose}>
           <Icon name="close" />
         </button>
@@ -105,18 +131,55 @@ export default function CommentsPanel({
             <h3>No comments yet</h3>
             <p>
               Select lines in the diff and press <kbd>c</kbd>, or use the + in the gutter to leave a
-              comment.
+              comment. A file's header comments on the whole file, and + above on the whole review.
             </p>
           </div>
         )}
         {open &&
           groups.map(([path, group]) => (
-            <section className="comment-file" key={path} aria-label={path}>
+            <section className="comment-file" key={path} aria-label={path || 'Review'}>
               <h3>
-                <Icon name="file" />
-                <span>{path}</span>
+                <Icon name={path ? 'file' : 'comment'} />
+                <span>{path || 'Review'}</span>
                 <span className="counter">{group.length}</span>
               </h3>
+              {composing === path && (
+                <form
+                  className="panel-editor"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    create()
+                  }}
+                >
+                  <label>
+                    {path ? 'Comment on the whole file' : 'Comment on the whole review'}
+                    <textarea
+                      autoFocus
+                      rows={4}
+                      value={newDraft}
+                      onChange={(event) => setNewDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                          event.preventDefault()
+                          create()
+                        } else if (event.key === 'Escape') {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          cancelCreate()
+                        }
+                      }}
+                    />
+                  </label>
+                  <footer>
+                    <button type="button" className="button" onClick={cancelCreate}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="button primary" disabled={!newDraft.trim()}>
+                      Comment
+                    </button>
+                  </footer>
+                </form>
+              )}
               {group.map((comment) =>
                 editing === comment.id ? (
                   <form
@@ -128,7 +191,7 @@ export default function CommentsPanel({
                     }}
                   >
                     <label>
-                      Edit comment · {lineLabel(comment.start, comment.end)}
+                      Edit comment · {commentLabel(comment)}
                       <textarea
                         autoFocus
                         rows={5}
@@ -171,15 +234,17 @@ export default function CommentsPanel({
                     onResolve={onResolve}
                     onRetry={onRetry}
                   >
-                    <footer className="comment-navigation">
-                      {canView(comment) ? (
-                        <button className="link" type="button" onClick={() => onView(comment)}>
-                          View in diff
-                        </button>
-                      ) : (
-                        <span>Outside the current diff</span>
-                      )}
-                    </footer>
+                    {comment.path && (
+                      <footer className="comment-navigation">
+                        {canView(comment) ? (
+                          <button className="link" type="button" onClick={() => onView(comment)}>
+                            View in diff
+                          </button>
+                        ) : (
+                          <span>Outside the current diff</span>
+                        )}
+                      </footer>
+                    )}
                   </CommentCard>
                 ),
               )}

@@ -10,6 +10,7 @@ import { runDesktopSettings } from './desktopSettings.ts'
 import { runTabOverflow } from './tabOverflow.ts'
 import { runCommentRange } from './commentRange.ts'
 import { runPaletteMatch } from './paletteMatch.ts'
+import { runDebugLog } from './debugLog.ts'
 
 import reviewPanel from './suites/reviewPanel.ts'
 import themes from './suites/themes.ts'
@@ -17,6 +18,7 @@ import tree from './suites/tree.ts'
 import resize from './suites/resize.ts'
 import viewed from './suites/viewed.ts'
 import comments from './suites/comments.ts'
+import scopedComments from './suites/scopedComments.ts'
 import pickers from './suites/pickers.ts'
 import scroll from './suites/scroll.ts'
 import rename from './suites/rename.ts'
@@ -27,11 +29,15 @@ import worktree from './suites/worktree.ts'
 import untracked from './suites/untracked.ts'
 import search from './suites/search.ts'
 import whitespace from './suites/whitespace.ts'
+import wrap from './suites/wrap.ts'
+import markdown from './suites/markdown.ts'
 import fileMenu from './suites/fileMenu.ts'
 import codeIntelligence from './suites/codeIntelligence.ts'
 import resolve from './suites/resolve.ts'
 import github from './suites/github.ts'
 import palette from './suites/palette.ts'
+import debugLogging from './suites/debugLogging.ts'
+import updates from './suites/updates.ts'
 
 const SUITES: Suite[] = [
   themes,
@@ -40,6 +46,7 @@ const SUITES: Suite[] = [
   resize,
   viewed,
   comments,
+  scopedComments,
   pickers,
   scroll,
   rename,
@@ -50,11 +57,15 @@ const SUITES: Suite[] = [
   untracked,
   search,
   whitespace,
+  wrap,
+  markdown,
   fileMenu,
   codeIntelligence,
   resolve,
   github,
   palette,
+  debugLogging,
+  updates,
 ]
 
 /**
@@ -69,6 +80,7 @@ const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'export', run: runExport },
   { name: 'comment-range', run: runCommentRange },
   { name: 'palette-match', run: runPaletteMatch },
+  { name: 'debug-log', run: runDebugLog },
 ]
 
 const only = process.argv.slice(2).filter((arg) => !arg.startsWith('-'))

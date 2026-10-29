@@ -13,7 +13,9 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       dark: 'catppuccin-mocha',
       codeFont: 'Berkeley Mono',
       codeSize: 14,
+      wrapLines: true,
       compactTitleBar: true,
+      debugLogging: true,
       codeIntelligence: true,
       symbolPanel: false,
       languageServers: {
@@ -37,7 +39,9 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       dark: 'catppuccin-mocha',
       codeFont: 'Berkeley Mono',
       codeSize: 14,
+      wrapLines: true,
       compactTitleBar: true,
+      debugLogging: true,
       codeIntelligence: true,
       symbolPanel: false,
       languageServers: {
@@ -61,7 +65,9 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       dark: 'no-such-theme',
       codeFont: 'Evil", serif; x',
       codeSize: 40,
+      wrapLines: 'yes',
       compactTitleBar: 'yes',
+      debugLogging: 'yes',
       codeIntelligence: 1,
       symbolPanel: 'no',
       // A Go setting may not name a TypeScript server, nor any setting a language Go does not know.

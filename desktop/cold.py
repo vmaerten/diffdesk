@@ -30,10 +30,14 @@ def main():
         # The probe's path isolates this app from the user's; it only reports what opened.
         probe = folder / 'probe.js'
         probe.write_text(f'''setInterval(async () => {{
+  const {{ Window }} = await import('/wails/runtime.js')
   const health = await (await fetch('/api/health')).json()
+  const size = await Window.Size()
   fetch('http://127.0.0.1:{server.server_port}/', {{method: 'POST', body: JSON.stringify({{
     phase: 'opened', pid: health.pid, repos: health.repos.length,
     tabs: document.querySelectorAll('[role="tab"]').length,
+    maximised: await Window.IsMaximised(),
+    fillsScreen: Math.abs(size.width - screen.availWidth) <= 4 && Math.abs(size.height - screen.availHeight) <= 4,
   }})}})
 }}, 250)
 ''')
@@ -54,10 +58,11 @@ def main():
                 state = None
                 while time.monotonic() < deadline:
                     state = server.events[-1] if server.events else None
-                    if state and state['repos'] == 2 and state['tabs'] == 2:
+                    if state and state['repos'] == 2 and state['tabs'] == 2 and state['maximised'] and state['fillsScreen']:
                         break
                     time.sleep(.2)
                 assert state and state['repos'] == 2 and state['tabs'] == 2, f'round {round}: {state}'
+                assert state['maximised'] and state['fillsScreen'], f'Window did not start maximised: {state}'
                 assert len({event['pid'] for event in server.events}) == 1, 'More than one app answered'
                 subprocess.run(['pkill', '-TERM', '-f', f'{binary} --desktop-window'], check=True)
                 for _ in range(75):

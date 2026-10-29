@@ -1,6 +1,6 @@
 {
   "name": "diffdesk",
-  "version": "0.5.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Review the PR you are about to open, without opening it",
   "license": "MIT",
@@ -20,7 +20,9 @@
     "@pierre/trees": "1.0.0-beta.6",
     "cmdk": "^1.1.1",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@puppeteer/browsers": "3.1.0",

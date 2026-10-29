@@ -1,7 +1,7 @@
 import type { Picker } from './ComparisonControls.tsx'
 
 /** The commands on one file: the active one from the menus, the clicked one from its context menu. */
-export type FileCommand = 'viewed' | 'copy-path' | 'reveal'
+export type FileCommand = 'viewed' | 'copy-path' | 'reveal' | 'comment-file'
 
 /**
  * Named commands. Keys send review commands; in the desktop app, every menu
@@ -18,6 +18,7 @@ export type ReviewCommand =
   | 'layer-above'
   | 'refresh'
   | 'comment'
+  | 'comment-review'
   | FileCommand
   | 'unified'
   | 'split'
@@ -29,8 +30,9 @@ export type ReviewCommand =
   | 'reset-viewed'
   | 'palette'
   | 'go-to-file'
+  | 'code-intelligence-status'
 
-/** Go's menus open a repository and Settings themselves; only the palette sends those two. */
+/** Go's menus open a repository and Settings and check for updates themselves; only the palette sends those. */
 export type WindowCommand =
   | 'reload'
   | 'close-tab'
@@ -38,6 +40,12 @@ export type WindowCommand =
   | 'sidebar'
   | 'open-repository'
   | 'settings'
+  | 'check-updates'
+  | 'install-update'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'zoom-reset'
+  | 'wrap-lines'
 
 export type CommandName = ReviewCommand | WindowCommand
 
@@ -55,13 +63,19 @@ export interface CommandEntry {
  * repeat desktop/main.go's, and the single keys App's KEY_COMMANDS.
  */
 export const COMMANDS: CommandEntry[] = [
+  { name: 'install-update', label: 'Update and Restart…', group: 'Diffdesk' },
+  { name: 'check-updates', label: 'Check for Updates…', group: 'Diffdesk' },
   { name: 'settings', label: 'Settings…', group: 'Diffdesk', keys: '⌘,' },
   { name: 'open-repository', label: 'Open Repository…', group: 'File', keys: '⌘O' },
   { name: 'close-tab', label: 'Close Review', group: 'File', keys: '⌘W' },
   { name: 'sidebar', label: 'Toggle Sidebar', group: 'View', keys: '⌃⌘S' },
   { name: 'reload', label: 'Reload', group: 'View', keys: '⌘R' },
+  { name: 'zoom-in', label: 'Zoom In', group: 'View', keys: '⌘+' },
+  { name: 'zoom-out', label: 'Zoom Out', group: 'View', keys: '⌘−' },
+  { name: 'zoom-reset', label: 'Actual Size', group: 'View', keys: '⌘0' },
   { name: 'unified', label: 'Unified', group: 'View', keys: '⌘1' },
   { name: 'split', label: 'Split', group: 'View', keys: '⌘2' },
+  { name: 'wrap-lines', label: 'Wrap Lines', group: 'View', keys: '⌥Z' },
   { name: 'working-tree', label: 'Include Working Tree', group: 'View' },
   { name: 'untracked', label: 'Include Untracked Files', group: 'View' },
   { name: 'whitespace', label: 'Ignore Whitespace', group: 'View', keys: '⌥⌘W' },
@@ -76,12 +90,15 @@ export const COMMANDS: CommandEntry[] = [
   { name: 'layer-above', label: 'Layer Above', group: 'Go', keys: ']' },
   { name: 'viewed', label: 'Mark as Viewed', group: 'Review', keys: 'v' },
   { name: 'comment', label: 'Comment on Selection', group: 'Review', keys: 'c' },
+  { name: 'comment-file', label: 'Comment on File…', group: 'Review' },
+  { name: 'comment-review', label: 'Comment on Review…', group: 'Review' },
   { name: 'copy-path', label: 'Copy File Path', group: 'Review' },
   { name: 'reveal', label: 'Reveal in Finder', group: 'Review' },
   { name: 'reset-viewed', label: 'Reset Viewed', group: 'Review' },
   { name: 'copy-comments', label: 'Copy All Comments', group: 'Review', keys: '⇧⌘C' },
   { name: 'refresh', label: 'Refresh', group: 'Review', keys: 'r' },
   { name: 'shortcuts', label: 'Keyboard Shortcuts', group: 'Help' },
+  { name: 'code-intelligence-status', label: 'Check IntelliSense Status…', group: 'Help' },
 ]
 
 /** Run a command the way a menu item does: App and DesktopApp each take theirs. */

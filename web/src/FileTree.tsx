@@ -136,7 +136,14 @@ function FileTree(
   const { model } = useFileTree({
     paths: entries.map((e) => e.path),
     icons: { set: 'complete', colored: true },
-    unsafeCSS: `[data-item-git-status] > [data-item-section="content"] { color: var(--text); font-weight: 400; }`,
+    unsafeCSS: `
+      [data-item-git-status] > [data-item-section="content"] { color: var(--text); font-weight: 400; }
+      [data-item-type="folder"] [data-item-section="git"] { display: none; }
+      /* Overlay ellipses cannot mask letters on the translucent sidebar.
+         Clip each segment natively, keeping the tree's extension-first split. */
+      [data-truncate-content="visible"] { overflow: hidden; text-overflow: ellipsis; }
+      [data-truncate-marker] { display: none; }
+    `,
     density: 'compact',
     flattenEmptyDirectories: true,
     initialExpansion: 'open',

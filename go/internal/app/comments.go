@@ -30,7 +30,7 @@ type commentCreation struct {
 }
 
 func (c repositoryComments) create(ctx context.Context, review *Review, draft Comment) (commentCreation, error) {
-	if draft.ID == "" || !validPath(draft.Path) || draft.Range == "" || !validLocation(draft) {
+	if draft.ID == "" || !validTarget(draft) || draft.Range == "" || !validLocation(draft) {
 		return commentCreation{}, invalidComment("A comment ID, path, range and valid line location are required")
 	}
 	var saved Comment

@@ -161,6 +161,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	updateContext, cancelUpdates := context.WithCancel(context.Background())
+	defer cancelUpdates()
+	updater := &nativeUpdater{desktop: desktop, ctx: updateContext, skipPath: filepath.Join(filepath.Dir(settings.path), "skipped-update")}
+	updater.session.skipped = loadSkippedVersion(updater.skipPath)
+	desktop.updater = updater
 	native := application.New(application.Options{
 		Name:     "Diffdesk",
 		Assets:   application.AssetOptions{Handler: handler, DisableLogging: true},
@@ -169,15 +174,15 @@ func run() error {
 		// Stop taking reviews first: a launcher that finds no app starts a new one,
 		// instead of getting a receipt for a review this app will never open.
 		OnShutdown: func() {
+			cancelUpdates()
 			owner.close()
 			backend.close()
 		},
 	})
 	window := native.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name: "review", Title: "Diffdesk", URL: "/", JS: string(probe),
-		Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
 		// Width and Height are the size the window's zoom button returns to.
-		StartState: application.WindowStateMaximised,
+		Width: 1280, Height: 800, MinWidth: 800, MinHeight: 500,
 		// Translucent until the page paints: launch shows the system material in
 		// either appearance instead of a fixed colour.
 		BackgroundType: application.BackgroundTypeTranslucent,
@@ -189,10 +194,23 @@ func run() error {
 	desktop.startup(native, window)
 	desktop.addFileMenu(native, window)
 	window.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
-		desktop.ready.Do(func() { go desktop.process(context.Background()) })
+		desktop.ready.Do(func() {
+			// Wails centres the window after applying StartState, cancelling
+			// AppKit's zoom animation. Maximise once that setup has finished.
+			window.Maximise()
+			go desktop.process(context.Background())
+			updater.check(false)
+		})
 	})
 	// Closing the review quits the app, so Settings must not keep it running.
 	window.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) { desktop.closeSettings() })
+	// Wails reloads the page after its renderer dies, which the new page cannot
+	// tell apart from a reload it asked for.
+	window.OnWindowEvent(events.Mac.WebViewWebContentProcessDidTerminate, func(*application.WindowEvent) {
+		if err := desktop.settings.recordNativeEvent("webview.terminated", map[string]any{"window": "review"}); err != nil {
+			fmt.Fprintln(os.Stderr, "diffdesk: debug log:", err)
+		}
+	})
 	// Every menu item reaches the page as one named command: the shell takes the
 	// window's, the mounted review the rest. Single-letter shortcuts stay in the
 	// page, since a key without a modifier would also capture typing. The command
@@ -212,6 +230,7 @@ func run() error {
 	// is the UnHide role, which has no selector; ShowAll has one.
 	diffdeskMenu := appMenu.AddSubmenu("Diffdesk")
 	diffdeskMenu.AddRole(application.About)
+	updater.menu = diffdeskMenu.Add("Check for Updates…").OnClick(func(*application.Context) { updater.check(true) })
 	diffdeskMenu.AddSeparator()
 	item(diffdeskMenu, "Settings…", "CmdOrCtrl+,", func(*application.Context) { desktop.openSettings() })
 	diffdeskMenu.AddSeparator()
@@ -250,8 +269,14 @@ func run() error {
 	item(viewMenu, "Toggle Sidebar", "Ctrl+CmdOrCtrl+s", command("sidebar"))
 	item(viewMenu, "Reload", "CmdOrCtrl+r", command("reload"))
 	viewMenu.AddSeparator()
+	item(viewMenu, "Zoom In", "CmdOrCtrl+plus", palette("zoom-in"))
+	item(viewMenu, "Zoom Out", "CmdOrCtrl+-", palette("zoom-out"))
+	item(viewMenu, "Actual Size", "CmdOrCtrl+0", palette("zoom-reset"))
+	viewMenu.AddSeparator()
 	item(viewMenu, "Unified", "CmdOrCtrl+1", command("unified"))
 	item(viewMenu, "Split", "CmdOrCtrl+2", command("split"))
+	// ⌥Z is the page's: as an accelerator it would take a character from the comment field.
+	item(viewMenu, "Wrap Lines", "", command("wrap-lines"))
 	viewMenu.AddSeparator()
 	item(viewMenu, "Include Working Tree", "", command("working-tree"))
 	item(viewMenu, "Include Untracked Files", "", command("untracked"))
@@ -274,6 +299,8 @@ func run() error {
 	reviewMenu := appMenu.AddSubmenu("Review")
 	item(reviewMenu, "Mark as Viewed", "", command("viewed"))
 	item(reviewMenu, "Comment on Selection", "", command("comment"))
+	item(reviewMenu, "Comment on File…", "", command("comment-file"))
+	item(reviewMenu, "Comment on Review…", "", command("comment-review"))
 	reviewMenu.AddSeparator()
 	item(reviewMenu, "Copy File Path", "", command("copy-path"))
 	item(reviewMenu, "Reveal in Finder", "", command("reveal"))

@@ -82,14 +82,15 @@ function wordAt(
  * Hover and ⌘-click on the diff's symbols, answered by the language servers.
  *
  * Nothing happens without ⌘: reading a diff should not pop cards up. Only the
- * additions side and the context of a working-tree review are asked, because a
- * server reads the disk and those are the only lines numbered as on disk.
+ * additions side and its context are asked: the server reads either the working
+ * tree or an isolated copy of the exact revision displayed on that side.
  */
 export function useSymbolCard({
   repoId,
   enabled,
   languages,
   loadId,
+  revision,
   canReveal,
   reveal,
   onAnswer,
@@ -102,6 +103,8 @@ export function useSymbolCard({
   languages: readonly LanguageStatus[]
   /** A new load of the review drops what was looked up before. */
   loadId: number | undefined
+  /** An immutable revision copy, or the current working tree when omitted. */
+  revision?: string
   /** Whether the diff displays this line of the new side. */
   canReveal: (path: string, line: number) => boolean
   reveal: (path: string, line: number) => void
@@ -144,6 +147,7 @@ export function useSymbolCard({
     if (!token || !word) return null
     return {
       query: {
+        ...(revision ? { revision } : {}),
         path: token.path,
         line: token.token.lineNumber,
         character: token.token.lineCharStart + word.start,
@@ -154,7 +158,7 @@ export function useSymbolCard({
   })
 
   const lookUp = (query: SymbolQuery): Promise<SymbolAnswer> => {
-    const key = `${query.path}:${query.line}:${query.character}:${query.token}`
+    const key = `${query.revision ?? ''}:${query.path}:${query.line}:${query.character}:${query.token}`
     let answer = answers.current.get(key)
     if (!answer) {
       answer = ask(query)

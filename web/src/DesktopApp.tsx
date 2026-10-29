@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStableCallback, useWorkerPool } from '@pierre/diffs/react'
 import App from './App.tsx'
 import Icon from './Icon.tsx'
@@ -8,6 +8,8 @@ import { useAppearance } from './appearance.ts'
 import { commandOf } from './commands.ts'
 import { languageConfig, sendLanguageConfig } from './codeIntelligence.ts'
 import ShortcutsSheet from './ShortcutsSheet.tsx'
+import UpdateSheet from './UpdateSheet.tsx'
+import type { UpdateSnapshot } from './updates.ts'
 import {
   codeLineHeight,
   codeVariables,
@@ -22,6 +24,8 @@ import {
 } from './commentPersistence.ts'
 import { createRepositoryViewedPersistence, type ViewedPersistence } from './viewedPersistence.ts'
 import desktopStyles from './desktop.css?inline'
+import { debugLog } from './debugLog.ts'
+import { startDebugActions } from './debugActions.ts'
 
 interface ReviewTab {
   id: string
@@ -48,6 +52,14 @@ interface DesktopAPI {
   SaveSettings(raw: string): Promise<void>
   RevealInFinder(tabID: string, path: string): Promise<void>
   OpenFileMenu(path: string, x: number, y: number, viewed: boolean): Promise<void>
+  AppendDebugEvent(raw: string): Promise<void>
+  DebugLog(): Promise<string>
+  ClearDebugLog(): Promise<void>
+  UpdateStatus(): Promise<UpdateSnapshot>
+  CheckForUpdates(): Promise<void>
+  DismissUpdate(): Promise<UpdateSnapshot>
+  SkipUpdate(): Promise<UpdateSnapshot>
+  InstallUpdate(): Promise<UpdateSnapshot>
 }
 declare global {
   interface Window {
@@ -64,6 +76,29 @@ const Review = memo(App)
 export default function DesktopApp() {
   const [state, setState] = useState(EMPTY)
   const [settings, setSettings] = useState<DesktopSettings | null>(null)
+  const [zoom, setZoom] = useState(1)
+  const changeZoom = useStableCallback((direction: -1 | 0 | 1) => {
+    setZoom((current) =>
+      direction === 0 ? 1 : Math.max(5, Math.min(20, Math.round(current * 10) + direction)) / 10,
+    )
+  })
+  useLayoutEffect(() => {
+    // Scale the root so dialogs and popovers follow the review. Wails clamps
+    // native page zoom to 100% on macOS, including its SetZoom method.
+    document.documentElement.style.setProperty('--ui-zoom', String(zoom))
+    return () => {
+      document.documentElement.style.removeProperty('--ui-zoom')
+    }
+  }, [zoom])
+  // Saved like a change from Settings: Go hands it back to every window, Settings included.
+  const toggleWrapLines = useStableCallback(() => {
+    if (!settings) return
+    const next = { ...settings, wrapLines: !settings.wrapLines }
+    setSettings(next)
+    window.go?.main.desktopApp
+      .SaveSettings(JSON.stringify(next))
+      .catch((cause) => setError(String(cause)))
+  })
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
   const [sidebarHidden, setSidebarHidden] = useState(() => {
@@ -103,6 +138,40 @@ export default function DesktopApp() {
   const viewedStores = useRef(new Map<string, ViewedPersistence>())
   const viewHandle = useRef<SavedViewHandle>(null)
   useEffect(() => {
+    debugLog.configure(settings?.debugLogging ?? false)
+    if (!settings?.debugLogging) return
+    const stopActions = startDebugActions('review')
+    const navigation = performance.getEntriesByType('navigation')[0] as
+      | PerformanceNavigationTiming
+      | undefined
+    debugLog.record('window.ready', { navigation: navigation?.type, window: 'review' })
+    const hidden = () => debugLog.record('window.visibility', { state: document.visibilityState })
+    const leaving = (event: PageTransitionEvent) =>
+      debugLog.record('window.pagehide', { persisted: event.persisted })
+    const failed = (event: ErrorEvent) =>
+      debugLog.record('window.error', {
+        name: event.error?.name,
+        file: event.filename.split('/').at(-1),
+        line: event.lineno,
+        column: event.colno,
+      })
+    const rejected = (event: PromiseRejectionEvent) =>
+      debugLog.record('window.rejection', {
+        name: event.reason instanceof Error ? event.reason.name : typeof event.reason,
+      })
+    document.addEventListener('visibilitychange', hidden)
+    window.addEventListener('pagehide', leaving)
+    window.addEventListener('error', failed)
+    window.addEventListener('unhandledrejection', rejected)
+    return () => {
+      stopActions()
+      document.removeEventListener('visibilitychange', hidden)
+      window.removeEventListener('pagehide', leaving)
+      window.removeEventListener('error', failed)
+      window.removeEventListener('unhandledrejection', rejected)
+    }
+  }, [settings?.debugLogging])
+  useEffect(() => {
     const api = window.go?.main.desktopApp
     const runtime = window.runtime
     if (!api || !runtime) {
@@ -119,12 +188,20 @@ export default function DesktopApp() {
       )
         return
       const view = viewHandle.current.capture()
+      debugLog.record('view.saved', {
+        tab: id,
+        path: view.activePath,
+        scroll: view.scrollTop,
+        composer: view.composer?.key,
+      })
       views.current.set(id, view)
       await api.SaveTabView(id, JSON.stringify(view))
     }
     const update = (next: Tabs) => {
       if (disposed || next.revision < latest.current.revision) return
       const previous = latest.current
+      if (previous.active !== next.active)
+        debugLog.record('tab.changed', { previous: previous.active, next: next.active })
       if (
         previous.active &&
         previous.active !== next.active &&
@@ -173,9 +250,23 @@ export default function DesktopApp() {
     apply(api.Tabs())
     const reload = () => {
       void save()
+        .then(() => debugLog.flush())
         .then(() => location.reload())
         .catch((cause) => setError(String(cause)))
     }
+    // A reload nobody asked for, after the renderer dies, restores the last
+    // saved view: keep it close behind the reader, not only saved on the way out.
+    let pendingSave: number | undefined
+    const saveSoon = () => {
+      clearTimeout(pendingSave)
+      pendingSave = window.setTimeout(
+        () => void save().catch((cause) => setError(String(cause))),
+        500,
+      )
+    }
+    const activity = ['scroll', 'input', 'pointerup', 'keyup']
+    for (const event of activity)
+      document.addEventListener(event, saveSoon, { capture: true, passive: true })
     const closeActive = () => apply(api.CloseTab(latest.current.active))
     const cycle = (event: KeyboardEvent) => {
       if (!event.ctrlKey || event.key !== 'Tab' || latest.current.tabs.length < 2) return
@@ -189,22 +280,29 @@ export default function DesktopApp() {
     // The window's menu commands; App takes the review's from the same event.
     const runCommand = (event: Event) => {
       const command = commandOf(event)
+      debugLog.record('command', { command })
       if (command === 'reload') reload()
       else if (command === 'close-tab') closeActive()
       else if (command === 'shortcuts') setShortcutsOpen(true)
       else if (command === 'sidebar') toggleSidebar()
       else if (command === 'open-repository') api.OpenRepository().catch(failed)
       else if (command === 'settings') api.OpenSettings().catch(failed)
+      else if (command === 'zoom-in') changeZoom(1)
+      else if (command === 'zoom-out') changeZoom(-1)
+      else if (command === 'zoom-reset') changeZoom(0)
+      else if (command === 'wrap-lines') toggleWrapLines()
     }
     window.addEventListener('desktop:command', runCommand)
     window.addEventListener('keydown', cycle)
     return () => {
       disposed = true
+      clearTimeout(pendingSave)
+      for (const event of activity) document.removeEventListener(event, saveSoon, { capture: true })
       unsubscribe()
       window.removeEventListener('desktop:command', runCommand)
       window.removeEventListener('keydown', cycle)
     }
-  }, [apply, toggleSidebar])
+  }, [apply, toggleSidebar, changeZoom, toggleWrapLines])
   // The Settings window saves each change, and Go sends it to every window. A
   // change that arrives before the first read is the newer of the two.
   useEffect(() => {
@@ -313,7 +411,7 @@ export default function DesktopApp() {
               {layout.shown.map((index) => {
                 const tab = state.tabs[index]!
                 const query = new URL(tab.route, location.href).searchParams
-                const comparison = `${query.get('base') ?? 'Auto base'} → ${query.get('target') ?? 'Working tree'}`
+                const comparison = `${query.get('base') ?? 'Auto base'} ← ${query.get('target') ?? 'Working tree'}`
                 const cut = tab.path.lastIndexOf('/') + 1
                 return (
                   <div
@@ -417,6 +515,7 @@ export default function DesktopApp() {
               onRouteChange={routeChanged}
               syntaxTheme={syntaxTheme}
               codeLineHeight={codeLineHeight(settings.codeSize)}
+              wrapLines={settings.wrapLines}
               toolbar={toolbar}
               sidebarHidden={sidebarHidden}
               onReveal={reveal}
@@ -425,6 +524,7 @@ export default function DesktopApp() {
                 settings.codeIntelligence && languageRevision > 0 ? languageRevision : null
               }
               symbolPanel={settings.symbolPanel}
+              codeIntelligenceEnabled={settings.codeIntelligence}
               pullRequests={settings.showPullRequests ? settings.pullRequestPlace : null}
             />
           )}
@@ -438,6 +538,7 @@ export default function DesktopApp() {
           </button>
         </div>
       )}
+      <UpdateSheet />
       <ShortcutsSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   )

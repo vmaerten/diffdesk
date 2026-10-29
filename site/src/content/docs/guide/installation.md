@@ -75,7 +75,11 @@ Move `Diffdesk.app` to `/Applications` and link `Diffdesk.app/Contents/MacOS/dif
 
 ## After installing, upgrading or rolling back
 
-A running window keeps the version it started with: quit Diffdesk (`Cmd+Q`) to use the new one. Comments and Viewed stay in each checkout's `.git/ghl/state.json` across upgrades, rollbacks and uninstalls. A release that resolves comments writes it as version 2 at the first change, which earlier releases refuse rather than reopen resolved comments: rolling back past it requires moving that file aside. Settings live in `~/Library/Application Support/Diffdesk/settings.json`.
+Stable builds installed through Homebrew or mise check for a newer stable release when the app starts. A banner at the bottom of the window offers **Later** to keep working, or **Update…**. Expand **What’s new in…** to read the proposed release’s changelog before deciding; if it has no notes, a link opens its GitHub release page. Confirm **Update and Restart** to install through the same manager and reopen the active comparison. You can also use **Diffdesk → Check for Updates…**. The banner shows installation progress and any failure, with **Try Again** when available. Its state and release notes stay available after reloading the review. Save any comment drafts before confirming: restarting discards unsaved drafts and other open tabs.
+
+For mise installs, accepting an update selects `latest` in the global configuration and retains the previous install. Project version pins keep priority when launching from those projects. For Homebrew installs, the cask can briefly lag behind GitHub Releases; if the offered version is not installed yet, Diffdesk keeps running and asks you to retry later. A failed startup check stays silent; manual checks and installation failures report the error. Source builds, prereleases and manually downloaded copies do not offer automatic installation.
+
+After upgrading or rolling back from the terminal, a running window keeps the version it started with: quit Diffdesk (`Cmd+Q`) to use the new one. Comments and Viewed stay in each checkout's `.git/ghl/state.json` across upgrades, rollbacks and uninstalls. A release that resolves comments writes it as version 2 at the first change, which earlier releases refuse rather than reopen resolved comments: rolling back past it requires moving that file aside. Settings live in `~/Library/Application Support/Diffdesk/settings.json`.
 
 ## Moving from ghl to Diffdesk
 

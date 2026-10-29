@@ -44,6 +44,7 @@ func TestFakeLanguageServer(t *testing.T) {
 	reader := bufio.NewReader(os.Stdin)
 	var cancelled []int64
 	var documents []string
+	var declarations []bool
 	configured, watched, root := false, 0, ""
 	location := func(uri string, line, character, length int) map[string]any {
 		return map[string]any{"uri": uri, "range": map[string]any{"start": map[string]int{"line": line, "character": character}, "end": map[string]int{"line": line, "character": character + length}}}
@@ -92,10 +93,17 @@ func TestFakeLanguageServer(t *testing.T) {
 		case "textDocument/definition":
 			write(map[string]any{"id": message.ID, "result": []any{location(root+"/store.go", 2, 16, 6), location("file:///usr/local/go/src/context/context.go", 9, 5, 7)}})
 		case "textDocument/references":
+			var params struct {
+				Context struct {
+					IncludeDeclaration bool `json:"includeDeclaration"`
+				} `json:"context"`
+			}
+			_ = json.Unmarshal(message.Params, &params)
+			declarations = append(declarations, params.Context.IncludeDeclaration)
 			write(map[string]any{"id": message.ID, "result": []any{location(root+"/main.go", 4, 2, 6), location(root+"/caller.go", 2, 8, 6), location("file:///elsewhere/vendor.go", 1, 0, 6)}})
 		case "fake/hang":
 		case "fake/state":
-			write(map[string]any{"id": message.ID, "result": map[string]any{"cancelled": cancelled, "configured": configured, "documents": documents, "watched": watched}})
+			write(map[string]any{"id": message.ID, "result": map[string]any{"cancelled": cancelled, "configured": configured, "declarations": declarations, "documents": documents, "watched": watched}})
 		case "shutdown":
 			write(map[string]any{"id": message.ID, "result": nil})
 		case "exit":
@@ -123,7 +131,7 @@ func fakeServers(t *testing.T, mode string) (*languageServers, string, string) {
 	}
 	log := filepath.Join(bin, "starts")
 	m := newLanguageServers()
-	m.languages = []language{{ID: "go", Label: "Go", Extensions: []string{".go"}, Install: "install fakels",
+	m.languages = []language{{ID: "go", Label: "Go", Extensions: []string{".go"}, Installs: []installMethod{{"fake", []string{"install", "fakels"}}},
 		Servers: []languageServer{{Name: "fakels", Choice: "fakels", command: "fakels"}}}}
 	m.environment = func(string) []string {
 		return append(os.Environ(), "PATH="+bin, "DIFFDESK_FAKE_BINARY="+os.Args[0], "DIFFDESK_FAKE_LSP="+mode, "DIFFDESK_FAKE_LSP_LOG="+log)

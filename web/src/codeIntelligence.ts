@@ -43,46 +43,72 @@ export async function sendLanguageConfig(config: string): Promise<void> {
 
 const BUSY = new Set<LanguageStatus['state']>(['starting', 'indexing'])
 
+/** Starts installing a language's server with one of the managers its status offers. */
+export async function installLanguageServer(
+  repoId: string,
+  language: string,
+  manager: string,
+): Promise<void> {
+  const response = await fetch(`/r/${repoId}/api/lsp/install`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ language, manager }),
+  })
+  if (!response.ok) throw await failure(response)
+  await response.arrayBuffer()
+}
+
 /**
  * What each language's server is doing in this checkout, or null until known.
  *
  * `revision` changes whenever the settings reach the server; null stops
- * asking. Polled while a server starts or indexes, so its progress shows.
+ * asking. Polled while a server starts, indexes or installs, so its progress shows.
  */
 export function useLanguageStatus(
   repoId: string | null,
   revision: number | null,
-): [LanguageServersStatus | null, () => void] {
+  snapshot?: string | null,
+): [LanguageServersStatus | null, () => void, string | null] {
   const [status, setStatus] = useState<LanguageServersStatus | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [asked, setAsked] = useState(0)
   const active = repoId !== null && revision !== null
   const refresh = useCallback(() => setAsked((count) => count + 1), [])
   const latest = useRef(0)
   useEffect(() => {
+    setStatus(null)
+  }, [repoId, snapshot])
+  useEffect(() => {
     if (!active) {
       setStatus(null)
+      setError(null)
       return
     }
     const request = ++latest.current
+    setError(null)
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     const load = async () => {
-      const response = await fetch(`/r/${repoId}/api/lsp`, { signal: controller.signal })
+      const suffix = snapshot ? `?${new URLSearchParams({ revision: snapshot })}` : ''
+      const response = await fetch(`/r/${repoId}/api/lsp${suffix}`, { signal: controller.signal })
       if (!response.ok) throw await failure(response)
       const next = (await response.json()) as LanguageServersStatus
       if (request !== latest.current) return
       setStatus(next)
-      if (next.languages.some((language) => BUSY.has(language.state)))
+      if (next.languages.some((language) => BUSY.has(language.state) || language.installing))
         timer = setTimeout(refresh, 1000)
     }
     // A failed look leaves the last known state; the next change asks again.
-    load().catch(() => {})
+    load().catch((cause) => {
+      if (!controller.signal.aborted && request === latest.current)
+        setError(cause instanceof Error ? cause.message : String(cause))
+    })
     return () => {
       controller.abort()
       if (timer) clearTimeout(timer)
     }
-  }, [active, repoId, revision, asked, refresh])
-  return [status, refresh]
+  }, [active, repoId, revision, snapshot, asked, refresh])
+  return [status, refresh, error]
 }
 
 function extensionOf(path: string): string {
@@ -100,15 +126,18 @@ export function languagesOf(
   const extensions = new Set(paths.map(extensionOf))
   return status.languages.filter((language) => {
     if (language.state === 'off') return false
-    // Helm owns only the files of its charts' templates folders.
-    if (language.directories)
-      return paths.some(
-        (path) =>
-          language.directories!.some((dir) => path.startsWith(`${dir}/`)) &&
-          language.extensions.includes(extensionOf(path)),
-      )
-    return language.extensions.some((extension) => extensions.has(extension))
+    return language.directories
+      ? paths.some((path) => languageSupportsPath(language, path))
+      : language.extensions.some((extension) => extensions.has(extension))
   })
+}
+
+/** Helm covers chart templates only; the other servers cover their extensions. */
+export function languageSupportsPath(language: LanguageStatus, path: string): boolean {
+  return (
+    language.extensions.includes(extensionOf(path)) &&
+    (!language.directories || language.directories.some((dir) => path.startsWith(`${dir}/`)))
+  )
 }
 
 /** A server's path as a home-relative one, which is how people read them. */
@@ -155,6 +184,7 @@ async function ask<T>(
     character: String(query.character),
     token: query.token,
   })
+  if (query.revision) params.set('revision', query.revision)
   const response = await fetch(`/r/${repoId}/api/lsp/${route}?${params}`, { signal })
   if (response.status === 409) throw new StaleSymbolError((await failure(response)).message)
   if (!response.ok) throw await failure(response)

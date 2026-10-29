@@ -117,6 +117,7 @@ type desktopApp struct {
 	ready      sync.Once
 	tabs       reviewTabs
 	settings   *settingsStore
+	updater    *nativeUpdater
 	// One Settings window, however fast Cmd+, repeats.
 	opening sync.Mutex
 }

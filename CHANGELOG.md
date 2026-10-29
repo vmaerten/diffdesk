@@ -1,5 +1,85 @@
 # Changelog
 
+## Unreleased
+
+### ✨ Features
+
+- Read a Markdown file rendered: its card header switches between **Source** and **Rendered**, which shows headings, lists, GFM tables and code blocks, and marks the blocks that hold added lines. Comments stay on source lines; viewing one, or a search match, switches back to Source. ([#302](https://github.com/vmaerten/diffdesk/pull/302))
+- Wrap long lines instead of scrolling each file sideways, with **View → Wrap Lines**, `Option+z` or the command palette; Settings offers the same choice under Code, and it is kept across reviews and restarts. ([#303](https://github.com/vmaerten/diffdesk/pull/303))
+- Comment on a whole file, from its header, its context menu or **Review → Comment on File…**, or on the whole review, from the comments panel's `+` or **Review → Comment on Review…**. They are written and listed in the panel, review comments first, and Copy and `diffdesk comments` include them as `path (whole file)` and `(whole review)`. ([#305](https://github.com/vmaerten/diffdesk/pull/305))
+
+### 🐛 Fixes
+
+- Close the title bar's **Options** popover with Escape, which returns the focus to its button; opening a picker or running a menu command also closes it. ([#304](https://github.com/vmaerten/diffdesk/pull/304))
+
+## 0.9.0
+
+### ✨ Features
+
+- Review an update in a centred sheet instead of a banner: the release notes are shown in full and scroll when long, and the sheet offers **Skip This Version**, **Remind Me Later** and **Update and Restart**, with the restart warning in place of a second confirmation. A skipped version is no longer offered at startup; a newer one or a manual check still is. The command palette (`Cmd+K`) gains **Check for Updates…**, and **Update to X and Restart…** while an update is pending. The sheet takes the focus, on the notes rather than a button, and an open comment draft keeps its text and gets the focus back. ([#286](https://github.com/vmaerten/diffdesk/pull/286))
+- Install a missing language server from the app: IntelliSense and Settings offer **Install with** the first available manager (mise, Homebrew, or the language's own tool such as uv, go or rustup), a menu of the others and **Copy Command**. Installs are global and never change the reviewed project's files; a failed install keeps its output, with **Try Again**. ([#289](https://github.com/vmaerten/diffdesk/pull/289))
+- Read the IntelliSense status at a glance: one row per language with its server, version and state, the context on one line with the rest under **Details**, and a banner for what blocks every language. When IntelliSense is off, **Turn On** enables it from the sheet. ([#288](https://github.com/vmaerten/diffdesk/pull/288))
+- Zoom the whole interface with **View → Zoom Out / Zoom In** (`Cmd+-` / `Cmd++`), in 10% steps from 50% to 200%, and **Actual Size** (`Cmd+0`); the command palette offers the same actions. Reloading or restarting restores 100%. ([#284](https://github.com/vmaerten/diffdesk/pull/284))
+
+### 🐛 Fixes
+
+- Keep the reading position when the review page reloads after its renderer dies: the view is now saved while reading, not only at `Cmd+R`. With **Debug logging** on, the renderer's termination is recorded in the log. ([#285](https://github.com/vmaerten/diffdesk/pull/285))
+- List the hovered use among a Python symbol's references with pyright and basedpyright, which left it out. ([#292](https://github.com/vmaerten/diffdesk/pull/292))
+- Keep an open Settings window in step with settings saved from another window, instead of writing its stale values back on its next change. ([#288](https://github.com/vmaerten/diffdesk/pull/288))
+
+### 📚 Documentation
+
+- Record the language server measurements (first hover, references and memory for tsrs, tsc, basedpyright, pyright, ty and gopls) behind the order of servers in Auto. ([#291](https://github.com/vmaerten/diffdesk/pull/291))
+
+### 🔧 Internal
+
+- Check the window size only at startup in the native smoke test. ([#282](https://github.com/vmaerten/diffdesk/pull/282))
+
+## 0.8.0
+
+### ✨ Features
+
+- Use code intelligence on any reviewed branch or commit: Diffdesk prepares an isolated copy of the displayed revision for symbol information, definitions and references, while keeping your checkout and uncommitted edits intact. Copies are reused and cleaned up when the app stops; the IntelliSense diagnostic shows the analyzed version and its location. Project dependencies are not installed automatically. ([#278](https://github.com/vmaerten/diffdesk/pull/278))
+
+### 🐛 Fixes
+
+- Open the window maximised from the terminal, Finder or Dock, instead of leaving it at 1280 × 800. The zoom button still restores that default size. ([#280](https://github.com/vmaerten/diffdesk/pull/280))
+
+## 0.7.1
+
+### 🐛 Fixes
+
+- Let Homebrew manage its metadata refreshes during in-app updates: Diffdesk now runs only `brew upgrade --cask vmaerten/tap/diffdesk`, without forcing a separate `brew update` first. ([#279](https://github.com/vmaerten/diffdesk/pull/279))
+
+## 0.7.0
+
+### ✨ Features
+
+- Update Diffdesk from the app: a bottom banner offers new stable releases without interrupting the review. Choose **Later** to keep working, or **Update…**, then **Update and Restart**, to install through Homebrew or mise and reopen the active comparison. **Diffdesk → Check for Updates…** checks on demand; progress and retryable errors stay in the banner. Save drafts before restarting. ([#276](https://github.com/vmaerten/diffdesk/pull/276))
+- Read the proposed release’s changelog under **What’s new in…** before confirming an update, with headings, lists, code and links. The notes and update status stay available after reloading the review. ([#276](https://github.com/vmaerten/diffdesk/pull/276))
+
+### 🔧 Internal
+
+- Accept renamed repository asset URLs when validating published releases through mise. ([#275](https://github.com/vmaerten/diffdesk/pull/275))
+
+## 0.6.0
+
+### ✨ Features
+
+- Enable **Debug logging** in Settings, under Window, to record clicks, mouse buttons, keyboard actions, comments, navigation and scrolling in a local file across reloads and restarts. Every event is kept until you clear the logs from the same pane, which also copies them with the app and WebView versions. Typed text, clipboard contents and source code are excluded. ([#272](https://github.com/vmaerten/diffdesk/pull/272))
+- Start a diff search with the selected source text when pressing `Cmd+F`, and replace an open search with a new selection. ([#270](https://github.com/vmaerten/diffdesk/pull/270))
+- Check why code intelligence is unavailable with **Check IntelliSense Status…** in the command palette (`Cmd+K`): see the checkout and target, whether the working tree is included, and each language server's state, path, errors and installation command. The diagnostic explains that choosing a target branch does not check it out. ([#271](https://github.com/vmaerten/diffdesk/pull/271))
+
+### 🐛 Fixes
+
+- Hide Git status dots on folders in the file tree, keeping status indicators on individual files. ([#269](https://github.com/vmaerten/diffdesk/pull/269))
+- Keep truncated file and folder names legible in the translucent sidebar, instead of drawing the ellipsis over the remaining letters. ([#273](https://github.com/vmaerten/diffdesk/pull/273))
+- Point the comparison arrow from the reviewed target toward its base, matching the direction of the merge. ([#268](https://github.com/vmaerten/diffdesk/pull/268))
+
+### 📚 Documentation
+
+- Explain how to trust the renamed Diffdesk cask before upgrading a Homebrew installation from ghl. ([#266](https://github.com/vmaerten/diffdesk/pull/266))
+
 ## 0.5.0
 
 ### 💥 Breaking changes

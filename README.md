@@ -46,7 +46,7 @@ diffdesk comments --json    # the same, as JSON
 - Branch, base and commit pickers, with `gh stack` navigation.
 - Persistent comments per branch, code anchors, a comments side panel and a compact copy for agents.
 - Viewed files, working-tree/untracked controls and whitespace filtering.
-- Image previews, native menus, and light and dark appearance with a syntax theme for each.
+- Image previews, rendered Markdown, native menus, and light and dark appearance with a syntax theme for each.
 
 See the [reviewing guide](https://diffdesk.vmaerten.fr/guide/reviewing/) for comparisons, comments and state. Features on `main` may be newer than the published release; see the [changelog](./CHANGELOG.md).
 
@@ -65,9 +65,12 @@ See the [reviewing guide](https://diffdesk.vmaerten.fr/guide/reviewing/) for com
 | `Cmd+K` | Command palette |
 | `Cmd+P` | Go to a file |
 | `Cmd+f` | Search the diff |
+| `Cmd+-` / `Cmd++` | Zoom the interface out / in |
+| `Cmd+0` | Actual size (100%) |
 | `Cmd` + hover / click | Symbol info / go to definition (beta, in Settings) |
 | `Cmd+[` | Back from a definition |
 | `Cmd+1` / `Cmd+2` | Unified / split diff |
+| `Option+z` | Wrap long lines |
 | `Cmd+O` / `Cmd+W` | Open a repository / close the review |
 | `Shift+Cmd+C` | Copy all comments |
 | `Cmd+,` | Settings |

@@ -46,6 +46,9 @@ import { contextFile } from './fileMenu.ts'
 import { languagesOf, useLanguageStatus } from './codeIntelligence.ts'
 import { useSymbolCard } from './SymbolCard.tsx'
 import SymbolPanel, { PanelTabs, type PanelTab, type SymbolTarget } from './SymbolPanel.tsx'
+import CodeIntelligenceStatus from './CodeIntelligenceStatus.tsx'
+import { debugLog } from './debugLog.ts'
+import { latestUpdate } from './updates.ts'
 import type { LanguageStatus } from '../../src/types.ts'
 import { asText } from '../../src/export.ts'
 import type { BaseSource, DiffPayload, ServedComment } from '../../src/types.ts'
@@ -92,11 +95,13 @@ export default function App({
   onRouteChange,
   syntaxTheme,
   codeLineHeight,
+  wrapLines = false,
   toolbar,
   sidebarHidden,
   onReveal,
   onFileMenu,
   languageRevision = null,
+  codeIntelligenceEnabled = false,
   symbolPanel = false,
   pullRequests = null,
 }: {
@@ -109,6 +114,7 @@ export default function App({
   syntaxTheme: SyntaxTheme
   /** Follows the code size, which changes the row height. */
   codeLineHeight?: number
+  wrapLines?: boolean
   /** The title bar node the review controls render into, once mounted. */
   toolbar: HTMLElement | null
   /** The title bar shows and hides the file tree. */
@@ -119,6 +125,8 @@ export default function App({
   onFileMenu?: (path: string, x: number, y: number, viewed: boolean) => Promise<void>
   /** Changes when the review server has new code intelligence settings; null while it is off. */
   languageRevision?: number | null
+  /** The preference, even before its configuration reaches the review server. */
+  codeIntelligenceEnabled?: boolean
   /** Offers a Symbol tab beside Comments, with references, while code intelligence is on. */
   symbolPanel?: boolean
   /** Where to show the reviewed branch's GitHub pull request; null shows none. */
@@ -132,7 +140,11 @@ export default function App({
   // until the next refresh starts: a failed refresh leaves it on screen.
   const shownRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [languageStatus, refreshLanguages] = useLanguageStatus(repoId, languageRevision)
+  const [languageStatus, refreshLanguages] = useLanguageStatus(
+    repoId,
+    languageRevision,
+    data?.comparison.after,
+  )
   // A refreshed review may find a server stopped, or started, meanwhile.
   const shownLoad = data?.loadId
   useEffect(() => {
@@ -142,6 +154,7 @@ export default function App({
   const [viewed, viewedPersistence] = useViewedPersistence(repoId, viewedStore)
   const [picking, setPicking] = useState<Picker | null>(null)
   const palette = useRef<PaletteHandle>(null)
+  const [checkingIntelligence, setCheckingIntelligence] = useState(false)
   const [selection, select] = useReviewSelection(onRouteChange)
   const { target, commit, committed, withUntracked, ignoreWhitespace, query } = selection
   const [{ comments: stored, saving }, commentPersistence] = useCommentPersistence(
@@ -161,12 +174,23 @@ export default function App({
   const symbolTab = languageRevision !== null && symbolPanel
   const [panelTab, setPanelTab] = useState<PanelTab>('comments')
   const [symbolTarget, setSymbolTarget] = useState<SymbolTarget | null>(null)
+  useEffect(() => {
+    setSymbolTarget(null)
+  }, [data?.comparison.after])
   /** The toolbar's Comments button: shows the comments, or hides the panel showing them. */
   const toggleComments = () => {
     setPanelTab('comments')
     setCommentsOpen((open) => !open || panelTab !== 'comments')
   }
   const panelEditor = useRef(savedView?.panelEditor ?? { editing: null, draft: '' })
+  /** The file a new whole-file comment is being written on in the panel; '' for the review. */
+  const [composing, setComposing] = useState<string | null>(null)
+  const compose = (path: string | null) => {
+    setComposing(path)
+    if (path === null) return
+    setPanelTab('comments')
+    setCommentsOpen(true)
+  }
   useEffect(
     () => () => {
       if (copyTimer.current) clearTimeout(copyTimer.current)
@@ -191,6 +215,13 @@ export default function App({
       return
     }
     const loadId = ++loadRef.current
+    debugLog.record('review.refresh', {
+      repoId,
+      loadId,
+      target: selection.target,
+      commit: selection.commit,
+      committed: selection.committed,
+    })
     requestRef.current?.abort()
     const controller = new AbortController()
     requestRef.current = controller
@@ -207,11 +238,23 @@ export default function App({
       const shown = new AbortController()
       shownRef.current = shown
       setData({ ...body, loadId, query: selection.query, signal: shown.signal })
+      debugLog.record('review.loaded', {
+        repoId,
+        loadId,
+        target: body.target.ref,
+        workingTree: body.target.workingTree,
+        files: body.files.length,
+      })
       receiveViewed({ ...body, query: selection.query })
       receiveComments(body.comments ?? [], body.commentBranch)
       setError(null)
     } catch (cause) {
       if (controller.signal.aborted) return
+      debugLog.record('review.failed', {
+        repoId,
+        loadId,
+        name: cause instanceof Error ? cause.name : typeof cause,
+      })
       setError(cause instanceof Error ? cause.message : String(cause))
     }
   }, [repoId, selection, commentPersistence, viewedPersistence])
@@ -326,9 +369,10 @@ export default function App({
   )
   const symbols = useSymbolCard({
     repoId,
-    enabled: languageRevision !== null && data?.target.workingTree === true,
+    enabled: languageRevision !== null && data !== null,
     languages: languageStatus?.languages ?? NO_LANGUAGES,
     loadId: data?.loadId,
+    revision: data?.comparison.after ?? undefined,
     canReveal: canRevealDefinition,
     reveal: revealDefinition,
     onAnswer: refreshLanguages,
@@ -363,6 +407,7 @@ export default function App({
     diffStyle,
     syntaxTheme,
     lineHeight: codeLineHeight,
+    wrapLines,
     viewed,
     comments,
     copied,
@@ -376,6 +421,7 @@ export default function App({
       void commentPersistence.retry(comment.id)
     },
     onRevealFile: revealFile,
+    onCommentFile: compose,
     tokenHandlers: symbols.handlers,
   })
   lines.current = {
@@ -408,6 +454,9 @@ export default function App({
             setCopyError(`Could not copy ${path}. ${cause instanceof Error ? cause.message : ''}`),
           )
         break
+      case 'comment-file':
+        compose(path)
+        break
       case 'reveal':
         onReveal?.(path).catch((cause) =>
           setError(`could not reveal ${path}: ${cause instanceof Error ? cause.message : cause}`),
@@ -429,7 +478,11 @@ export default function App({
 
   /** Every review command by name: the single-letter keys and the desktop menus. */
   const runCommand = useStableCallback((command: CommandName) => {
+    debugLog.record('review.command', { command })
     switch (command) {
+      case 'code-intelligence-status':
+        setCheckingIntelligence(true)
+        break
       case 'palette':
       case 'go-to-file':
         setPicking(null)
@@ -465,7 +518,11 @@ export default function App({
       case 'viewed':
       case 'copy-path':
       case 'reveal':
+      case 'comment-file':
         if (activePath) runFileCommand(command, activePath)
+        break
+      case 'comment-review':
+        compose('')
         break
       case 'unified':
       case 'split':
@@ -517,6 +574,12 @@ export default function App({
       const tag = focused instanceof HTMLElement ? focused.tagName : null
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       if (focused instanceof HTMLElement && focused.isContentEditable) return
+      // ⌥Z, as in VS Code. By its code: Option turns the key into another character.
+      if (event.altKey && !event.metaKey && !event.ctrlKey && event.code === 'KeyZ') {
+        sendCommand('wrap-lines')
+        event.preventDefault()
+        return
+      }
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
       if (picking) return // the picker owns the keyboard while open
@@ -556,6 +619,7 @@ export default function App({
   /** The palette leaves out what would do nothing, and checks what shows a state. */
   const paletteCommands = (): PaletteCommand[] => {
     const stack = data?.base.stack
+    const update = latestUpdate()
     const applies: Partial<Record<CommandName, boolean>> = {
       stack: !!stack,
       'layer-below': !!stack && neighbourLayer(stack, -1) !== null,
@@ -566,13 +630,18 @@ export default function App({
       untracked: untrackedToggleable(data),
       viewed: !!activePath,
       'copy-path': !!activePath,
+      'comment-file': !!activePath,
       reveal: !!activePath && onReveal !== undefined,
       'reset-viewed': viewedCount > 0,
       'copy-comments': comments.length > 0,
+      'check-updates':
+        !!window.go && !['checking', 'installing', 'restarting'].includes(update.status),
+      'install-update': update.status === 'available',
     }
     const checked: Partial<Record<CommandName, boolean>> = {
       unified: diffStyle === 'unified',
       split: diffStyle === 'split',
+      'wrap-lines': wrapLines,
       'working-tree': !committed,
       untracked: withUntracked,
       whitespace: ignoreWhitespace,
@@ -581,6 +650,10 @@ export default function App({
     }
     return COMMANDS.filter((command) => applies[command.name] ?? true).map((command) => ({
       ...command,
+      label:
+        command.name === 'install-update'
+          ? `Update to ${update.version} and Restart…`
+          : command.label,
       checked: checked[command.name],
     }))
   }
@@ -673,6 +746,12 @@ export default function App({
         onRetry={(comment) => {
           void commentPersistence.retry(comment.id)
         }}
+        composing={composing}
+        onCompose={compose}
+        onCreate={(path, body) => {
+          submitComment({ path, side: 'additions', start: 0, end: 0, editing: null, body })
+          setComposing(null)
+        }}
       />
       {symbolTab && (
         <SymbolPanel
@@ -710,6 +789,16 @@ export default function App({
           toolbar,
         )}
       {symbols.card}
+      {checkingIntelligence && (
+        <CodeIntelligenceStatus
+          repoId={repoId}
+          data={data}
+          activePath={activePath ?? null}
+          enabled={codeIntelligenceEnabled}
+          settingsApplied={languageRevision !== null}
+          onClose={() => setCheckingIntelligence(false)}
+        />
+      )}
       <CommandPalette
         handle={palette}
         files={entries}

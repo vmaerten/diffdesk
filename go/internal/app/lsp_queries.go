@@ -439,7 +439,10 @@ func (s *Server) references(ctx context.Context, q symbolQuery) (referencesAnswe
 	if err != nil {
 		return referencesAnswer{}, err
 	}
-	params := map[string]any{"textDocument": position["textDocument"], "position": position["position"], "context": map[string]bool{"includeDeclaration": false}}
+	client.mu.Lock()
+	declarations := client.server.Declarations
+	client.mu.Unlock()
+	params := map[string]any{"textDocument": position["textDocument"], "position": position["position"], "context": map[string]bool{"includeDeclaration": declarations}}
 	var found []lspLocation
 	if err := client.conn.call(ctx, "textDocument/references", params, &found); err != nil {
 		return referencesAnswer{}, err

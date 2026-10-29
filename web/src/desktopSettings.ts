@@ -24,8 +24,12 @@ export interface DesktopSettings extends AppearanceSettings {
   /** One of CODE_FONTS, or any font installed on the Mac. */
   codeFont: string
   codeSize: number
+  /** Long lines continue below instead of scrolling the file sideways. */
+  wrapLines: boolean
   /** Read by the app when it opens its window: a change applies at the next launch. */
   compactTitleBar: boolean
+  /** Local action and scroll diagnostics, without source or comment text. */
+  debugLogging: boolean
   /** Beta: hover and definitions from the language servers installed on this Mac. */
   codeIntelligence: boolean
   /** References in a Symbol tab beside Comments, under code intelligence. */
@@ -41,7 +45,9 @@ export const DEFAULT_SETTINGS: DesktopSettings = {
   ...DEFAULT_APPEARANCE,
   codeFont: 'SF Mono',
   codeSize: 12,
+  wrapLines: false,
   compactTitleBar: false,
+  debugLogging: false,
   codeIntelligence: false,
   symbolPanel: true,
   languageServers: {
@@ -81,7 +87,9 @@ export function readSettings(raw: string): DesktopSettings {
     appearance,
     codeFont,
     codeSize,
+    wrapLines,
     compactTitleBar,
+    debugLogging,
     codeIntelligence,
     symbolPanel,
     languageServers,
@@ -106,8 +114,10 @@ export function readSettings(raw: string): DesktopSettings {
       (codeSize as number) <= CODE_SIZE.max
         ? (codeSize as number)
         : DEFAULT_SETTINGS.codeSize,
+    wrapLines: typeof wrapLines === 'boolean' ? wrapLines : DEFAULT_SETTINGS.wrapLines,
     compactTitleBar:
       typeof compactTitleBar === 'boolean' ? compactTitleBar : DEFAULT_SETTINGS.compactTitleBar,
+    debugLogging: typeof debugLogging === 'boolean' ? debugLogging : DEFAULT_SETTINGS.debugLogging,
     codeIntelligence:
       typeof codeIntelligence === 'boolean' ? codeIntelligence : DEFAULT_SETTINGS.codeIntelligence,
     symbolPanel: typeof symbolPanel === 'boolean' ? symbolPanel : DEFAULT_SETTINGS.symbolPanel,

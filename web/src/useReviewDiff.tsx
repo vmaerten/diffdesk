@@ -8,6 +8,7 @@ import {
   type CodeViewItem,
   type CodeViewOptions,
   type DiffLineAnnotation,
+  type FileDiffMetadata,
   type LineAnnotation,
   type SelectedLineRange,
 } from '@pierre/diffs'
@@ -17,12 +18,16 @@ import type { SyntaxTheme } from './theme.ts'
 import CommentThread, { type Composer } from './CommentThread.tsx'
 import type { CommentSubmission, SaveState } from './commentPersistence.ts'
 import ImageDiff from './ImageDiff.tsx'
+import MarkdownPreview, { addedLines, isMarkdown } from './MarkdownPreview.tsx'
 import CopyFileName from './CopyFileName.tsx'
+import Icon from './Icon.tsx'
+import { wholeFile } from '../../src/export.ts'
 import type { TreeEntry } from './FileTree.tsx'
 import { diffFilesLoader, type ContextError } from './diffFiles.ts'
 import { searchDiff } from './diffSearch.ts'
 import { treeOrder } from './fileOrder.ts'
 import { commentRange } from './commentRange.ts'
+import { debugLog } from './debugLog.ts'
 import type { SavedView } from './savedView.ts'
 import type { TokenHandlers } from './SymbolCard.tsx'
 import type {
@@ -49,6 +54,7 @@ interface ReviewDiffOptions {
   syntaxTheme: SyntaxTheme
   /** Row height for a code size other than the default, so virtualization estimates match. */
   lineHeight?: number
+  wrapLines: boolean
   viewed: ViewedMap
   comments: ServedComment[]
   copied: string | null
@@ -60,18 +66,26 @@ interface ReviewDiffOptions {
   onResolve: (id: string) => void
   onRetry: (comment: ServedComment) => void
   onRevealFile: (path: string) => void
+  /** Opens a comment on the whole file, in the comments panel. */
+  onCommentFile: (path: string) => void
   /** Hover and ⌘-click on symbols. */
   tokenHandlers?: TokenHandlers
 }
+
+const NO_LINES: ReadonlySet<number> = new Set()
 
 /** A line to scroll to and select: a comment's, or a definition's. */
 type LineTarget = Pick<ServedComment, 'path' | 'side' | 'start' | 'end'>
 
 /**
  * `CodeViewDiffItem` carries no path; we add one and read it back from our own
- * array, which the library ignores.
+ * array, which the library ignores. File items have no source rows: they show an
+ * image comparison or a rendered Markdown file in their file-level annotation.
  */
-type DiffItem = (CodeViewDiffItem | (CodeViewFileItem & { image: ImageComparison })) & {
+type DiffItem = (
+  | CodeViewDiffItem
+  | (CodeViewFileItem & ({ image: ImageComparison } | { markdown: FileDiffMetadata }))
+) & {
   path: string
 }
 
@@ -107,6 +121,7 @@ export function useReviewDiff({
   diffStyle,
   syntaxTheme,
   lineHeight,
+  wrapLines,
   viewed,
   comments,
   copied,
@@ -118,6 +133,7 @@ export function useReviewDiff({
   onResolve: resolveComment,
   onRetry: save,
   onRevealFile: revealFile,
+  onCommentFile: commentFile,
   tokenHandlers,
 }: ReviewDiffOptions) {
   const viewRef = useRef<CodeViewHandle<undefined>>(null)
@@ -126,6 +142,16 @@ export function useReviewDiff({
   const [activePath, setActivePath] = useState<string | null>(null)
   const [revealedPath, setRevealedPath] = useState<string | null>(null)
   const [commentTarget, setCommentTarget] = useState<LineTarget | null>(null)
+  /** Markdown files shown rendered rather than as source. */
+  const [rendered, setRendered] = useState<ReadonlySet<string>>(() => new Set())
+  const setRenderedPath = useStableCallback((path: string, on: boolean) => {
+    if (rendered.has(path) === on) return false
+    const next = new Set(rendered)
+    if (on) next.add(path)
+    else next.delete(path)
+    setRendered(next)
+    return true
+  })
   useEffect(() => {
     setRevealedPath(null)
   }, [viewed, data?.range])
@@ -166,6 +192,50 @@ export function useReviewDiff({
   }, [comments, collapsedComments])
   const draftsRef = useRef(new Map<string, string>(savedView?.drafts ?? []))
   const scrollTopRef = useRef(savedView?.scrollTop ?? 0)
+  const lastInput = useRef({ kind: 'none', at: 0 })
+  const hasFiles = (data?.files.length ?? 0) > 0
+  useEffect(() => {
+    const pane = paneRef.current
+    const track = (event: Event) => {
+      lastInput.current = { kind: event.type, at: performance.now() }
+    }
+    const focus = (event: FocusEvent) => {
+      if (!(event.target instanceof HTMLElement) || !event.target.closest('.comment-composer'))
+        return
+      debugLog.record('comment.focus', {
+        event: event.type,
+        target: event.target.tagName,
+        next: event.relatedTarget instanceof HTMLElement ? event.relatedTarget.tagName : null,
+        scroll: scrollTopRef.current,
+      })
+    }
+    pane?.addEventListener('focusin', focus)
+    pane?.addEventListener('focusout', focus)
+    for (const event of ['wheel', 'pointerdown', 'keydown', 'touchstart'])
+      pane?.addEventListener(event, track, { passive: true, capture: true })
+    return () => {
+      pane?.removeEventListener('focusin', focus)
+      pane?.removeEventListener('focusout', focus)
+      for (const event of ['wheel', 'pointerdown', 'keydown', 'touchstart'])
+        pane?.removeEventListener(event, track, true)
+    }
+  }, [hasFiles])
+  useEffect(() => {
+    if (!composer || !debugLog.enabled) return
+    const frame = requestAnimationFrame(() => {
+      const rect = paneRef.current?.querySelector('.comment-composer')?.getBoundingClientRect()
+      debugLog.record('comment.rendered', {
+        path: composer.path,
+        side: composer.side,
+        end: composer.end,
+        scroll: scrollTopRef.current,
+        top: rect?.top,
+        bottom: rect?.bottom,
+        focus: document.activeElement?.tagName,
+      })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [composer])
   const expansionsRef = useRef<SavedView['expansions']>(savedView?.expansions ?? [])
   const replayed = useRef(new Set<string>())
   const restored = useRef(false)
@@ -244,6 +314,8 @@ export function useReviewDiff({
   const threads = useMemo(() => {
     const map = new Map<string, ServedComment[]>()
     for (const comment of comments) {
+      // A comment on a whole file or review has no line to sit under: the panel shows it.
+      if (wholeFile(comment)) continue
       // On `end`: the annotation row is emitted after its line, so anchoring on
       // the last line of the range puts the card under the block, as GitHub does.
       const key = threadKey(comment.path, comment.side, comment.end)
@@ -322,7 +394,24 @@ export function useReviewDiff({
   const versions = useRef(new Map<string, { key: string; version: number }>())
   const items = useMemo(
     () =>
-      allItems.map((item): DiffItem => {
+      allItems.map((source): DiffItem => {
+        // A new id, not a new type under the same one: the pane reuses a record
+        // by id and would otherwise keep the diff it already built.
+        const item: DiffItem =
+          source.type === 'diff' && rendered.has(source.path)
+            ? {
+                id: `markdown:${source.id}`,
+                path: source.path,
+                type: 'file',
+                file: {
+                  name: source.path,
+                  contents: '',
+                  lang: 'text',
+                  cacheKey: `markdown:${source.id}`,
+                },
+                markdown: source.fileDiff,
+              }
+            : source
         // An open composer keeps its file unfolded, so a draft never sits hidden.
         const collapsed =
           item.path in viewed && item.path !== revealedPath && item.path !== composer?.path
@@ -346,8 +435,21 @@ export function useReviewDiff({
           ? { ...item, collapsed, version, annotations: collapsed ? [] : [{ lineNumber: 0 }] }
           : { ...item, collapsed, version, annotations: annotations.byPath.get(item.path) }
       }),
-    [allItems, viewed, annotations, revealedPath, composer?.path, foldedByPath],
+    [allItems, rendered, viewed, annotations, revealedPath, composer?.path, foldedByPath],
   )
+
+  /** Per Markdown file, the new side's added lines; none for a file added whole. */
+  const markdownChanges = useMemo(() => {
+    const status = new Map((data?.files ?? []).map((file) => [file.path, file.status] as const))
+    const changes = new Map<string, Set<number>>()
+    // The snapshot: hydration rewrites the live items' hunks.
+    for (const item of searchItems) {
+      if (item.type !== 'diff' || !isMarkdown(item.path)) continue
+      const whole = status.get(item.path) === 'added' || status.get(item.path) === 'untracked'
+      changes.set(item.path, whole ? new Set() : addedLines(item.fileDiff.hunks))
+    }
+    return changes
+  }, [searchItems, data])
 
   // The file j, k and v act on. Kept by path: an index would point at whatever
   // file a new comparison puts in that position.
@@ -400,12 +502,16 @@ export function useReviewDiff({
   )
   // Revealing a comment opens the file for reading without clearing its Viewed tick.
   const canRevealComment = useCallback(
-    (comment: ServedComment) => canRevealLine(comment.path, comment.side, comment.end),
-    [canRevealLine],
+    (comment: ServedComment) =>
+      wholeFile(comment)
+        ? allItems.some((item) => item.path === comment.path)
+        : canRevealLine(comment.path, comment.side, comment.end),
+    [allItems, canRevealLine],
   )
   /** Selects a line of the new side and scrolls to it, as a definition is shown. */
   const revealLine = useStableCallback((path: string, line: number) => {
     if (!canRevealLine(path, 'additions', line)) return
+    debugLog.record('navigate.definition', { path, line, scroll: scrollTopRef.current })
     setSearchOpen(false)
     setRevealedPath(path)
     setCommentTarget({ path, side: 'additions', start: line, end: line })
@@ -413,9 +519,19 @@ export function useReviewDiff({
 
   const revealComment = useStableCallback((comment: ServedComment) => {
     if (!canRevealComment(comment)) return
-    foldComment(comment, false)
+    debugLog.record('navigate.comment', {
+      path: comment.path,
+      side: comment.side,
+      end: comment.end,
+      scroll: scrollTopRef.current,
+    })
     setSearchOpen(false)
     setRevealedPath(comment.path)
+    if (wholeFile(comment)) {
+      selectByPath(comment.path)
+      return
+    }
+    foldComment(comment, false)
     setCommentTarget(comment)
   })
 
@@ -423,6 +539,8 @@ export function useReviewDiff({
     if (!commentTarget) return
     const item = items.find((entry) => entry.path === commentTarget.path)
     if (!item || item.collapsed) return
+    // A comment sits on source lines: the next render brings them back.
+    if (item.type !== 'diff' && setRenderedPath(item.path, false)) return
     // The React wrapper has committed the expanded item before its next frame.
     const frame = requestAnimationFrame(() => {
       setActivePath(item.path)
@@ -447,18 +565,36 @@ export function useReviewDiff({
       setCommentTarget(null)
     })
     return () => cancelAnimationFrame(frame)
-  }, [commentTarget, items, revealFile])
+  }, [commentTarget, items, revealFile, setRenderedPath])
 
   /** Open a composer on a selected range, from the gutter or from `c`. */
-  const openComposer = useStableCallback((path: string, range: SelectedLineRange) => {
-    const item = allItems.find((entry) => entry.path === path)
-    const hunks = item?.type === 'diff' ? item.fileDiff.hunks : []
-    const { side, start, end } = commentRange(hunks, range)
-    setComposer({ key: threadKey(path, side, end), path, side, start, end, editing: null })
-  })
+  const openComposer = useStableCallback(
+    (path: string, range: SelectedLineRange, source: 'gutter' | 'selection') => {
+      const item = allItems.find((entry) => entry.path === path)
+      const hunks = item?.type === 'diff' ? item.fileDiff.hunks : []
+      const { side, start, end } = commentRange(hunks, range)
+      debugLog.record('comment.open', {
+        path,
+        side,
+        start,
+        end,
+        source,
+        scroll: scrollTopRef.current,
+      })
+      setComposer({ key: threadKey(path, side, end), path, side, start, end, editing: null })
+    },
+  )
 
   const editComment = useStableCallback((comment: Comment) => {
+    debugLog.record('comment.edit', {
+      path: comment.path,
+      side: comment.side,
+      start: comment.start,
+      end: comment.end,
+      scroll: scrollTopRef.current,
+    })
     foldComment(comment, false)
+    setRenderedPath(comment.path, false)
     const key = threadKey(comment.path, comment.side, comment.end)
     draftsRef.current.set(`${key}:${comment.id}`, comment.body)
     setComposer({
@@ -481,6 +617,7 @@ export function useReviewDiff({
    * the page, which is what made it look like the diff had stopped responding.
    */
   const closeComposer = useStableCallback(() => {
+    debugLog.record('comment.close', { path: composer?.path, scroll: scrollTopRef.current })
     setComposer(null)
     viewRef.current?.clearSelectedLines()
   })
@@ -492,6 +629,7 @@ export function useReviewDiff({
       // Not `target`: that name already means the revision under review.
       const item = items[bounded]
       if (!item) return
+      debugLog.record('navigate.file', { path: item.path, scroll: scrollTopRef.current })
       setActivePath(item.path)
 
       // The tree folds directories, so ask it to bring the file back into view
@@ -521,6 +659,11 @@ export function useReviewDiff({
   const activeSearchMatch = searchMatches[boundedSearchIndex]
 
   const openSearch = useCallback(() => {
+    const selectedText = window.getSelection()?.toString().trim()
+    if (selectedText) {
+      setSearchQuery(selectedText)
+      setSearchIndex(0)
+    }
     if (searchOpen) {
       searchInputRef.current?.focus()
       searchInputRef.current?.select()
@@ -570,9 +713,15 @@ export function useReviewDiff({
       viewRef.current?.clearSelectedLines()
       viewRef.current?.scrollTo({
         type: 'item',
-        id: activeSearchMatch.id,
+        // The rendered item of a Markdown file has an id of its own.
+        id: items.find((item) => item.path === activeSearchMatch.path)?.id ?? activeSearchMatch.id,
         align: 'start',
       })
+      return
+    }
+    // A match is a source line: show the source, then the match once it is back.
+    if (setRenderedPath(activeSearchMatch.path, false)) {
+      searchAfterSource.current = true
       return
     }
 
@@ -594,10 +743,24 @@ export function useReviewDiff({
   useEffect(() => {
     if (searchOpen) showSearchMatch()
   }, [searchOpen, searchQuery, searchIndex, showSearchMatch])
+  const searchAfterSource = useRef(false)
+  useEffect(() => {
+    if (!searchAfterSource.current) return
+    searchAfterSource.current = false
+    showSearchMatch()
+  }, [items, showSearchMatch])
 
   const submitComment = useStableCallback((body: string) => {
     if (!composer || !data) return
     const { path, side, start, end, editing } = composer
+    debugLog.record('comment.submit', {
+      path,
+      side,
+      start,
+      end,
+      editing: editing !== null,
+      scroll: scrollTopRef.current,
+    })
     onSubmit({ path, side, start, end, editing, body })
     draftsRef.current.delete(`${composer.key}:${editing ?? 'new'}`)
     // Releasing the selection lets the gutter button follow the pointer again.
@@ -608,7 +771,7 @@ export function useReviewDiff({
     const selection = viewRef.current?.getSelectedLines()
     if (!selection) return
     const path = items.find((item) => item.id === selection.id)?.path
-    if (path) openComposer(path, selection.range)
+    if (path) openComposer(path, selection.range, 'selection')
   })
 
   const navigate = useCallback(
@@ -662,13 +825,14 @@ export function useReviewDiff({
       // Only the gutter opens a composer here: a plain drag selects, and `c` is
       // what turns a selection into a comment.
       if (!requested || context.item.type !== 'diff') return
-      openComposer(context.item.fileDiff.name, requested)
+      openComposer(context.item.fileDiff.name, requested, 'gutter')
     },
   )
 
   const options = useMemo(
     () => ({
       diffStyle,
+      overflow: wrapLines ? ('wrap' as const) : ('scroll' as const),
       loadDiffFiles,
       expansionLineCount: 20,
       hunkSeparators: 'line-info' as const,
@@ -703,6 +867,7 @@ export function useReviewDiff({
       diffStyle,
       syntaxTheme,
       lineHeight,
+      wrapLines,
       loadDiffFiles,
       onGutterUtilityClick,
       onLineSelectionEnd,
@@ -721,8 +886,18 @@ export function useReviewDiff({
   const renderAnnotation = useCallback(
     (annotation: LineAnnotation | DiffLineAnnotation, item: CodeViewItem<undefined>) => {
       if (item.type === 'file') {
-        const image = (item as Extract<DiffItem, { type: 'file' }>).image
-        return image ? <ImageDiff image={image} path={item.file.name} /> : null
+        const file = item as Extract<DiffItem, { type: 'file' }>
+        if ('image' in file) return <ImageDiff image={file.image} path={file.path} />
+        if (!loadDiffFiles) return null
+        const deleted = data?.files.find((entry) => entry.path === file.path)?.status === 'deleted'
+        return (
+          <MarkdownPreview
+            load={loadDiffFiles}
+            file={file.markdown}
+            side={deleted ? 'deletions' : 'additions'}
+            changed={markdownChanges.get(file.path) ?? NO_LINES}
+          />
+        )
       }
       if (item.type !== 'diff' || !isDiffAnnotation(annotation)) return null
       const key = threadKey(item.fileDiff.name, annotation.side, annotation.lineNumber)
@@ -755,7 +930,10 @@ export function useReviewDiff({
       copied,
       onCopy,
       composer,
+      data?.files,
       data?.range,
+      loadDiffFiles,
+      markdownChanges,
       saving,
       submitComment,
       closeComposer,
@@ -781,8 +959,44 @@ export function useReviewDiff({
       const path = item.type === 'diff' ? item.fileDiff.name : item.file.name
       if (!path) return null
       const isViewed = path in viewed
+      const isRendered = rendered.has(path)
       return (
         <div className="file-header-actions" data-header-path={path}>
+          {isMarkdown(path) && (
+            <span
+              className="markdown-mode"
+              role="group"
+              aria-label="Markdown view"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                aria-pressed={!isRendered}
+                onClick={() => setRenderedPath(path, false)}
+              >
+                Source
+              </button>
+              <button
+                type="button"
+                aria-pressed={isRendered}
+                onClick={() => setRenderedPath(path, true)}
+              >
+                Rendered
+              </button>
+            </span>
+          )}
+          <button
+            type="button"
+            className="file-copy-button"
+            aria-label={`Comment on ${path}`}
+            title="Comment on the whole file"
+            onClick={(event) => {
+              event.stopPropagation()
+              commentFile(path)
+            }}
+          >
+            <Icon name="comment" />
+          </button>
           <CopyFileName key={path} path={path} />
           <label className="viewed-toggle" onClick={(event) => event.stopPropagation()}>
             <input
@@ -798,7 +1012,7 @@ export function useReviewDiff({
         </div>
       )
     },
-    [viewed, toggleViewed],
+    [viewed, toggleViewed, rendered, setRenderedPath, commentFile],
   )
 
   const replayExpansions = useStableCallback(() => {
@@ -817,6 +1031,11 @@ export function useReviewDiff({
   useEffect(() => {
     if (!savedView || !data || items.length === 0 || restored.current) return
     restored.current = true
+    debugLog.record('view.restore', {
+      path: savedView.activePath,
+      scroll: savedView.scrollTop,
+      composer: savedView.composer?.key,
+    })
     setActivePath(savedView.activePath ?? null)
     const selectedItem = items.find((item) => item.path === savedView.selected?.path)
     if (selectedItem && savedView.selected)
@@ -926,6 +1145,22 @@ export function useReviewDiff({
         ref={viewRef}
         containerRef={scrollerRef}
         onScroll={(position) => {
+          const previous = scrollTopRef.current
+          if (debugLog.enabled && position !== previous)
+            debugLog.record(
+              Math.abs(position - previous) >
+                Math.max(200, (scrollerRef.current?.clientHeight ?? 0) / 2)
+                ? 'scroll.jump'
+                : 'scroll',
+              {
+                from: previous,
+                to: position,
+                path: active,
+                composer: composer?.key,
+                input: lastInput.current.kind,
+                inputAge: Math.round(performance.now() - lastInput.current.at),
+              },
+            )
           scrollTopRef.current = position
           replayExpansions()
           followScroll()

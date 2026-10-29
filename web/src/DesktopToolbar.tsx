@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Icon from './Icon.tsx'
 import ScopeControls from './ScopeControls.tsx'
 import StackPicker from './StackPicker.tsx'
@@ -51,6 +51,29 @@ export default function DesktopToolbar(
     pullRequest,
   } = props
   const [optionsOpen, setOptionsOpen] = useState(false)
+  const optionsButton = useRef<HTMLButtonElement>(null)
+  // Escape closes it as it would a menu, and a menu command or another
+  // popover takes over from it.
+  useEffect(() => {
+    if (!optionsOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.stopPropagation()
+      event.preventDefault()
+      setOptionsOpen(false)
+      optionsButton.current?.focus()
+    }
+    const close = () => setOptionsOpen(false)
+    window.addEventListener('keydown', onKeyDown, true)
+    window.addEventListener('desktop:command', close)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true)
+      window.removeEventListener('desktop:command', close)
+    }
+  }, [optionsOpen])
+  useEffect(() => {
+    if (picking) setOptionsOpen(false)
+  }, [picking])
   const stack = data?.base.stack
   return (
     <>
@@ -89,8 +112,9 @@ export default function DesktopToolbar(
           </span>
           <ComparisonSelector picker="base" {...props} />
         </span>
+        {/* GitHub's "base ← compare": the target merges into the base. */}
         <span className="capsule-arrow" aria-hidden="true">
-          →
+          ←
         </span>
         <span className="base-anchor">
           <button
@@ -152,9 +176,13 @@ export default function DesktopToolbar(
           <button
             type="button"
             className="titlebar-button titlebar-text"
+            ref={optionsButton}
             title="Diff options"
             aria-expanded={optionsOpen}
-            onClick={() => setOptionsOpen((open) => !open)}
+            onClick={() => {
+              if (!optionsOpen) onPickingChange(null)
+              setOptionsOpen(!optionsOpen)
+            }}
           >
             Options <span className="caret">▾</span>
           </button>

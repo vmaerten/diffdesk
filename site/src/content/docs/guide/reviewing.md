@@ -1,9 +1,9 @@
 ---
 title: Reviewing code
-description: Comparisons, comments, Viewed files, bases and stacks, pull requests, images and appearance.
+description: Comparisons, comments, Viewed files, bases and stacks, pull requests, images, Markdown and appearance.
 ---
 
-Run `diffdesk` in a Git repository to open its review in the Diffdesk window; running it in another checkout replaces that review. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, expand unchanged context, and search the whole diff with `Cmd+f`, including files outside the current viewport.
+Run `diffdesk` in a Git repository to open its review in the Diffdesk window; running it in another checkout replaces that review. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, wrap long lines with **View → Wrap Lines** (`Option+z`, also in Settings), expand unchanged context, and search the whole diff with `Cmd+f`, including files outside the current viewport.
 
 `Cmd+K` opens a command palette that finds a command by name and shows its shortcut, with a check on those that show a state, such as Split or Ignore Whitespace. `Cmd+P` lists the review's files with their folder, line counts and status, to jump to one by name; the palette's Commands and Files tabs switch between the two.
 
@@ -26,6 +26,8 @@ Click the gutter's `+`, or select lines and press `c`. A selection that runs fro
 Each comment saves its original code. When those lines change, the comment shows the previous text; restoring the lines clears the stale marker. Comments are never deleted automatically. Editing changes the prose while preserving the original anchor and comparison.
 
 **Comments** opens a side panel listing the branch's comments by file, including files outside the current diff. **View in diff** reveals available lines without clearing Viewed, and the panel stays open beside the diff. Inline cards can be collapsed; their folded state survives reloads.
+
+A remark about a whole file goes through the comment button in its header, **Comment on File…** in its context menu or the Review menu; one about the whole review through the panel's `+` or **Review → Comment on Review…**. Both are written in the panel, where review comments come first, and are copied, exported and resolved like the others: the export names them `path (whole file)` and `(whole review)`, and `--json` gives them lines `0`, the review's with an empty path.
 
 **Copy** in the title bar (`Shift+Cmd+C`) copies the panel's comments, including viewed files and files outside the diff. Individual cards have their own copy button. The text is sized for an agent, which reads the code in the file it edits: each comment gives its ID, `path:lines` and body, and quotes only the lines the file no longer has, under `code:` for lines the change removed and `was:` for lines changed since the remark or outside the comparison.
 
@@ -62,7 +64,9 @@ Stack metadata is read from `.git/gh-stack`, including worktree-specific metadat
 
 **Settings › Intelligence** turns on answers from the language servers installed on your Mac. Hold `Cmd` over a symbol for its type and documentation, and `Cmd`-click it to go to its definition: the diff scrolls to the definition when it shows those lines, and `Cmd+[` comes back; otherwise the card shows the definition's code. Nothing happens without `Cmd`.
 
-Only working-tree reviews are answered, on added and unchanged lines: a server reads the files on disk, and those are the only lines numbered as on disk. Deleted lines and revision reviews stay plain, and the status bar says so. A file changed since the review loaded asks for a refresh (`r`).
+Added and unchanged lines work in working-tree, branch and commit reviews. For a committed revision, Diffdesk automatically prepares an isolated copy of the exact commit displayed, so choosing another branch leaves your current checkout and its edits intact. Copies are reused for the session and removed when the app stops. Deleted lines stay plain. A working-tree file changed since the review loaded asks for a refresh (`r`).
+
+Diffdesk reuses language-server executables installed in your checkout or on PATH. It does not install project dependencies in the isolated copy, so external imports may be unresolved. **Check IntelliSense Status…** in the command palette shows the analyzed revision, the copy's location and each server's state.
 
 **References** on the card opens a **Symbol** tab beside **Comments**: the symbol's definition and signature, then its references in the repository by file, in the tree's order. A reference the diff shows is marked `in diff` and opens there; the others show their line. **In this diff only** hides the rest. Settings › Intelligence › **Symbol panel** turns the tab and the action off.
 
@@ -85,9 +89,11 @@ When the reviewed branch has a pull request on GitHub, its number shows in the t
 
 Diffdesk asks the [GitHub CLI](https://cli.github.com/): install it and run `gh auth login` once. Without it, or signed out, Diffdesk works as before, without the network. The pull request is the one whose head is the reviewed branch, or the branch it pushes to; an open one wins over closed ones. It refreshes with the review (`r`) and when you come back to the window. **Settings › GitHub** says which account gh uses, turns pull requests off, or shows them in the status bar instead of the title bar: the same items, in words, with the popover opening above.
 
-## Images and appearance
+## Images, Markdown and appearance
 
 Image changes show before/after previews; click to enlarge and Escape to close. PNG, JPEG, GIF, WebP, AVIF, SVG, ICO and BMP are supported. Unavailable or oversized previews show an explanation; the image limit is 20 MiB.
+
+A Markdown file's header switches between **Source** and **Rendered**. Rendered shows the reviewed version with headings, lists, tables and code blocks, and marks the blocks that hold added lines; a deleted file shows its previous version. Raw HTML and images are left out, and only web links open, in the browser. Comments stay on source lines: viewing one, or a search match, switches the file back to Source.
 
 **Settings** (`Cmd+,`) opens in a window of its own, beside the review, which follows each change as you make it. **Appearance** chooses System (follows macOS), Light or Dark and a syntax theme for each mode, **Code** the code font and size, **Window** the title bar: standard (52 px, the default) or compact (38 px), applied the next time Diffdesk opens, and **GitHub** whether and where to show pull requests. The interface keeps neutral colours; only the code takes the theme's.
 

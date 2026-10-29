@@ -75,6 +75,8 @@ func TestDefinitionShapes(t *testing.T) {
 
 func TestSymbolAndReferenceRoutes(t *testing.T) {
 	m, _, _ := fakeServers(t, "ok")
+	// As pyright needs, to keep the use the pointer is on.
+	m.languages[0].Servers[0].declarations = true
 	runtime := NewRuntime(nil)
 	runtime.lsp = m
 	repo := fixture(t)
@@ -141,11 +143,15 @@ func TestSymbolAndReferenceRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	var state struct {
-		Documents []string `json:"documents"`
-		Watched   int      `json:"watched"`
+		Declarations []bool   `json:"declarations"`
+		Documents    []string `json:"documents"`
+		Watched      int      `json:"watched"`
 	}
 	if err := client.conn.call(context.Background(), "fake/state", nil, &state); err != nil {
 		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(state.Declarations, []bool{true}) {
+		t.Fatalf("references asked without the declaration: %v", state.Declarations)
 	}
 	documents := []string{"textDocument/didOpen main.go v1", "textDocument/didChange main.go v2"}
 	if !reflect.DeepEqual(state.Documents, documents) || state.Watched != 1 {

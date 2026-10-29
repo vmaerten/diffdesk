@@ -91,7 +91,12 @@ func writeCommentText(ordered []ServedComment, comparison string, withCode bool,
 	for _, c := range ordered {
 		// The ID is what `diffdesk comments resolve` and `reopen` take back.
 		location := fmt.Sprintf("%s %s:%d", shortID(c.ID), c.Path, c.Start)
-		if c.End != c.Start {
+		switch {
+		case wholeFile(c.Comment) && c.Path == "":
+			location = shortID(c.ID) + " (whole review)"
+		case wholeFile(c.Comment):
+			location = fmt.Sprintf("%s %s (whole file)", shortID(c.ID), c.Path)
+		case c.End != c.Start:
 			location += fmt.Sprintf("-%d", c.End)
 		}
 		if c.Side == "deletions" {
@@ -148,7 +153,8 @@ func writeComments(ctx context.Context, review *Review, store *Store, options Ex
 	}
 	selected := make([]Comment, 0, len(state.Comments))
 	for _, comment := range review.branchComments(state.Comments) {
-		if paths[comment.Path] && (options.All || comment.Status != statusResolved) {
+		// A comment on the whole review has no path: it belongs to every comparison.
+		if (paths[comment.Path] || comment.Path == "") && (options.All || comment.Status != statusResolved) {
 			selected = append(selected, comment)
 		}
 	}

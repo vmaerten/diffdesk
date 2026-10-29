@@ -1,10 +1,11 @@
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 
 import type { Page } from 'puppeteer-core'
 
 import { installDesktopRuntime } from '../desktopRuntime.ts'
-import { clickTreeRow, poll, sleep, type Suite } from '../harness.ts'
+import { clickTreeRow, command, poll, sleep, type Suite } from '../harness.ts'
 
 const SELECTED_TEXT = `(() => {
   for (const host of document.querySelectorAll('.diff diffs-container')) {
@@ -43,6 +44,7 @@ interface ServerRow {
   name: string
   detail: string
   state: string | null
+  install: string
   choice: string
 }
 
@@ -83,7 +85,10 @@ export default {
           id: item.getAttribute('data-language') ?? '',
           name: item.querySelector('.settings-label > span')?.textContent ?? '',
           detail: item.querySelector('.settings-label small')?.textContent ?? '',
-          state: item.querySelector('.server-state')?.getAttribute('data-state') ?? null,
+          state:
+            item.querySelector('.server-state')?.getAttribute('data-state') ??
+            (item.querySelector('.install-server') ? 'missing' : null),
+          install: item.querySelector('.install-server .button')?.textContent ?? '',
           choice: item.querySelector('select')?.value ?? '',
         })),
       ) as Promise<ServerRow[]>
@@ -110,6 +115,53 @@ export default {
         }
       })
 
+    const diagnostics = async () => {
+      await command(page, 'palette')
+      await page.waitForSelector('dialog.command-palette[open] .palette-input')
+      await page.type('.palette-input', 'IntelliSense')
+      await page.waitForSelector('.palette-item[data-selected="true"]')
+      await page.keyboard.press('Enter')
+      await page.waitForSelector('.intelligence-sheet[open]')
+      await page.waitForSelector('.intelligence-servers [data-language]')
+      return page.$eval('.intelligence-sheet', (element) => element.textContent ?? '')
+    }
+
+    const disabledDiagnostic = await diagnostics()
+    check(
+      'the palette diagnoses disabled code intelligence and missing servers',
+      disabledDiagnostic.includes('IntelliSense is off') &&
+        disabledDiagnostic.includes('Install with mise') &&
+        disabledDiagnostic.includes('Working treeIncluded'),
+      disabledDiagnostic,
+    )
+    const sheetRow = (id: string) =>
+      page.$eval(`.intelligence-servers [data-language="${id}"]`, (element) => ({
+        state: element.getAttribute('data-state'),
+        text: element.textContent ?? '',
+      }))
+    await page.click('.intelligence-servers [data-language="python"] .install-server .button')
+    const pythonRow = await poll(
+      () => sheetRow('python'),
+      (next) => next.state !== 'missing',
+    )
+    check(
+      'Install with mise installs a missing server, even while IntelliSense is off',
+      pythonRow.text.includes('basedpyright'),
+      JSON.stringify(pythonRow),
+    )
+    await page.click('.intelligence-servers [data-language="go"] .install-server .button')
+    const goRow = await poll(
+      () => sheetRow('go'),
+      (next) => next.text.includes('couldn’t install'),
+    )
+    check(
+      '  and a failed install shows its output, with Try Again',
+      goRow.text.includes('mise ERROR no metadata for go:golang.org/x/tools/gopls') &&
+        goRow.text.includes('Try Again'),
+      JSON.stringify(goRow),
+    )
+    await page.keyboard.press('Escape')
+
     const settings = await openSettings()
     const before = await poll(
       () => rows(settings),
@@ -126,20 +178,17 @@ export default {
     )
     check(
       '  and how to install a missing one',
-      go?.state === 'missing' && go.detail.includes('gopls@latest'),
+      go?.state === 'missing' && go.install === 'Try Again' && go.detail.includes('mise'),
       JSON.stringify(go),
     )
     check('the status bar says nothing while it is off', (await footer()).text === '')
 
-    await settings.evaluate(() =>
-      [...document.querySelectorAll<HTMLLabelElement>('label.settings-field')]
-        .find((field) => field.textContent?.startsWith('Use language servers'))
-        ?.querySelector('input')
-        ?.click(),
-    )
+    await diagnostics()
+    await page.click('.intelligence-blocker button')
     const on = await poll(footer, (state) => state.servers.length > 0)
+    await page.keyboard.press('Escape')
     check(
-      'turning it on shows the diff’s server in the status bar',
+      'Turn On in IntelliSense shows the diff’s server in the status bar',
       on.servers.join() === 'tsrs=idle' && on.text.endsWith('Beta'),
       JSON.stringify(on),
     )
@@ -152,9 +201,32 @@ export default {
       (await poll(saved, (stored) => stored.codeIntelligence === true)).codeIntelligence === true,
     )
 
+    check(
+      '  and the open Settings window follows',
+      await poll(
+        () =>
+          settings.evaluate(
+            () =>
+              [...document.querySelectorAll<HTMLLabelElement>('label.settings-field')]
+                .find((field) => field.textContent?.startsWith('Use language servers'))
+                ?.querySelector('input')?.checked === true,
+          ),
+        (checked) => checked,
+      ),
+    )
     await settings.select('.language-server[data-language="typescript"] select', 'off')
     const off = await poll(footer, (state) => state.servers.length === 0)
     check('a language turned off leaves the status bar', off.text === '', JSON.stringify(off))
+    const offDiagnostic = await diagnostics()
+    check(
+      'diagnostics keep disabled languages visible',
+      await page.$eval(
+        '.intelligence-servers [data-language="typescript"]',
+        (element) => element.getAttribute('data-state') === 'off',
+      ),
+      offDiagnostic,
+    )
+    await page.keyboard.press('Escape')
     const status = await poll(serverStatus, (next) =>
       next.languages.some((language) => language.id === 'typescript' && language.choice === 'off'),
     )
@@ -165,8 +237,8 @@ export default {
     )
     check(
       '  and is saved',
-      (await poll(saved, (stored) => stored.languageServers?.typescript === 'off')).languageServers
-        ?.typescript === 'off',
+      (await poll(saved, (stored) => stored.languageServers?.typescript === 'off'))
+        .codeIntelligence === true,
     )
     await settings.select('.language-server[data-language="typescript"] select', 'auto')
     await poll(footer, (state) => state.servers.length > 0)
@@ -177,10 +249,21 @@ export default {
     await load('?target=feature')
     const revision = await poll(footer, (state) => state.text !== '')
     check(
-      'a revision review says code intelligence needs the working tree',
-      revision.text === 'Code intelligence: working tree only',
+      'a revision review offers code intelligence in an isolated copy',
+      revision.text.includes('Revision copy') && revision.servers.length > 0,
       JSON.stringify(revision),
     )
+    const revisionDiagnostic = await diagnostics()
+    check(
+      'diagnostics identify the isolated revision without changing the checkout',
+      revisionDiagnostic.includes('Checkoutmain') &&
+        revisionDiagnostic.includes('Targetfeature') &&
+        revisionDiagnostic.includes('Working treeExcluded') &&
+        revisionDiagnostic.includes('Isolated revision') &&
+        revisionDiagnostic.includes('diffdesk-intelligence-'),
+      revisionDiagnostic,
+    )
+    await page.keyboard.press('Escape')
 
     // index.ts uses engine_3, whose definition the diff shows, and parser_2, whose it does not.
     writeFileSync(join(repoPath, 'src/index.ts'), INDEX)
@@ -509,6 +592,61 @@ export default {
       'turning the Symbol panel off removes References and the tabs',
       offered.join() === 'Go to definition ⌘ click' && (await page.$('.panel-tabs')) === null,
       JSON.stringify(offered),
+    )
+
+    const firstCommit = execFileSync('git', ['rev-list', '--reverse', 'main..feature'], {
+      cwd: repoPath,
+      encoding: 'utf8',
+    })
+      .trim()
+      .split('\n')[0]!
+    const checkoutText = readFileSync(join(repoPath, 'src/index.ts'), 'utf8')
+    for (const scope of [
+      { query: '?target=feature', path: 'src/core/cache.ts', line: 30, name: 'cache_29' },
+      { query: '?target=other', path: 'src/index.ts', line: 33, name: 'index_32' },
+      {
+        query: `?target=feature&commit=${firstCommit}`,
+        path: 'src/core/engine.ts',
+        line: 70,
+        name: 'engine_69',
+      },
+    ]) {
+      await load(scope.query)
+      await clickTreeRow(page, scope.path)
+      await sleep(SCROLL_SETTLE)
+      const at = await poll(() => token(scope.path, scope.line, scope.name), Boolean)
+      check(`revision ${scope.query} shows its symbol`, at !== null)
+      if (!at) continue
+      const request = page.waitForRequest((candidate) =>
+        candidate.url().includes('/api/lsp/symbol?'),
+      )
+      await page.keyboard.down('Meta')
+      await page.mouse.move(at.x, at.y)
+      const found = await poll(card, (state) => state?.signature === `const ${scope.name}: number`)
+      const sent = new URL((await request).url())
+      const comparison = await page.evaluate(
+        async () =>
+          (await (await fetch(location.pathname + '/api/diff' + location.search)).json())
+            .comparison,
+      )
+      check(
+        `IntelliSense answers on ${scope.query}`,
+        found?.signature === `const ${scope.name}: number` && found.meta.includes(scope.path),
+        JSON.stringify(found),
+      )
+      check(
+        'the lookup is pinned to the displayed commit',
+        sent.searchParams.get('revision') === comparison.after,
+      )
+      await page.keyboard.up('Meta')
+      await page.keyboard.press('Escape')
+    }
+    check(
+      'switching analysis revisions leaves the actual checkout and its edits intact',
+      execFileSync('git', ['branch', '--show-current'], {
+        cwd: repoPath,
+        encoding: 'utf8',
+      }).trim() === 'main' && readFileSync(join(repoPath, 'src/index.ts'), 'utf8') === checkoutText,
     )
 
     // The server's 409 is the answer under test; Chrome logs any 4xx as a console error.
