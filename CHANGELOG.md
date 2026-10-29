@@ -7,6 +7,10 @@
 - Read a Markdown file rendered: its card header switches between **Source** and **Rendered**, which shows headings, lists, GFM tables and code blocks, and marks the blocks that hold added lines. Comments stay on source lines; viewing one, or a search match, switches back to Source. ([#302](https://github.com/vmaerten/diffdesk/pull/302))
 - Wrap long lines instead of scrolling each file sideways, with **View → Wrap Lines**, `Option+z` or the command palette; Settings offers the same choice under Code, and it is kept across reviews and restarts. ([#303](https://github.com/vmaerten/diffdesk/pull/303))
 
+### 🐛 Fixes
+
+- Close the title bar's **Options** popover with Escape, which returns the focus to its button; opening a picker or running a menu command also closes it. ([#304](https://github.com/vmaerten/diffdesk/pull/304))
+
 ## 0.9.0
 
 ### ✨ Features
