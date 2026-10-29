@@ -12,6 +12,14 @@
 
 - Close the title bar's **Options** popover with Escape, which returns the focus to its button; opening a picker or running a menu command also closes it. ([#304](https://github.com/vmaerten/diffdesk/pull/304))
 
+### 📦 Distribution
+
+- Point the cask, the update check and mise at the renamed `vmaerten/diffdesk` repository. Updating from the app moves a mise install made as `github:vmaerten/ghl` to `github:vmaerten/diffdesk`, and removes the old name from the global mise config while keeping its files; `mise uninstall --all github:vmaerten/ghl` deletes them. ([#267](https://github.com/vmaerten/diffdesk/pull/267))
+
+### 🔧 Internal
+
+- Move the Go module to `github.com/vmaerten/diffdesk` and rename the `GHL_*` development and test variables to `DIFFDESK_*`. ([#267](https://github.com/vmaerten/diffdesk/pull/267))
+
 ## 0.9.0
 
 ### ✨ Features
