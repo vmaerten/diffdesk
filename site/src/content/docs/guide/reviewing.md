@@ -37,6 +37,12 @@ A remark about a whole file goes through the comment button in its header, **Com
 
 Older comments recover their branch from the target in their saved comparison. If only commit hashes were recorded, the branch is unknown. Those comments stay in the state file and can be read by explicitly reviewing the recorded target.
 
+## Walkthrough
+
+A walkthrough is a tour of the change, written by the agent that made it: a few stops, each with a title, a sentence and the hunks that carry it, in the order that helps the review. Ask the agent to run `diffdesk walkthrough guide`, which tells it how to write one; it lists the hunk IDs with `diffdesk walkthrough hunks`, `path#n` for the n-th hunk of a file, and saves the tour with `diffdesk walkthrough set <file>`, which rejects an unknown or repeated hunk and prints what to fix. `diffdesk walkthrough show` prints the reviewed branch's walkthrough, `clear` deletes it.
+
+A walkthrough belongs to the reviewed branch and survives later changes: a hunk that moved is found by its content, and a stop whose hunks are gone says so. Once half the hunks are gone, the walkthrough is marked stale and is better written again.
+
 ## Viewed files
 
 Press `v` or tick a file to mark it Viewed. It folds in place and remains in the tree; clicking its row reveals it again. Changing its displayed diff clears the tick. Viewed is independent across revision ranges, individual commits and whitespace modes, so returning to a scope restores its own ticks.

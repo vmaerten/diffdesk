@@ -10,6 +10,7 @@ import { runDesktopSettings } from './desktopSettings.ts'
 import { runTabOverflow } from './tabOverflow.ts'
 import { runCommentRange } from './commentRange.ts'
 import { runPaletteMatch } from './paletteMatch.ts'
+import { runHunks } from './hunks.ts'
 import { runDebugLog } from './debugLog.ts'
 
 import reviewPanel from './suites/reviewPanel.ts'
@@ -80,6 +81,7 @@ const PLAIN: { name: string; run: (check: Check) => Promise<void> }[] = [
   { name: 'export', run: runExport },
   { name: 'comment-range', run: runCommentRange },
   { name: 'palette-match', run: runPaletteMatch },
+  { name: 'hunks', run: runHunks },
   { name: 'debug-log', run: runDebugLog },
 ]
 
