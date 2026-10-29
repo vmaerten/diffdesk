@@ -1,4 +1,11 @@
-import { openPicker, pickerShows, titlebar, titlebarWhen, type Suite } from '../harness.ts'
+import {
+  openOptions,
+  openPicker,
+  pickerShows,
+  titlebar,
+  titlebarWhen,
+  type Suite,
+} from '../harness.ts'
 
 export default {
   name: 'pickers',
@@ -21,6 +28,21 @@ export default {
     // used to land on it and change the base instead.
     await page.click('.capsule-base')
     check('clicking the base opens nothing', (await page.$('.picker-input')) === null)
+
+    // Options closes like a menu: Escape hands the focus back to its button,
+    // and another popover replaces it.
+    await openOptions(page)
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('.options-popover', { hidden: true, timeout: 5_000 })
+    check(
+      'escape closes Options and focuses its button',
+      await page.evaluate(() => document.activeElement?.getAttribute('title') === 'Diff options'),
+    )
+    await openOptions(page)
+    await openPicker(page, 'b')
+    check('opening a picker closes Options', (await page.$('.options-popover')) === null)
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('.picker-input', { hidden: true })
 
     // Base picker.
     await openPicker(page, 'b')

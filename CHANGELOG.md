@@ -8,6 +8,10 @@
 - Wrap long lines instead of scrolling each file sideways, with **View → Wrap Lines**, `Option+z` or the command palette; Settings offers the same choice under Code, and it is kept across reviews and restarts. ([#303](https://github.com/vmaerten/diffdesk/pull/303))
 - Comment on a whole file, from its header, its context menu or **Review → Comment on File…**, or on the whole review, from the comments panel's `+` or **Review → Comment on Review…**. They are written and listed in the panel, review comments first, and Copy and `diffdesk comments` include them as `path (whole file)` and `(whole review)`. ([#305](https://github.com/vmaerten/diffdesk/pull/305))
 
+### 🐛 Fixes
+
+- Close the title bar's **Options** popover with Escape, which returns the focus to its button; opening a picker or running a menu command also closes it. ([#304](https://github.com/vmaerten/diffdesk/pull/304))
+
 ## 0.9.0
 
 ### ✨ Features
