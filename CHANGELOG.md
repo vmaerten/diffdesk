@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### ✨ Features
+
+- Review an update in a centred sheet instead of a banner: the release notes are shown in full and scroll when long, and the sheet offers **Skip This Version**, **Remind Me Later** and **Update and Restart**, with the restart warning in place of a second confirmation. A skipped version is no longer offered at startup; a newer one or a manual check still is. The command palette (`Cmd+K`) gains **Check for Updates…**, and **Update to X and Restart…** while an update is pending. The sheet takes the focus, on the notes rather than a button, and an open comment draft keeps its text and gets the focus back. ([#286](https://github.com/vmaerten/diffdesk/pull/286))
+- Install a missing language server from the app: IntelliSense and Settings offer **Install with** the first available manager (mise, Homebrew, or the language's own tool such as uv, go or rustup), a menu of the others and **Copy Command**. Installs are global and never change the reviewed project's files; a failed install keeps its output, with **Try Again**. ([#289](https://github.com/vmaerten/diffdesk/pull/289))
+- Read the IntelliSense status at a glance: one row per language with its server, version and state, the context on one line with the rest under **Details**, and a banner for what blocks every language. When IntelliSense is off, **Turn On** enables it from the sheet. ([#288](https://github.com/vmaerten/diffdesk/pull/288))
+- Zoom the whole interface with **View → Zoom Out / Zoom In** (`Cmd+-` / `Cmd++`), in 10% steps from 50% to 200%, and **Actual Size** (`Cmd+0`); the command palette offers the same actions. Reloading or restarting restores 100%. ([#284](https://github.com/vmaerten/diffdesk/pull/284))
+
+### 🐛 Fixes
+
+- Keep the reading position when the review page reloads after its renderer dies: the view is now saved while reading, not only at `Cmd+R`. With **Debug logging** on, the renderer's termination is recorded in the log. ([#285](https://github.com/vmaerten/diffdesk/pull/285))
+- List the hovered use among a Python symbol's references with pyright and basedpyright, which left it out. ([#292](https://github.com/vmaerten/diffdesk/pull/292))
+- Keep an open Settings window in step with settings saved from another window, instead of writing its stale values back on its next change. ([#288](https://github.com/vmaerten/diffdesk/pull/288))
+
+### 📚 Documentation
+
+- Record the language server measurements (first hover, references and memory for tsrs, tsc, basedpyright, pyright, ty and gopls) behind the order of servers in Auto. ([#291](https://github.com/vmaerten/diffdesk/pull/291))
+
+### 🔧 Internal
+
+- Check the window size only at startup in the native smoke test. ([#282](https://github.com/vmaerten/diffdesk/pull/282))
+
 ## 0.8.0
 
 ### ✨ Features
