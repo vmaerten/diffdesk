@@ -28,6 +28,7 @@ import worktree from './suites/worktree.ts'
 import untracked from './suites/untracked.ts'
 import search from './suites/search.ts'
 import whitespace from './suites/whitespace.ts'
+import markdown from './suites/markdown.ts'
 import fileMenu from './suites/fileMenu.ts'
 import codeIntelligence from './suites/codeIntelligence.ts'
 import resolve from './suites/resolve.ts'
@@ -53,6 +54,7 @@ const SUITES: Suite[] = [
   untracked,
   search,
   whitespace,
+  markdown,
   fileMenu,
   codeIntelligence,
   resolve,

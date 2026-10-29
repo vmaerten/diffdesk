@@ -46,7 +46,7 @@ diffdesk comments --json    # the same, as JSON
 - Branch, base and commit pickers, with `gh stack` navigation.
 - Persistent comments per branch, code anchors, a comments side panel and a compact copy for agents.
 - Viewed files, working-tree/untracked controls and whitespace filtering.
-- Image previews, native menus, and light and dark appearance with a syntax theme for each.
+- Image previews, rendered Markdown, native menus, and light and dark appearance with a syntax theme for each.
 
 See the [reviewing guide](https://diffdesk.vmaerten.fr/guide/reviewing/) for comparisons, comments and state. Features on `main` may be newer than the published release; see the [changelog](./CHANGELOG.md).
 
