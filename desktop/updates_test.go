@@ -99,11 +99,13 @@ func TestLatestUpdateCarriesReleaseNotes(t *testing.T) {
 func TestDetectUpdateInstallationOwnsExactBundle(t *testing.T) {
 	root := t.TempDir()
 	brewRoot := filepath.Join(root, "Caskroom")
-	miseRoot := filepath.Join(root, "mise", "0.6.0")
+	miseRoot := filepath.Join(root, "mise", "diffdesk", "0.6.0")
+	legacyRoot := filepath.Join(root, "mise", "ghl", "0.6.0")
 	brewBundle := filepath.Join(root, "Applications", "Diffdesk.app")
 	miseBundle := filepath.Join(miseRoot, "Diffdesk.app")
+	legacyBundle := filepath.Join(legacyRoot, "Diffdesk.app")
 	sourceBundle := filepath.Join(root, "source", "Diffdesk.app")
-	for _, path := range []string{brewBundle, miseBundle, sourceBundle, filepath.Join(brewRoot, "diffdesk", "0.6.0")} {
+	for _, path := range []string{brewBundle, miseBundle, legacyBundle, sourceBundle, filepath.Join(brewRoot, "diffdesk", "0.6.0")} {
 		if err := os.MkdirAll(path, 0700); err != nil {
 			t.Fatal(err)
 		}
@@ -115,26 +117,30 @@ func TestDetectUpdateInstallationOwnsExactBundle(t *testing.T) {
 		if executable == "brew" && reflect.DeepEqual(args, []string{"--caskroom"}) {
 			return []byte(brewRoot + "\n"), nil
 		}
-		if executable == "mise" && reflect.DeepEqual(args, []string{"where", "github:vmaerten/ghl@0.6.0"}) {
+		if executable == "mise" && reflect.DeepEqual(args, []string{"where", "github:vmaerten/diffdesk@0.6.0"}) {
 			return []byte(miseRoot + "\n"), nil
+		}
+		if executable == "mise" && reflect.DeepEqual(args, []string{"where", "github:vmaerten/ghl@0.6.0"}) {
+			return []byte(legacyRoot + "\n"), nil
 		}
 		t.Fatalf("unexpected detection command %s %v", executable, args)
 		return nil, nil
 	}
-	for _, test := range []struct{ bundle, manager string }{
-		{brewBundle, "Homebrew"}, {miseBundle, "mise"}, {sourceBundle, ""},
+	for _, test := range []struct{ bundle, manager, tool string }{
+		{brewBundle, "Homebrew", ""}, {miseBundle, "mise", miseTool}, {legacyBundle, "mise", legacyMiseTool}, {sourceBundle, "", ""},
 	} {
 		installation, err := detectUpdateInstallation(context.Background(), test.bundle, "0.6.0", "brew", "mise", run)
-		if installation.manager != test.manager || (err != nil) != (test.manager == "") {
+		if installation.manager != test.manager || installation.tool != test.tool || (err != nil) != (test.manager == "") {
 			t.Fatalf("%s: %+v, %v", test.bundle, installation, err)
 		}
 	}
 }
 
 func TestInstallUpdateVerifiesVersionBeforeRestart(t *testing.T) {
-	for _, manager := range []string{"Homebrew", "mise"} {
+	for _, owner := range []struct{ manager, tool string }{{"Homebrew", ""}, {"mise", miseTool}, {"mise", legacyMiseTool}} {
+		manager := owner.manager
 		for _, version := range []string{"0.6.0", "0.7.0", "0.8.0", "dev", "invalid JSON"} {
-			t.Run(manager+"/"+version, func(t *testing.T) {
+			t.Run(manager+owner.tool+"/"+version, func(t *testing.T) {
 				var calls [][]string
 				run := func(_ context.Context, executable string, args ...string) ([]byte, error) {
 					calls = append(calls, append([]string{executable}, args...))
@@ -149,7 +155,7 @@ func TestInstallUpdateVerifiesVersionBeforeRestart(t *testing.T) {
 					}
 					return nil, nil
 				}
-				installation := updateInstallation{manager, "manager", "/old/Diffdesk.app"}
+				installation := updateInstallation{manager, "manager", "/old/Diffdesk.app", owner.tool}
 				bundle, err := installation.install(context.Background(), "0.7.0", run)
 				want := "/old/Diffdesk.app"
 				if manager == "mise" {
@@ -166,9 +172,13 @@ func TestInstallUpdateVerifiesVersionBeforeRestart(t *testing.T) {
 				if manager == "Homebrew" {
 					expected = [][]string{{"manager", "upgrade", "--cask", "vmaerten/tap/diffdesk"}}
 				} else {
-					expected = [][]string{{"manager", "use", "--global", "--fuzzy", "--minimum-release-age", "0s", "--yes", "github:vmaerten/ghl@latest"}, {"manager", "where", "github:vmaerten/ghl@latest"}}
+					expected = [][]string{{"manager", "use", "--global", "--fuzzy", "--minimum-release-age", "0s", "--yes", "github:vmaerten/diffdesk@latest"}, {"manager", "where", "github:vmaerten/diffdesk@latest"}}
 				}
 				expected = append(expected, []string{want + "/Contents/MacOS/diffdesk", "--version", "--json"})
+				// The old name leaves the config only once the new install is verified.
+				if owner.tool == legacyMiseTool && (version == "0.7.0" || version == "0.8.0") {
+					expected = append(expected, []string{"manager", "unuse", "--global", "--no-prune", "--yes", "github:vmaerten/ghl"})
+				}
 				if !reflect.DeepEqual(calls, expected) {
 					t.Fatalf("commands = %v; want %v", calls, expected)
 				}
@@ -184,21 +194,21 @@ func TestInstallUpdateStopsOnManagerFailure(t *testing.T) {
 			calls++
 			return nil, errors.New("installation failed")
 		}
-		bundle, err := (updateInstallation{manager, "manager", "/app"}).install(context.Background(), "0.7.0", run)
+		bundle, err := (updateInstallation{manager, "manager", "/app", legacyMiseTool}).install(context.Background(), "0.7.0", run)
 		if bundle != "" || err == nil || calls != 1 {
 			t.Fatalf("%s: bundle=%q err=%v calls=%d", manager, bundle, err, calls)
 		}
 		calls = 0
-		if _, err := (updateInstallation{manager, "manager", "/app"}).install(context.Background(), "0.7.0; touch /tmp/no", run); err == nil || calls != 0 {
+		if _, err := (updateInstallation{manager, "manager", "/app", legacyMiseTool}).install(context.Background(), "0.7.0; touch /tmp/no", run); err == nil || calls != 0 {
 			t.Fatal("invalid version reached the package manager")
 		}
 	}
 }
 
 func TestMiseUpdaterCommandAcceptsPinnedCLI(t *testing.T) {
-	mise := os.Getenv("GHL_TEST_MISE")
+	mise := os.Getenv("DIFFDESK_TEST_MISE")
 	if mise == "" {
-		t.Skip("set GHL_TEST_MISE to the pinned release-acceptance mise binary")
+		t.Skip("set DIFFDESK_TEST_MISE to the pinned release-acceptance mise binary")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -213,7 +223,7 @@ func TestMiseUpdaterCommandAcceptsPinnedCLI(t *testing.T) {
 		}
 		return []byte(`{"version":"0.7.0"}`), nil
 	}
-	if _, err := (updateInstallation{"mise", mise, "/fixture/Diffdesk.app"}).install(ctx, "0.7.0", run); err != nil {
+	if _, err := (updateInstallation{"mise", mise, "/fixture/Diffdesk.app", legacyMiseTool}).install(ctx, "0.7.0", run); err != nil {
 		t.Fatalf("the updater command is incompatible with the acceptance CLI: %v", err)
 	}
 }

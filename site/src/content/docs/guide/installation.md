@@ -93,7 +93,7 @@ rm -rf "$(brew --caskroom)/ghl"
 ```
 
 - The upgrade replaces `ghl.app` with `Diffdesk.app`, and links `ghl` beside `diffdesk`. It leaves an empty `ghl` entry that `brew list` shows and `brew doctor` reports; the last line removes it.
-- With mise, `github:vmaerten/ghl` keeps upgrading through GitHub's redirect to the renamed repository; after `mise upgrade`, the command is `diffdesk`. To move to the new name:
+- With mise, `github:vmaerten/ghl` keeps upgrading through GitHub's redirect to the renamed repository; after `mise upgrade`, the command is `diffdesk`. Updating from the app moves it to `github:vmaerten/diffdesk` and takes the old name out of the global config; `mise uninstall --all github:vmaerten/ghl` then deletes the old files. To move by hand:
 
   ```bash
   mise use -g github:vmaerten/diffdesk@latest

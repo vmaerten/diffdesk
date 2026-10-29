@@ -15,7 +15,14 @@ import (
 	"time"
 )
 
-const latestReleaseURL = "https://api.github.com/repos/vmaerten/ghl/releases/latest"
+const latestReleaseURL = "https://api.github.com/repos/vmaerten/diffdesk/releases/latest"
+
+// The mise tool updates install, and the one installs made before the
+// repository was renamed: an update moves those over to the new name.
+const (
+	miseTool       = "github:vmaerten/diffdesk"
+	legacyMiseTool = "github:vmaerten/ghl"
+)
 
 var stableVersionPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
 
@@ -140,6 +147,8 @@ type updateInstallation struct {
 	manager string
 	command string
 	bundle  string
+	// The mise tool that installed this bundle; empty for Homebrew.
+	tool string
 }
 
 func samePath(a, b string) bool {
@@ -169,19 +178,21 @@ func detectUpdateInstallation(ctx context.Context, bundle, current, brew, mise s
 		if raw, err := run(ctx, brew, "--caskroom"); err == nil {
 			root := strings.TrimSpace(string(raw))
 			if filepath.IsAbs(root) && samePath(filepath.Join(root, "diffdesk", current, "Diffdesk.app"), bundle) {
-				return updateInstallation{"Homebrew", brew, bundle}, nil
+				return updateInstallation{"Homebrew", brew, bundle, ""}, nil
 			}
 		}
 	}
 	if mise != "" {
-		if raw, err := run(ctx, mise, "where", "github:vmaerten/ghl@"+current); err == nil {
-			root := strings.TrimSpace(string(raw))
-			if filepath.IsAbs(root) && samePath(filepath.Join(root, "Diffdesk.app"), bundle) {
-				return updateInstallation{"mise", mise, bundle}, nil
+		for _, tool := range []string{miseTool, legacyMiseTool} {
+			if raw, err := run(ctx, mise, "where", tool+"@"+current); err == nil {
+				root := strings.TrimSpace(string(raw))
+				if filepath.IsAbs(root) && samePath(filepath.Join(root, "Diffdesk.app"), bundle) {
+					return updateInstallation{"mise", mise, bundle, tool}, nil
+				}
 			}
 		}
 	}
-	return updateInstallation{}, fmt.Errorf("this copy of Diffdesk is not managed by Homebrew or mise. Install with brew install --cask vmaerten/tap/diffdesk or mise use -g github:vmaerten/ghl@latest to enable in-app updates")
+	return updateInstallation{}, fmt.Errorf("this copy of Diffdesk is not managed by Homebrew or mise. Install with brew install --cask vmaerten/tap/diffdesk or mise use -g %s@latest to enable in-app updates", miseTool)
 }
 
 func (installation updateInstallation) install(ctx context.Context, offered string, run updateRunner) (string, error) {
@@ -199,10 +210,10 @@ func (installation updateInstallation) install(ctx context.Context, offered stri
 		// upgrade --global requires a newer mise. use keeps the running install,
 		// and --fuzzy saves latest even when the user enables version pinning.
 		// https://mise.jdx.dev/cli/use.html
-		if _, err := run(ctx, installation.command, "use", "--global", "--fuzzy", "--minimum-release-age", "0s", "--yes", "github:vmaerten/ghl@latest"); err != nil {
+		if _, err := run(ctx, installation.command, "use", "--global", "--fuzzy", "--minimum-release-age", "0s", "--yes", miseTool+"@latest"); err != nil {
 			return "", err
 		}
-		raw, err := run(ctx, installation.command, "where", "github:vmaerten/ghl@latest")
+		raw, err := run(ctx, installation.command, "where", miseTool+"@latest")
 		if err != nil {
 			return "", err
 		}
@@ -223,6 +234,13 @@ func (installation updateInstallation) install(ctx context.Context, offered stri
 	var info struct{ Version string }
 	if json.Unmarshal(raw, &info) != nil || (info.Version != offered && !newerVersion(info.Version, offered)) {
 		return "", fmt.Errorf("%s has not installed Diffdesk %s yet; please try again later", installation.manager, offered)
+	}
+	// Only once the new tool is verified: both names would put a diffdesk on
+	// PATH. --no-prune keeps the old install, which this app still runs from.
+	if installation.tool == legacyMiseTool {
+		if _, err := run(ctx, installation.command, "unuse", "--global", "--no-prune", "--yes", legacyMiseTool); err != nil {
+			return "", fmt.Errorf("Diffdesk %s is installed as %s, but %s could not be removed from the global mise config: %w", offered, miseTool, legacyMiseTool, err)
+		}
 	}
 	return bundle, nil
 }
