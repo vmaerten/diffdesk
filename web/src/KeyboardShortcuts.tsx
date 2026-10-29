@@ -27,6 +27,12 @@ export default function KeyboardShortcuts() {
       </div>
       <div>
         <dt>
+          <kbd>⌥</kbd> <kbd>z</kbd>
+        </dt>
+        <dd>Wrap lines</dd>
+      </div>
+      <div>
+        <dt>
           <kbd>b</kbd>
         </dt>
         <dd>Choose base</dd>

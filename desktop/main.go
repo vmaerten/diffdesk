@@ -275,6 +275,8 @@ func run() error {
 	viewMenu.AddSeparator()
 	item(viewMenu, "Unified", "CmdOrCtrl+1", command("unified"))
 	item(viewMenu, "Split", "CmdOrCtrl+2", command("split"))
+	// ⌥Z is the page's: as an accelerator it would take a character from the comment field.
+	item(viewMenu, "Wrap Lines", "", command("wrap-lines"))
 	viewMenu.AddSeparator()
 	item(viewMenu, "Include Working Tree", "", command("working-tree"))
 	item(viewMenu, "Include Untracked Files", "", command("untracked"))
