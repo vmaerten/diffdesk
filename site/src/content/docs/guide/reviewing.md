@@ -1,6 +1,6 @@
 ---
 title: Reviewing code
-description: Comparisons, comments, Viewed files, bases and stacks, pull requests, images and appearance.
+description: Comparisons, comments, Viewed files, bases and stacks, pull requests, images, Markdown and appearance.
 ---
 
 Run `diffdesk` in a Git repository to open its review in the Diffdesk window; running it in another checkout replaces that review. The tree and diff use the same file order; clicking a file or pressing `j` / `k` moves through that order. Use Unified or Split mode, wrap long lines with **View → Wrap Lines** (`Option+z`, also in Settings), expand unchanged context, and search the whole diff with `Cmd+f`, including files outside the current viewport.
@@ -87,9 +87,11 @@ When the reviewed branch has a pull request on GitHub, its number shows in the t
 
 Diffdesk asks the [GitHub CLI](https://cli.github.com/): install it and run `gh auth login` once. Without it, or signed out, Diffdesk works as before, without the network. The pull request is the one whose head is the reviewed branch, or the branch it pushes to; an open one wins over closed ones. It refreshes with the review (`r`) and when you come back to the window. **Settings › GitHub** says which account gh uses, turns pull requests off, or shows them in the status bar instead of the title bar: the same items, in words, with the popover opening above.
 
-## Images and appearance
+## Images, Markdown and appearance
 
 Image changes show before/after previews; click to enlarge and Escape to close. PNG, JPEG, GIF, WebP, AVIF, SVG, ICO and BMP are supported. Unavailable or oversized previews show an explanation; the image limit is 20 MiB.
+
+A Markdown file's header switches between **Source** and **Rendered**. Rendered shows the reviewed version with headings, lists, tables and code blocks, and marks the blocks that hold added lines; a deleted file shows its previous version. Raw HTML and images are left out, and only web links open, in the browser. Comments stay on source lines: viewing one, or a search match, switches the file back to Source.
 
 **Settings** (`Cmd+,`) opens in a window of its own, beside the review, which follows each change as you make it. **Appearance** chooses System (follows macOS), Light or Dark and a syntax theme for each mode, **Code** the code font and size, **Window** the title bar: standard (52 px, the default) or compact (38 px), applied the next time Diffdesk opens, and **GitHub** whether and where to show pull requests. The interface keeps neutral colours; only the code takes the theme's.
 

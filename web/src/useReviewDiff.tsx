@@ -8,6 +8,7 @@ import {
   type CodeViewItem,
   type CodeViewOptions,
   type DiffLineAnnotation,
+  type FileDiffMetadata,
   type LineAnnotation,
   type SelectedLineRange,
 } from '@pierre/diffs'
@@ -17,6 +18,7 @@ import type { SyntaxTheme } from './theme.ts'
 import CommentThread, { type Composer } from './CommentThread.tsx'
 import type { CommentSubmission, SaveState } from './commentPersistence.ts'
 import ImageDiff from './ImageDiff.tsx'
+import MarkdownPreview, { addedLines, isMarkdown } from './MarkdownPreview.tsx'
 import CopyFileName from './CopyFileName.tsx'
 import type { TreeEntry } from './FileTree.tsx'
 import { diffFilesLoader, type ContextError } from './diffFiles.ts'
@@ -66,14 +68,20 @@ interface ReviewDiffOptions {
   tokenHandlers?: TokenHandlers
 }
 
+const NO_LINES: ReadonlySet<number> = new Set()
+
 /** A line to scroll to and select: a comment's, or a definition's. */
 type LineTarget = Pick<ServedComment, 'path' | 'side' | 'start' | 'end'>
 
 /**
  * `CodeViewDiffItem` carries no path; we add one and read it back from our own
- * array, which the library ignores.
+ * array, which the library ignores. File items have no source rows: they show an
+ * image comparison or a rendered Markdown file in their file-level annotation.
  */
-type DiffItem = (CodeViewDiffItem | (CodeViewFileItem & { image: ImageComparison })) & {
+type DiffItem = (
+  | CodeViewDiffItem
+  | (CodeViewFileItem & ({ image: ImageComparison } | { markdown: FileDiffMetadata }))
+) & {
   path: string
 }
 
@@ -129,6 +137,16 @@ export function useReviewDiff({
   const [activePath, setActivePath] = useState<string | null>(null)
   const [revealedPath, setRevealedPath] = useState<string | null>(null)
   const [commentTarget, setCommentTarget] = useState<LineTarget | null>(null)
+  /** Markdown files shown rendered rather than as source. */
+  const [rendered, setRendered] = useState<ReadonlySet<string>>(() => new Set())
+  const setRenderedPath = useStableCallback((path: string, on: boolean) => {
+    if (rendered.has(path) === on) return false
+    const next = new Set(rendered)
+    if (on) next.add(path)
+    else next.delete(path)
+    setRendered(next)
+    return true
+  })
   useEffect(() => {
     setRevealedPath(null)
   }, [viewed, data?.range])
@@ -369,7 +387,24 @@ export function useReviewDiff({
   const versions = useRef(new Map<string, { key: string; version: number }>())
   const items = useMemo(
     () =>
-      allItems.map((item): DiffItem => {
+      allItems.map((source): DiffItem => {
+        // A new id, not a new type under the same one: the pane reuses a record
+        // by id and would otherwise keep the diff it already built.
+        const item: DiffItem =
+          source.type === 'diff' && rendered.has(source.path)
+            ? {
+                id: `markdown:${source.id}`,
+                path: source.path,
+                type: 'file',
+                file: {
+                  name: source.path,
+                  contents: '',
+                  lang: 'text',
+                  cacheKey: `markdown:${source.id}`,
+                },
+                markdown: source.fileDiff,
+              }
+            : source
         // An open composer keeps its file unfolded, so a draft never sits hidden.
         const collapsed =
           item.path in viewed && item.path !== revealedPath && item.path !== composer?.path
@@ -393,8 +428,21 @@ export function useReviewDiff({
           ? { ...item, collapsed, version, annotations: collapsed ? [] : [{ lineNumber: 0 }] }
           : { ...item, collapsed, version, annotations: annotations.byPath.get(item.path) }
       }),
-    [allItems, viewed, annotations, revealedPath, composer?.path, foldedByPath],
+    [allItems, rendered, viewed, annotations, revealedPath, composer?.path, foldedByPath],
   )
+
+  /** Per Markdown file, the new side's added lines; none for a file added whole. */
+  const markdownChanges = useMemo(() => {
+    const status = new Map((data?.files ?? []).map((file) => [file.path, file.status] as const))
+    const changes = new Map<string, Set<number>>()
+    // The snapshot: hydration rewrites the live items' hunks.
+    for (const item of searchItems) {
+      if (item.type !== 'diff' || !isMarkdown(item.path)) continue
+      const whole = status.get(item.path) === 'added' || status.get(item.path) === 'untracked'
+      changes.set(item.path, whole ? new Set() : addedLines(item.fileDiff.hunks))
+    }
+    return changes
+  }, [searchItems, data])
 
   // The file j, k and v act on. Kept by path: an index would point at whatever
   // file a new comparison puts in that position.
@@ -477,6 +525,8 @@ export function useReviewDiff({
     if (!commentTarget) return
     const item = items.find((entry) => entry.path === commentTarget.path)
     if (!item || item.collapsed) return
+    // A comment sits on source lines: the next render brings them back.
+    if (item.type !== 'diff' && setRenderedPath(item.path, false)) return
     // The React wrapper has committed the expanded item before its next frame.
     const frame = requestAnimationFrame(() => {
       setActivePath(item.path)
@@ -501,7 +551,7 @@ export function useReviewDiff({
       setCommentTarget(null)
     })
     return () => cancelAnimationFrame(frame)
-  }, [commentTarget, items, revealFile])
+  }, [commentTarget, items, revealFile, setRenderedPath])
 
   /** Open a composer on a selected range, from the gutter or from `c`. */
   const openComposer = useStableCallback(
@@ -530,6 +580,7 @@ export function useReviewDiff({
       scroll: scrollTopRef.current,
     })
     foldComment(comment, false)
+    setRenderedPath(comment.path, false)
     const key = threadKey(comment.path, comment.side, comment.end)
     draftsRef.current.set(`${key}:${comment.id}`, comment.body)
     setComposer({
@@ -648,9 +699,15 @@ export function useReviewDiff({
       viewRef.current?.clearSelectedLines()
       viewRef.current?.scrollTo({
         type: 'item',
-        id: activeSearchMatch.id,
+        // The rendered item of a Markdown file has an id of its own.
+        id: items.find((item) => item.path === activeSearchMatch.path)?.id ?? activeSearchMatch.id,
         align: 'start',
       })
+      return
+    }
+    // A match is a source line: show the source, then the match once it is back.
+    if (setRenderedPath(activeSearchMatch.path, false)) {
+      searchAfterSource.current = true
       return
     }
 
@@ -672,6 +729,12 @@ export function useReviewDiff({
   useEffect(() => {
     if (searchOpen) showSearchMatch()
   }, [searchOpen, searchQuery, searchIndex, showSearchMatch])
+  const searchAfterSource = useRef(false)
+  useEffect(() => {
+    if (!searchAfterSource.current) return
+    searchAfterSource.current = false
+    showSearchMatch()
+  }, [items, showSearchMatch])
 
   const submitComment = useStableCallback((body: string) => {
     if (!composer || !data) return
@@ -809,8 +872,18 @@ export function useReviewDiff({
   const renderAnnotation = useCallback(
     (annotation: LineAnnotation | DiffLineAnnotation, item: CodeViewItem<undefined>) => {
       if (item.type === 'file') {
-        const image = (item as Extract<DiffItem, { type: 'file' }>).image
-        return image ? <ImageDiff image={image} path={item.file.name} /> : null
+        const file = item as Extract<DiffItem, { type: 'file' }>
+        if ('image' in file) return <ImageDiff image={file.image} path={file.path} />
+        if (!loadDiffFiles) return null
+        const deleted = data?.files.find((entry) => entry.path === file.path)?.status === 'deleted'
+        return (
+          <MarkdownPreview
+            load={loadDiffFiles}
+            file={file.markdown}
+            side={deleted ? 'deletions' : 'additions'}
+            changed={markdownChanges.get(file.path) ?? NO_LINES}
+          />
+        )
       }
       if (item.type !== 'diff' || !isDiffAnnotation(annotation)) return null
       const key = threadKey(item.fileDiff.name, annotation.side, annotation.lineNumber)
@@ -843,7 +916,10 @@ export function useReviewDiff({
       copied,
       onCopy,
       composer,
+      data?.files,
       data?.range,
+      loadDiffFiles,
+      markdownChanges,
       saving,
       submitComment,
       closeComposer,
@@ -869,8 +945,32 @@ export function useReviewDiff({
       const path = item.type === 'diff' ? item.fileDiff.name : item.file.name
       if (!path) return null
       const isViewed = path in viewed
+      const isRendered = rendered.has(path)
       return (
         <div className="file-header-actions" data-header-path={path}>
+          {isMarkdown(path) && (
+            <span
+              className="markdown-mode"
+              role="group"
+              aria-label="Markdown view"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                aria-pressed={!isRendered}
+                onClick={() => setRenderedPath(path, false)}
+              >
+                Source
+              </button>
+              <button
+                type="button"
+                aria-pressed={isRendered}
+                onClick={() => setRenderedPath(path, true)}
+              >
+                Rendered
+              </button>
+            </span>
+          )}
           <CopyFileName key={path} path={path} />
           <label className="viewed-toggle" onClick={(event) => event.stopPropagation()}>
             <input
@@ -886,7 +986,7 @@ export function useReviewDiff({
         </div>
       )
     },
-    [viewed, toggleViewed],
+    [viewed, toggleViewed, rendered, setRenderedPath],
   )
 
   const replayExpansions = useStableCallback(() => {
