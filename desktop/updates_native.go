@@ -20,10 +20,11 @@ import (
 // Wails owns the package-manager work; the review document only displays
 // snapshots and asks to check, dismiss or install the offered version.
 type nativeUpdater struct {
-	desktop *desktopApp
-	ctx     context.Context
-	session updateSession
-	menu    *application.MenuItem
+	desktop  *desktopApp
+	ctx      context.Context
+	session  updateSession
+	schedule updateSchedule
+	menu     *application.MenuItem
 	// Beside the settings, which belong to the UI.
 	skipPath string
 }
@@ -62,11 +63,14 @@ func (u *nativeUpdater) check(manual bool) {
 		return
 	}
 	u.publish(state)
+	at := time.Now()
+	u.schedule.started(at)
 	go func() {
 		ctx, cancel := context.WithTimeout(u.ctx, 30*time.Second)
 		defer cancel()
 		info := app.Build()
 		finish := func(installation updateInstallation, offered updateRelease, err error, retry string) {
+			u.schedule.finished(at, retry == "check")
 			u.publish(u.session.checked(installation, info.Version, offered, err, retry, manual))
 		}
 		fail := func(err error, retry string) { finish(updateInstallation{}, updateRelease{}, err, retry) }
@@ -107,6 +111,22 @@ func (u *nativeUpdater) check(manual bool) {
 		}
 		finish(installation, version, nil, "")
 	}()
+}
+
+// daily checks again each day from 10:00, local time, while the app runs.
+func (u *nativeUpdater) daily() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-u.ctx.Done():
+			return
+		case <-ticker.C:
+			if u.schedule.due(time.Now().In(systemZone())) {
+				u.check(false)
+			}
+		}
+	}
 }
 
 func (d *desktopApp) UpdateStatus() updateSnapshot { return d.updater.session.snapshot() }
