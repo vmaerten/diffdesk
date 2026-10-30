@@ -9,6 +9,7 @@
 - Comment on a whole file, from its header, its context menu or **Review → Comment on File…**, or on the whole review, from the comments panel's `+` or **Review → Comment on Review…**. They are written and listed in the panel, review comments first, and Copy and `diffdesk comments` include them as `path (whole file)` and `(whole review)`. ([#305](https://github.com/vmaerten/diffdesk/pull/305))
 - Let an agent write a walkthrough of its change for the reviewer: `diffdesk walkthrough guide` gives it the rules, `hunks` the IDs to cite, and `set` checks the tour against the comparison and saves it for the branch; `show` prints it and `clear` deletes it. A hunk that moves is found again by its content. ([#307](https://github.com/vmaerten/diffdesk/pull/307))
 - Read a walkthrough in the side panel's **Walkthrough** tab: `n` and `p` step through its stops, scroll the diff to each one's hunks and mark them with a **Stop N of M** card, and the stops read are kept until the walkthrough is replaced. ([#309](https://github.com/vmaerten/diffdesk/pull/309))
+- Generate a walkthrough with Claude Code or Codex, in beta: pick the agent under **Settings → Walkthrough**, then **Generate Walkthrough…** in the panel or the command palette. The sheet says what is sent; the agent's own CLI runs with your sign-in and no tool that writes, **Cancel** stops it, and a failure keeps its output with **Try Again**. ([#310](https://github.com/vmaerten/diffdesk/pull/310))
 
 ### 🐛 Fixes
 
