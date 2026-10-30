@@ -4,7 +4,7 @@
 
 ### ✨ Features
 
-- Check for updates each day at 10:00 local time while Diffdesk stays open, not only at startup: a Mac asleep at 10:00 checks on wake, and a check that cannot reach GitHub is retried every 15 minutes.
+- Check for updates each day at 10:00 local time while Diffdesk stays open, not only at startup: a Mac asleep at 10:00 checks on wake, and a check that cannot reach GitHub is retried every 15 minutes. ([#314](https://github.com/vmaerten/diffdesk/pull/314))
 
 ## 0.10.0
 
