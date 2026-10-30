@@ -200,6 +200,7 @@ func run() error {
 			window.Maximise()
 			go desktop.process(context.Background())
 			updater.check(false)
+			go updater.daily()
 		})
 	})
 	// Closing the review quits the app, so Settings must not keep it running.

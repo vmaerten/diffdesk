@@ -276,3 +276,45 @@ func TestUpdateCheckDoesNotStartWhenBusyOrShuttingDown(t *testing.T) {
 		t.Fatal("shutdown started an update check")
 	}
 }
+
+func TestUpdateSchedule(t *testing.T) {
+	paris, err := time.LoadLocation("Europe/Paris")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokyo, err := time.LoadLocation("Asia/Tokyo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := func(month time.Month, day, hour, minute int, zone *time.Location) time.Time {
+		return time.Date(2026, month, day, hour, minute, 0, 0, zone)
+	}
+	for _, test := range []struct {
+		name    string
+		checked time.Time
+		retry   bool
+		now     time.Time
+		want    bool
+	}{
+		{name: "launched before 10:00", checked: at(10, 30, 8, 0, paris), now: at(10, 30, 9, 59, paris)},
+		{name: "10:00 after a morning launch", checked: at(10, 30, 8, 0, paris), now: at(10, 30, 10, 0, paris), want: true},
+		{name: "launched after 10:00", checked: at(10, 30, 11, 0, paris), now: at(10, 30, 23, 0, paris)},
+		{name: "next day before 10:00", checked: at(10, 30, 11, 0, paris), now: at(10, 31, 9, 0, paris)},
+		{name: "next day at 10:00", checked: at(10, 30, 11, 0, paris), now: at(10, 31, 10, 0, paris), want: true},
+		{name: "wake after a missed 10:00", checked: at(10, 28, 18, 0, paris), now: at(10, 30, 14, 0, paris), want: true},
+		{name: "10:00 after the switch to winter time", checked: at(10, 24, 11, 0, paris), now: at(10, 25, 10, 0, paris), want: true},
+		{name: "10:00 in the new time zone", checked: at(10, 30, 11, 0, paris), now: at(10, 31, 10, 0, tokyo), want: true},
+		{name: "before 10:00 in the new time zone", checked: at(10, 30, 11, 0, paris), now: at(10, 31, 9, 0, tokyo)},
+		{name: "failed check retried later", checked: at(10, 30, 10, 0, paris), retry: true, now: at(10, 30, 10, 15, paris), want: true},
+		{name: "failed check not retried at once", checked: at(10, 30, 10, 0, paris), retry: true, now: at(10, 30, 10, 14, paris)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var schedule updateSchedule
+			schedule.started(test.checked)
+			schedule.finished(test.checked, test.retry)
+			if got := schedule.due(test.now); got != test.want {
+				t.Fatalf("due = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
