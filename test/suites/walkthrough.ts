@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import type { KeyInput } from 'puppeteer-core'
 
 import type { DiffPayload } from '../../src/types.ts'
+import { installDesktopRuntime } from '../desktopRuntime.ts'
 import { poll, type Suite } from '../harness.ts'
 
 const PANEL = '.walkthrough-panel:not([hidden])'
@@ -136,6 +137,38 @@ export default {
       'progress survives a reload',
       (await page.$eval(`${PANEL} .walkthrough-progress`, (progress) => progress.textContent)) ===
         '1/2 read',
+    )
+
+    // The harness's PATH holds a fake claude, which writes a one-stop tour.
+    const settings = await page.browserContext().newPage()
+    await installDesktopRuntime(settings)
+    await settings.goto(new URL('/settings', page.url()).href, { waitUntil: 'networkidle0' })
+    await settings.click('.settings-panes button:nth-child(6)')
+    await settings.select('select[aria-label="Generate walkthroughs with"]', 'claude')
+    await settings.close()
+    await page.bringToFront()
+    await page.waitForSelector(`${PANEL} .walkthrough-meta .link-button`, { timeout: 5_000 })
+    await page.click(`${PANEL} .walkthrough-meta .link-button`)
+    // Enabled once Go has found claude on the PATH.
+    await page.waitForSelector('.generate-sheet[open] footer .button:first-child:not([disabled])')
+    check(
+      'Generate says where the diff goes',
+      (await page.$eval('.generate-sheet', (sheet) => sheet.textContent)).includes(
+        'The diff goes to Claude Code’s provider',
+      ),
+    )
+    await page.click('.generate-sheet footer .button:first-child')
+    await page.waitForFunction(
+      (panel) =>
+        document.querySelector(`${panel} .walkthrough-head h3`)?.textContent === 'Generated tour',
+      { timeout: 10_000 },
+      PANEL,
+    )
+    check(
+      'the generated walkthrough replaces the old one, and the sheet closes',
+      (await page.$eval(`${PANEL} .walkthrough-meta`, (meta) => meta.textContent))?.startsWith(
+        'By Claude Code',
+      ) && !(await page.$('.generate-sheet[open]')),
     )
 
     rmSync(file)

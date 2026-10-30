@@ -282,6 +282,14 @@ export interface ServedWalkthrough {
   read: number[]
 }
 
+/** The body of `GET /r/:repoId/api/walkthrough/generate`: the agents, and the branch's generation. */
+export interface GenerationStatus {
+  agents: { id: string; label: string; found: boolean }[]
+  /** The agent writing the walkthrough. */
+  running?: string
+  failed?: { agent: string; log: string }
+}
+
 /** The body of `GET /r/:repoId/api/refs`. */
 export interface RefsPayload {
   refs: RefDetail[]

@@ -74,7 +74,7 @@ export default {
         { id: '1', name: 'fixture', path: '', route: shown.pathname + shown.search },
       ])
       await window.goto(new URL('/settings', page.url()).href, { waitUntil: 'networkidle0' })
-      await window.click('.settings-panes button:last-child')
+      await window.click('.settings-panes button:nth-child(5)')
       await window.waitForSelector('.language-server')
       await page.bringToFront()
       return window
