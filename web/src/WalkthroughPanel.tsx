@@ -45,6 +45,8 @@ export default function WalkthroughPanel({
   read,
   onStop,
   onStep,
+  generating,
+  onGenerate,
   onClose,
 }: {
   open: boolean
@@ -54,6 +56,10 @@ export default function WalkthroughPanel({
   read: ReadonlySet<number>
   onStop: (index: number) => void
   onStep: (by: number) => void
+  /** The agent writing a walkthrough of this branch. */
+  generating?: string
+  /** Opens Generate Walkthrough; absent while generation is off in Settings. */
+  onGenerate?: () => void
   onClose: () => void
 }) {
   const stops = stopsOf(walkthrough)
@@ -76,6 +82,17 @@ export default function WalkthroughPanel({
       {!walkthrough ? (
         <div className="comments-empty walkthrough-empty">
           <h3>No walkthrough yet</h3>
+          {generating ? (
+            <p role="status">
+              <span className="install-spinner" aria-hidden="true" /> {generating} is writing one…
+            </p>
+          ) : (
+            onGenerate && (
+              <button type="button" className="button primary" onClick={onGenerate}>
+                Generate Walkthrough…
+              </button>
+            )
+          )}
           <p>
             Ask the agent that wrote the change for a tour of it. It learns how with the first
             command, then cites hunks and saves the tour:
@@ -101,6 +118,12 @@ export default function WalkthroughPanel({
               <div className="walkthrough-meta">
                 By {walkthrough.author} · {walkthrough.createdAt.slice(0, 10)} · {walkthrough.range}
                 {walkthrough.workingTree && ' with the working tree'}
+                {generating && ` · ${generating} is writing a new one…`}
+                {onGenerate && !generating && (
+                  <button type="button" className="link-button" onClick={onGenerate}>
+                    Generate again…
+                  </button>
+                )}
               </div>
             </div>
             {walkthrough.stale ? (

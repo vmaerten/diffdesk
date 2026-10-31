@@ -82,10 +82,10 @@ Les deux passent par la même validation et le même stockage ; l'interface ne s
 
 ### Génération dans l'app
 
-- Go cherche `claude` ou `codex` par le shell de login, comme les serveurs de langage, et les lance sans terminal : `claude -p --output-format json` ou `codex exec`, avec le guide et la liste des hunks en prompt et la diff en entrée. Le CLI ne reçoit aucun outil d'écriture.
+- Go cherche `claude` ou `codex` par le shell de login, comme les serveurs de langage, et les lance sans terminal : `claude -p --output-format json --tools "" --safe-mode` ou `codex exec --sandbox read-only`. Sans `--safe-mode`, Claude Code charge le CLAUDE.md, les skills, les plugins et les serveurs MCP de l'utilisateur : environ 245 000 tokens et 2 $ pour un prompt vide, mesurés le 30 octobre, contre 700 tokens avec. Le prompt, sur l'entrée standard, porte le guide et la sortie de `walkthrough hunks --code`, qui contient déjà la diff. Le CLI ne reçoit aucun outil d'écriture.
 - La feuille de génération dit ce qui part et où : nombre de fichiers et de lignes, CLI, modèle, et que la diff est envoyée au fournisseur de ce CLI avec la connexion de l'utilisateur.
 - Annuler arrête le processus. Une erreur garde la sortie du CLI, avec **Try Again**, comme l'installation d'un serveur de langage.
-- Pas de cache par modèle : régénérer remplace le document, et le précédent reste dans `walkthroughs/<branche>.previous.json` le temps d'une session.
+- Pas de cache par modèle : régénérer remplace le document. Le précédent n'est pas gardé (voir Reporté).
 
 ### Interface
 
@@ -135,6 +135,8 @@ Préfixe `walkthrough/`, en pile `gh stack` dans l'ordre ci-dessous ; ce plan ou
 - Les notes par hunk et le message de commit de codiff.
 - Les autres CLIs (OpenCode, Pi) et le choix du modèle au-delà de celui du CLI.
 - Un walkthrough par commit d'une pile.
+- Garder le walkthrough remplacé par une génération, pour revenir en arrière.
+- Une seconde tentative automatique quand la réponse de l'agent ne passe pas la validation.
 
 ## Décisions du 29 octobre
 

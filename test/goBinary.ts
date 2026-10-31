@@ -80,7 +80,8 @@ export async function serveGo(
 /**
  * A folder holding the only language server the review server may find: the
  * fake one, as `tsrs`. Go and Rust then have none, whatever this machine has.
- * Its `mise` installs a Python server and fails for anything else.
+ * Its `mise` installs a Python server and fails for anything else, and its
+ * `claude` writes a one-stop walkthrough of the fixture's engine.
  */
 export function fakeLanguageServers(): { path: string; cleanup: () => void } {
   const path = mkdtempSync(join(tmpdir(), 'diffdesk-servers-'))
@@ -99,6 +100,21 @@ fi
 echo "mise ERROR no metadata for $3" >&2
 exit 1
 `,
+    { mode: 0o755 },
+  )
+  const tour = JSON.stringify({
+    version: 1,
+    title: 'Generated tour',
+    chapters: [
+      {
+        title: 'Core',
+        stops: [{ title: 'Engine', summary: 'It grows.', hunks: ['src/core/engine.ts#1'] }],
+      },
+    ],
+  })
+  writeFileSync(
+    join(path, 'claude'),
+    `#!/bin/sh\ncat > /dev/null\nprintf '%s' '${JSON.stringify({ type: 'result', is_error: false, result: tour })}'\n`,
     { mode: 0o755 },
   )
   return { path, cleanup: () => rmSync(path, { recursive: true, force: true }) }

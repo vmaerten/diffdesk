@@ -28,6 +28,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       },
       showPullRequests: false,
       pullRequestPlace: 'status-bar',
+      walkthroughAgent: 'codex',
     }),
   )
   check(
@@ -54,6 +55,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       },
       showPullRequests: false,
       pullRequestPlace: 'status-bar',
+      walkthroughAgent: 'codex',
     }),
   )
 
@@ -74,6 +76,7 @@ export async function runDesktopSettings(check: Check): Promise<void> {
       languageServers: { go: 'tsrs', cobol: 'auto' },
       showPullRequests: 'no',
       pullRequestPlace: 'sidebar',
+      walkthroughAgent: 'cursor',
     }),
   )
   // The light slot holds a dark theme: each slot only takes its own mode.

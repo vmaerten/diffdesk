@@ -27,6 +27,7 @@ export type ReviewCommand =
   | 'whitespace'
   | 'comments'
   | 'walkthrough'
+  | 'generate-walkthrough'
   | 'next-stop'
   | 'previous-stop'
   | 'copy-comments'
@@ -84,6 +85,7 @@ export const COMMANDS: CommandEntry[] = [
   { name: 'whitespace', label: 'Ignore Whitespace', group: 'View', keys: '⌥⌘W' },
   { name: 'comments', label: 'Comments', group: 'View', keys: '⌥⌘0' },
   { name: 'walkthrough', label: 'Walkthrough', group: 'View' },
+  { name: 'generate-walkthrough', label: 'Generate Walkthrough…', group: 'Review' },
   { name: 'next-file', label: 'Next File', group: 'Go', keys: 'j' },
   { name: 'previous-file', label: 'Previous File', group: 'Go', keys: 'k' },
   { name: 'next-stop', label: 'Next Stop', group: 'Go', keys: 'n' },

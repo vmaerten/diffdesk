@@ -11,9 +11,12 @@ import {
   LANGUAGE_SERVERS,
   latestSaver,
   readSettings,
+  WALKTHROUGH_AGENT_LABELS,
+  WALKTHROUGH_AGENTS,
   type DesktopSettings,
   type LanguageId,
   type PullRequestPlace,
+  type WalkthroughAgent,
 } from './desktopSettings.ts'
 import {
   homeRelative,
@@ -56,7 +59,7 @@ const PREVIEW = `diff --git a/open.go b/open.go
  }
 `
 
-type Pane = 'appearance' | 'code' | 'window' | 'github' | 'intelligence'
+type Pane = 'appearance' | 'code' | 'window' | 'github' | 'intelligence' | 'walkthrough'
 
 const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
   {
@@ -143,6 +146,25 @@ const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
         aria-hidden="true"
       >
         <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'walkthrough',
+    label: 'Walkthrough',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="6" cy="6" r="2.5" />
+        <circle cx="18" cy="18" r="2.5" />
+        <path d="M8.5 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.5" />
       </svg>
     ),
   },
@@ -259,6 +281,9 @@ export default function SettingsWindow() {
           <IntelligencePane settings={settings} onChange={change} />
         )}
         {settings && pane === 'github' && <GitHubPane settings={settings} onChange={change} />}
+        {settings && pane === 'walkthrough' && (
+          <WalkthroughPane settings={settings} onChange={change} />
+        )}
       </main>
     </div>
   )
@@ -712,6 +737,38 @@ function GitHubPane({ settings, onChange }: PaneProps) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function WalkthroughPane({ settings, onChange }: PaneProps) {
+  return (
+    <div className="settings-group">
+      <label className="settings-field">
+        <span className="settings-label">
+          <span>
+            Generate with <span className="beta-badge">Beta</span>
+          </span>
+          <small>
+            {settings.walkthroughAgent === 'off'
+              ? 'Walkthroughs come from the agent that wrote the change, through diffdesk walkthrough set.'
+              : `Generate Walkthrough… sends the diff to ${WALKTHROUGH_AGENT_LABELS[settings.walkthroughAgent]}, found through your login shell and signed in as you.`}
+          </small>
+        </span>
+        <select
+          aria-label="Generate walkthroughs with"
+          value={settings.walkthroughAgent}
+          onChange={(event) =>
+            onChange({ walkthroughAgent: event.target.value as WalkthroughAgent })
+          }
+        >
+          {WALKTHROUGH_AGENTS.map((agent) => (
+            <option key={agent} value={agent}>
+              {WALKTHROUGH_AGENT_LABELS[agent]}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   )
 }

@@ -19,6 +19,15 @@ export const LANGUAGE_SERVERS = {
 } as const satisfies Record<string, readonly string[]>
 export type LanguageId = keyof typeof LANGUAGE_SERVERS
 
+/** The agent CLIs Generate Walkthrough can run, by the IDs Go knows them by. */
+export const WALKTHROUGH_AGENTS = ['off', 'claude', 'codex'] as const
+export type WalkthroughAgent = (typeof WALKTHROUGH_AGENTS)[number]
+export const WALKTHROUGH_AGENT_LABELS: Record<WalkthroughAgent, string> = {
+  off: 'Off',
+  claude: 'Claude Code',
+  codex: 'Codex',
+}
+
 export interface DesktopSettings extends AppearanceSettings {
   version: 1
   /** One of CODE_FONTS, or any font installed on the Mac. */
@@ -38,6 +47,8 @@ export interface DesktopSettings extends AppearanceSettings {
   /** Through the GitHub CLI, when it is installed and signed in. */
   showPullRequests: boolean
   pullRequestPlace: PullRequestPlace
+  /** Beta: the agent Generate Walkthrough sends the diff to. */
+  walkthroughAgent: WalkthroughAgent
 }
 
 export const DEFAULT_SETTINGS: DesktopSettings = {
@@ -60,6 +71,7 @@ export const DEFAULT_SETTINGS: DesktopSettings = {
   },
   showPullRequests: true,
   pullRequestPlace: 'title-bar',
+  walkthroughAgent: 'off',
 }
 
 const APPEARANCES: readonly Appearance[] = ['system', 'light', 'dark']
@@ -95,6 +107,7 @@ export function readSettings(raw: string): DesktopSettings {
     languageServers,
     showPullRequests,
     pullRequestPlace,
+    walkthroughAgent,
   } = stored
   const servers = (
     languageServers && typeof languageServers === 'object' ? languageServers : {}
@@ -132,6 +145,9 @@ export function readSettings(raw: string): DesktopSettings {
     pullRequestPlace:
       PULL_REQUEST_PLACES.find((value) => value === pullRequestPlace) ??
       DEFAULT_SETTINGS.pullRequestPlace,
+    walkthroughAgent:
+      WALKTHROUGH_AGENTS.find((value) => value === walkthroughAgent) ??
+      DEFAULT_SETTINGS.walkthroughAgent,
   }
 }
 

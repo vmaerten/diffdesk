@@ -13,6 +13,7 @@ import { createPortal } from 'react-dom'
 import { useStableCallback } from '@pierre/diffs/react'
 import { useReviewDiff, type LoadedReviewDiff, type StopMarker } from './useReviewDiff.tsx'
 import WalkthroughPanel, { stopsOf } from './WalkthroughPanel.tsx'
+import GenerateWalkthrough, { useWalkthroughGeneration } from './GenerateWalkthrough.tsx'
 import { useReviewSelection } from './reviewSelection.ts'
 import {
   useCommentPersistence,
@@ -28,7 +29,7 @@ import { untrackedToggleable, workingTreeToggleable } from './ScopeControls.tsx'
 import DesktopToolbar from './DesktopToolbar.tsx'
 import ReviewFooter from './ReviewFooter.tsx'
 import { usePullRequest } from './PullRequestPill.tsx'
-import type { PullRequestPlace } from './desktopSettings.ts'
+import type { PullRequestPlace, WalkthroughAgent } from './desktopSettings.ts'
 import { layerTarget, neighbourLayer } from './StackPicker.tsx'
 import { DesktopSidebarFoot, DesktopSidebarHead } from './DesktopSidebar.tsx'
 import FileTree, { type FileTreeHandle } from './FileTree.tsx'
@@ -107,6 +108,7 @@ export default function App({
   codeIntelligenceEnabled = false,
   symbolPanel = false,
   pullRequests = null,
+  walkthroughAgent = null,
 }: {
   savedView?: SavedView
   viewHandle?: Ref<SavedViewHandle>
@@ -134,6 +136,8 @@ export default function App({
   symbolPanel?: boolean
   /** Where to show the reviewed branch's GitHub pull request; null shows none. */
   pullRequests?: PullRequestPlace | null
+  /** The agent CLI Generate Walkthrough runs; null leaves walkthroughs to `diffdesk walkthrough set`. */
+  walkthroughAgent?: Exclude<WalkthroughAgent, 'off'> | null
 }) {
   const repoId = useMemo(repoIdFromLocation, [])
   const [data, setData] = useState<LoadedReviewDiff | null>(null)
@@ -498,6 +502,23 @@ export default function App({
     }
     goToStop(Math.max(0, Math.min(stops.length - 1, stopIndex + by)))
   }
+  const [generating, setGenerating] = useState(false)
+  const showGenerated = useCallback(() => {
+    void refresh()
+    setGenerating(false)
+    setPanelTab('walkthrough')
+    setCommentsOpen(true)
+  }, [refresh])
+  const generation = useWalkthroughGeneration(
+    repoId,
+    data?.commentBranch,
+    data?.query,
+    showGenerated,
+  )
+  const openGenerate = () => {
+    setGenerating(true)
+    generation.check()
+  }
   const saveReadStops = async (read: number[]) => {
     if (!repoId || !walkthrough || !data) return
     try {
@@ -628,6 +649,9 @@ export default function App({
       case 'comments':
         toggleComments()
         break
+      case 'generate-walkthrough':
+        if (walkthroughAgent && data) openGenerate()
+        break
       case 'walkthrough':
         toggleWalkthrough()
         break
@@ -725,6 +749,7 @@ export default function App({
       'previous-file': entries.length > 0,
       'next-stop': stops.length > 0,
       'previous-stop': stops.length > 0,
+      'generate-walkthrough': walkthroughAgent !== null && !!data,
       'working-tree': workingTreeToggleable(data, target, commit),
       untracked: untrackedToggleable(data),
       viewed: !!activePath,
@@ -861,8 +886,24 @@ export default function App({
         read={readStops}
         onStop={goToStop}
         onStep={stepStop}
+        generating={generation.status?.running}
+        onGenerate={walkthroughAgent ? openGenerate : undefined}
         onClose={() => setCommentsOpen(false)}
       />
+      {generating && walkthroughAgent && data && (
+        <GenerateWalkthrough
+          agent={walkthroughAgent}
+          status={generation.status}
+          error={generation.error}
+          files={data.files.length}
+          additions={data.totals.additions}
+          deletions={data.totals.deletions}
+          replaces={walkthrough !== null}
+          onGenerate={() => generation.start(walkthroughAgent)}
+          onCancel={generation.cancel}
+          onClose={() => setGenerating(false)}
+        />
+      )}
       {symbolTab && (
         <SymbolPanel
           open={commentsOpen && tab === 'symbol'}
