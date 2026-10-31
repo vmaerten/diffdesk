@@ -70,7 +70,21 @@ interface ReviewDiffOptions {
   onCommentFile: (path: string) => void
   /** Hover and ⌘-click on symbols. */
   tokenHandlers?: TokenHandlers
+  /** The current walkthrough stop's hunks, each marked by a card at its first row. */
+  stopMarkers?: StopMarker[]
 }
+
+/** A card at a hunk's first row that names the walkthrough stop it belongs to. */
+export interface StopMarker {
+  path: string
+  side: DiffSide
+  line: number
+  /** "Stop 2 of 5". */
+  label: string
+  title: string
+}
+
+const NO_MARKERS: StopMarker[] = []
 
 const NO_LINES: ReadonlySet<number> = new Set()
 
@@ -135,6 +149,7 @@ export function useReviewDiff({
   onRevealFile: revealFile,
   onCommentFile: commentFile,
   tokenHandlers,
+  stopMarkers = NO_MARKERS,
 }: ReviewDiffOptions) {
   const viewRef = useRef<CodeViewHandle<undefined>>(null)
   const paneRef = useRef<HTMLDivElement>(null)
@@ -346,6 +361,7 @@ export function useReviewDiff({
     // An open composer is an annotation of its own: it is what makes the empty
     // card appear on a line that has no comment yet.
     if (composer) add(composer.path, composer.side, composer.end)
+    for (const marker of stopMarkers) add(marker.path, marker.side, marker.line)
 
     const fingerprints = new Map<string, string>()
     for (const [path, list] of byPath) {
@@ -358,7 +374,7 @@ export function useReviewDiff({
       fingerprints.set(path, list.map((a) => `${a.side[0]}${a.lineNumber}`).join(','))
     }
     return { byPath, fingerprints }
-  }, [threads, composer])
+  }, [threads, composer, stopMarkers])
 
   // Hydration mutates FileDiffMetadata in place, including its line arrays and
   // hunk offsets. Search retains a separate snapshot of the initial patch.
@@ -508,6 +524,14 @@ export function useReviewDiff({
         : canRevealLine(comment.path, comment.side, comment.end),
     [allItems, canRevealLine],
   )
+  /** Scrolls to a walkthrough stop's first hunk, unfolding its file. */
+  const revealHunk = useStableCallback((path: string, side: DiffSide, line: number) => {
+    if (!canRevealLine(path, side, line)) return
+    debugLog.record('navigate.stop', { path, side, line, scroll: scrollTopRef.current })
+    setSearchOpen(false)
+    setRevealedPath(path)
+    setCommentTarget({ path, side, start: line, end: line })
+  })
   /** Selects a line of the new side and scrolls to it, as a definition is shown. */
   const revealLine = useStableCallback((path: string, line: number) => {
     if (!canRevealLine(path, 'additions', line)) return
@@ -903,29 +927,42 @@ export function useReviewDiff({
       const key = threadKey(item.fileDiff.name, annotation.side, annotation.lineNumber)
       const thread = threads.get(key)
       const composing = composer?.key === key ? composer : null
-      if (!thread && !composing) return null
+      const marker = stopMarkers.find(
+        (entry) => threadKey(entry.path, entry.side, entry.line) === key,
+      )
+      const stop = marker && (
+        <div className="walkthrough-marker">
+          <span className="walkthrough-marker-label">{marker.label}</span>
+          {marker.title}
+        </div>
+      )
+      if (!thread && !composing) return stop ?? null
       return (
-        <CommentThread
-          key={key}
-          comments={thread ?? []}
-          copied={copied}
-          onCopy={onCopy}
-          composing={composing}
-          currentRange={data?.range ?? ''}
-          saving={saving}
-          collapsed={collapsedComments}
-          onToggle={toggleComment}
-          drafts={draftsRef}
-          onSubmit={submitComment}
-          onCancel={closeComposer}
-          onEdit={editComment}
-          onDelete={deleteComment}
-          onResolve={resolveComment}
-          onRetry={save}
-        />
+        <>
+          {stop}
+          <CommentThread
+            key={key}
+            comments={thread ?? []}
+            copied={copied}
+            onCopy={onCopy}
+            composing={composing}
+            currentRange={data?.range ?? ''}
+            saving={saving}
+            collapsed={collapsedComments}
+            onToggle={toggleComment}
+            drafts={draftsRef}
+            onSubmit={submitComment}
+            onCancel={closeComposer}
+            onEdit={editComment}
+            onDelete={deleteComment}
+            onResolve={resolveComment}
+            onRetry={save}
+          />
+        </>
       )
     },
     [
+      stopMarkers,
       threads,
       copied,
       onCopy,
@@ -1258,6 +1295,7 @@ export function useReviewDiff({
     canRevealComment,
     revealLine,
     canRevealLine,
+    revealHunk,
     navigate,
     commentSelection,
     openSearch,

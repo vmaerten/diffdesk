@@ -11,7 +11,8 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useStableCallback } from '@pierre/diffs/react'
-import { useReviewDiff, type LoadedReviewDiff } from './useReviewDiff.tsx'
+import { useReviewDiff, type LoadedReviewDiff, type StopMarker } from './useReviewDiff.tsx'
+import WalkthroughPanel, { stopsOf } from './WalkthroughPanel.tsx'
 import { useReviewSelection } from './reviewSelection.ts'
 import {
   useCommentPersistence,
@@ -77,6 +78,8 @@ const KEY_COMMANDS: Record<string, ReviewCommand> = {
   R: 'refresh',
   c: 'comment',
   v: 'viewed',
+  n: 'next-stop',
+  p: 'previous-stop',
 }
 
 /** Shorter than the CLI's wording: this is a badge in a topbar, not a report. */
@@ -173,6 +176,8 @@ export default function App({
   const [commentsOpen, setCommentsOpen] = useState(savedView?.commentsOpen ?? false)
   const symbolTab = languageRevision !== null && symbolPanel
   const [panelTab, setPanelTab] = useState<PanelTab>('comments')
+  // Turning code intelligence off takes the Symbol tab away with it.
+  const tab = panelTab === 'symbol' && !symbolTab ? 'comments' : panelTab
   const [symbolTarget, setSymbolTarget] = useState<SymbolTarget | null>(null)
   useEffect(() => {
     setSymbolTarget(null)
@@ -180,8 +185,43 @@ export default function App({
   /** The toolbar's Comments button: shows the comments, or hides the panel showing them. */
   const toggleComments = () => {
     setPanelTab('comments')
-    setCommentsOpen((open) => !open || panelTab !== 'comments')
+    setCommentsOpen((open) => !open || tab !== 'comments')
   }
+  const toggleWalkthrough = () => {
+    setPanelTab('walkthrough')
+    setCommentsOpen((open) => !open || tab !== 'walkthrough')
+  }
+
+  const walkthrough = data?.walkthrough ?? null
+  const stops = useMemo(() => stopsOf(walkthrough), [walkthrough])
+  const [stopIndex, setStopIndex] = useState(0)
+  const [readStops, setReadStops] = useState<ReadonlySet<number>>(() => new Set())
+  // A refresh serves the same walkthrough again; only a new one starts over.
+  const walkthroughKey = walkthrough ? `${data?.commentBranch}\u0000${walkthrough.createdAt}` : null
+  const [shownWalkthrough, setShownWalkthrough] = useState<string | null>(null)
+  if (walkthroughKey !== shownWalkthrough) {
+    setShownWalkthrough(walkthroughKey)
+    setStopIndex(0)
+    setReadStops(new Set(walkthrough?.read ?? []))
+  }
+  const walkthroughShown = commentsOpen && tab === 'walkthrough'
+  const stopMarkers = useMemo((): StopMarker[] => {
+    const stop = stops[stopIndex]
+    if (!walkthroughShown || !stop) return []
+    return stop.hunks.flatMap((hunk) =>
+      hunk.at
+        ? [
+            {
+              path: hunk.at.path,
+              side: hunk.at.side,
+              line: hunk.at.line,
+              label: `Stop ${stopIndex + 1} of ${stops.length}`,
+              title: stop.title,
+            },
+          ]
+        : [],
+    )
+  }, [stops, stopIndex, walkthroughShown])
   const panelEditor = useRef(savedView?.panelEditor ?? { editing: null, draft: '' })
   /** The file a new whole-file comment is being written on in the panel; '' for the review. */
   const [composing, setComposing] = useState<string | null>(null)
@@ -395,6 +435,7 @@ export default function App({
     canRevealComment,
     revealLine,
     canRevealLine,
+    revealHunk,
     navigate,
     commentSelection,
     openSearch,
@@ -423,10 +464,57 @@ export default function App({
     onRevealFile: revealFile,
     onCommentFile: compose,
     tokenHandlers: symbols.handlers,
+    stopMarkers,
   })
   lines.current = {
     can: (path, line) => canRevealLine(path, 'additions', line),
     reveal: revealLine,
+  }
+
+  /** Opens a stop in the panel and scrolls the diff to its first hunk still there. */
+  const goToStop = (index: number) => {
+    setStopIndex(index)
+    setPanelTab('walkthrough')
+    setCommentsOpen(true)
+    const first = stops[index]?.hunks.find((hunk) => hunk.at)?.at
+    if (first) revealHunk(first.path, first.side, first.line)
+  }
+  /** Leaving a stop for the next one marks it read, as turning a page does. */
+  const stepStop = (by: number) => {
+    if (stops.length === 0) {
+      setPanelTab('walkthrough')
+      setCommentsOpen(true)
+      return
+    }
+    // The first press opens the walkthrough where it is.
+    if (!walkthroughShown) {
+      goToStop(stopIndex)
+      return
+    }
+    if (by > 0 && !readStops.has(stopIndex)) {
+      const read = new Set(readStops).add(stopIndex)
+      setReadStops(read)
+      void saveReadStops([...read])
+    }
+    goToStop(Math.max(0, Math.min(stops.length - 1, stopIndex + by)))
+  }
+  const saveReadStops = async (read: number[]) => {
+    if (!repoId || !walkthrough || !data) return
+    try {
+      const response = await fetch(`/r/${repoId}/api/walkthrough/read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          branch: data.commentBranch,
+          createdAt: walkthrough.createdAt,
+          read,
+        }),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause)
+      setError(`could not save walkthrough progress: ${detail}`)
+    }
   }
   useImperativeHandle(
     viewHandle,
@@ -540,6 +628,15 @@ export default function App({
       case 'comments':
         toggleComments()
         break
+      case 'walkthrough':
+        toggleWalkthrough()
+        break
+      case 'next-stop':
+        stepStop(1)
+        break
+      case 'previous-stop':
+        stepStop(-1)
+        break
       case 'copy-comments':
         if (comments.length > 0) void copyComments()
         break
@@ -615,7 +712,7 @@ export default function App({
     return () => window.removeEventListener('desktop:file-command', listener)
   }, [runFileCommand])
 
-  const commentsShown = commentsOpen && (!symbolTab || panelTab === 'comments')
+  const commentsShown = commentsOpen && tab === 'comments'
   /** The palette leaves out what would do nothing, and checks what shows a state. */
   const paletteCommands = (): PaletteCommand[] => {
     const stack = data?.base.stack
@@ -626,6 +723,8 @@ export default function App({
       'layer-above': !!stack && neighbourLayer(stack, 1) !== null,
       'next-file': entries.length > 0,
       'previous-file': entries.length > 0,
+      'next-stop': stops.length > 0,
+      'previous-stop': stops.length > 0,
       'working-tree': workingTreeToggleable(data, target, commit),
       untracked: untrackedToggleable(data),
       viewed: !!activePath,
@@ -646,6 +745,7 @@ export default function App({
       untracked: withUntracked,
       whitespace: ignoreWhitespace,
       comments: commentsShown,
+      walkthrough: walkthroughShown,
       viewed: !!activePath && activePath in viewed,
     }
     return COMMANDS.filter((command) => applies[command.name] ?? true).map((command) => ({
@@ -713,9 +813,9 @@ export default function App({
       pullRequest={pullRequests === 'status-bar' ? pullRequest : null}
     />
   )
-  const tabs = symbolTab ? (
-    <PanelTabs tab={panelTab} comments={comments.length} onTab={setPanelTab} />
-  ) : undefined
+  const tabs = (
+    <PanelTabs tab={tab} comments={comments.length} symbol={symbolTab} onTab={setPanelTab} />
+  )
   const commentsPanel = (
     <>
       <CommentsPanel
@@ -753,9 +853,19 @@ export default function App({
           setComposing(null)
         }}
       />
+      <WalkthroughPanel
+        open={walkthroughShown}
+        tabs={tabs}
+        walkthrough={walkthrough}
+        current={stopIndex}
+        read={readStops}
+        onStop={goToStop}
+        onStep={stepStop}
+        onClose={() => setCommentsOpen(false)}
+      />
       {symbolTab && (
         <SymbolPanel
-          open={commentsOpen && panelTab === 'symbol'}
+          open={commentsOpen && tab === 'symbol'}
           repoId={repoId}
           target={symbolTarget}
           refresh={data?.loadId}

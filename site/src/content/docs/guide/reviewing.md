@@ -41,6 +41,8 @@ Older comments recover their branch from the target in their saved comparison. I
 
 A walkthrough is a tour of the change, written by the agent that made it: a few stops, each with a title, a sentence and the hunks that carry it, in the order that helps the review. Ask the agent to run `diffdesk walkthrough guide`, which tells it how to write one; it lists the hunk IDs with `diffdesk walkthrough hunks`, `path#n` for the n-th hunk of a file, and saves the tour with `diffdesk walkthrough set <file>`, which rejects an unknown or repeated hunk and prints what to fix. `diffdesk walkthrough show` prints the reviewed branch's walkthrough, `clear` deletes it.
 
+**Walkthrough** in the side panel, beside **Comments**, reads it: chapters and stops, the current stop with its prose and hunks. Choosing a stop, or `n` and `p`, scrolls the diff to its first hunk and marks each of its hunks with a **Stop N of M** card; the diff itself stays whole, and comments work as anywhere else. Leaving a stop for the next one ticks it read, and the progress is kept with the walkthrough until a new one replaces it. **View → Walkthrough** and the command palette open the panel; a walkthrough saved while the window is open shows after a refresh (`r`).
+
 A walkthrough belongs to the reviewed branch and survives later changes: a hunk that moved is found by its content, and a stop whose hunks are gone says so. Once half the hunks are gone, the walkthrough is marked stale and is better written again.
 
 ## Viewed files
