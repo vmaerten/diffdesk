@@ -1,0 +1,9 @@
+{
+  "name": "diffdesk",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./site/dist",
+    "not_found_handling": "404-page"
+  },
+  "previews": {}
+}
