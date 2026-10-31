@@ -5,5 +5,10 @@
     "directory": "./site/dist",
     "not_found_handling": "404-page"
   },
+  "routes": [
+    { "pattern": "diffdesk.vmaerten.fr", "custom_domain": true }
+  ],
+  "workers_dev": false,
+  "preview_urls": true,
   "previews": {}
 }
