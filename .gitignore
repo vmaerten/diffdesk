@@ -12,3 +12,5 @@ site/.astro/
 
 # What go build leaves in the package directory.
 desktop/desktop
+
+.wrangler/
