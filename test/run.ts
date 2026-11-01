@@ -31,6 +31,7 @@ import untracked from './suites/untracked.ts'
 import search from './suites/search.ts'
 import whitespace from './suites/whitespace.ts'
 import wrap from './suites/wrap.ts'
+import walkthrough from './suites/walkthrough.ts'
 import markdown from './suites/markdown.ts'
 import fileMenu from './suites/fileMenu.ts'
 import codeIntelligence from './suites/codeIntelligence.ts'
@@ -59,6 +60,7 @@ const SUITES: Suite[] = [
   search,
   whitespace,
   wrap,
+  walkthrough,
   markdown,
   fileMenu,
   codeIntelligence,
