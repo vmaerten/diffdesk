@@ -65,6 +65,12 @@ func WalkthroughHunks(ctx context.Context, repoPath string, selection Selection,
 			Hunks []exportedHunk `json:"hunks"`
 		}{review.repo.Path, review.Range, entries})
 	}
+	_, err = io.WriteString(stdout, listHunks(hunks, review.Range, code))
+	return err
+}
+
+// listHunks is the text `walkthrough hunks` prints, which a generation sends too.
+func listHunks(hunks []hunk, rangeName string, code bool) string {
 	var text strings.Builder
 	files := 0
 	for i, h := range hunks {
@@ -72,7 +78,7 @@ func WalkthroughHunks(ctx context.Context, repoPath string, selection Selection,
 			files++
 		}
 	}
-	fmt.Fprintf(&text, "%d hunks in %d files on %s\n", len(hunks), files, review.Range)
+	fmt.Fprintf(&text, "%d hunks in %d files on %s\n", len(hunks), files, rangeName)
 	for _, h := range hunks {
 		fmt.Fprintf(&text, "%s  +%d -%d  %s\n", h.ID, h.Additions, h.Deletions, h.Header)
 		if code {
@@ -81,8 +87,7 @@ func WalkthroughHunks(ctx context.Context, repoPath string, selection Selection,
 			}
 		}
 	}
-	_, err = io.WriteString(stdout, text.String())
-	return err
+	return text.String()
 }
 
 // SetWalkthrough validates a document against the comparison and saves it as
@@ -100,18 +105,8 @@ func SetWalkthrough(ctx context.Context, repoPath string, selection Selection, i
 	if problems := w.validate(hunks); len(problems) > 0 {
 		return fmt.Errorf("walkthrough not saved:\n  %s", strings.Join(problems, "\n  "))
 	}
-	fingerprints := map[string]string{}
-	for _, h := range hunks {
-		fingerprints[h.ID] = h.Fingerprint
-	}
-	stored := storedWalkthrough{
-		Version: 1, Branch: review.CommentBranch, Range: review.Range, WorkingTree: review.Comparison.After == nil,
-		Author: "agent", CreatedAt: time.Now().UTC().Format(time.RFC3339), Fingerprints: map[string]string{}, Walkthrough: w,
-	}
-	for _, id := range w.cited() {
-		stored.Fingerprints[id] = fingerprints[id]
-	}
-	if err := writeWalkthrough(walkthroughPath(review.repo.GitDir, review.CommentBranch), stored); err != nil {
+	stored, err := saveWalkthrough(review, hunks, w, "agent")
+	if err != nil {
 		return err
 	}
 	stops := 0
@@ -120,6 +115,26 @@ func SetWalkthrough(ctx context.Context, repoPath string, selection Selection, i
 	}
 	_, err = fmt.Fprintf(stdout, "Walkthrough saved for %s: %d stops, %d of %d hunks.\n", review.CommentBranch, stops, len(stored.Fingerprints), len(hunks))
 	return err
+}
+
+// saveWalkthrough stores a valid document as the branch's walkthrough, with the
+// fingerprints of the hunks it cites.
+func saveWalkthrough(review *Review, hunks []hunk, w Walkthrough, author string) (storedWalkthrough, error) {
+	fingerprints := map[string]string{}
+	for _, h := range hunks {
+		fingerprints[h.ID] = h.Fingerprint
+	}
+	stored := storedWalkthrough{
+		Version: 1, Branch: review.CommentBranch, Range: review.Range, WorkingTree: review.Comparison.After == nil,
+		Author: author, CreatedAt: time.Now().UTC().Format(time.RFC3339), Fingerprints: map[string]string{}, Walkthrough: w,
+	}
+	for _, id := range w.cited() {
+		stored.Fingerprints[id] = fingerprints[id]
+	}
+	if err := writeWalkthrough(walkthroughPath(review.repo.GitDir, review.CommentBranch), stored); err != nil {
+		return storedWalkthrough{}, err
+	}
+	return stored, nil
 }
 
 // ShowWalkthrough prints the branch's walkthrough against the current diff.

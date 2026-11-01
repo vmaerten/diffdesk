@@ -43,6 +43,8 @@ A walkthrough is a tour of the change, written by the agent that made it: a few 
 
 **Walkthrough** in the side panel, beside **Comments**, reads it: chapters and stops, the current stop with its prose and hunks. Choosing a stop, or `n` and `p`, scrolls the diff to its first hunk and marks each of its hunks with a **Stop N of M** card; the diff itself stays whole, and comments work as anywhere else. Leaving a stop for the next one ticks it read, and the progress is kept with the walkthrough until a new one replaces it. **View → Walkthrough** and the command palette open the panel; a walkthrough saved while the window is open shows after a refresh (`r`).
 
+Diffdesk can also have an agent write one, in beta: choose Claude Code or Codex under **Settings → Walkthrough**, then use **Generate Walkthrough…** in the panel or the command palette. The sheet says what is sent: the diff goes to that agent's provider, through its own CLI found in your login shell and signed in as you, and the agent gets no tool that writes. The walkthrough opens once saved, replacing the branch's previous one; **Cancel** stops the agent, and a failure keeps its output, with **Try Again**.
+
 A walkthrough belongs to the reviewed branch and survives later changes: a hunk that moved is found by its content, and a stop whose hunks are gone says so. Once half the hunks are gone, the walkthrough is marked stale and is better written again.
 
 ## Viewed files

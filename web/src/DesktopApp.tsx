@@ -526,6 +526,9 @@ export default function DesktopApp() {
               symbolPanel={settings.symbolPanel}
               codeIntelligenceEnabled={settings.codeIntelligence}
               pullRequests={settings.showPullRequests ? settings.pullRequestPlace : null}
+              walkthroughAgent={
+                settings.walkthroughAgent === 'off' ? null : settings.walkthroughAgent
+              }
             />
           )}
         </div>

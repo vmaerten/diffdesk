@@ -44,15 +44,16 @@ type runtimeHealth struct {
 // from its assets. Selections belong to URLs, so registering a checkout never
 // changes another tab's base.
 type Runtime struct {
-	mu     sync.Mutex
-	assets fs.FS
-	repos  map[string]*Server
-	lsp    *languageServers
+	mu           sync.Mutex
+	assets       fs.FS
+	repos        map[string]*Server
+	lsp          *languageServers
+	walkthroughs *walkthroughGenerations
 }
 
 // NewRuntime serves the UI from assets; nil serves the API alone.
 func NewRuntime(assets fs.FS) *Runtime {
-	return &Runtime{assets: assets, repos: make(map[string]*Server), lsp: newLanguageServers()}
+	return &Runtime{assets: assets, repos: make(map[string]*Server), lsp: newLanguageServers(), walkthroughs: newWalkthroughGenerations()}
 }
 
 // Open registers the repository containing path.
@@ -69,7 +70,7 @@ func (s *Runtime) register(repo Repository) Registered {
 	defer s.mu.Unlock()
 	id := repoID(repo.Path)
 	if s.repos[id] == nil {
-		s.repos[id] = &Server{repo: repo, id: id, assets: s.assets, store: storeFor(repo), lsp: s.lsp}
+		s.repos[id] = &Server{repo: repo, id: id, assets: s.assets, store: storeFor(repo), lsp: s.lsp, walkthroughs: s.walkthroughs}
 	}
 	return Registered{id, repo.Path}
 }
@@ -151,6 +152,7 @@ func (s *Runtime) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // requests and stops the language servers.
 func (s *Runtime) Serve(ctx context.Context, listener net.Listener) error {
 	defer s.lsp.close()
+	defer s.walkthroughs.close()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	server := &http.Server{Handler: s, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second,

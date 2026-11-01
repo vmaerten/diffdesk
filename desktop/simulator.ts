@@ -67,6 +67,10 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
     for (const listener of listeners.get(name) ?? []) listener(data)
   }
   const windows = new BroadcastChannel('desktopFixture')
+  const debugKey = `desktopFixture.debugLog.${crypto.randomUUID()}`
+  // oxlint-disable-next-line unicorn/consistent-function-scoping -- the page runs this function alone, without the module.
+  const debugKeys = () =>
+    Object.keys(localStorage).filter((key) => key.startsWith('desktopFixture.debugLog.'))
   windows.addEventListener('message', (event: MessageEvent<{ name: string; data: unknown }>) =>
     emit(event.data.name, event.data.data),
   )
@@ -143,15 +147,19 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
           return fixture.publishUpdate({ status: 'installing', message: '', retry: '' })
         },
         Settings: async () => fixture.settings,
+        // One key per page: two windows appending to the same key at once
+        // would each write back what it read, and lose the other's events.
         AppendDebugEvent: async (raw) => {
-          localStorage.setItem(
-            'desktopFixture.debugLog',
-            (localStorage.getItem('desktopFixture.debugLog') ?? '') + raw + '\n',
-          )
+          localStorage.setItem(debugKey, (localStorage.getItem(debugKey) ?? '') + raw + '\n')
         },
-        DebugLog: async () => localStorage.getItem('desktopFixture.debugLog') ?? '',
+        DebugLog: async () =>
+          debugKeys()
+            .flatMap((key) => (localStorage.getItem(key) ?? '').split('\n').filter(Boolean))
+            .toSorted((a, b) => (JSON.parse(a).time as string).localeCompare(JSON.parse(b).time))
+            .map((line) => line + '\n')
+            .join(''),
         ClearDebugLog: async () => {
-          localStorage.removeItem('desktopFixture.debugLog')
+          for (const key of debugKeys()) localStorage.removeItem(key)
         },
         SaveSettings: async (raw) => {
           localStorage.setItem('desktopFixture.settings', raw)

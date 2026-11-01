@@ -2495,3 +2495,53 @@ button.stack-branch:focus-visible::after {
   font: 11px/1.5 var(--mono);
   white-space: pre-wrap;
 }
+
+.link-button {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.link-button:hover {
+  text-decoration: underline;
+}
+.walkthrough-empty .button {
+  margin-top: 8px;
+}
+.generate-sheet {
+  width: min(480px, calc(100vw - 48px));
+}
+.generate-sheet p {
+  margin: 12px 0 0;
+  line-height: 1.5;
+}
+.generate-sheet .generate-note {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.generate-sheet .generate-missing {
+  color: var(--danger);
+  font-size: 12px;
+}
+.generate-sheet code {
+  font: 11.5px var(--mono);
+}
+.generate-running {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.generate-log {
+  max-height: 220px;
+  margin: 8px 0 0;
+  padding: 8px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--danger);
+  font: 11px/1.5 var(--mono);
+  white-space: pre-wrap;
+}

@@ -15,11 +15,12 @@ import (
 )
 
 type Server struct {
-	repo   Repository
-	id     string
-	store  *Store
-	assets fs.FS
-	lsp    *languageServers
+	repo         Repository
+	id           string
+	store        *Store
+	assets       fs.FS
+	lsp          *languageServers
+	walkthroughs *walkthroughGenerations
 }
 
 func reply(w http.ResponseWriter, status int, body any) {
@@ -119,7 +120,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	route := strings.TrimPrefix(r.URL.Path, prefix+"/api/")
 	// Only routes that read a comparison pay for Git. Every reader uses this result.
 	var review *Review
-	if (r.Method == "GET" && (route == "diff" || route == "diff-files")) || (route == "comments" && (r.Method == "POST" || r.Method == "PATCH")) {
+	if (r.Method == "GET" && (route == "diff" || route == "diff-files")) || (route == "comments" && (r.Method == "POST" || r.Method == "PATCH")) || (route == "walkthrough/generate" && r.Method == "POST") {
 		review, err = s.repo.Resolve(r.Context(), selection)
 		if err != nil {
 			fail(w, 422, err)
@@ -435,6 +436,32 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		reply(w, 200, map[string]any{"read": body.Read})
+	case route == "walkthrough/generate" && s.walkthroughs != nil && s.lsp != nil:
+		// The agents' CLIs are found like the language servers, by the login shell.
+		env := s.lsp.env(s.repo.Path)
+		branch := r.URL.Query().Get("branch")
+		switch r.Method {
+		case "GET":
+		case "POST":
+			var body struct {
+				Agent string `json:"agent"`
+			}
+			if err := decode(w, r, &body); err != nil {
+				fail(w, 400, err)
+				return
+			}
+			if err := s.walkthroughs.start(review, body.Agent, env, s.repo.Path); err != nil {
+				fail(w, 422, err)
+				return
+			}
+			branch = review.CommentBranch
+		case "DELETE":
+			s.walkthroughs.cancel(s.repo.GitDir, branch)
+		default:
+			fail(w, 405, fmt.Errorf("method not allowed"))
+			return
+		}
+		reply(w, 200, s.walkthroughs.status(s.repo.GitDir, branch, env))
 	case route == "comments" && r.Method == "DELETE":
 		comments, err := (repositoryComments{store: s.store}).remove(r.Context(), r.URL.Query().Get("id"))
 		if err != nil {
