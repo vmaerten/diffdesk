@@ -67,3 +67,36 @@ func TestResolveFromTheTerminal(t *testing.T) {
 		t.Fatalf("resolve without an ID: %v", err)
 	}
 }
+
+func TestWalkthroughFromTheTerminal(t *testing.T) {
+	ctx := context.Background()
+	repo := fixtureRepo(t, "walkthrough")
+	cwd := t.TempDir()
+	document := `{"version":1,"title":"Tour","chapters":[{"title":"Greeting","stops":[{"title":"Hello","summary":"The word changes.","hunks":["hello.txt#1"]}]}]}`
+	if err := os.WriteFile(filepath.Join(cwd, "tour.json"), []byte(document), 0600); err != nil {
+		t.Fatal(err)
+	}
+	run := func(args ...string) (string, error) {
+		var out, errOut bytes.Buffer
+		_, err := runTerminal(ctx, append([]string{"walkthrough"}, args...), cwd, &out, &errOut)
+		return out.String(), err
+	}
+	if out, err := run("hunks", "--repo", repo, "--base", "HEAD"); err != nil || !strings.Contains(out, "hello.txt#1  +1 -1  @@ -1 +1 @@\n") {
+		t.Fatalf("hunks: %v %q", err, out)
+	}
+	// The document is set's first positional argument, wherever the options sit.
+	if out, err := run("set", "--repo", repo, "tour.json", "--base", "HEAD"); err != nil || !strings.HasPrefix(out, "Walkthrough saved for main") {
+		t.Fatalf("set: %v %q", err, out)
+	}
+	if out, err := run("show", "--repo", repo, "--base", "HEAD"); err != nil || !strings.Contains(out, "1.1 Hello") {
+		t.Fatalf("show: %v %q", err, out)
+	}
+	if out, err := run("guide"); err != nil || !strings.HasPrefix(out, "# Writing a Diffdesk walkthrough") {
+		t.Fatalf("guide: %v %q", err, out)
+	}
+	for _, args := range [][]string{{"set", "--repo", repo}, {"show", "--json", "--repo", repo}, {"tour"}, {}} {
+		if _, err := run(args...); err == nil {
+			t.Errorf("%v was accepted", args)
+		}
+	}
+}
