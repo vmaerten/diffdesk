@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diffdesk — walkthrough</title>
+<style>
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+[hidden] { display: none !important; }
+[data-theme="light"] {
+  color-scheme: light;
+  --wallpaper: radial-gradient(at 15% 15%, #9ec5ff, transparent 50%), radial-gradient(at 85% 25%, #ffc3a0, transparent 50%), radial-gradient(at 50% 95%, #b8a6ff, transparent 55%), #dfe6f2;
+  --app-bg: #f8f8f6; --code-bg: #fff; --chrome-bg: #f1f1ef; --sidebar-bg: #ececea; --panel-bg: #f3f3f1;
+  --border: rgb(17 17 17 / .1); --wash: rgb(127 127 127 / .1); --wash-strong: rgb(127 127 127 / .2);
+  --text: #111; --text-2: rgb(17 17 17 / .78); --muted: rgb(17 17 17 / .56);
+  --selection: #cdeaff; --accent: #3d87f5; --accent-ink: #1559c4; --warn: #9a5306;
+  --guide: #7a4fc9; --guide-soft: rgb(122 79 201 / .1); --guide-line: rgb(122 79 201 / .55);
+  --add: rgb(31 122 68); --del: rgb(184 49 47);
+  --shadow: 0 30px 80px rgb(0 0 0 / .25), 0 0 0 .5px rgb(0 0 0 / .25);
+  --popover-bg: rgb(251 251 250 / .98); --sheet-bg: #f6f6f4; --control-bg: #fff; --control-border: rgb(0 0 0 / .18);
+  --page-text: rgb(17 17 17 / .8);
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --wallpaper: radial-gradient(at 15% 15%, #1d3b73, transparent 50%), radial-gradient(at 85% 25%, #5a2d4f, transparent 50%), radial-gradient(at 50% 95%, #2b2366, transparent 55%), #0d1018;
+  --app-bg: #141414; --code-bg: #1c1c1c; --chrome-bg: #1e1e1e; --sidebar-bg: #232323; --panel-bg: #202020;
+  --border: rgb(230 230 230 / .1); --wash: rgb(127 127 127 / .14); --wash-strong: rgb(127 127 127 / .26);
+  --text: rgb(235 235 235); --text-2: rgb(230 230 230 / .8); --muted: rgb(230 230 230 / .52);
+  --selection: rgb(61 135 245 / .3); --accent: #3d87f5; --accent-ink: #8cb8ff; --warn: #eb9a3d;
+  --guide: #b694f5; --guide-soft: rgb(182 148 245 / .12); --guide-line: rgb(182 148 245 / .6);
+  --add: rgb(111 208 148); --del: rgb(238 126 126);
+  --shadow: 0 30px 80px rgb(0 0 0 / .55), 0 0 0 .5px rgb(255 255 255 / .18);
+  --popover-bg: rgb(40 40 40 / .98); --sheet-bg: #262626; --control-bg: rgb(255 255 255 / .1); --control-border: rgb(255 255 255 / .12);
+  --page-text: rgb(255 255 255 / .85);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 72px 16px 32px;
+  background: var(--wallpaper); font: 13px/1.4 var(--font-sans); color: var(--text);
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
+svg { width: 16px; height: 16px; flex: none; }
+.mono { font-family: var(--font-mono); }
+.a { color: var(--add); } .d { color: var(--del); } .dim { color: var(--muted); }
+code { font: 600 11.5px var(--font-mono); padding: 1px 4px; border-radius: 4px; background: var(--wash); }
+kbd { font: 600 10.5px/1 var(--font-mono); padding: 2px 5px; border-radius: 4px; background: var(--wash-strong); color: var(--text-2); }
+
+/* Mockup-only controls, outside the window */
+.mock-controls {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 32px); overflow-x: auto;
+  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 12px; white-space: nowrap;
+  background: var(--popover-bg); border: 1px solid var(--border); box-shadow: 0 8px 24px rgb(0 0 0 / .2);
+  font: 600 12px var(--font-sans); color: var(--text-2);
+}
+.mock-controls > span { padding: 0 8px; color: var(--muted); }
+.mock-controls .sep { width: 1px; height: 16px; padding: 0; background: var(--border); margin: 0 4px; }
+.mock-controls button { height: 26px; padding: 0 10px; border-radius: 8px; }
+.mock-controls button:hover { background: var(--wash); }
+.mock-controls button[aria-pressed="true"] { background: var(--wash-strong); color: var(--text); }
+.caption { width: min(1200px, 100%); margin: 0; color: var(--page-text); font-size: 13px; line-height: 1.55; }
+.caption kbd { color: var(--text); }
+
+/* Window */
+.window {
+  position: relative; flex: none; width: min(1200px, 100%); height: 660px; border-radius: 12px; overflow: hidden;
+  box-shadow: var(--shadow); background: var(--app-bg); user-select: none; -webkit-user-select: none; cursor: default;
+  display: grid; grid-template-columns: 248px minmax(0, 1fr) auto; grid-template-rows: 40px minmax(0, 1fr);
+}
+.titlebar {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; padding: 0 10px 0 14px;
+  background: var(--chrome-bg); border-bottom: 1px solid var(--border);
+}
+.lights { display: flex; gap: 8px; margin-right: 10px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .2); }
+.lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+.icon-btn { width: 28px; height: 28px; border-radius: 8px; display: inline-grid; place-items: center; color: var(--muted); }
+.icon-btn:hover { background: var(--wash); color: var(--text-2); }
+.icon-btn.on { background: var(--wash-strong); color: var(--text); }
+.repo { font: 600 12px var(--font-mono); color: var(--text-2); padding: 0 6px; white-space: nowrap; }
+.repo span { color: var(--muted); }
+.compare {
+  flex: none; margin: 0 auto; display: flex; align-items: center; gap: 2px; height: 30px; padding: 2px 6px;
+  border-radius: 15px; background: rgb(127 127 127 / .08); border: 1px solid rgb(127 127 127 / .16);
+  font: 600 12px/1 var(--font-mono); color: var(--text-2); white-space: nowrap;
+}
+.compare .arrow { color: var(--muted); margin: 0 6px; }
+.compare .sep { width: 1px; height: 14px; background: var(--border); margin: 0 8px; }
+.compare .commit { font-family: var(--font-sans); color: var(--muted); }
+.actions { flex: none; display: flex; align-items: center; gap: 4px; }
+.seg { display: flex; padding: 2px; border-radius: 8px; background: var(--wash); }
+.seg button { height: 24px; padding: 0 10px; border-radius: 6px; font-size: 12px; color: var(--text-2); }
+.seg button.on { background: var(--control-bg); color: var(--text); box-shadow: 0 0 0 .5px var(--control-border); }
+.count { font: 700 10px/1 var(--font-mono); background: rgb(127 127 127 / .2); color: var(--text-2); border-radius: 999px; padding: 3px 5px; }
+
+/* Sidebar */
+.side { display: flex; flex-direction: column; min-height: 0; background: var(--sidebar-bg); border-right: 1px solid var(--border); }
+.side-head { display: flex; align-items: center; gap: 6px; padding: 12px 10px 6px 14px; font: 700 10.5px/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.side-head .spacer { flex: 1; }
+.side .seg { margin: 10px 10px 2px; }
+.side .seg button { flex: 1; }
+.tree { padding: 0 6px; overflow: hidden; flex: 1; }
+.row { display: flex; align-items: center; gap: 6px; height: 24px; border-radius: 6px; white-space: nowrap; padding: 0 8px 0 calc(8px + var(--d, 0) * 14px); color: var(--text-2); }
+.row.sel { background: var(--selection); color: var(--text); }
+.row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.row .st { font: 600 11px var(--font-mono); width: 10px; text-align: center; }
+.row .mark { width: 6px; height: 6px; border-radius: 50%; background: var(--guide); }
+.st.A { color: var(--add); } .st.M { color: var(--warn); }
+.side-foot { padding: 10px 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); display: flex; gap: 8px; }
+
+/* Main */
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.diff { flex: 1; min-height: 0; overflow: hidden; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.card { flex: none; background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.card-head { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-bottom: 1px solid var(--border); font: 600 12px var(--font-mono); }
+.card-head .path span { color: var(--muted); }
+.card-head .stats { margin-left: auto; }
+.card-head .viewed { font: 500 12px var(--font-sans); padding: 3px 9px; border-radius: 7px; border: 1px solid var(--border); color: var(--text-2); }
+.sepline { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 14px; font: 12px var(--font-mono); color: var(--muted); background: rgb(127 127 127 / .06); white-space: nowrap; }
+.sepline .h { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hunk { position: relative; }
+.hunk.on { box-shadow: inset 3px 0 0 var(--guide); }
+.hunk.on .ln i { color: var(--guide); }
+.hunk.stale { box-shadow: inset 3px 0 0 var(--warn); }
+.hunk-tag { flex: none; font: 600 10.5px var(--font-sans); padding: 2px 7px; border-radius: 999px; color: var(--guide); background: var(--guide-soft); }
+.ln { display: grid; grid-template-columns: 44px 18px 1fr; font: 12px/20px var(--font-mono); color: var(--text-2); white-space: pre; overflow: hidden; }
+.ln i { font-style: normal; color: var(--muted); text-align: right; padding-right: 10px; }
+.ln b { font-weight: 400; color: var(--muted); }
+.ln.add { background: rgb(31 122 68 / .09); } .ln.add b { color: var(--add); }
+.ln.del { background: rgb(184 49 47 / .08); } .ln.del b { color: var(--del); }
+
+/* Status bar */
+.footer { display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.footer .next { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.footer .next b { font: 600 12px var(--font-mono); color: var(--text-2); }
+.stepper { display: flex; align-items: center; gap: 2px; height: 24px; padding: 0 4px; border-radius: 7px; background: var(--guide-soft); color: var(--guide); font-weight: 600; }
+.stepper .icon-btn { width: 20px; height: 20px; border-radius: 5px; color: var(--guide); }
+.stepper .icon-btn svg { width: 12px; height: 12px; }
+
+/* Right panel */
+.panel { width: 336px; display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--border); background: var(--panel-bg); }
+.panel-tabs { display: flex; align-items: center; gap: 2px; padding: 8px 8px 8px 10px; border-bottom: 1px solid var(--border); }
+.panel-tabs button { height: 26px; padding: 0 10px; border-radius: 7px; font-weight: 600; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.panel-tabs button.on { background: var(--wash-strong); color: var(--text); }
+.panel-tabs .spacer { flex: 1; }
+.panel-body { flex: 1; min-height: 0; overflow: hidden; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.panel-foot { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--border); }
+.panel-foot .prog, .side-foot .prog { flex: 1; align-self: center; }
+
+.wt-head h2 { margin: 0 0 4px; font: 600 14px var(--font-sans); }
+.wt-head p { margin: 0; color: var(--text-2); font-size: 12.5px; line-height: 1.45; }
+.wt-meta { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+.chap { font: 700 10.5px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 6px 2px 0; }
+.stop { display: grid; grid-template-columns: 18px 1fr auto; width: 100%; gap: 8px; align-items: start; padding: 7px 8px; border-radius: 8px; color: var(--text-2); }
+.stop:hover { background: var(--wash); }
+.stop.cur { background: var(--code-bg); box-shadow: 0 0 0 1px var(--guide-line); color: var(--text); }
+.stop .n { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font: 700 10px var(--font-mono); background: var(--wash-strong); color: var(--text-2); }
+.stop.read .n { background: var(--add); color: #fff; }
+.stop.cur .n { background: var(--guide); color: #fff; }
+.stop .t { font-weight: 600; }
+.stop .s { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.stop .prose { margin-top: 6px; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.stop .refs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.ref { font: 600 10.5px var(--font-mono); padding: 2px 6px; border-radius: 5px; background: var(--wash); color: var(--text-2); }
+.ref.stale { color: var(--warn); background: rgb(154 83 6 / .12); }
+.stop .k { font: 600 11px var(--font-mono); color: var(--muted); }
+.support { margin-top: 2px; padding: 8px; border-radius: 8px; border: 1px dashed var(--border); color: var(--muted); font-size: 12px; }
+
+.badge { font: 600 10px/1 var(--font-sans); padding: 3px 6px; border-radius: 999px; letter-spacing: .02em; white-space: nowrap; }
+.badge.agent { color: var(--guide); background: var(--guide-soft); }
+.badge.stale { color: var(--warn); background: rgb(154 83 6 / .14); }
+.bar { height: 4px; border-radius: 2px; background: var(--wash); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 2px; background: var(--add); }
+.btn { height: 26px; padding: 0 12px; border-radius: 7px; font: 500 13px var(--font-sans); background: var(--control-bg); color: var(--text); box-shadow: 0 0 0 .5px var(--control-border), 0 1px 1px rgb(0 0 0 / .06); white-space: nowrap; }
+.btn.small { height: 24px; padding: 0 10px; font-size: 12px; }
+.btn.primary { background: var(--accent); color: #fff; box-shadow: none; }
+
+/* B: banner */
+.banner { flex: none; display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 12px; background: var(--code-bg); box-shadow: 0 0 0 1px var(--guide-line), 0 8px 20px -12px rgb(0 0 0 / .3); }
+.banner .n { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 700 11px var(--font-mono); background: var(--guide); color: #fff; }
+.banner .body { flex: 1; min-width: 0; }
+.banner .t { font-weight: 600; }
+.banner .prose { color: var(--text-2); font-size: 12.5px; line-height: 1.5; margin-top: 2px; }
+.banner .nav { display: flex; gap: 2px; }
+
+/* C: narrative */
+.narr { flex: 1; min-height: 0; overflow: hidden; padding: 18px 24px; display: flex; flex-direction: column; gap: 12px; }
+.narr-head .chapter { font: 700 10.5px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--guide); }
+.narr-head h2 { margin: 4px 0 6px; font: 600 18px var(--font-sans); }
+.narr-head p { margin: 0; max-width: 720px; color: var(--text-2); line-height: 1.55; }
+.narr-nav { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 4px; font-size: 12px; color: var(--muted); }
+.narr-nav .spacer { flex: 1; }
+.outline .stop { grid-template-columns: 18px 1fr; padding: 5px 8px; }
+
+/* D: inline guide card */
+.guide-card { margin: 8px 12px; padding: 8px 12px; border-radius: 10px; background: var(--guide-soft); box-shadow: inset 3px 0 0 var(--guide); font: 12.5px/1.5 var(--font-sans); color: var(--text-2); white-space: normal; }
+.guide-card .t { display: flex; align-items: center; gap: 8px; color: var(--text); font-weight: 600; margin-bottom: 2px; }
+.guide-card .t .n { font: 700 10.5px var(--font-mono); color: var(--guide); }
+.guide-card .more { color: var(--guide); font-weight: 600; font-size: 12px; }
+
+/* Overlays */
+.scrim { position: absolute; inset: 40px 0 0 0; background: rgb(0 0 0 / .18); z-index: 9; }
+.sheet {
+  position: absolute; top: 40px; left: 50%; width: min(520px, calc(100% - 32px)); transform: translateX(-50%); z-index: 10;
+  padding: 18px 20px 16px; border: 1px solid var(--border); border-top: 0; border-radius: 0 0 12px 12px;
+  background: var(--sheet-bg); box-shadow: 0 24px 60px -16px rgb(0 0 0 / .45);
+}
+.sheet h2 { margin: 0 0 4px; font: 600 15px var(--font-sans); }
+.sheet .lead { margin: 0 0 14px; color: var(--text-2); font-size: 12.5px; line-height: 1.5; }
+.field { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12.5px; }
+.field label { color: var(--text-2); }
+.select { height: 26px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; border-radius: 7px; background: var(--control-bg); box-shadow: 0 0 0 .5px var(--control-border); }
+.notice { margin: 12px 0 0; padding: 10px 12px; border-radius: 9px; background: var(--wash); font-size: 12px; line-height: 1.5; color: var(--text-2); }
+.sh-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.sh-foot .hint { flex: 1; font-size: 12px; color: var(--muted); }
+.running { display: flex; align-items: center; gap: 10px; margin-top: 4px; font-size: 12.5px; color: var(--text-2); }
+.spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--wash-strong); border-top-color: var(--guide); animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+.log { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--code-bg); border: 1px solid var(--border); font: 11.5px/1.5 var(--font-mono); color: var(--muted); white-space: pre; overflow: hidden; }
+
+.empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 20px; color: var(--text-2); }
+.empty h3 { margin: 0; font-size: 14px; color: var(--text); }
+.empty p { margin: 0; font-size: 12.5px; line-height: 1.5; }
+.empty pre { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--code-bg); border: 1px solid var(--border); font: 11.5px var(--font-mono); text-align: left; }
+.stale-note { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 9px; background: rgb(154 83 6 / .1); color: var(--warn); font-size: 12px; }
+.stale-note .btn { margin-left: auto; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sidebar" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></symbol>
+  <symbol id="i-left" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 3.5 5.5 8l4.5 4.5"/></symbol>
+  <symbol id="i-right" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3.5 10.5 8 6 12.5"/></symbol>
+  <symbol id="i-comment" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/></symbol>
+  <symbol id="i-route" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="4" cy="3.5" r="1.6"/><circle cx="12" cy="12.5" r="1.6"/><path d="M5.6 3.5H10a2.5 2.5 0 0 1 0 5H6a2.5 2.5 0 0 0 0 5h4.4"/></symbol>
+  <symbol id="i-caret" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m4.5 6 3.5 3.5L11.5 6"/></symbol>
+  <symbol id="i-more" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="13" cy="8" r="1.3"/></symbol>
+</svg>
+
+<div class="mock-controls" role="toolbar" aria-label="Maquette">
+  <span>Variante</span>
+  <button data-pick="A">A · Panneau</button>
+  <button data-pick="B">B · Sidebar</button>
+  <button data-pick="C">C · Narratif</button>
+  <button data-pick="D">D · Notes dans la diff</button>
+  <span class="sep"></span>
+  <span>État</span>
+  <button data-state="ready">Prêt</button>
+  <button data-state="empty">Vide</button>
+  <button data-state="generate">Génération</button>
+  <button data-state="running">En cours</button>
+  <button data-state="stale">Périmé</button>
+  <span class="sep"></span>
+  <button data-theme-pick="light">Clair</button>
+  <button data-theme-pick="dark">Sombre</button>
+</div>
+
+<div class="window" id="win" lang="en"></div>
+<p class="caption" id="caption"></p>
+
+<script>
+const $ = (id) => document.getElementById(id)
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+const inline = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>')
+const icon = (name) => `<svg><use href="#i-${name}"/></svg>`
+
+// The walkthrough an agent could write for #305.
+const HUNKS = {
+  'go/internal/app/review.go#2': { at: 99, header: 'func validPath(path string) bool {', lines: [
+    [' ', '}'], ['+', ''],
+    ['+', '// wholeFile reports a comment on no lines: on its whole file, or on the whole'],
+    ['+', '// review when it has no path either.'],
+    ['+', 'func wholeFile(c Comment) bool { return c.Start == 0 && c.End == 0 }'],
+    ['+', ''],
+    ['+', '// validTarget accepts a file of the repository, or no path for the whole review.'],
+    ['+', 'func validTarget(c Comment) bool {'],
+    ['+', '\treturn validPath(c.Path) || (c.Path == "" && wholeFile(c))'],
+    ['+', '}'],
+    [' ', 'func validLocation(c Comment) bool {'],
+    ['+', '\tif wholeFile(c) {'], ['+', '\t\treturn c.Side == "additions"'], ['+', '\t}'],
+  ] },
+  'go/internal/app/state.go#1': { at: 105, header: 'func readState(raw []byte) (StoredState, error) {', lines: [
+    [' ', '\t\t\tc.Status = statusOpen'], [' ', '\t\t}'],
+    ['-', '\t\tif c.ID == "" || !validPath(c.Path) || !validLocation(*c) || c.Anchor == nil {'],
+    ['+', '\t\tif c.ID == "" || !validTarget(*c) || !validLocation(*c) || c.Anchor == nil {'],
+    [' ', '\t\t\treturn state, fmt.Errorf("Invalid comment in review state")'],
+  ] },
+  'go/internal/app/review.go#3': { at: 664, header: 'func (r *Review) rawLines(ctx context.Context, c Comment) ([]string, error) {', lines: [
+    [' ', 'func (r *Review) rawLines(ctx context.Context, c Comment) ([]string, error) {'],
+    ['+', '\tif wholeFile(c) {'], ['+', '\t\treturn []string{}, nil'], ['+', '\t}'],
+    [' ', '\tif !validLocation(c) {'],
+  ] },
+  'go/internal/app/comments.go#1': { at: 32, header: 'func (c repositoryComments) create(…)', lines: [
+    ['-', '\tif draft.ID == "" || !validPath(draft.Path) || draft.Range == "" || !validLocation(draft) {'],
+    ['+', '\tif draft.ID == "" || !validTarget(draft) || draft.Range == "" || !validLocation(draft) {'],
+  ] },
+  'web/src/useReviewDiff.tsx#4': { at: 986, header: 'const renderHeaderMetadata = useCallback(', lines: [
+    [' ', '        <div className="file-header-actions" data-header-path={path}>'],
+    ['+', '          <button'], ['+', '            className="file-copy-button"'],
+    ['+', '            aria-label={`Comment on ${path}`}'],
+    ['+', '            onClick={() => commentFile(path)}'], ['+', '          >'],
+  ] },
+  'web/src/App.tsx#1': { at: 186, header: 'export default function App({', lines: [
+    ['+', '  const [composing, setComposing] = useState<string | null>(null)'],
+    ['+', '  const compose = (path: string | null) => {'],
+    ['+', '    setComposing(path)'], ['+', '    setCommentsOpen(true)'], ['+', '  }'],
+  ] },
+  'web/src/CommentsPanel.tsx#2': { at: 52, header: 'const groups = useMemo(() => {', lines: [
+    ['+', '    // The review first, then files in the tree\'s order, as the panel reads.'],
+    ['+', '    const rank = (path: string) => (path ? order.get(path)! : -1)'],
+  ] },
+  'go/internal/app/export.go#2': { at: 93, header: 'func writeCommentText(…)', lines: [
+    ['+', '\t\tcase wholeFile(c.Comment) && c.Path == "":'],
+    ['+', '\t\t\tlocation = shortID(c.ID) + " (whole review)"'],
+    ['+', '\t\tcase wholeFile(c.Comment):'],
+    ['+', '\t\t\tlocation = fmt.Sprintf("%s %s (whole file)", shortID(c.ID), c.Path)'],
+  ] },
+  'src/export.ts#1': { at: 46, header: 'export function asText(…)', lines: [
+    ['+', '    const location = !wholeFile(comment)'],
+    ['+', '      ? `${comment.path}:${lines}`'],
+    ['+', '      : comment.path ? `${comment.path} (whole file)` : \'(whole review)\''],
+  ] },
+}
+const CHAPTERS = [
+  { title: 'Model', stops: [
+    { title: 'A comment without lines', summary: 'start and end at 0 cover the whole file; no path, the whole review.',
+      prose: '`validTarget` is shared by creation and by reading the state file, so both accept the same comments.',
+      hunks: ['go/internal/app/review.go#2', 'go/internal/app/state.go#1'] },
+    { title: 'No anchor to read', summary: 'Such a comment has no lines to quote or to find stale.',
+      prose: '`rawLines` answers an empty list before checking the range, and creation keeps the same rule through `validTarget`.',
+      hunks: ['go/internal/app/review.go#3', 'go/internal/app/comments.go#1'] },
+  ] },
+  { title: 'Panel', stops: [
+    { title: 'Write from the file header', summary: 'A button in each card opens a composer in the panel.',
+      prose: 'The header calls `commentFile`, which `App` turns into the panel’s composer for that path.',
+      hunks: ['web/src/useReviewDiff.tsx#4', 'web/src/App.tsx#1'] },
+    { title: 'Review comments first', summary: 'The panel lists the review group above the files.',
+      prose: 'An empty path ranks before every file in the tree’s order.',
+      hunks: ['web/src/CommentsPanel.tsx#2'] },
+  ] },
+  { title: 'Export', stops: [
+    { title: 'Same text from Go and TS', summary: 'Copy and `diffdesk comments` name them alike.',
+      prose: 'Both writers switch on `wholeFile`; the shared golden fixture holds them to the same output.',
+      hunks: ['go/internal/app/export.go#2', 'src/export.ts#1'] },
+  ] },
+]
+const SUPPORT = { note: 'Docs, changelog and tests', hunks: ['CHANGELOG.md#1', 'site/…/reviewing.md#1', 'test/suites/scopedComments.ts#1'] }
+const STOPS = CHAPTERS.flatMap((c, ci) => c.stops.map((s) => ({ ...s, chapter: c.title, ci })))
+const FILES = [
+  ['go/internal/app', 0, 'dir'], ['comments.go', 1, 'M'], ['export.go', 1, 'M'], ['review.go', 1, 'M'], ['state.go', 1, 'M'],
+  ['src', 0, 'dir'], ['export.ts', 1, 'M'],
+  ['web/src', 0, 'dir'], ['App.tsx', 1, 'M'], ['CommentsPanel.tsx', 1, 'M'], ['useReviewDiff.tsx', 1, 'M'],
+  ['CHANGELOG.md', 0, 'M'],
+]
+
+const fromHash = location.hash.slice(1).split('/')
+let pick = /^[A-D]$/.test(fromHash[0]) ? fromHash[0] : 'A'
+let state = ['ready', 'empty', 'generate', 'running', 'stale'].includes(fromHash[1]) ? fromHash[1] : 'ready'
+let cur = 0
+const read = new Set()
+const staleHunk = 'go/internal/app/state.go#1'
+
+const CAPTIONS = {
+  A: `<b>A · Onglet du panneau</b> — Walkthrough rejoint Comments dans le panneau de droite. Choisir un arrêt fait défiler la diff normale jusqu'à ses hunks, marqués d'une barre violette ; <kbd>n</kbd> / <kbd>p</kbd> passent d'un arrêt à l'autre. La diff ne change pas : la variante la moins risquée.`,
+  B: `<b>B · Sidebar</b> — la sidebar bascule entre Files et Walkthrough ; l'arrêt courant reste en bandeau au-dessus de la diff, qui défile comme en A. Le panneau de droite reste aux commentaires, mais l'arbre disparaît pendant le parcours.`,
+  C: `<b>C · Vue narrative</b> — comme codiff : le centre ne montre que l'arrêt courant, sa prose puis ses hunks, chacun avec l'en-tête de son fichier. La plus lisible pour un premier passage ; demande des items par hunk dans <span class="mono">CodeView</span>, et une seconde façon de rendre la review.`,
+  D: `<b>D · Notes dans la diff</b> — la prose de chaque arrêt s'insère au-dessus de son premier hunk, en violet pour ne pas se confondre avec un commentaire ; la barre d'état porte l'arrêt courant. Rien ne s'ouvre, mais un arrêt multi-fichier n'a qu'une carte.`,
+}
+const STATES = {
+  ready: '',
+  empty: ` <b>Vide</b> : pas encore de walkthrough pour cette branche ; deux sorties, demander à l'agent du changement ou générer (bêta).`,
+  generate: ` <b>Génération</b> : la feuille dit ce qui part et où avant de lancer le CLI.`,
+  running: ` <b>En cours</b> : le CLI tourne ; la review reste utilisable, Cancel arrête le processus.`,
+  stale: ` <b>Périmé</b> : un hunk a changé depuis l'écriture ; son arrêt reste lisible, sans surlignage, et Regenerate propose de le refaire.`,
+}
+
+function titlebar() {
+  const panelOn = pick === 'A' && state !== 'empty'
+  return `<header class="titlebar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <button class="icon-btn">${icon('sidebar')}</button>
+    <div class="repo"><span>~/dev/perso/</span>github-like</div>
+    <div class="compare">main<span class="arrow">←</span>feat/file-review-comments<span class="sep"></span><span class="commit">All commits</span></div>
+    <div class="actions">
+      <div class="seg"><button class="on">Unified</button><button>Split</button></div>
+      <button class="icon-btn${panelOn || (pick === 'A' && state === 'empty') ? ' on' : ''}" title="Walkthrough">${icon('route')}</button>
+      <span class="count">2</span><button class="icon-btn">${icon('comment')}</button>
+    </div>
+  </header>`
+}
+
+function tree() {
+  const files = new Set(STOPS[cur].hunks.map((h) => h.split('#')[0].split('/').pop()))
+  return FILES.map(([name, d, st]) => st === 'dir'
+    ? `<div class="row" style="--d:${d}"><svg class="chev" style="width:12px;height:12px">${'<use href="#i-caret"/>'}</svg><span class="name">${name}</span></div>`
+    : `<div class="row${name === 'review.go' && pick !== 'C' ? ' sel' : ''}" style="--d:${d}"><span class="name">${name}</span>${pick === 'D' && files.has(name) ? '<span class="mark"></span>' : ''}<span class="st ${st}">${st}</span></div>`).join('')
+}
+
+function lines(id) {
+  const h = HUNKS[id]
+  let n = h.at
+  return h.lines.map(([k, text]) => {
+    const num = k === '-' ? '' : n++
+    return `<div class="ln${k === '+' ? ' add' : k === '-' ? ' del' : ''}"><i>${num}</i><b>${k === ' ' ? '' : k}</b>${esc(text)}</div>`
+  }).join('')
+}
+
+function hunk(id, { tag = true } = {}) {
+  const stop = STOPS.findIndex((s) => s.hunks.includes(id))
+  const on = stop === cur && state !== 'empty'
+  const stale = state === 'stale' && id === staleHunk
+  const cls = stale ? ' stale' : on && pick !== 'C' ? ' on' : ''
+  const label = on && tag && pick !== 'C' && pick !== 'D' && !stale ? `<span class="hunk-tag">Stop ${cur + 1}</span>` : ''
+  return `<div class="hunk${cls}"><div class="sepline"><span class="h">@@ ${esc(HUNKS[id].header)}</span>${label}</div>${lines(id)}</div>`
+}
+
+function card(path, ids, before = '') {
+  const [dir, file] = [path.slice(0, path.lastIndexOf('/') + 1), path.slice(path.lastIndexOf('/') + 1)]
+  const add = ids.flatMap((id) => HUNKS[id].lines).filter(([k]) => k === '+').length
+  const del = ids.flatMap((id) => HUNKS[id].lines).filter(([k]) => k === '-').length
+  return `<div class="card"><div class="card-head"><span class="path"><span>${dir}</span>${file}</span><span class="stats"><span class="a">+${add}</span> <span class="d">${del ? '−' + del : ''}</span></span><span class="viewed">Viewed</span></div>${before}${ids.map((id) => hunk(id)).join('')}</div>`
+}
+
+// The plain diff, scrolled to the current stop's first file.
+function diffFrom() {
+  const byFile = new Map()
+  for (const id of Object.keys(HUNKS)) {
+    const path = id.split('#')[0]
+    byFile.set(path, [...(byFile.get(path) ?? []), id])
+  }
+  const order = [...byFile.keys()].sort()
+  const first = STOPS[cur].hunks[0].split('#')[0]
+  const start = state === 'empty' ? 0 : order.indexOf(first)
+  return order.slice(start).concat(order.slice(0, start)).map((path) => {
+    const ids = byFile.get(path).sort()
+    if (pick !== 'D' || state === 'empty') return card(path, ids)
+    // D: each stop's note sits above its first hunk.
+    return `<div class="card"><div class="card-head"><span class="path"><span>${path.slice(0, path.lastIndexOf('/') + 1)}</span>${path.slice(path.lastIndexOf('/') + 1)}</span><span class="stats"></span><span class="viewed">Viewed</span></div>${ids.map((id) => {
+      const s = STOPS.findIndex((stop) => stop.hunks[0] === id)
+      const note = s >= 0 ? guideCard(s) : ''
+      return note + hunk(id)
+    }).join('')}</div>`
+  }).join('')
+}
+
+function guideCard(i) {
+  const s = STOPS[i]
+  const more = s.hunks.length > 1 ? `<div class="more">Continues in ${s.hunks.slice(1).map((h) => h.split('#')[0].split('/').pop()).join(', ')} →</div>` : ''
+  return `<div class="guide-card"><div class="t"><span class="n">${i + 1}/${STOPS.length}</span>${esc(s.title)}</div>${inline(s.prose)}${more}</div>`
+}
+
+function stopRow(s, i, { expand = true } = {}) {
+  const isCur = i === cur
+  const stale = state === 'stale' && s.hunks.includes(staleHunk)
+  const refs = s.hunks.map((h) => `<span class="ref${stale && h === staleHunk ? ' stale' : ''}">${h.split('/').pop()}</span>`).join('')
+  const body = isCur && expand
+    ? `<div class="s">${inline(s.summary)}</div><div class="prose">${inline(s.prose)}</div><div class="refs">${refs}</div>`
+    : `<div class="s">${inline(s.summary)}</div>`
+  return `<button class="stop${isCur ? ' cur' : ''}${read.has(i) ? ' read' : ''}" data-stop="${i}" style="text-align:left"><span class="n">${read.has(i) ? '✓' : i + 1}</span><span><div class="t">${esc(s.title)} ${stale ? '<span class="badge stale">Changed</span>' : ''}</div>${body}</span>${expand ? `<span class="k">${isCur ? 'n ›' : ''}</span>` : ''}</button>`
+}
+
+function outline({ expand = true } = {}) {
+  let i = 0
+  return CHAPTERS.map((c) => `<div class="chap">${c.title}</div>${c.stops.map((s) => stopRow(s, i++, { expand })).join('')}`).join('') +
+    `<div class="support">${SUPPORT.note} · ${SUPPORT.hunks.length} hunks off the path</div>`
+}
+
+function walkHead() {
+  const staleNote = state === 'stale' ? `<div class="stale-note">1 hunk changed since it was written<button class="btn small">Regenerate</button></div>` : ''
+  return `<div class="wt-head"><h2>Comments on a whole file or review</h2><p>A comment without lines now covers its file, or the review without a path.</p>
+    <div class="wt-meta"><span class="badge agent">Claude Code · sonnet</span>2 min ago · main..feature</div></div>${staleNote}`
+}
+
+function emptyWalk() {
+  return `<div class="empty"><h3>No walkthrough yet</h3>
+    <p>Ask the agent that wrote the change to describe it:</p>
+    <pre>diffdesk walkthrough guide\ndiffdesk walkthrough hunks\ndiffdesk walkthrough set walk.json</pre>
+    <p>or let Diffdesk run a local agent.</p>
+    <button class="btn small primary" data-state-go="generate">Generate Walkthrough… <span style="opacity:.7">Beta</span></button></div>`
+}
+
+function progress() {
+  return `<div class="prog"><div class="bar"><i style="width:${(100 * read.size) / STOPS.length}%"></i></div></div><span class="dim" style="font-size:12px">${read.size}/${STOPS.length} read</span>`
+}
+
+function panel() {
+  if (pick !== 'A') return ''
+  const body = state === 'empty' ? emptyWalk() : walkHead() + outline()
+  const foot = state === 'empty' ? '' : `<div class="panel-foot">${progress()}<button class="icon-btn" data-step="-1">${icon('left')}</button><button class="icon-btn" data-step="1">${icon('right')}</button><button class="icon-btn">${icon('more')}</button></div>`
+  return `<aside class="panel"><div class="panel-tabs"><button>${icon('comment')} Comments <span class="count">2</span></button><button class="on">${icon('route')} Walkthrough</button><span class="spacer"></span></div><div class="panel-body">${body}</div>${foot}</aside>`
+}
+
+function sidebar() {
+  if (pick === 'B') {
+    const body = state === 'empty' ? emptyWalk() : `<div class="tree" style="padding:8px 8px 0;display:flex;flex-direction:column;gap:2px">${walkHead()}${outline({ expand: false })}</div>`
+    return `<aside class="side"><div class="seg"><button>Files</button><button class="on">Walkthrough</button></div>${body}<div class="side-foot">${state === 'empty' ? '' : progress()}</div></aside>`
+  }
+  if (pick === 'C' && state !== 'empty')
+    return `<aside class="side"><div class="side-head">Walkthrough<span class="spacer"></span>${cur + 1}/${STOPS.length}</div><div class="tree outline" style="display:flex;flex-direction:column;gap:2px">${outline({ expand: false })}</div><div class="side-foot">${progress()}</div></aside>`
+  return `<aside class="side"><div class="side-head">Changes <span class="count">12</span></div><div class="tree">${tree()}</div><div class="side-foot">0 of 12 viewed</div></aside>`
+}
+
+function footer() {
+  const stepper = pick === 'D' && state !== 'empty'
+    ? `<span class="stepper"><button class="icon-btn" data-step="-1">${icon('left')}</button>Stop ${cur + 1}/${STOPS.length} · ${esc(STOPS[cur].title)}<button class="icon-btn" data-step="1">${icon('right')}</button></span>`
+    : ''
+  return `<div class="footer">${stepper || '<span>base chosen for this review</span><span>working tree included</span>'}<span class="next">Next <b>${pick === 'C' ? esc(STOPS[Math.min(cur + 1, STOPS.length - 1)].title) : 'state.go'}</b> <kbd>${pick === 'C' ? 'n' : 'j'}</kbd></span></div>`
+}
+
+function main() {
+  if (pick === 'C' && state !== 'empty') {
+    const s = STOPS[cur]
+    const byFile = new Map()
+    for (const id of s.hunks) byFile.set(id.split('#')[0], [...(byFile.get(id.split('#')[0]) ?? []), id])
+    return `<section class="main"><div class="narr">${state === 'stale' ? '<div class="stale-note">1 hunk changed since this walkthrough was written<button class="btn small">Regenerate</button></div>' : ''}
+      <div class="narr-head"><div class="chapter">${s.chapter} · Stop ${cur + 1} of ${STOPS.length}</div><h2>${esc(s.title)}</h2><p>${inline(s.prose)}</p></div>
+      ${[...byFile].map(([path, ids]) => card(path, ids)).join('')}
+      <div class="narr-nav"><button class="btn small" data-step="-1">‹ Previous</button><span class="spacer"></span>${inline(s.summary)}<span class="spacer"></span><button class="btn small primary" data-step="1">Next stop ›</button></div>
+    </div>${footer()}</section>`
+  }
+  const banner = pick === 'B' && state !== 'empty'
+    ? `<div class="banner"><span class="n">${cur + 1}</span><div class="body"><div class="t">${esc(STOPS[cur].title)} <span class="dim" style="font-weight:400">· ${STOPS[cur].chapter}</span></div><div class="prose">${inline(STOPS[cur].prose)}</div></div><div class="nav"><button class="icon-btn" data-step="-1">${icon('left')}</button><button class="icon-btn" data-step="1">${icon('right')}</button></div></div>`
+    : ''
+  return `<section class="main"><div class="diff">${banner}${diffFrom()}</div>${footer()}</section>`
+}
+
+function overlay() {
+  if (state === 'generate')
+    return `<div class="scrim"></div><div class="sheet"><h2>Generate Walkthrough</h2>
+      <p class="lead">A local agent reads this comparison and writes a review path through it. Beta.</p>
+      <div class="field"><label>Agent</label><div class="select">Claude Code <svg style="width:12px;height:12px"><use href="#i-caret"/></svg></div></div>
+      <div class="field"><label>Model</label><div class="select">sonnet <svg style="width:12px;height:12px"><use href="#i-caret"/></svg></div></div>
+      <div class="notice">The diff of <b>12 files</b> (+142 −9 lines) of <span class="mono">main..feature</span>, working tree included, goes to Anthropic through your <span class="mono">claude</span> login. Claude Code gets no tool that writes.</div>
+      <div class="sh-foot"><span class="hint">Replaces the current walkthrough.</span><button class="btn" data-state-go="ready">Cancel</button><button class="btn primary" data-state-go="running">Generate</button></div></div>`
+  if (state === 'running')
+    return `<div class="scrim" style="background:transparent"></div><div class="sheet"><h2>Generating walkthrough…</h2>
+      <div class="running"><span class="spinner"></span>Claude Code · sonnet · 38 s</div>
+      <div class="log">reading 9 hunks in 9 files…\nwriting 3 chapters, 5 stops</div>
+      <div class="sh-foot"><span class="hint">You can keep reviewing.</span><button class="btn" data-state-go="ready">Cancel</button></div></div>`
+  return ''
+}
+
+function render() {
+  const win = $('win')
+  win.style.gridTemplateColumns = pick === 'A' ? '248px minmax(0, 1fr) auto' : '248px minmax(0, 1fr)'
+  win.innerHTML = titlebar() + sidebar() + main() + panel() + overlay()
+  $('caption').innerHTML = CAPTIONS[pick] + STATES[state]
+  for (const b of document.querySelectorAll('[data-pick]')) b.setAttribute('aria-pressed', b.dataset.pick === pick)
+  for (const b of document.querySelectorAll('[data-state]')) b.setAttribute('aria-pressed', b.dataset.state === state)
+  for (const b of document.querySelectorAll('[data-theme-pick]')) b.setAttribute('aria-pressed', b.dataset.themePick === document.documentElement.dataset.theme)
+  history.replaceState(null, '', `#${pick}/${state}`)
+}
+
+const step = (by) => {
+  read.add(cur)
+  cur = Math.max(0, Math.min(STOPS.length - 1, cur + by))
+  render()
+}
+document.addEventListener('click', (event) => {
+  const t = event.target.closest('button')
+  if (!t) return
+  if (t.dataset.pick) pick = t.dataset.pick
+  else if (t.dataset.state) state = t.dataset.state
+  else if (t.dataset.stateGo) state = t.dataset.stateGo
+  else if (t.dataset.themePick) document.documentElement.dataset.theme = t.dataset.themePick
+  else if (t.dataset.stop) cur = Number(t.dataset.stop)
+  else if (t.dataset.step) return step(Number(t.dataset.step))
+  else return
+  render()
+})
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'n') step(1)
+  else if (event.key === 'p') step(-1)
+})
+read.add(0)
+cur = 1
+render()
+</script>
+</body>
+</html>
