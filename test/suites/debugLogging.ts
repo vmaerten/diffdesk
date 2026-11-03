@@ -39,6 +39,20 @@ export default {
     await page.bringToFront()
     await poll(events, (entries) => entries.some((entry) => entry.event === 'window.ready'))
 
+    await command(page, 'refresh')
+    const timed = await poll(events, (entries) =>
+      entries.some((entry) => entry.event === 'review.rendered'),
+    )
+    const loaded = timed.find((entry) => entry.event === 'review.loaded')
+    const rendered = timed.find((entry) => entry.event === 'review.rendered')
+    check(
+      'a reload records when its diff is painted, after it loaded',
+      !!loaded &&
+        !!rendered &&
+        rendered.details.loadId === loaded.details.loadId &&
+        timed.indexOf(rendered) > timed.indexOf(loaded),
+    )
+
     await clickTreeRow(page, 'src/core/engine.ts')
     await sleep(400)
     await page.evaluate(() => {

@@ -270,6 +270,23 @@ export default function App({
   }, [refresh])
   useEffect(() => () => shownRef.current?.abort(), [])
 
+  // The library paints lines frames after review.loaded; the gap between the
+  // two events tells a slow Git diff from a slow render.
+  useEffect(() => {
+    const body = bodyRef.current
+    if (shownLoad === undefined || !body || !debugLog.enabled) return
+    const deadline = performance.now() + 60_000
+    let frame = requestAnimationFrame(function check() {
+      const roots = [...body.querySelectorAll('diffs-container')].map((host) => host.shadowRoot)
+      const painted =
+        roots.some((root) => root?.querySelector('[data-line]')) ||
+        (roots.length > 0 && roots.every((root) => root?.querySelector('[data-title]')))
+      if (painted) debugLog.record('review.rendered', { repoId, loadId: shownLoad })
+      else if (performance.now() < deadline) frame = requestAnimationFrame(check)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [repoId, shownLoad])
+
   const pickTarget = useCallback(
     (ref: string | null) => {
       setPicking(null)
