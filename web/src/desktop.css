@@ -268,6 +268,68 @@ body,
 .desktop-review :is(.diff, .app > .message) {
   background: var(--bg);
 }
+/* Loading shows only past 150 ms, so a quick refresh does not flash. */
+.app {
+  position: relative;
+}
+.review-progress {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 5;
+  height: 2px;
+  overflow: hidden;
+  background: var(--accent-soft);
+  animation: review-loading-in 0s 150ms both;
+}
+.review-progress span {
+  display: block;
+  width: 30%;
+  height: 100%;
+  background: var(--accent);
+  animation: review-progress 1.3s ease-in-out infinite;
+}
+.review-loading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  animation: review-loading-in 0s 150ms both;
+}
+.review-loading .install-spinner {
+  width: 18px;
+  height: 18px;
+}
+/* The shown diff no longer matches the picked comparison until the new one lands. */
+.app :is(.tree, .diff),
+.app > .message {
+  transition: opacity 0.15s ease;
+}
+.app[aria-busy='true'] :is(.tree, .diff),
+.app[aria-busy='true'] > .message:not(.review-loading) {
+  opacity: 0.45;
+  transition-delay: 150ms;
+}
+@keyframes review-loading-in {
+  from {
+    visibility: hidden;
+  }
+}
+@keyframes review-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .review-progress span {
+    width: 100%;
+    animation: none;
+  }
+}
 .desktop-review .sidebar {
   --sidebar-bg: transparent;
   padding: 0;

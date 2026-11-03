@@ -27,6 +27,9 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
     given ??
     (location.pathname.startsWith('/r/') ? [{ id: '1', name: repoId, path: '', route }] : [])
   const state = { revision: 1, active: opened[0]?.id ?? '', tabs: opened }
+  // oxlint-disable-next-line unicorn/consistent-function-scoping -- serialized into the page, where nothing outside this function exists.
+  const debugLogKeys = () =>
+    Object.keys(localStorage).filter((key) => key.startsWith('desktopFixture.debugLog.'))
   let update: UpdateSnapshot = JSON.parse(
     sessionStorage.getItem('desktopFixture.update') ?? 'null',
   ) ?? {
@@ -143,15 +146,19 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
           return fixture.publishUpdate({ status: 'installing', message: '', retry: '' })
         },
         Settings: async () => fixture.settings,
+        // One key per page: two windows appending to a shared key race and drop events.
         AppendDebugEvent: async (raw) => {
-          localStorage.setItem(
-            'desktopFixture.debugLog',
-            (localStorage.getItem('desktopFixture.debugLog') ?? '') + raw + '\n',
-          )
+          const key = `desktopFixture.debugLog.${JSON.parse(raw).page}`
+          localStorage.setItem(key, (localStorage.getItem(key) ?? '') + raw + '\n')
         },
-        DebugLog: async () => localStorage.getItem('desktopFixture.debugLog') ?? '',
+        DebugLog: async () =>
+          debugLogKeys()
+            .flatMap((key) => localStorage.getItem(key)!.split('\n').filter(Boolean))
+            .toSorted((a, b) => JSON.parse(a).time.localeCompare(JSON.parse(b).time))
+            .map((line) => line + '\n')
+            .join(''),
         ClearDebugLog: async () => {
-          localStorage.removeItem('desktopFixture.debugLog')
+          for (const key of debugLogKeys()) localStorage.removeItem(key)
         },
         SaveSettings: async (raw) => {
           localStorage.setItem('desktopFixture.settings', raw)
