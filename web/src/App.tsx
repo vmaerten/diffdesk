@@ -140,6 +140,7 @@ export default function App({
   // until the next refresh starts: a failed refresh leaves it on screen.
   const shownRef = useRef<AbortController | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   const [languageStatus, refreshLanguages] = useLanguageStatus(
     repoId,
     languageRevision,
@@ -225,6 +226,7 @@ export default function App({
     requestRef.current?.abort()
     const controller = new AbortController()
     requestRef.current = controller
+    setLoading(true)
     const receiveComments = commentPersistence.refresh()
     const receiveViewed = viewedPersistence.refresh()
     try {
@@ -256,6 +258,9 @@ export default function App({
         name: cause instanceof Error ? cause.name : typeof cause,
       })
       setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      // A newer refresh owns the indicator once it has started.
+      if (loadRef.current === loadId) setLoading(false)
     }
   }, [repoId, selection, commentPersistence, viewedPersistence])
 
@@ -770,7 +775,12 @@ export default function App({
   )
 
   return (
-    <div className="app" data-repo={repoName} onContextMenu={openFileMenu}>
+    <div className="app" data-repo={repoName} aria-busy={loading} onContextMenu={openFileMenu}>
+      {loading && (
+        <div className="review-progress" role="progressbar" aria-label="Loading diff">
+          <span />
+        </div>
+      )}
       {toolbar &&
         createPortal(
           <DesktopToolbar
@@ -828,6 +838,13 @@ export default function App({
       )}
 
       {error && <p className="message">{error}</p>}
+
+      {!error && !data && loading && (
+        <p className="message review-loading" role="status">
+          <span className="install-spinner" aria-hidden="true" />
+          Loading diff…
+        </p>
+      )}
 
       {!error && data && entries.length === 0 && (
         <p className="message">
