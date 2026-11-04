@@ -24,12 +24,13 @@ task install
 diffdesk                            # current repository, automatically resolved base
 diffdesk feature --repo ../another-repository --base main
 diffdesk comments --json            # this comparison's comments, without a window
+diffdesk walkthrough hunks          # the hunk IDs an agent cites in a walkthrough
 diffdesk --help
 ```
 
 Installation creates a symlink in `~/.local/bin` pointing to the local bundle; that directory must be on PATH. `BIN_DIR` overrides the command directory. Keep the bundle at its build location while using that link. `task install` replaces the browser CLI that 0.1 and 0.2 copied there, and refuses to replace any other file that is not a link; `task uninstall` removes only the link. Released builds install through [Homebrew or mise](../site/src/content/docs/guide/installation.md).
 
-`diffdesk comments`, including `diffdesk comments resolve` and `reopen`, and `diffdesk --version` answer in the terminal and never reach the window. Any other invocation delivers its review to the running app, or starts the app first, and returns once the app has queued it.
+`diffdesk comments`, including `diffdesk comments resolve` and `reopen`, `diffdesk walkthrough` and `diffdesk --version` answer in the terminal and never reach the window. Any other invocation delivers its review to the running app, or starts the app first, and returns once the app has queued it.
 
 The application menu supplies **Diffdesk → Settings…** (`Cmd+,`), **Diffdesk → Check for Updates…**, **File → Open repository** (`Cmd+O`), native Edit commands, close tab (`Cmd+W`), reload (`Cmd+R`) and quit (`Cmd+Q`). **View → Zoom Out / Zoom In** (`Cmd+-` / `Cmd++`) scales the whole review interface in 10% steps, from 50% to 200%. **Actual Size** (`Cmd+0`) restores 100%. The review's command palette offers the same zoom actions. Zoom lasts for the current page; reloading or restarting restores 100%. Closing the window quits the app.
 
