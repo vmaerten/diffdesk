@@ -26,6 +26,9 @@ export type ReviewCommand =
   | 'untracked'
   | 'whitespace'
   | 'comments'
+  | 'walkthrough'
+  | 'next-stop'
+  | 'previous-stop'
   | 'copy-comments'
   | 'reset-viewed'
   | 'palette'
@@ -80,8 +83,11 @@ export const COMMANDS: CommandEntry[] = [
   { name: 'untracked', label: 'Include Untracked Files', group: 'View' },
   { name: 'whitespace', label: 'Ignore Whitespace', group: 'View', keys: '⌥⌘W' },
   { name: 'comments', label: 'Comments', group: 'View', keys: '⌥⌘0' },
+  { name: 'walkthrough', label: 'Walkthrough', group: 'View' },
   { name: 'next-file', label: 'Next File', group: 'Go', keys: 'j' },
   { name: 'previous-file', label: 'Previous File', group: 'Go', keys: 'k' },
+  { name: 'next-stop', label: 'Next Stop', group: 'Go', keys: 'n' },
+  { name: 'previous-stop', label: 'Previous Stop', group: 'Go', keys: 'p' },
   { name: 'base', label: 'Choose Base…', group: 'Go', keys: 'b' },
   { name: 'target', label: 'Choose Target…', group: 'Go', keys: 't' },
   { name: 'commit', label: 'Choose Commit…', group: 'Go', keys: 'l' },

@@ -237,6 +237,49 @@ export interface DiffPayload {
    */
   notice: string | null
   patch: string
+  /** The reviewed branch's walkthrough, placed on this diff; null when it has none. */
+  walkthrough: ServedWalkthrough | null
+}
+
+/** Where a cited hunk is in the shown diff: its first row. */
+export interface HunkPlace {
+  id: string
+  path: string
+  side: DiffSide
+  line: number
+}
+
+/** A hunk a walkthrough cites, by the ID it was written with; `at` is null once it is gone. */
+export interface ServedHunk {
+  id: string
+  at: HunkPlace | null
+}
+
+export interface WalkthroughStop {
+  title: string
+  summary: string
+  prose: string
+  hunks: ServedHunk[]
+}
+
+/** The body of `diffdesk walkthrough set`, as `GET …/api/diff` serves it. */
+export interface ServedWalkthrough {
+  title: string
+  focus: string
+  author: string
+  createdAt: string
+  range: string
+  workingTree: boolean
+  /** Written for another comparison of the branch: its hunks were found by content. */
+  elsewhere: boolean
+  /** Half its hunks or more are gone. */
+  stale: boolean
+  chapters: { title: string; stops: WalkthroughStop[] }[]
+  support: { note: string; hunks: ServedHunk[] }[]
+  /** This diff's hunks that no stop or support group names. */
+  uncited: string[]
+  /** Stops read in the app, numbered across chapters. */
+  read: number[]
 }
 
 /** The body of `GET /r/:repoId/api/refs`. */

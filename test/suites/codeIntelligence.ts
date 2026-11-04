@@ -589,8 +589,11 @@ export default {
     await page.keyboard.press('Escape')
     await page.click('.comments-trigger')
     check(
-      'turning the Symbol panel off removes References and the tabs',
-      offered.join() === 'Go to definition ⌘ click' && (await page.$('.panel-tabs')) === null,
+      'turning the Symbol panel off removes References and the Symbol tab',
+      offered.join() === 'Go to definition ⌘ click' &&
+        !(await page.$$eval('.panel-tabs button', (buttons) =>
+          buttons.some((button) => button.textContent?.startsWith('Symbol')),
+        )),
       JSON.stringify(offered),
     )
 
