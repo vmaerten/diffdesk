@@ -18,6 +18,9 @@ Usage:
   diffdesk [target] [--repo <path>] [--base <ref>]
   diffdesk comments [target] [--repo <path>] [--base <ref>] [--json] [--all] [--code]
   diffdesk comments resolve|reopen <id> [--repo <path>]
+  diffdesk walkthrough hunks|show|clear [target] [--repo <path>] [--base <ref>]
+  diffdesk walkthrough set <file|-> [target] [--repo <path>] [--base <ref>]
+  diffdesk walkthrough guide
 
   target     Branch or revision; defaults to the checkout and its working tree.
   comments   Print this comparison's comments for an agent: ID, path:lines and
@@ -26,6 +29,12 @@ Usage:
              refs/heads/<name> for a branch named comments, resolve or reopen.
   resolve    Close a comment and keep it; reopen brings it back. <id> is a
              comment ID or any unique prefix of 4 characters or more.
+  walkthrough
+             A tour of the change for its reviewer, written by an agent: guide
+             prints how; hunks lists the IDs to cite, with their code with
+             --code and as JSON with --json; set checks a document against the
+             comparison and saves it for the branch; show prints it; clear
+             deletes it.
 
 Options:
   --repo <path>  Repository to review (default: current directory)
@@ -37,7 +46,8 @@ Opens the review in the Diffdesk window, in place of the one shown, then returns
 to the terminal.
 Relative paths are resolved from the calling terminal, including later launches.
 Cmd+O opens another repository; Cmd+W closes the review; Cmd+R reloads; Cmd+Q quits.
-Comments and Viewed live in each checkout's .git/ghl/state.json.
+Comments and Viewed live in each checkout's .git/ghl/state.json, walkthroughs
+in .git/ghl/walkthroughs.
 ghl is the same command, under the app's former name.
 `
 

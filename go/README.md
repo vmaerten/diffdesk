@@ -33,6 +33,8 @@ The `w=1` option uses Git `--ignore-all-space` for the patch and statistics. Fil
 
 Writes hold a `flock` on `state.json.lock`, beside the state, from read to rename, across processes such as the app and development servers. Waiting is bounded to 10 seconds and cancelled with the request, and the kernel releases the lock when a process dies. Reads take no lock, since every write replaces the file with a rename.
 
+A walkthrough lives in `.git/ghl/walkthroughs/<branch>.json`, the branch name escaped into one file name, beside the state rather than in it: `diffdesk walkthrough set` replaces the whole file with a rename, takes no lock, and leaves comments and Viewed alone. The file keeps the comparison it was written for and each cited hunk's fingerprint, a hash of its lines without the `@@` header, which finds the hunk again after a change above it moves its rank.
+
 Writes go to a unique neighbouring temporary file, synced and then renamed over the state, so an interruption leaves either the previous or the new complete file. A corrupt file reads as empty state with a notice in the UI, or on stderr for `diffdesk comments`, and stays in place until the next write moves it to a unique `.corrupt` backup. Permission and other I/O errors fail instead of reading as empty state.
 
 `test/goState.ts` seeds the version-1 schema and runs concurrent writers across independent servers. It checks add, edit, delete and Viewed preservation, both anchor sides, original timestamps, restarts, linked worktrees, corrupt-state recovery and future-schema refusal. Go race tests also cover independent stores, cancelled waits and a killed writer with an interrupted temporary file.

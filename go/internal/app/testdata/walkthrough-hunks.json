@@ -1,0 +1,35 @@
+[
+  {
+    "patch": "diff --git a/added.txt b/added.txt\nnew file mode 100644\nindex 0000000..3c62c5d\n--- /dev/null\n+++ b/added.txt\n@@ -0,0 +1,3 @@\n+brand\n+\n+new\ndiff --git a/deleted.txt b/deleted.txt\ndeleted file mode 100644\nindex e7cffe7..0000000\n--- a/deleted.txt\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-gone\n-with it\ndiff --git a/eof.txt b/eof.txt\nindex c54071e..adde431 100644\n--- a/eof.txt\n+++ b/eof.txt\n@@ -1,2 +1,2 @@\n keep\n-last\n\\ No newline at end of file\n+last\ndiff --git a/image.bin b/image.bin\nindex badc806..29a070e 100644\nBinary files a/image.bin and b/image.bin differ\ndiff --git a/old name.txt b/new b/name.txt\nsimilarity index 94%\nrename from old name.txt\nrename to new b/name.txt\nindex 1d68829..62c2221 100644\n--- a/old name.txt\t\n+++ b/new b/name.txt\t\n@@ -1,6 +1,6 @@\n moved 1\n moved 2\n-moved 3\n+edited 3\n moved 4\n moved 5\n moved 6\ndiff --git a/two.txt b/two.txt\nindex 8b2034d..142d0a5 100644\n--- a/two.txt\n+++ b/two.txt\n@@ -2,7 +2,7 @@ line 1\n line 2\n line 3\n line 4\n-line 5\n+changed 5\n line 6\n line 7\n line 8\n@@ -28,6 +28,7 @@ line 27\n line 28\n line 29\n line 30\n+@@ -1 +1 @@ not a header\n line 31\n line 32\n line 33\n@@ -47,7 +48,7 @@ line 46\n line 47\n line 48\n line 49\n-line 50\n+changed 50\n line 51\n line 52\n line 53\n",
+    "files": [
+      {
+        "path": "added.txt"
+      },
+      {
+        "path": "deleted.txt"
+      },
+      {
+        "path": "eof.txt"
+      },
+      {
+        "path": "image.bin"
+      },
+      {
+        "path": "new b/name.txt",
+        "previous": "old name.txt"
+      },
+      {
+        "path": "two.txt"
+      }
+    ],
+    "hunks": [
+      "added.txt#1",
+      "deleted.txt#1",
+      "eof.txt#1",
+      "new b/name.txt#1",
+      "two.txt#1",
+      "two.txt#2",
+      "two.txt#3"
+    ]
+  }
+]
