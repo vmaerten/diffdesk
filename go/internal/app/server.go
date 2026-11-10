@@ -286,6 +286,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				viewed[file.Path] = hash
 			}
 		}
+		walkthrough, err := review.walkthrough()
+		if err != nil {
+			// An unreadable walkthrough must not take the diff down with it.
+			message := err.Error()
+			if review.Notice != nil {
+				message = *review.Notice + " — " + message
+			}
+			review.Notice = &message
+		}
 		messages := []string{}
 		if notice != nil {
 			messages = append(messages, *notice)
@@ -304,6 +313,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"commit": review.Commit, "range": review.Range, "state": map[string]any{"operation": review.Operation, "conflicted": review.Conflicted},
 			"untracked": review.Untracked, "untrackedIncluded": review.UntrackedIncluded, "files": review.Files, "totals": review.Totals,
 			"viewed": viewed, "comments": review.Comments(r.Context(), review.branchComments(state.Comments)), "commentBranch": review.CommentBranch, "notice": notice, "patch": review.Patch,
+			"walkthrough": walkthrough,
 		})
 	case route == "diff-files" && r.Method == "GET":
 		q := r.URL.Query()
@@ -406,6 +416,25 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		reply(w, 200, map[string]any{"comment": saved})
+	case route == "walkthrough/read" && r.Method == "POST":
+		var body struct {
+			Branch    string `json:"branch"`
+			CreatedAt string `json:"createdAt"`
+			Read      []int  `json:"read"`
+		}
+		if err := decode(w, r, &body); err != nil {
+			fail(w, 400, err)
+			return
+		}
+		if body.Branch == "" || body.CreatedAt == "" || body.Read == nil {
+			fail(w, 400, fmt.Errorf("A branch, createdAt and read list are required"))
+			return
+		}
+		if err := markRead(s.repo.GitDir, body.Branch, body.CreatedAt, body.Read); err != nil {
+			fail(w, 500, err)
+			return
+		}
+		reply(w, 200, map[string]any{"read": body.Read})
 	case route == "comments" && r.Method == "DELETE":
 		comments, err := (repositoryComments{store: s.store}).remove(r.Context(), r.URL.Query().Get("id"))
 		if err != nil {

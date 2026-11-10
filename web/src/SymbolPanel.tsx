@@ -6,7 +6,7 @@ import { treeOrder } from './fileOrder.ts'
 import HighlightedCode from './HighlightedCode.tsx'
 import type { SyntaxTheme } from './theme.ts'
 
-export type PanelTab = 'comments' | 'symbol'
+export type PanelTab = 'comments' | 'walkthrough' | 'symbol'
 
 /** The symbol the Symbol tab shows: the token, and what its card already knows. */
 export interface SymbolTarget {
@@ -14,14 +14,16 @@ export interface SymbolTarget {
   answer: SymbolAnswer
 }
 
-/** Comments or Symbol, at the head of the side panel while code intelligence is on. */
+/** Comments, Walkthrough and, while code intelligence is on, Symbol, at the head of the side panel. */
 export function PanelTabs({
   tab,
   comments,
+  symbol,
   onTab,
 }: {
   tab: PanelTab
   comments: number
+  symbol: boolean
   onTab: (tab: PanelTab) => void
 }) {
   return (
@@ -37,12 +39,24 @@ export function PanelTabs({
       <button
         type="button"
         role="tab"
-        aria-selected={tab === 'symbol'}
-        onClick={() => onTab('symbol')}
+        aria-selected={tab === 'walkthrough'}
+        onClick={() => onTab('walkthrough')}
       >
-        Symbol
+        Walkthrough
       </button>
-      <span className="beta-badge">Beta</span>
+      {symbol && (
+        <>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'symbol'}
+            onClick={() => onTab('symbol')}
+          >
+            Symbol
+          </button>
+          <span className="beta-badge">Beta</span>
+        </>
+      )}
     </div>
   )
 }

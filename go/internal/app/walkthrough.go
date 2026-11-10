@@ -57,6 +57,9 @@ type hunk struct {
 	Additions, Deletions int
 	Lines                []string
 	Fingerprint          string
+	// Side and Line place the hunk's first row, where the page marks it.
+	Side string
+	Line int
 }
 
 // hunks lists the comparison's hunks in the patch's file order.
@@ -69,13 +72,20 @@ func (r *Review) hunks() []hunk {
 		}
 		var current *hunk
 		for _, line := range strings.Split(section.patch, "\n") {
-			if hunkRE.MatchString(line) {
-				result = append(result, hunk{Path: file.Path, Header: line, N: current.rank() + 1})
+			if numbers := hunkRE.FindStringSubmatch(line); numbers != nil {
+				h := hunk{Path: file.Path, Header: line, N: current.rank() + 1, Side: "additions"}
+				h.Line, _ = strconv.Atoi(numbers[2])
+				result = append(result, h)
 				current = &result[len(result)-1]
 				continue
 			}
 			if current == nil || line == "" {
 				continue
+			}
+			// A hunk that opens on removed lines starts on the old side.
+			if len(current.Lines) == 0 && line[0] == '-' {
+				old, _ := strconv.Atoi(hunkRE.FindStringSubmatch(current.Header)[1])
+				current.Side, current.Line = "deletions", old
 			}
 			switch line[0] {
 			case '+':
@@ -214,6 +224,8 @@ type storedWalkthrough struct {
 	// Fingerprints holds each cited hunk's body hash, by the ID it had then.
 	Fingerprints map[string]string `json:"fingerprints"`
 	Walkthrough  Walkthrough       `json:"walkthrough"`
+	// Read holds the stops ticked in the app, numbered across chapters.
+	Read []int `json:"read,omitempty"`
 }
 
 // A branch name may hold slashes: escape it into one file name.
@@ -334,4 +346,112 @@ func stale(found map[string]*hunk) bool {
 		}
 	}
 	return missing > 0 && 2*missing >= len(found)
+}
+
+// ServedWalkthrough is the branch's walkthrough placed on the diff the page shows.
+type ServedWalkthrough struct {
+	Title       string `json:"title"`
+	Focus       string `json:"focus"`
+	Author      string `json:"author"`
+	CreatedAt   string `json:"createdAt"`
+	Range       string `json:"range"`
+	WorkingTree bool   `json:"workingTree"`
+	// Elsewhere marks a walkthrough written for another comparison of the branch.
+	Elsewhere bool          `json:"elsewhere"`
+	Stale     bool          `json:"stale"`
+	Chapters  []ServedPart  `json:"chapters"`
+	Support   []ServedAside `json:"support"`
+	// Uncited lists the diff's hunks no stop or support group names.
+	Uncited []string `json:"uncited"`
+	Read    []int    `json:"read"`
+}
+type ServedPart struct {
+	Title string       `json:"title"`
+	Stops []ServedStop `json:"stops"`
+}
+type ServedStop struct {
+	Title   string       `json:"title"`
+	Summary string       `json:"summary"`
+	Prose   string       `json:"prose"`
+	Hunks   []ServedHunk `json:"hunks"`
+}
+type ServedAside struct {
+	Note  string       `json:"note"`
+	Hunks []ServedHunk `json:"hunks"`
+}
+
+// ServedHunk is a cited hunk: At is where it is now, nil once it is gone.
+type ServedHunk struct {
+	ID string     `json:"id"`
+	At *HunkPlace `json:"at"`
+}
+type HunkPlace struct {
+	ID   string `json:"id"`
+	Path string `json:"path"`
+	Side string `json:"side"`
+	Line int    `json:"line"`
+}
+
+// walkthrough reads the reviewed branch's walkthrough and places it on this diff.
+func (r *Review) walkthrough() (*ServedWalkthrough, error) {
+	stored, err := readWalkthrough(walkthroughPath(r.repo.GitDir, r.CommentBranch))
+	if stored == nil || err != nil {
+		return nil, err
+	}
+	hunks := r.hunks()
+	found := stored.locate(hunks)
+	place := func(ids []string) []ServedHunk {
+		served := make([]ServedHunk, len(ids))
+		for i, id := range ids {
+			served[i].ID = id
+			if h := found[id]; h != nil {
+				served[i].At = &HunkPlace{ID: h.ID, Path: h.Path, Side: h.Side, Line: h.Line}
+			}
+		}
+		return served
+	}
+	w := stored.Walkthrough
+	served := &ServedWalkthrough{
+		Title: w.Title, Focus: w.Focus, Author: stored.Author, CreatedAt: stored.CreatedAt, Range: stored.Range, WorkingTree: stored.WorkingTree,
+		Elsewhere: stored.Range != r.Range || stored.WorkingTree != (r.Comparison.After == nil),
+		Stale:     stale(found), Chapters: []ServedPart{}, Support: []ServedAside{}, Uncited: []string{}, Read: stored.Read,
+	}
+	if served.Read == nil {
+		served.Read = []int{}
+	}
+	for _, chapter := range w.Chapters {
+		part := ServedPart{Title: chapter.Title, Stops: []ServedStop{}}
+		for _, stop := range chapter.Stops {
+			part.Stops = append(part.Stops, ServedStop{Title: stop.Title, Summary: stop.Summary, Prose: stop.Prose, Hunks: place(stop.Hunks)})
+		}
+		served.Chapters = append(served.Chapters, part)
+	}
+	for _, aside := range w.Support {
+		served.Support = append(served.Support, ServedAside{Note: aside.Note, Hunks: place(aside.Hunks)})
+	}
+	located := map[*hunk]bool{}
+	for _, h := range found {
+		located[h] = true
+	}
+	for i := range hunks {
+		if !located[&hunks[i]] {
+			served.Uncited = append(served.Uncited, hunks[i].ID)
+		}
+	}
+	return served, nil
+}
+
+// markRead records the stops read in the app. A walkthrough replaced since the
+// page loaded keeps its own progress: createdAt tells them apart.
+func markRead(gitDir, branch, createdAt string, read []int) error {
+	path := walkthroughPath(gitDir, branch)
+	stored, err := readWalkthrough(path)
+	if err != nil {
+		return err
+	}
+	if stored == nil || stored.CreatedAt != createdAt {
+		return nil
+	}
+	stored.Read = read
+	return writeWalkthrough(path, *stored)
 }
