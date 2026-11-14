@@ -1145,8 +1145,9 @@ body,
   font-family: inherit;
   font-weight: 500;
 }
-.compare-capsule button:hover:not(:disabled),
-.compare-capsule button[aria-expanded='true'] {
+/* Direct children only: the pickers open inside the capsule and have their own buttons. */
+.compare-capsule > .base-anchor > button:hover:not(:disabled),
+.compare-capsule > .base-anchor > button[aria-expanded='true'] {
   background: var(--wash-strong);
 }
 :is(.compare-capsule, .titlebar-text) .caret {

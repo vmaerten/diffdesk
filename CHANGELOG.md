@@ -7,6 +7,10 @@
 - Check for updates each day at 10:00 local time while Diffdesk stays open, not only at startup: a Mac asleep at 10:00 checks on wake, and a check that cannot reach GitHub is retried every 15 minutes. ([#314](https://github.com/vmaerten/diffdesk/pull/314))
 - See that a diff is loading: a thin bar runs under the title bar and the shown diff dims while another comparison loads, and the first load says "Loading diff…" instead of staying blank. ([#319](https://github.com/vmaerten/diffdesk/pull/319))
 
+### 🐛 Fixes
+
+- Hovering a layer in the stack list highlights its whole row, without a darker box behind the branch name. ([#323](https://github.com/vmaerten/diffdesk/pull/323))
+
 ### 🔧 Internal
 
 - Debug logs record `review.rendered` once a reloaded diff shows its lines, so its gap from `review.loaded` separates a slow Git diff from a slow render. ([#319](https://github.com/vmaerten/diffdesk/pull/319))
