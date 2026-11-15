@@ -8,6 +8,7 @@ import {
   type CodeViewItem,
   type CodeViewOptions,
   type DiffLineAnnotation,
+  type FileContents,
   type FileDiffMetadata,
   type LineAnnotation,
   type SelectedLineRange,
@@ -136,7 +137,7 @@ export function useReviewDiff({
   onCommentFile: commentFile,
   tokenHandlers,
 }: ReviewDiffOptions) {
-  const viewRef = useRef<CodeViewHandle<undefined>>(null)
+  const viewRef = useRef<CodeViewHandle<undefined, undefined>>(null)
   const paneRef = useRef<HTMLDivElement>(null)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const [activePath, setActivePath] = useState<string | null>(null)
@@ -273,10 +274,11 @@ export function useReviewDiff({
     const imageFiles = new Map(
       data.files.filter((file) => file.image).map((file) => [file.path, file]),
     )
-    const files: DiffItem[] = parsePatchFiles(
-      data.patch,
-      `${repoId}-${data.head.sha}-${data.range}-${data.loadId}`,
-    )
+    // Line matching re-pairs changed lines by similarity; keep git's own pairing.
+    const files: DiffItem[] = parsePatchFiles(data.patch, {
+      cacheKeyPrefix: `${repoId}-${data.head.sha}-${data.range}-${data.loadId}`,
+      disableLineMatching: true,
+    })
       .flatMap((patch) => patch.files ?? [])
       .filter((file) => !imageFiles.has(file.name))
       .map((fileDiff, index) => ({
@@ -861,7 +863,7 @@ export function useReviewDiff({
       onLineSelectionEnd,
       // Tokens carry the data-char these need only when the worker pool's token
       // transformer is on, which DesktopApp sets with code intelligence.
-      ...(tokenHandlers as Partial<CodeViewOptions<undefined>> | undefined),
+      ...(tokenHandlers as Partial<CodeViewOptions<undefined, undefined>> | undefined),
     }),
     [
       diffStyle,
@@ -884,7 +886,11 @@ export function useReviewDiff({
    * the same trap as `renderHeaderMetadata` above, one level down.
    */
   const renderAnnotation = useCallback(
-    (annotation: LineAnnotation | DiffLineAnnotation, item: CodeViewItem<undefined>) => {
+    (
+      annotation: LineAnnotation | DiffLineAnnotation,
+      _source: FileContents | FileDiffMetadata,
+      item: CodeViewItem<undefined>,
+    ) => {
       if (item.type === 'file') {
         const file = item as Extract<DiffItem, { type: 'file' }>
         if ('image' in file) return <ImageDiff image={file.image} path={file.path} />
