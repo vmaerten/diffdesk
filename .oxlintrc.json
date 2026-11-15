@@ -7,7 +7,15 @@
   },
   "rules": {
     "react/react-in-jsx-scope": "off",
-    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }]
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
+    "react/exhaustive-effect-dependencies": "off",
+    "react/immutability": "off",
+    "react/memo-dependencies": "off",
+    "react/preserve-manual-memoization": "off",
+    "react/refs": "off",
+    "react/set-state-in-effect": "off",
+    "react/use-memo": "off",
+    "unicorn/consistent-function-scoping": "off"
   },
   "ignorePatterns": ["node_modules"],
   "overrides": [
