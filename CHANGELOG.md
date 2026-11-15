@@ -15,6 +15,7 @@
 ### 🔧 Internal
 
 - Update Wails to v3.1.0, its first stable release, and the other Go and npm dependencies. ([#324](https://github.com/vmaerten/diffdesk/pull/324))
+- Ship the reviewed license notices of Shiki 4.6.0's vendored Oniguruma engine, grammars and themes. ([#327](https://github.com/vmaerten/diffdesk/pull/327))
 - Debug logs record `review.rendered` once a reloaded diff shows its lines, so its gap from `review.loaded` separates a slow Git diff from a slow render. ([#319](https://github.com/vmaerten/diffdesk/pull/319))
 - Keep each simulated window's debug events under its own key, so the `debug-logging` UI suite no longer loses events now and then. ([#319](https://github.com/vmaerten/diffdesk/pull/319))
 

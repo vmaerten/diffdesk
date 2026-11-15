@@ -26,13 +26,10 @@ const readPackage = (directory: string): Package =>
 // Review the upstream material again before adding a version of these packages.
 const supplemental: Record<string, Record<string, string[]>> = {
   '@shikijs/engine-oniguruma': {
-    '4.4.2': ['shiki-oniguruma-4.4.2.LICENSE', 'vscode-oniguruma-1.7.0.NOTICE'],
+    '4.6.0': ['shiki-oniguruma-4.6.0.LICENSE', 'vscode-oniguruma-1.7.0.NOTICE'],
   },
-  '@shikijs/langs': { '4.4.2': ['tm-grammars-1.32.0.NOTICE'] },
-  '@shikijs/themes': {
-    '4.4.2': ['tm-themes-1.12.3.NOTICE'],
-    '4.5.0': ['tm-themes-1.12.12.NOTICE'],
-  },
+  '@shikijs/langs': { '4.6.0': ['tm-grammars-1.32.22.NOTICE'] },
+  '@shikijs/themes': { '4.6.0': ['tm-themes-1.12.12.NOTICE'] },
 }
 
 function findPackage(from: string, name: string): string | undefined {
