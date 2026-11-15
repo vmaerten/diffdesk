@@ -89,11 +89,19 @@ export default {
         `document.querySelector('.update-sheet-notes h3').textContent === 'Features' && document.querySelector('.update-sheet-notes strong').textContent === 'release notes' && document.querySelector('.update-sheet-notes code').textContent === 'drafts'`,
       )) && (await installs()) === 0,
     )
+    await page.click('.update-sheet-notes a[href="https://github.com/vmaerten/diffdesk/pull/123"]')
+    await page.evaluate(() => {
+      const link = document.createElement('a')
+      link.href = 'file:///System/Applications/Calculator.app'
+      link.target = '_blank'
+      document.querySelector('.update-sheet-notes')!.append(link)
+      link.click()
+      link.remove()
+    })
     check(
-      'release links open outside the review',
-      await evaluateBoolean(
-        `document.querySelector('.update-sheet-notes a[href="https://github.com/vmaerten/diffdesk/pull/123"]').target === '_blank'`,
-      ),
+      'release links open in the browser, and a file link nowhere',
+      JSON.stringify(await fixture('opened')) ===
+        JSON.stringify(['https://github.com/vmaerten/diffdesk/pull/123']),
     )
     check(
       'release Markdown cannot inject HTML or remote images',
