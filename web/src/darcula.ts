@@ -1,4 +1,4 @@
-import type { ThemeRegistration } from '@pierre/diffs'
+import type { ThemeRegistration } from 'shiki'
 
 // A TextMate adaptation of JetBrains Darcula for Shiki.
 // https://github.com/JetBrains/intellij-community/tree/master/platform/platform-resources
