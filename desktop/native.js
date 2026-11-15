@@ -1,6 +1,6 @@
 // The host interface DesktopApp expects, built on Wails v3's runtime. Served
 // only to the app's own document; bridge.js follows it in the same script.
-import { Call, Clipboard, Events, Window } from './wails/runtime.js'
+import { Browser, Call, Clipboard, Events, Window } from './wails/runtime.js'
 
 const methods = [
   'Tabs',
@@ -43,4 +43,5 @@ window.runtime = {
     return true
   },
   ClipboardGetText: () => Clipboard.Text(),
+  BrowserOpenURL: (url) => Browser.OpenURL(url),
 }

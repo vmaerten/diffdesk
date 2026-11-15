@@ -49,6 +49,7 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
     revealed: [] as string[],
     fileMenus: [] as { path: string; viewed: boolean }[],
     settingsOpened: 0,
+    opened: [] as string[],
     savedViews: {} as Record<string, SavedView>,
     updateInstalls: 0,
     updateChecks: 0,
@@ -91,6 +92,9 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
       return true
     },
     ClipboardGetText: async () => fixture.clipboard,
+    BrowserOpenURL: async (url: string) => {
+      fixture.opened.push(url)
+    },
   }
   Object.assign(window, { desktopFixture: fixture, runtime })
   window.go = {
