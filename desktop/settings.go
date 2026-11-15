@@ -134,10 +134,13 @@ func (d *desktopApp) SaveSettings(raw string) error {
 
 const settingsWindow = "settings"
 
-// openSettings brings the Settings window forward, opening it the first time.
-// Its height fits the tallest pane: Wails resizes a window from its bottom
-// edge, where macOS settings windows keep their top in place.
-func (d *desktopApp) openSettings() {
+func (d *desktopApp) openSettings() { d.openSettingsPane("") }
+
+// openSettingsPane brings the Settings window forward, opening it the first
+// time, and switches it to pane unless pane is "". Its height fits the tallest
+// pane: Wails resizes a window from its bottom edge, where macOS settings
+// windows keep their top in place.
+func (d *desktopApp) openSettingsPane(pane string) {
 	app, _ := d.native()
 	if app == nil {
 		return
@@ -145,12 +148,20 @@ func (d *desktopApp) openSettings() {
 	d.opening.Lock()
 	defer d.opening.Unlock()
 	if window, ok := app.Window.GetByName(settingsWindow); ok {
+		if pane != "" {
+			app.Event.Emit("desktop:settings-pane", pane)
+		}
 		window.Show()
 		window.Focus()
 		return
 	}
+	// A new page cannot hear an event sent before it subscribes: it reads the pane from its URL.
+	url := "/settings"
+	if pane != "" {
+		url += "?pane=" + pane
+	}
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name: settingsWindow, Title: "Settings", URL: "/settings",
+		Name: settingsWindow, Title: "Settings", URL: url,
 		Width: 640, Height: 660, DisableResize: true,
 		MinimiseButtonState: application.ButtonDisabled,
 		MaximiseButtonState: application.ButtonDisabled,

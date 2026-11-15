@@ -5,7 +5,7 @@ import Icon from './Icon.tsx'
 import { releaseUrl } from './reviewSelection.ts'
 import { sameCapacity, splitTabs, tabSizes } from './tabOverflow.ts'
 import { useAppearance } from './appearance.ts'
-import { commandOf } from './commands.ts'
+import { commandOf, isLink } from './commands.ts'
 import { languageConfig, sendLanguageConfig } from './codeIntelligence.ts'
 import ShortcutsSheet from './ShortcutsSheet.tsx'
 import UpdateSheet from './UpdateSheet.tsx'
@@ -60,6 +60,14 @@ interface DesktopAPI {
   DismissUpdate(): Promise<UpdateSnapshot>
   SkipUpdate(): Promise<UpdateSnapshot>
   InstallUpdate(): Promise<UpdateSnapshot>
+  OpenAbout(): Promise<void>
+  OpenLink(name: string): Promise<void>
+  Build(): Promise<BuildInfo>
+}
+export interface BuildInfo {
+  version: string
+  commit: string
+  buildDate: string
 }
 declare global {
   interface Window {
@@ -287,6 +295,8 @@ export default function DesktopApp() {
       else if (command === 'sidebar') toggleSidebar()
       else if (command === 'open-repository') api.OpenRepository().catch(failed)
       else if (command === 'settings') api.OpenSettings().catch(failed)
+      else if (command === 'about') api.OpenAbout().catch(failed)
+      else if (isLink(command)) api.OpenLink(command).catch(failed)
       else if (command === 'zoom-in') changeZoom(1)
       else if (command === 'zoom-out') changeZoom(-1)
       else if (command === 'zoom-reset') changeZoom(0)

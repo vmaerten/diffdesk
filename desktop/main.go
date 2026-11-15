@@ -230,7 +230,7 @@ func run() error {
 	// Wails' AppMenu role, with Settings where macOS apps keep it. Its Show All
 	// is the UnHide role, which has no selector; ShowAll has one.
 	diffdeskMenu := appMenu.AddSubmenu("Diffdesk")
-	diffdeskMenu.AddRole(application.About)
+	item(diffdeskMenu, "About Diffdesk", "", func(*application.Context) { desktop.openSettingsPane("about") })
 	updater.menu = diffdeskMenu.Add("Check for Updates…").OnClick(func(*application.Context) { updater.check(true) })
 	diffdeskMenu.AddSeparator()
 	item(diffdeskMenu, "Settings…", "CmdOrCtrl+,", func(*application.Context) { desktop.openSettings() })
@@ -311,6 +311,20 @@ func run() error {
 	appMenu.AddRole(application.WindowMenu)
 	helpMenu := appMenu.AddSubmenu("Help")
 	item(helpMenu, "Keyboard Shortcuts", "", command("shortcuts"))
+	helpMenu.AddSeparator()
+	link := func(name string) func(*application.Context) {
+		return func(*application.Context) {
+			if err := desktop.OpenLink(name); err != nil {
+				fmt.Fprintln(os.Stderr, "diffdesk:", err)
+			}
+		}
+	}
+	item(helpMenu, "Diffdesk Website", "", link("website"))
+	item(helpMenu, "Release Notes", "", link("release-notes"))
+	item(helpMenu, "Report an Issue…", "", link("report-issue"))
+	helpMenu.AddSeparator()
+	item(helpMenu, "Sponsor on GitHub", "", link("sponsor"))
+	item(helpMenu, "Buy Me a Coffee", "", link("buy-coffee"))
 	native.Menu.Set(appMenu)
 	// Wails quits on SIGINT and SIGTERM itself, through OnShutdown.
 	return native.Run()

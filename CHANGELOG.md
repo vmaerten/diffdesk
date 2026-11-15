@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### ✨ Features
+
+- See who makes Diffdesk and how to support it: About Diffdesk now opens a new About pane in Settings, with links to sponsor on GitHub or buy a coffee, and the Help menu and command palette open the website, release notes, a new issue and both support pages. ([#329](https://github.com/vmaerten/diffdesk/pull/329))
+
 ### 🐛 Fixes
 
 - Links that leave the app open in your browser: release notes, the pull request and its checks, stack layers and Markdown previews did nothing when clicked. ([#330](https://github.com/vmaerten/diffdesk/pull/330))
