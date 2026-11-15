@@ -274,10 +274,8 @@ export function useReviewDiff({
     const imageFiles = new Map(
       data.files.filter((file) => file.image).map((file) => [file.path, file]),
     )
-    // Line matching re-pairs changed lines by similarity; keep git's own pairing.
     const files: DiffItem[] = parsePatchFiles(data.patch, {
       cacheKeyPrefix: `${repoId}-${data.head.sha}-${data.range}-${data.loadId}`,
-      disableLineMatching: true,
     })
       .flatMap((patch) => patch.files ?? [])
       .filter((file) => !imageFiles.has(file.name))
