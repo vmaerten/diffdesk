@@ -126,6 +126,18 @@ export default {
     )
     check('  and carries it in the URL', back.search.includes('target='), back.search)
 
+    // `main` is checked out: as a ref it would drop the uncommitted work.
+    await openPicker(page, 't')
+    await page.keyboard.type('main')
+    await pickerShows(page, 'main')
+    await page.keyboard.press('Enter')
+    const current = await titlebarWhen(page, (state) => state.target === 'main')
+    check(
+      'picking the checked-out branch reviews the working tree',
+      !current.search.includes('target=') && !current.notes.join(' ').includes('excluded'),
+      `${current.search} | ${current.notes.join(' | ')}`,
+    )
+
     // A base forced from outside — which is how the CLI passes `--base` now —
     // must give way to a choice made here, in the session that makes it. It used
     // to be answered by the registry on every request, so the picker wrote to
