@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { PatchDiff, useStableCallback } from '@pierre/diffs/react'
+import appIcon from '../../desktop/icon/AppIcon.svg?url'
+import authorPhoto from './author.jpg'
+import type { BuildInfo } from './DesktopApp.tsx'
 import { THEMES, themeById, type ThemeId } from './theme.ts'
 import { activeTheme, useAppearance, type Appearance } from './appearance.ts'
 import {
@@ -56,7 +59,7 @@ const PREVIEW = `diff --git a/open.go b/open.go
  }
 `
 
-type Pane = 'appearance' | 'code' | 'window' | 'github' | 'intelligence'
+type Pane = 'appearance' | 'code' | 'window' | 'github' | 'intelligence' | 'about'
 
 const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
   {
@@ -146,7 +149,29 @@ const PANES: { id: Pane; label: string; icon: ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    id: 'about',
+    label: 'About',
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 11v5.5" />
+        <circle cx="12" cy="7.8" r=".6" fill="currentColor" />
+      </svg>
+    ),
+  },
 ]
+
+/** About Diffdesk opens the window on its pane: in the URL, or by event once it is open. */
+const initialPane = (): Pane =>
+  new URLSearchParams(location.search).get('pane') === 'about' ? 'about' : 'appearance'
 
 /** A missing family renders in its fallback, so its glyphs measure the same. */
 function installed(font: string): boolean {
@@ -169,7 +194,7 @@ function installed(font: string): boolean {
 export default function SettingsWindow() {
   const [settings, setSettings] = useState<DesktopSettings | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [pane, setPane] = useState<Pane>('appearance')
+  const [pane, setPane] = useState<Pane>(initialPane)
   useAppearance(settings ?? DEFAULT_SETTINGS)
   useEffect(() => {
     window.go?.main.desktopApp
@@ -205,6 +230,13 @@ export default function SettingsWindow() {
       window.runtime?.EventsOn<string>('desktop:settings', (raw) => {
         changed.current = false
         setSettings(readSettings(raw))
+      }),
+    [],
+  )
+  useEffect(
+    () =>
+      window.runtime?.EventsOn<string>('desktop:settings-pane', (next) => {
+        if (next === 'about') setPane('about')
       }),
     [],
   )
@@ -259,6 +291,7 @@ export default function SettingsWindow() {
           <IntelligencePane settings={settings} onChange={change} />
         )}
         {settings && pane === 'github' && <GitHubPane settings={settings} onChange={change} />}
+        {pane === 'about' && <AboutPane onError={setError} />}
       </main>
     </div>
   )
@@ -713,6 +746,114 @@ function GitHubPane({ settings, onChange }: PaneProps) {
         </div>
       )}
     </div>
+  )
+}
+
+const SUPPORT = [
+  {
+    link: 'sponsor',
+    icon: (
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M8 14.2s-5.6-3.3-6.6-6.7C.7 5 2.2 2.4 4.8 2.4c1.4 0 2.5.8 3.2 1.9.7-1.1 1.8-1.9 3.2-1.9 2.6 0 4.1 2.6 3.4 5.1-1 3.4-6.6 6.7-6.6 6.7z"
+        />
+      </svg>
+    ),
+    label: 'GitHub Sponsors',
+    note: 'Monthly or one-time, through your GitHub account.',
+    button: 'Sponsor',
+  },
+  {
+    link: 'buy-coffee',
+    icon: (
+      <svg
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M2.5 6h9v3.5a3.5 3.5 0 0 1-3.5 3.5H6a3.5 3.5 0 0 1-3.5-3.5z" />
+        <path d="M11.5 7h1a1.75 1.75 0 0 1 0 3.5h-1.2M5 1.8v2M7.5 1.8v2" />
+      </svg>
+    ),
+    label: 'Buy Me a Coffee',
+    note: 'A one-off thank-you, no account needed.',
+    button: 'Buy a Coffee',
+  },
+]
+
+const LINKS = [
+  { link: 'website', label: 'Website and guide' },
+  { link: 'release-notes', label: 'Release notes' },
+  { link: 'source', label: 'Source code' },
+  { link: 'report-issue', label: 'Report an issue' },
+]
+
+function AboutPane({ onError }: { onError: (message: string) => void }) {
+  const [build, setBuild] = useState<BuildInfo | null>(null)
+  useEffect(() => {
+    window.go?.main.desktopApp
+      .Build()
+      .then(setBuild)
+      .catch((cause) => onError(String(cause)))
+  }, [onError])
+  const open = (link: string) =>
+    window.go?.main.desktopApp.OpenLink(link).catch((cause) => onError(String(cause)))
+  return (
+    <>
+      <div className="about-app">
+        <img src={appIcon} alt="" />
+        <span className="settings-label">
+          Diffdesk
+          {build && <small>Version {build.version}</small>}
+        </span>
+      </div>
+      <div className="settings-group">
+        <div className="settings-field">
+          <img className="about-author" src={authorPhoto} alt="" />
+          <span className="settings-label">
+            Made by Valentin Maerten
+            <small>Built and maintained by one developer, in the open.</small>
+          </span>
+          <button type="button" className="button" onClick={() => open('author')}>
+            @vmaerten
+          </button>
+        </div>
+      </div>
+      <h2 className="settings-heading">Support Diffdesk</h2>
+      <div className="settings-group">
+        {SUPPORT.map(({ link, icon, label, note, button }) => (
+          <div key={link} className="settings-field">
+            <span className={`about-support ${link}`}>{icon}</span>
+            <span className="settings-label">
+              {label}
+              <small>{note}</small>
+            </span>
+            <button type="button" className="button" onClick={() => open(link)}>
+              {button}
+            </button>
+          </div>
+        ))}
+      </div>
+      <h2 className="settings-heading">Links</h2>
+      <div className="settings-group">
+        {LINKS.map(({ link, label }) => (
+          <button
+            key={link}
+            type="button"
+            className="settings-field about-link"
+            onClick={() => open(link)}
+          >
+            <span className="settings-label">{label}</span>
+            <span aria-hidden="true">↗</span>
+          </button>
+        ))}
+      </div>
+    </>
   )
 }
 

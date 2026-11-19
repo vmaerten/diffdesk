@@ -1891,6 +1891,60 @@ button.stack-branch:focus-visible::after {
   font-weight: 600;
 }
 
+.about-app {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.about-app img {
+  width: 60px;
+  height: 60px;
+}
+.about-app small {
+  font-weight: 400;
+}
+.about-author {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+.about-support {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+}
+.about-support svg {
+  width: 15px;
+  height: 15px;
+}
+.about-support.sponsor {
+  background: rgb(219 97 162 / 0.14);
+  color: #db61a2;
+}
+.about-support.buy-coffee {
+  background: #ffdd00;
+  color: #3b2f00;
+}
+.settings-field.about-link {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.settings-field.about-link + .settings-field.about-link {
+  border-top: 1px solid var(--border);
+}
+.settings-field.about-link > span:last-child {
+  color: var(--text-dim);
+}
+
 /* The card a symbol opens while ⌘ is held. */
 .symbol-card {
   position: fixed;

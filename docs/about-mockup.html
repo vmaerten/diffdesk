@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diffdesk — about</title>
+<style>
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --sponsor: #db61a2; --coffee: #ffdd00; --coffee-ink: #3b2f00;
+}
+[hidden] { display: none !important; }
+[data-theme="light"] {
+  color-scheme: light;
+  --wallpaper: radial-gradient(at 15% 15%, #9ec5ff, transparent 50%), radial-gradient(at 85% 25%, #ffc3a0, transparent 50%), radial-gradient(at 50% 95%, #b8a6ff, transparent 55%), #dfe6f2;
+  --app-bg: #f8f8f6; --chrome-bg: #f1f1ef; --raised: #fff; --sidebar-bg: #ececea;
+  --border: rgb(17 17 17 / .1); --wash: rgb(127 127 127 / .1); --wash-strong: rgb(127 127 127 / .2);
+  --text: #111; --text-2: rgb(17 17 17 / .78); --muted: rgb(17 17 17 / .56);
+  --accent: #3d87f5; --accent-ink: #1559c4; --add: rgb(31 122 68);
+  --shadow: 0 30px 80px rgb(0 0 0 / .25), 0 0 0 .5px rgb(0 0 0 / .25);
+  --popover-bg: rgb(251 251 250 / .98); --sheet-bg: #f6f6f4; --control-bg: #fff; --control-border: rgb(0 0 0 / .18);
+  --menu-bg: rgb(246 246 246 / .92); --page-text: rgb(17 17 17 / .8);
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --wallpaper: radial-gradient(at 15% 15%, #1d3b73, transparent 50%), radial-gradient(at 85% 25%, #5a2d4f, transparent 50%), radial-gradient(at 50% 95%, #3b2d73, transparent 55%), #14161c;
+  --app-bg: #1e1e1e; --chrome-bg: #252525; --raised: #2a2a2a; --sidebar-bg: #232323;
+  --border: rgb(230 230 230 / .1); --wash: rgb(127 127 127 / .14); --wash-strong: rgb(127 127 127 / .26);
+  --text: rgb(235 235 235); --text-2: rgb(230 230 230 / .8); --muted: rgb(230 230 230 / .52);
+  --accent: #3d87f5; --accent-ink: #8cb8ff; --add: rgb(111 208 148);
+  --shadow: 0 30px 80px rgb(0 0 0 / .55), 0 0 0 .5px rgb(255 255 255 / .18);
+  --popover-bg: rgb(40 40 40 / .98); --sheet-bg: #262626; --control-bg: rgb(255 255 255 / .1); --control-border: rgb(255 255 255 / .12);
+  --menu-bg: rgb(40 40 40 / .92); --page-text: rgb(255 255 255 / .85);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 72px 16px 48px;
+  background: var(--wallpaper); font: 13px/1.4 var(--font-sans); color: var(--text);
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
+svg { width: 16px; height: 16px; flex: none; }
+a { color: var(--accent-ink); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.dim { color: var(--muted); }
+code { font: 600 11.5px var(--font-mono); padding: 1px 4px; border-radius: 4px; background: var(--wash); }
+kbd { font: 600 10.5px/1 var(--font-mono); padding: 2px 5px; border-radius: 4px; background: var(--wash-strong); color: var(--text-2); }
+
+/* Mockup-only controls */
+.mock-controls {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 50; max-width: calc(100% - 32px); overflow-x: auto;
+  display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 12px; white-space: nowrap;
+  background: var(--popover-bg); border: 1px solid var(--border); box-shadow: 0 8px 24px rgb(0 0 0 / .2);
+  font: 600 12px var(--font-sans); color: var(--text-2);
+}
+.mock-controls > span { padding: 0 8px; color: var(--muted); }
+.mock-controls .sep { width: 1px; height: 16px; padding: 0; background: var(--border); margin: 0 4px; }
+.mock-controls button { height: 26px; padding: 0 10px; border-radius: 8px; }
+.mock-controls button:hover { background: var(--wash); }
+.mock-controls button[aria-pressed="true"] { background: var(--wash-strong); color: var(--text); }
+.caption { width: min(880px, 100%); margin: 0; color: var(--page-text); font-size: 13px; line-height: 1.55; }
+.caption b { color: var(--text); }
+.caption ul { margin: 6px 0 0; padding-left: 18px; }
+.stage { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 28px; width: min(1100px, 100%); }
+.label { font: 600 11px var(--font-sans); letter-spacing: .05em; text-transform: uppercase; color: var(--page-text); opacity: .8; margin-bottom: 8px; }
+
+/* Shared window chrome */
+.win { background: var(--app-bg); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); user-select: none; -webkit-user-select: none; }
+.lights { display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .2); background: var(--wash-strong); }
+.lights i.close { background: #ff5f57; }
+.lights.all i:nth-child(2) { background: #febc2e; } .lights.all i:nth-child(3) { background: #28c840; }
+.app-icon { display: block; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 6px;
+  background: var(--control-bg); box-shadow: 0 0 0 .5px var(--control-border), 0 1px 1px rgb(0 0 0 / .06); font-size: 12.5px; white-space: nowrap;
+}
+.btn.primary { background: var(--accent); color: #fff; box-shadow: none; }
+.btn svg { width: 14px; height: 14px; }
+.btn.sponsor svg { color: var(--sponsor); }
+.btn.big { height: 30px; padding: 0 14px; border-radius: 8px; font-weight: 600; flex: 1; }
+.btn.coffee { background: var(--coffee); color: var(--coffee-ink); box-shadow: 0 0 0 .5px rgb(0 0 0 / .15); }
+.btn.coffee svg { color: var(--coffee-ink); }
+
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex: none; display: grid; place-items: center; overflow: hidden;
+  background: linear-gradient(135deg, #f0716f, #34c27a); color: #fff; font: 700 13px var(--font-sans);
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* A — About window */
+.about { width: 340px; }
+.about .bar { height: 28px; display: flex; align-items: center; padding: 0 10px; }
+.about .body { display: grid; justify-items: center; text-align: center; padding: 4px 26px 18px; }
+.about h1 { margin: 10px 0 2px; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+.about .version { font-size: 11.5px; color: var(--muted); }
+.about .version button { color: var(--accent-ink); font-size: 11.5px; }
+.about .tagline { margin: 8px 0 0; font-size: 12.5px; color: var(--text-2); }
+.about hr { width: 100%; margin: 16px 0; border: 0; border-top: 1px solid var(--border); }
+.author { display: flex; align-items: center; gap: 10px; text-align: left; width: 100%; }
+.author .who { display: grid; gap: 1px; font-size: 12.5px; }
+.author .who b { font-weight: 600; }
+.author .who span { font-size: 11.5px; color: var(--muted); }
+.pitch { margin: 0 0 12px; font-size: 12px; color: var(--text-2); line-height: 1.5; }
+.support { display: flex; gap: 8px; width: 100%; }
+.about .links { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; margin-top: 16px; font-size: 12px; }
+.about .legal { margin-top: 8px; font-size: 10.5px; color: var(--muted); }
+
+/* B — Settings pane */
+.settings { width: 640px; height: 600px; display: flex; flex-direction: column; }
+.settings-toolbar { position: relative; display: grid; justify-items: center; padding-bottom: 6px; background: var(--chrome-bg); border-bottom: 1px solid var(--border); }
+.settings-toolbar .lights { position: absolute; left: 10px; top: 8px; }
+.settings-toolbar h1 { margin: 0; line-height: 28px; font-size: 13px; font-weight: 600; }
+.panes { display: flex; gap: 4px; }
+.panes button { display: grid; justify-items: center; gap: 2px; min-width: 76px; padding: 5px 8px 4px; border-radius: 8px; color: var(--muted); font-size: 11px; }
+.panes svg { width: 24px; height: 24px; }
+.panes button.on { background: var(--wash); color: var(--accent); }
+.panes button.on span { color: var(--text); }
+.settings-pane { flex: 1; overflow: auto; display: grid; align-content: start; gap: 16px; padding: 20px; }
+.hero { display: flex; align-items: center; gap: 14px; }
+.hero .what { flex: 1; display: grid; gap: 2px; }
+.hero .what b { font-size: 15px; }
+.hero .what span { font-size: 12px; color: var(--muted); }
+.hero .what span i { font-style: normal; color: var(--add); }
+.heading { margin: 0 0 -8px 2px; font: 600 11px var(--font-sans); color: var(--muted); }
+.group { border: 1px solid var(--border); border-radius: 10px; background: var(--raised); }
+.field { display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 7px 12px; }
+.field + .field { border-top: 1px solid var(--border); }
+.field .lbl { flex: 1; display: grid; gap: 1px; }
+.field .lbl small { color: var(--muted); font-size: 11.5px; }
+.field .ico { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex: none; }
+.field .ico svg { width: 15px; height: 15px; }
+.ico.sponsor { background: rgb(219 97 162 / .14); color: var(--sponsor); }
+.ico.coffee { background: var(--coffee); color: var(--coffee-ink); }
+.field .go { color: var(--muted); }
+
+/* C — Update sheet */
+.sheet-host { width: 560px; height: 430px; position: relative; display: grid; place-items: start center; background: var(--app-bg); }
+.sheet-host::before { content: ""; position: absolute; inset: 0; background: rgb(0 0 0 / .18); }
+.sheet-host .titlebar { position: absolute; inset: 0 0 auto; height: 40px; display: flex; align-items: center; padding: 0 14px; background: var(--chrome-bg); border-bottom: 1px solid var(--border); }
+.sheet {
+  position: relative; margin-top: 40px; width: 440px; padding: 18px 20px 16px; border-radius: 0 0 12px 12px; background: var(--sheet-bg);
+  box-shadow: 0 16px 40px rgb(0 0 0 / .25), 0 0 0 .5px var(--control-border); display: grid; gap: 12px;
+}
+.sheet-head { display: flex; gap: 12px; align-items: center; }
+.sheet-head h2 { margin: 0; font-size: 13px; font-weight: 700; }
+.sheet-head p { margin: 2px 0 0; font-size: 12px; color: var(--text-2); }
+.notes { max-height: 120px; overflow: hidden; padding: 10px 12px; border-radius: 8px; background: var(--raised); border: 1px solid var(--border); font-size: 12px; color: var(--text-2); }
+.notes h4 { margin: 0 0 4px; font-size: 12px; color: var(--text); }
+.notes ul { margin: 0; padding-left: 16px; }
+.thanks { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: rgb(219 97 162 / .08); font-size: 12px; color: var(--text-2); }
+.thanks > svg { color: var(--sponsor); }
+.thanks .spacer { flex: 1; }
+.thanks a { font-weight: 600; white-space: nowrap; }
+.sheet footer { display: flex; justify-content: flex-end; gap: 8px; }
+.sheet footer .left { margin-right: auto; }
+
+/* D — Menus and palette */
+.menubar { width: 520px; height: 24px; display: flex; align-items: center; gap: 2px; padding: 0 8px; border-radius: 8px 8px 0 0; background: var(--menu-bg); backdrop-filter: blur(20px); font-size: 13px; box-shadow: 0 0 0 .5px var(--control-border); }
+.menubar span { padding: 1px 9px; border-radius: 4px; }
+.menubar span.app { font-weight: 700; }
+.menubar span.open { background: var(--accent); color: #fff; }
+.menu-wrap { position: relative; height: 290px; width: 520px; }
+.menu {
+  position: absolute; top: 2px; min-width: 250px; padding: 5px; border-radius: 8px; background: var(--menu-bg); backdrop-filter: blur(20px);
+  box-shadow: 0 10px 30px rgb(0 0 0 / .25), 0 0 0 .5px var(--control-border); font-size: 13px;
+}
+.menu .item { display: flex; align-items: center; gap: 8px; height: 22px; padding: 0 9px; border-radius: 4px; }
+.menu .item.hi { background: var(--accent); color: #fff; }
+.menu .item .k { margin-left: auto; color: var(--muted); font-size: 12px; }
+.menu .item.hi .k { color: rgb(255 255 255 / .8); }
+.menu .item svg { width: 13px; height: 13px; }
+.menu .item.new::after { content: "nouveau"; margin-left: auto; font: 600 9.5px var(--font-sans); text-transform: uppercase; letter-spacing: .05em; padding: 1px 5px; border-radius: 4px; background: rgb(61 135 245 / .15); color: var(--accent-ink); }
+.menu .item.hi.new::after { background: rgb(255 255 255 / .25); color: #fff; }
+.menu hr { margin: 5px 9px; border: 0; border-top: 1px solid var(--border); }
+.palette { width: 520px; border-radius: 12px; background: var(--popover-bg); box-shadow: var(--shadow); overflow: hidden; }
+.palette .q { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-bottom: 1px solid var(--border); font-size: 15px; }
+.palette .q .caret { width: 1.5px; height: 18px; background: var(--accent); margin-left: -6px; }
+.palette .q svg { color: var(--muted); }
+.palette .list { padding: 6px; }
+.palette .sec { padding: 6px 8px 4px; font: 600 11px var(--font-sans); color: var(--muted); }
+.palette .opt { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px; border-radius: 7px; font-size: 13px; }
+.palette .opt.hi { background: var(--wash-strong); }
+.palette .opt svg { color: var(--muted); }
+.palette .opt .sponsor { color: var(--sponsor); }
+.palette .opt .k { margin-left: auto; font-size: 11.5px; color: var(--muted); }
+.palette mark { background: none; color: var(--accent-ink); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="mock-controls" role="toolbar" aria-label="Mockup">
+  <span>Variante</span>
+  <button data-variant="A" aria-pressed="true">A · Fenêtre About</button>
+  <button data-variant="B" aria-pressed="false">B · Pane Settings</button>
+  <button data-variant="C" aria-pressed="false">C · Sheet de mise à jour</button>
+  <button data-variant="D" aria-pressed="false">D · Menus &amp; ⌘K</button>
+  <span class="sep"></span>
+  <button data-theme-set="light" aria-pressed="true">Clair</button>
+  <button data-theme-set="dark" aria-pressed="false">Sombre</button>
+</div>
+
+<!-- Shared symbols -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="icon" viewBox="0 0 1024 1024">
+    <defs><linearGradient id="navy" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#232b3b"/><stop offset="1" stop-color="#10141c"/></linearGradient></defs>
+    <path d="M288 64H736C886 64 960 138 960 288V736C960 886 886 960 736 960H288C138 960 64 886 64 736V288C64 138 138 64 288 64Z" fill="url(#navy)"/>
+    <path d="M288 68H736C882 68 956 142 956 288V736C956 882 882 956 736 956H288C142 956 68 882 68 736V288C68 142 142 68 288 68Z" fill="none" stroke="#d1dfef" stroke-opacity=".15" stroke-width="4"/>
+    <path d="M288 240H494V784H288C260 784 236 760 236 732V292C236 264 260 240 288 240Z" fill="#f0716f"/>
+    <path d="M516 240A272 272 0 0 1 516 784Z" fill="#34c27a"/>
+  </symbol>
+  <symbol id="heart" viewBox="0 0 16 16"><path fill="currentColor" d="M8 14.2s-5.6-3.3-6.6-6.7C.7 5 2.2 2.4 4.8 2.4c1.4 0 2.5.8 3.2 1.9.7-1.1 1.8-1.9 3.2-1.9 2.6 0 4.1 2.6 3.4 5.1-1 3.4-6.6 6.7-6.6 6.7z"/></symbol>
+  <symbol id="cup" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6h9v3.5a3.5 3.5 0 0 1-3.5 3.5H6a3.5 3.5 0 0 1-3.5-3.5z"/><path d="M11.5 7h1a1.75 1.75 0 0 1 0 3.5h-1.2M5 1.8v2M7.5 1.8v2"/></g></symbol>
+  <symbol id="ext" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M6 3.5H3.5v9h9V10M9 2.5h4.5V7M13.5 2.5 7 9"/></symbol>
+  <symbol id="globe" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c1.7 1.8 2.5 3.8 2.5 6S9.7 12.2 8 14C6.3 12.2 5.5 10.2 5.5 8S6.3 3.8 8 2z"/></g></symbol>
+  <symbol id="code" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5"/></symbol>
+  <symbol id="bug" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="4.5" y="5" width="7" height="8.5" rx="3.5"/><path d="M6 5V4a2 2 0 0 1 4 0v1M2 9h2.5M11.5 9H14M2.5 5.5l2 1.2M13.5 5.5l-2 1.2M2.5 13l2-1.2M13.5 13l-2-1.2"/></g></symbol>
+  <symbol id="doc" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M4 1.8h5.5L12.5 5v9.2H4z"/><path d="M9.5 1.8V5h3M6 8h4.5M6 10.5h4.5"/></g></symbol>
+  <symbol id="search" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></g></symbol>
+  <symbol id="info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/></g></symbol>
+</svg>
+
+<!-- ============ A ============ -->
+<section data-show="A">
+  <p class="caption"><b>A — Une vraie fenêtre « About Diffdesk ».</b> Remplace le rôle <code>application.About</code> de Wails (aujourd'hui : icône + nom, sans lien cliquable) par une petite fenêtre non redimensionnable, ouverte depuis le menu Diffdesk, comme Settings. Le soutien est visible mais seulement quand on vient le chercher : zéro nag dans la review.</p>
+</section>
+<div class="stage" data-show="A">
+  <div>
+    <div class="label">Diffdesk ▸ About Diffdesk</div>
+    <div class="win about">
+      <div class="bar"><div class="lights"><i class="close"></i><i></i><i></i></div></div>
+      <div class="body">
+        <svg class="app-icon" style="width:88px;height:88px"><use href="#icon"/></svg>
+        <h1>Diffdesk</h1>
+        <div class="version">Version 0.11.0 · <button>Check for Updates…</button></div>
+        <p class="tagline">Review your local changes like a pull request.</p>
+        <hr>
+        <div class="author">
+          <div class="avatar"><img src="https://github.com/vmaerten.png?size=96" alt="" onerror="this.replaceWith('VM')"></div>
+          <div class="who"><b>Made by Valentin Maerten</b><span><a href="#">@vmaerten</a> on GitHub</span></div>
+        </div>
+        <hr>
+        <p class="pitch">Diffdesk is free and open source. If it saves you review time, you can help keep it going.</p>
+        <div class="support">
+          <button class="btn big sponsor"><svg><use href="#heart"/></svg>Sponsor</button>
+          <button class="btn big coffee"><svg><use href="#cup"/></svg>Buy me a coffee</button>
+        </div>
+        <div class="links"><a href="#">Website</a><a href="#">Source code</a><a href="#">Changelog</a><a href="#">Acknowledgements</a></div>
+        <div class="legal">© 2026 Diffdesk contributors · MIT License</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ B ============ -->
+<section data-show="B" hidden>
+  <p class="caption"><b>B — Un 6ᵉ pane « About » dans Settings.</b> Pas de nouvelle fenêtre : on réutilise la fenêtre et les groupes existants (<code>.settings-group</code>). Plus de place pour expliquer les deux options de soutien et ranger les liens (issue, licences tierces). Le menu « About Diffdesk » ouvrirait Settings sur ce pane.</p>
+</section>
+<div class="stage" data-show="B" hidden>
+  <div class="win settings">
+    <header class="settings-toolbar">
+      <div class="lights all"><i class="close"></i><i></i><i></i></div>
+      <h1>About</h1>
+      <nav class="panes">
+        <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor" stroke="none"/></svg><span>Appearance</span></button>
+        <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5"/></svg><span>Code</span></button>
+        <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 9.5h17"/></svg><span>Window</span></button>
+        <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="6" r="2.5"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="18" r="2.5"/><path d="M6.5 8.5v7M17.5 15.5V10a3 3 0 0 0-3-3H11M13 4.5 10.5 7 13 9.5"/></svg><span>GitHub</span></button>
+        <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/></svg><span>Intelligence</span></button>
+        <button class="on"><svg><use href="#info"/></svg><span>About</span></button>
+      </nav>
+    </header>
+    <main class="settings-pane">
+      <div class="hero">
+        <svg style="width:60px;height:60px"><use href="#icon"/></svg>
+        <div class="what"><b>Diffdesk 0.11.0</b><span><i>●</i> Up to date · checked today at 09:12</span></div>
+        <button class="btn">Check for Updates…</button>
+      </div>
+      <div class="group">
+        <div class="field">
+          <div class="avatar"><img src="https://github.com/vmaerten.png?size=96" alt="" onerror="this.replaceWith('VM')"></div>
+          <div class="lbl">Made by Valentin Maerten<small>Built and maintained by one developer, in the open.</small></div>
+          <button class="btn">@vmaerten <svg><use href="#ext"/></svg></button>
+        </div>
+      </div>
+      <p class="heading">Support Diffdesk</p>
+      <div class="group">
+        <div class="field">
+          <span class="ico sponsor"><svg><use href="#heart"/></svg></span>
+          <div class="lbl">GitHub Sponsors<small>Monthly or one-time, through your GitHub account.</small></div>
+          <button class="btn sponsor"><svg><use href="#heart"/></svg>Sponsor</button>
+        </div>
+        <div class="field">
+          <span class="ico coffee"><svg><use href="#cup"/></svg></span>
+          <div class="lbl">Buy Me a Coffee<small>A one-off thank-you, no account needed.</small></div>
+          <button class="btn">Buy a Coffee <svg><use href="#ext"/></svg></button>
+        </div>
+      </div>
+      <p class="heading">Links</p>
+      <div class="group">
+        <div class="field"><svg class="dim"><use href="#globe"/></svg><div class="lbl">Website and guide</div><svg class="go"><use href="#ext"/></svg></div>
+        <div class="field"><svg class="dim"><use href="#code"/></svg><div class="lbl">Source code</div><svg class="go"><use href="#ext"/></svg></div>
+        <div class="field"><svg class="dim"><use href="#bug"/></svg><div class="lbl">Report an issue</div><svg class="go"><use href="#ext"/></svg></div>
+        <div class="field"><svg class="dim"><use href="#doc"/></svg><div class="lbl">Acknowledgements<small>Third-party licences shipped with the app.</small></div><svg class="go"><use href="#ext"/></svg></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ============ C ============ -->
+<section data-show="C" hidden>
+  <p class="caption"><b>C — Un merci dans la sheet de mise à jour.</b> Le seul moment où l'app « parle » d'elle-même, et où l'utilisateur vient de recevoir quelque chose. Une ligne discrète, jamais plus d'une fois par version. À combiner avec A ou B, pas en remplacement.</p>
+</section>
+<div class="stage" data-show="C" hidden>
+  <div>
+    <div class="label">Mise à jour disponible</div>
+    <div class="win sheet-host">
+      <div class="titlebar"><div class="lights all"><i class="close"></i><i></i><i></i></div></div>
+      <div class="sheet">
+        <div class="sheet-head">
+          <svg style="width:48px;height:48px"><use href="#icon"/></svg>
+          <div><h2>A new version of Diffdesk is available</h2><p>Diffdesk 0.12.0 is ready to install with Homebrew.</p></div>
+        </div>
+        <div class="notes"><h4>✨ Features</h4><ul><li>Pair changed lines by similarity</li><li>Highlight the whole row when hovering a stack layer</li></ul></div>
+        <div class="thanks"><svg><use href="#heart"/></svg><span>Diffdesk is free and made by one person.</span><span class="spacer"></span><a href="#">Sponsor</a><span class="dim">·</span><a href="#">Buy me a coffee</a></div>
+        <footer><button class="btn left">Skip This Version</button><button class="btn">Remind Me Later</button><button class="btn primary">Update and Restart</button></footer>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="label">Check for Updates… → à jour</div>
+    <div class="win sheet-host" style="width:480px;height:300px">
+      <div class="titlebar"><div class="lights all"><i class="close"></i><i></i><i></i></div></div>
+      <div class="sheet" style="width:400px">
+        <div class="sheet-head">
+          <svg style="width:48px;height:48px"><use href="#icon"/></svg>
+          <div><h2>You’re up to date</h2><p>Diffdesk 0.11.0 is the latest stable version.</p></div>
+        </div>
+        <div class="thanks"><svg><use href="#heart"/></svg><span>Enjoying Diffdesk?</span><span class="spacer"></span><a href="#">Sponsor</a><span class="dim">·</span><a href="#">Buy me a coffee</a></div>
+        <footer><button class="btn primary">OK</button></footer>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ D ============ -->
+<section data-show="D" hidden>
+  <p class="caption"><b>D — Menus natifs et palette.</b> Le minimum vital, quasi gratuit à coder (<code>desktop/main.go</code> + <code>web/src/commands.ts</code>) : des entrées qui ouvrent les pages dans le navigateur. Suffisant seul si tu veux rester ultra sobre, et complète A ou B dans tous les cas.</p>
+</section>
+<div class="stage" data-show="D" hidden>
+  <div>
+    <div class="label">Menu Diffdesk</div>
+    <div class="menubar"><span>&#63743;</span><span class="app open">Diffdesk</span><span>File</span><span>Edit</span><span>View</span><span>Review</span><span>Window</span><span>Help</span></div>
+    <div class="menu-wrap">
+      <div class="menu" style="left:30px">
+        <div class="item hi">About Diffdesk</div>
+        <div class="item">Check for Updates…</div>
+        <div class="item new"><svg style="color:var(--sponsor)"><use href="#heart"/></svg>Support Diffdesk…</div>
+        <hr>
+        <div class="item">Settings…<span class="k">⌘,</span></div>
+        <hr>
+        <div class="item">Services</div>
+        <hr>
+        <div class="item">Hide Diffdesk<span class="k">⌘H</span></div>
+        <div class="item">Quit Diffdesk<span class="k">⌘Q</span></div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="label">Menu Help</div>
+    <div class="menubar"><span>&#63743;</span><span class="app">Diffdesk</span><span>File</span><span>Edit</span><span>View</span><span>Review</span><span>Window</span><span class="open">Help</span></div>
+    <div class="menu-wrap">
+      <div class="menu" style="left:300px;min-width:230px">
+        <div class="item">Keyboard Shortcuts</div>
+        <hr>
+        <div class="item new">Diffdesk Website</div>
+        <div class="item new">Release Notes</div>
+        <div class="item new">Report an Issue…</div>
+        <hr>
+        <div class="item new hi">Sponsor on GitHub</div>
+        <div class="item new">Buy Me a Coffee</div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="label">⌘K « spons »</div>
+    <div class="palette">
+      <div class="q"><svg><use href="#search"/></svg>spons<span class="caret"></span></div>
+      <div class="list">
+        <div class="sec">Diffdesk</div>
+        <div class="opt hi"><svg class="sponsor"><use href="#heart"/></svg><span><mark>Spons</mark>or Diffdesk on GitHub</span><span class="k">opens in browser</span></div>
+        <div class="opt"><svg><use href="#cup"/></svg><span>Buy Me a Coffee</span><span class="k">opens in browser</span></div>
+        <div class="opt"><svg><use href="#info"/></svg><span>About Diffdesk</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const setPressed = (selector, active) => document.querySelectorAll(selector).forEach((b) => b.setAttribute('aria-pressed', String(b === active)))
+document.querySelectorAll('[data-variant]').forEach((button) => button.addEventListener('click', () => {
+  setPressed('[data-variant]', button)
+  document.querySelectorAll('[data-show]').forEach((el) => { el.hidden = el.dataset.show !== button.dataset.variant })
+}))
+document.querySelectorAll('[data-theme-set]').forEach((button) => button.addEventListener('click', () => {
+  setPressed('[data-theme-set]', button)
+  document.documentElement.dataset.theme = button.dataset.themeSet
+}))
+</script>
+</body>
+</html>

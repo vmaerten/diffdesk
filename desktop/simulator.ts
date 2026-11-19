@@ -50,6 +50,8 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
     fileMenus: [] as { path: string; viewed: boolean }[],
     settingsOpened: 0,
     opened: [] as string[],
+    aboutOpened: 0,
+    links: [] as string[],
     savedViews: {} as Record<string, SavedView>,
     updateInstalls: 0,
     updateChecks: 0,
@@ -123,6 +125,13 @@ export function simulateDesktopRuntime(given: DesktopTab[] | null, bridgeSource:
         OpenSettings: async () => {
           fixture.settingsOpened += 1
         },
+        OpenAbout: async () => {
+          fixture.aboutOpened += 1
+        },
+        OpenLink: async (name) => {
+          fixture.links.push(name)
+        },
+        Build: async () => ({ version: '1.2.3', commit: 'abc1234', buildDate: '' }),
         SaveTabView: async (id: string, raw: string) => {
           fixture.savedViews[id] = JSON.parse(raw)
         },

@@ -1,3 +1,4 @@
+import { installDesktopRuntime } from '../desktopRuntime.ts'
 import { command, poll, titlebar, TREE_ROWS, VIEWED_COUNT, type Suite } from '../harness.ts'
 
 const OPEN = 'dialog.command-palette[open]'
@@ -112,6 +113,45 @@ export default {
     await page.keyboard.press('Enter')
     const opened = () => page.evaluate(`window.desktopFixture.settingsOpened`) as Promise<number>
     check('Settings… opens the Settings window', (await poll(opened, (n) => n === 1)) === 1)
+
+    await open()
+    await search('about', 'About Diffdesk')
+    await page.keyboard.press('Enter')
+    const aboutOpened = () => page.evaluate(`window.desktopFixture.aboutOpened`) as Promise<number>
+    check('About Diffdesk opens its pane', (await poll(aboutOpened, (n) => n === 1)) === 1)
+
+    await open()
+    await search('sponsor', 'Sponsor on GitHub')
+    await page.keyboard.press('Enter')
+    const links = () => page.evaluate(`window.desktopFixture.links.join()`) as Promise<string>
+    check(
+      'a link command opens its page',
+      (await poll(links, (l) => l === 'sponsor')) === 'sponsor',
+    )
+
+    // What Go opens for About Diffdesk when Settings is closed.
+    const about = await page.browserContext().newPage()
+    await installDesktopRuntime(about)
+    await about.goto(new URL('/settings?pane=about', page.url()).href, {
+      waitUntil: 'networkidle0',
+    })
+    await about.waitForSelector('.about-app small')
+    check(
+      'the About pane shows the running version',
+      (await about.$eval('.about-app small', (node) => node.textContent)) === 'Version 1.2.3',
+    )
+    await about.evaluate(() =>
+      [...document.querySelectorAll<HTMLButtonElement>('.settings-pane button')]
+        .find((button) => button.textContent === 'Buy a Coffee')!
+        .click(),
+    )
+    const aboutLinks = () => about.evaluate(`window.desktopFixture.links.join()`) as Promise<string>
+    check(
+      'the About pane opens its support pages',
+      (await poll(aboutLinks, (l) => l === 'buy-coffee')) === 'buy-coffee',
+    )
+    await about.close()
+    await page.bringToFront()
 
     const zoom = () => page.evaluate(() => Number(getComputedStyle(document.documentElement).zoom))
     const originalSettings = await page.evaluate(() => window.go!.main.desktopApp.Settings())

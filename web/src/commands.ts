@@ -32,8 +32,26 @@ export type ReviewCommand =
   | 'go-to-file'
   | 'code-intelligence-status'
 
-/** Go's menus open a repository and Settings and check for updates themselves; only the palette sends those. */
+/** The pages Go opens in the browser, named as desktop/about.go's links. */
+export type LinkCommand = 'website' | 'release-notes' | 'report-issue' | 'sponsor' | 'buy-coffee'
+
+const LINKS: CommandName[] = [
+  'website',
+  'release-notes',
+  'report-issue',
+  'sponsor',
+  'buy-coffee',
+] satisfies LinkCommand[]
+
+export const isLink = (name: CommandName): name is LinkCommand => LINKS.includes(name)
+
+/**
+ * Go's menus open a repository, Settings, About and links and check for
+ * updates themselves; only the palette sends those.
+ */
 export type WindowCommand =
+  | LinkCommand
+  | 'about'
   | 'reload'
   | 'close-tab'
   | 'shortcuts'
@@ -64,6 +82,7 @@ export interface CommandEntry {
  */
 export const COMMANDS: CommandEntry[] = [
   { name: 'install-update', label: 'Update and Restart…', group: 'Diffdesk' },
+  { name: 'about', label: 'About Diffdesk', group: 'Diffdesk' },
   { name: 'check-updates', label: 'Check for Updates…', group: 'Diffdesk' },
   { name: 'settings', label: 'Settings…', group: 'Diffdesk', keys: '⌘,' },
   { name: 'open-repository', label: 'Open Repository…', group: 'File', keys: '⌘O' },
@@ -98,6 +117,11 @@ export const COMMANDS: CommandEntry[] = [
   { name: 'copy-comments', label: 'Copy All Comments', group: 'Review', keys: '⇧⌘C' },
   { name: 'refresh', label: 'Refresh', group: 'Review', keys: 'r' },
   { name: 'shortcuts', label: 'Keyboard Shortcuts', group: 'Help' },
+  { name: 'website', label: 'Diffdesk Website', group: 'Help' },
+  { name: 'release-notes', label: 'Release Notes', group: 'Help' },
+  { name: 'report-issue', label: 'Report an Issue…', group: 'Help' },
+  { name: 'sponsor', label: 'Sponsor on GitHub', group: 'Help' },
+  { name: 'buy-coffee', label: 'Buy Me a Coffee', group: 'Help' },
   { name: 'code-intelligence-status', label: 'Check IntelliSense Status…', group: 'Help' },
 ]
 

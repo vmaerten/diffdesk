@@ -22,6 +22,9 @@ const methods = [
   'DismissUpdate',
   'SkipUpdate',
   'InstallUpdate',
+  'OpenAbout',
+  'OpenLink',
+  'Build',
 ]
 window.go = {
   main: {
