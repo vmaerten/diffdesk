@@ -9,6 +9,7 @@
 ### 🐛 Fixes
 
 - Links that leave the app open in your browser: release notes, the pull request and its checks, stack layers and Markdown previews did nothing when clicked. ([#330](https://github.com/vmaerten/diffdesk/pull/330))
+- Choosing the checked-out branch as the target keeps its uncommitted changes in the diff: it reviewed only the commits, as for any other branch. ([#331](https://github.com/vmaerten/diffdesk/pull/331))
 
 ## 0.11.0
 

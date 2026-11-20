@@ -287,12 +287,15 @@ export default function App({
     return () => cancelAnimationFrame(frame)
   }, [repoId, shownLoad])
 
+  // The checked-out branch goes through the working tree, as a stack layer does:
+  // as a ref it would drop the uncommitted work it is shown as "current" with.
+  const headBranch = data?.head.branch
   const pickTarget = useCallback(
     (ref: string | null) => {
       setPicking(null)
-      select.pickTarget(ref)
+      select.pickTarget(ref === headBranch ? null : ref)
     },
-    [select],
+    [select, headBranch],
   )
   const pickCommit = useCallback(
     (sha: string | null) => {
